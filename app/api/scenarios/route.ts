@@ -21,7 +21,8 @@ export async function POST(request: Request) {
     await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;
     const name = typeof payload.name === "string" ? payload.name.trim().slice(0, 80) : "";
-    if (!name || !validInteger(payload.revenueCents, 100_000, 10_000_000_000) || !validInteger(payload.currentRateBps, 0, 10_000) || !validInteger(payload.newRateBps, 0, 10_000) || !validInteger(payload.costRateBps, 0, 10_000)) {
+    const priceAdjustmentBps = payload.priceAdjustmentBps ?? 0;
+    if (!name || !validInteger(payload.revenueCents, 100_000, 10_000_000_000) || !validInteger(payload.currentRateBps, 0, 10_000) || !validInteger(payload.newRateBps, 0, 10_000) || !validInteger(payload.costRateBps, 0, 10_000) || !validInteger(priceAdjustmentBps, 0, 10_000)) {
       return Response.json({ error: "Revise os valores do cenário." }, { status: 400 });
     }
 
@@ -31,6 +32,7 @@ export async function POST(request: Request) {
       currentRateBps: Number(payload.currentRateBps),
       newRateBps: Number(payload.newRateBps),
       costRateBps: Number(payload.costRateBps),
+      priceAdjustmentBps: Number(priceAdjustmentBps),
     }).returning();
 
     return Response.json({ scenario }, { status: 201 });

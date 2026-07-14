@@ -8,5 +8,6 @@ export const scenarios = sqliteTable("scenarios", {
   currentRateBps: integer("current_rate_bps").notNull(),
   newRateBps: integer("new_rate_bps").notNull(),
   costRateBps: integer("cost_rate_bps").notNull(),
+  priceAdjustmentBps: integer("price_adjustment_bps").notNull().default(0),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

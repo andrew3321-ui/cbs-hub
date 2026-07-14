@@ -1,0 +1,1 @@
+ALTER TABLE `scenarios` ADD `price_adjustment_bps` integer DEFAULT 0 NOT NULL;

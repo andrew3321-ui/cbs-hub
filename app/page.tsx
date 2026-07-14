@@ -11,7 +11,16 @@ type SavedScenario = {
   currentRateBps: number;
   newRateBps: number;
   costRateBps: number;
+  priceAdjustmentBps: number;
   createdAt: string;
+};
+
+type ScenarioInputs = {
+  revenue: number;
+  currentRate: number;
+  newRate: number;
+  costRate: number;
+  priceAdjustment: number;
 };
 
 type ImportedDocument = {
@@ -70,6 +79,33 @@ function formatXmlDate(value: string) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : "Data não informada";
 }
 
+function calculateScenarioValues({ revenue, currentRate, newRate, costRate, priceAdjustment }: ScenarioInputs) {
+  const safeRevenue = Math.max(revenue || 0, 1);
+  const projectedRevenue = safeRevenue * (1 + priceAdjustment / 100);
+  const currentTax = revenue * (currentRate / 100);
+  const projectedTax = projectedRevenue * (newRate / 100);
+  const costs = revenue * (costRate / 100);
+  const currentMargin = revenue - costs - currentTax;
+  const projectedMargin = projectedRevenue - costs - projectedTax;
+  const delta = projectedTax - currentTax;
+  const newRateDecimal = newRate / 100;
+  const requiredPriceIncrease = newRateDecimal >= 1
+    ? 0
+    : Math.max(0, (((1 - currentRate / 100) / (1 - newRateDecimal)) - 1) * 100);
+
+  return {
+    projectedRevenue,
+    currentTax,
+    projectedTax,
+    currentMargin,
+    projectedMargin,
+    delta,
+    requiredPriceIncrease,
+    currentMarginRate: (currentMargin / safeRevenue) * 100,
+    projectedMarginRate: (projectedMargin / projectedRevenue) * 100,
+  };
+}
+
 export default function Home() {
   const [section, setSection] = useState<Section>("overview");
   const [revenue, setRevenue] = useState(284650);
@@ -79,35 +115,25 @@ export default function Home() {
   const [priceAdjustment, setPriceAdjustment] = useState(0);
   const [scenarioName, setScenarioName] = useState("Cenário base · 2027");
   const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
+  const [comparisonIds, setComparisonIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [importedDocuments, setImportedDocuments] = useState<ImportedDocument[]>([]);
 
-  const figures = useMemo(() => {
-    const safeRevenue = Math.max(revenue || 0, 1);
-    const projectedRevenue = safeRevenue * (1 + priceAdjustment / 100);
-    const currentTax = revenue * (currentRate / 100);
-    const projectedTax = projectedRevenue * (newRate / 100);
-    const costs = revenue * (costRate / 100);
-    const currentMargin = revenue - costs - currentTax;
-    const projectedMargin = projectedRevenue - costs - projectedTax;
-    const delta = projectedTax - currentTax;
-    const newRateDecimal = newRate / 100;
-    const requiredPriceIncrease = newRateDecimal >= 1
-      ? 0
-      : Math.max(0, (((1 - currentRate / 100) / (1 - newRateDecimal)) - 1) * 100);
-    return {
-      projectedRevenue,
-      currentTax,
-      projectedTax,
-      currentMargin,
-      projectedMargin,
-      delta,
-      requiredPriceIncrease,
-      currentMarginRate: (currentMargin / safeRevenue) * 100,
-      projectedMarginRate: (projectedMargin / projectedRevenue) * 100,
-    };
-  }, [revenue, currentRate, newRate, costRate, priceAdjustment]);
+  const figures = useMemo(() => calculateScenarioValues({ revenue, currentRate, newRate, costRate, priceAdjustment }), [revenue, currentRate, newRate, costRate, priceAdjustment]);
+
+  const comparedScenarios = useMemo(() => comparisonIds.map((id) => {
+    const scenario = savedScenarios.find((item) => item.id === id);
+    if (!scenario) return null;
+    const values = calculateScenarioValues({
+      revenue: scenario.revenueCents / 100,
+      currentRate: scenario.currentRateBps / 100,
+      newRate: scenario.newRateBps / 100,
+      costRate: scenario.costRateBps / 100,
+      priceAdjustment: (scenario.priceAdjustmentBps ?? 0) / 100,
+    });
+    return { scenario, values };
+  }).filter((item): item is NonNullable<typeof item> => item !== null), [comparisonIds, savedScenarios]);
 
   const importSummary = useMemo(() => ({
     total: importedDocuments.reduce((sum, item) => sum + item.value, 0),
@@ -135,6 +161,7 @@ export default function Home() {
           currentRateBps: Math.round(currentRate * 100),
           newRateBps: Math.round(newRate * 100),
           costRateBps: Math.round(costRate * 100),
+          priceAdjustmentBps: Math.round(priceAdjustment * 100),
         }),
       });
       if (!response.ok) throw new Error("save failed");
@@ -186,7 +213,7 @@ export default function Home() {
     setCurrentRate(item.currentRateBps / 100);
     setNewRate(item.newRateBps / 100);
     setCostRate(item.costRateBps / 100);
-    setPriceAdjustment(0);
+    setPriceAdjustment((item.priceAdjustmentBps ?? 0) / 100);
     setScenarioName(item.name);
     setMessage("Cenário carregado.");
   }
@@ -197,6 +224,7 @@ export default function Home() {
       const response = await fetch(`/api/scenarios?id=${item.id}`, { method: "DELETE" });
       if (!response.ok) throw new Error("delete failed");
       setSavedScenarios((current) => current.filter((scenario) => scenario.id !== item.id));
+      setComparisonIds((current) => current.filter((id) => id !== item.id));
       setMessage("Cenário excluído.");
     } catch {
       setMessage("Não foi possível excluir o cenário agora.");
@@ -233,6 +261,17 @@ export default function Home() {
     setPriceAdjustment(0);
     setSection("simulator");
     setMessage("Receita dos XMLs aplicada ao simulador.");
+  }
+
+  function toggleComparison(id: number) {
+    setComparisonIds((current) => {
+      if (current.includes(id)) return current.filter((item) => item !== id);
+      if (current.length >= 2) {
+        setMessage("O comparador aceita até dois cenários. Remova um para continuar.");
+        return current;
+      }
+      return [...current, id];
+    });
   }
 
   return (
@@ -412,8 +451,43 @@ export default function Home() {
               </section>
             </div>
 
+            <section className="panel executive-panel">
+              <div className="print-only print-brand"><span className="brand-mark">mc</span><strong>margemclara</strong><small>Resumo executivo</small></div>
+              <div className="panel-heading">
+                <div><span className="eyebrow">RESUMO EXECUTIVO</span><h3>Decisão recomendada</h3></div>
+                <button className="text-button print-button" onClick={() => window.print()}>Imprimir resumo</button>
+              </div>
+              <div className="executive-grid">
+                <div className={`executive-status ${figures.projectedMargin >= figures.currentMargin ? "protected" : "attention"}`}>
+                  <span>{figures.projectedMargin >= figures.currentMargin ? "MARGEM PROTEGIDA" : "MARGEM EM RISCO"}</span>
+                  <strong>{figures.projectedMargin >= figures.currentMargin ? "O reajuste cobre a transição" : "O reajuste ainda é insuficiente"}</strong>
+                  <p>A margem projetada fica em {currency.format(figures.projectedMargin)}, uma diferença de {currency.format(Math.abs(figures.projectedMargin - figures.currentMargin))} frente ao cenário atual.</p>
+                </div>
+                <div className="decision-list">
+                  <div><span>01</span><p><b>Reajuste aplicado</b><small>{priceAdjustment.toFixed(2).replace(".", ",")}% de {figures.requiredPriceIncrease.toFixed(2).replace(".", ",")}% recomendados</small></p><strong>{priceAdjustment >= figures.requiredPriceIncrease ? "Coberto" : `Faltam ${(figures.requiredPriceIncrease - priceAdjustment).toFixed(2).replace(".", ",")} p.p.`}</strong></div>
+                  <div><span>02</span><p><b>Impacto tributário</b><small>Comparação mensal entre os dois regimes</small></p><strong>{figures.delta >= 0 ? "+ " : "− "}{currency.format(Math.abs(figures.delta))}</strong></div>
+                  <div><span>03</span><p><b>Receita projetada</b><small>Após o reajuste informado</small></p><strong>{currency.format(figures.projectedRevenue)}</strong></div>
+                </div>
+              </div>
+              <p className="executive-note">Estimativa gerencial baseada nas premissas informadas em {new Date().toLocaleDateString("pt-BR")}. Valide enquadramento, créditos e alíquotas com sua contabilidade.</p>
+            </section>
+
+            {comparedScenarios.length > 0 && <section className="panel compare-panel">
+              <div className="panel-heading"><div><span className="eyebrow">COMPARADOR</span><h3>Cenários lado a lado</h3></div><button className="text-button" onClick={() => setComparisonIds([])}>Limpar seleção</button></div>
+              <div className="compare-grid">
+                {comparedScenarios.map(({ scenario, values }) => <article key={scenario.id}>
+                  <span className="compare-label">{scenario.name}</span>
+                  <strong>{currency.format(values.projectedMargin)}</strong>
+                  <small>margem projetada · {values.projectedMarginRate.toFixed(1).replace(".", ",")}%</small>
+                  <dl><div><dt>Receita</dt><dd>{currency.format(scenario.revenueCents / 100)}</dd></div><div><dt>IBS + CBS</dt><dd>{(scenario.newRateBps / 100).toFixed(2).replace(".", ",")}%</dd></div><div><dt>Reajuste</dt><dd>{((scenario.priceAdjustmentBps ?? 0) / 100).toFixed(2).replace(".", ",")}%</dd></div><div><dt>Tributos</dt><dd>{currency.format(values.projectedTax)}</dd></div></dl>
+                </article>)}
+                {comparedScenarios.length === 1 && <div className="compare-empty"><span>＋</span><b>Selecione mais um cenário</b><p>Use o botão “Comparar” no histórico abaixo.</p></div>}
+              </div>
+              {comparedScenarios.length === 2 && <div className="compare-verdict"><span>Melhor margem projetada</span><strong>{[...comparedScenarios].sort((a, b) => b.values.projectedMargin - a.values.projectedMargin)[0].scenario.name}</strong><small>Diferença de {currency.format(Math.abs(comparedScenarios[0].values.projectedMargin - comparedScenarios[1].values.projectedMargin))}</small></div>}
+            </section>}
+
             <section className="panel saved-panel">
-              <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h3>Cenários salvos</h3></div><span>{savedScenarios.length} registros</span></div>
+              <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h3>Cenários salvos</h3></div><span>{savedScenarios.length} registros · selecione até 2</span></div>
               {savedScenarios.length ? (
                 <div className="saved-list">{savedScenarios.map((item) => (
                   <div className="saved-row" key={item.id}>
@@ -422,6 +496,7 @@ export default function Home() {
                       <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS</small></span>
                       <i>Carregar →</i>
                     </button>
+                    <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
                     <button className="delete-button" onClick={() => deleteScenario(item)} aria-label={`Excluir ${item.name}`}>×</button>
                   </div>
                 ))}</div>
