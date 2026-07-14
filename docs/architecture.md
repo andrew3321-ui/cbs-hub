@@ -27,6 +27,10 @@
 - `billing_accounts`: estado de cobrança desacoplado do motor fiscal.
 - `fiscal_rule_sets`: conteúdo normativo versionado, vigência, estado e hash de integridade.
 - `fiscal_reference_cases`: entradas e saídas esperadas usadas como regressão de cada versão fiscal.
+- `tax_periods`: contêiner da competência por empresa, regime, efeito jurídico e revisão ativa.
+- `tax_ledger_entries`: livro append-only de débitos, créditos, ajustes e extinções, sempre vinculado à evidência de origem.
+- `tax_reconciliation_snapshots`: capturas assináveis das três fontes de conciliação: livro interno, contabilidade e ambiente oficial.
+- `tax_period_closures`: snapshots imutáveis do fechamento, com versão, hash, assinatura e referência do revisor.
 
 Toda consulta de dados privados deve aplicar o proprietário no servidor. IDs recebidos do cliente nunca são autorização.
 
@@ -61,6 +65,20 @@ O catálogo é separado do simulador financeiro. Uma regra só pode ser consider
 4. o estado da versão é `approved`.
 
 A regra inicial `RTC-BR-2026-TEST@1.0.0` permanece em `reference_only` e `in_review`. Ela reproduz apenas os destaques brutos de CBS e IBS do ano-teste e sempre retorna `netPayableCents: null`. Alterar conteúdo mantendo o mesmo par código/versão provoca conflito e bloqueia a inicialização do catálogo; qualquer mudança normativa exige uma nova versão.
+
+### Livro de apuração assistida
+
+O motor `mc-tax-ledger-0.1.0` modela o saldo líquido em cinco camadas:
+
+1. ingestão de DF-e, DeRE, eventos e saldos de abertura com chave única;
+2. classificação explícita de incidência, regime e elegibilidade do crédito;
+3. livros independentes de CBS e IBS, sem compensação cruzada;
+4. conciliação do livro interno com a contabilidade e a Apuração Assistida oficial;
+5. fechamento imutável por competência, seguido de ajustes ou estornos em vez de alteração retroativa.
+
+Débitos pendentes entram de forma conservadora e bloqueiam o fechamento. Créditos pendentes, rejeitados ou sem evidência não reduzem o saldo. Pagamentos, split payment e outras extinções só reduzem o débito depois de confirmação na fonte oficial.
+
+O valor `netPayableCents` só pode deixar de ser `null` quando a competência tem efeito produtivo, todos os controles estão completos, não há bloqueadores, a regra foi aprovada e existe revisor independente. O endpoint desta fase é somente leitura; a criação de competências e fechamentos permanece desativada até homologação profissional.
 
 ## Rotação de assinatura
 

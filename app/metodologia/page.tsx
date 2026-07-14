@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { TAX_DETERMINATION_ENGINE_VERSION } from "../../domain/tax-determination";
 import { CALCULATION_ENGINE_VERSION, METHODOLOGY_VERSION } from "../scenario-reliability";
 
 export const metadata = {
@@ -18,7 +19,7 @@ export default function MethodologyPage() {
         <span>CONFIABILIDADE POR CONSTRUÇÃO</span>
         <h1>Metodologia, versões e limites claramente documentados.</h1>
         <p>O Margem Clara mantém o foco em inteligência tributária. Esta página mostra o que o motor calcula hoje, como cada resultado é preservado e o que ainda exige revisão profissional.</p>
-        <div className="methodology-version-grid"><div><small>MOTOR DE CÁLCULO</small><strong>{CALCULATION_ENGINE_VERSION}</strong></div><div><small>METODOLOGIA</small><strong>{METHODOLOGY_VERSION}</strong></div><div><small>ESTADO MAIS ALTO ATUAL</small><strong>Aguardando validação profissional</strong></div></div>
+        <div className="methodology-version-grid"><div><small>MOTOR FINANCEIRO</small><strong>{CALCULATION_ENGINE_VERSION}</strong></div><div><small>MOTOR DE APURAÇÃO</small><strong>{TAX_DETERMINATION_ENGINE_VERSION}</strong></div><div><small>METODOLOGIA</small><strong>{METHODOLOGY_VERSION}</strong></div><div><small>ESTADO MAIS ALTO ATUAL</small><strong>Aguardando validação profissional</strong></div></div>
       </section>
 
       <section className="methodology-section">
@@ -44,20 +45,32 @@ export default function MethodologyPage() {
 
       <section className="methodology-section">
         <div className="methodology-heading"><span>03</span><div><small>LIMITES FISCAIS</small><h2>O que ainda não deve ser presumido</h2></div></div>
-        <div className="methodology-boundary"><div><strong>O motor atual não homologa</strong><p>NCM/NBS, local da operação, regimes específicos, reduções, diferimento, imunidade, cashback, créditos apropriáveis, split payment ou obrigações acessórias. Esses módulos serão incorporados com regras versionadas e testes próprios.</p></div><div className="methodology-warning"><span>2026</span><p>A Receita Federal caracteriza 2026 como ano de teste: CBS de 0,9% e IBS de 0,1%, com regras de compensação e dispensa condicionada. Por isso, o Margem Clara não transforma automaticamente uma taxa digitada em “alíquota oficial de 2026”.</p></div></div>
+        <div className="methodology-boundary"><div><strong>O livro está modelado, mas não homologado</strong><p>Débitos, créditos, ajustes, extinções, conciliação e fechamento já possuem contrato técnico. A classificação NCM/NBS/cClassTrib, os regimes específicos e as integrações oficiais ainda precisam de regras próprias e validação profissional antes da escrita real.</p></div><div className="methodology-warning"><span>2026</span><p>A Receita Federal caracteriza 2026 como ano de teste: CBS de 0,9% e IBS de 0,1%, com regras de compensação e dispensa condicionada. Por isso, mesmo o saldo preliminar do livro não é convertido em valor exigível.</p></div></div>
       </section>
 
       <section className="methodology-section">
-        <div className="methodology-heading"><span>04</span><div><small>FONTES PRIMÁRIAS</small><h2>Base normativa acompanhada</h2></div></div>
+        <div className="methodology-heading"><span>04</span><div><small>APURAÇÃO ASSISTIDA</small><h2>Como o saldo líquido será fechado</h2></div></div>
+        <div className="methodology-card-grid">
+          <article><h3>Livros separados</h3><code>CBS ≠ IBS</code><p>Débitos, créditos, ajustes e extinções permanecem segregados. O motor não compensa um tributo com o outro.</p></article>
+          <article><h3>Crédito condicionado</h3><code>elegibilidade + evidência + conciliação</code><p>Crédito pendente ou bloqueado não reduz o saldo. A divergência fica visível na fila de exceções.</p></article>
+          <article><h3>Fechamento controlado</h3><code>snapshot + hash + revisão independente</code><p>Um período fechado não é reescrito. Correções posteriores entram como ajuste ou estorno vinculado à origem.</p></article>
+        </div>
+      </section>
+
+      <section className="methodology-section">
+        <div className="methodology-heading"><span>05</span><div><small>FONTES PRIMÁRIAS</small><h2>Base normativa acompanhada</h2></div></div>
         <div className="source-list">
           <a href="https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214compilado.htm" target="_blank" rel="noreferrer"><span>Lei Complementar nº 214/2025, texto compilado</span><b>Planalto ↗</b></a>
           <a href="https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/entenda" target="_blank" rel="noreferrer"><span>Entenda a Reforma Tributária do Consumo</span><b>Receita Federal ↗</b></a>
           <a href="https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/orientacoes-2026" target="_blank" rel="noreferrer"><span>Orientações oficiais para 2026</span><b>Receita Federal ↗</b></a>
           <a href="https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/marcos" target="_blank" rel="noreferrer"><span>Marcos regulatórios da implementação</span><b>Receita Federal ↗</b></a>
+          <a href="https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/curso/material-de-apoio" target="_blank" rel="noreferrer"><span>Curso RFB/CFC — Apuração Assistida</span><b>Receita Federal ↗</b></a>
+          <a href="https://www.gov.br/nfse/pt-br/noticias/publicada-a-nota-tecnica-009-da-nfs-e" target="_blank" rel="noreferrer"><span>Nota Técnica 009 — ajustes de débito e crédito</span><b>Portal NFS-e ↗</b></a>
+          <a href="https://www.gov.br/sped/pt-br/assuntos/documentos-fiscais/dere" target="_blank" rel="noreferrer"><span>Declaração de Regimes Específicos — DeRE</span><b>SPED ↗</b></a>
         </div>
       </section>
 
-      <section className="methodology-final"><div><small>POLÍTICA DE EVOLUÇÃO</small><h2>Nenhuma regra fiscal entra silenciosamente.</h2><p>Cada alteração relevante receberá versão, fonte primária, testes de regressão e data de vigência. A etapa seguinte será estruturar uma matriz tributária por operação para a revisão dos contadores convidados.</p></div><Link href="/app">Abrir minhas análises →</Link></section>
+      <section className="methodology-final"><div><small>POLÍTICA DE EVOLUÇÃO</small><h2>Nenhuma regra fiscal entra silenciosamente.</h2><p>Cada alteração relevante recebe versão, fonte primária, casos adversos e data de vigência. A próxima etapa é homologar o livro com os contadores convidados e conectar a conciliação às fontes oficiais.</p></div><Link href="/app">Abrir minhas análises →</Link></section>
     </main>
   );
 }

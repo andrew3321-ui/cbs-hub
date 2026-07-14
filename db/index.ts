@@ -156,6 +156,75 @@ export function ensureScenarioSchema() {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS tax_periods (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          company_id INTEGER NOT NULL,
+          period_key TEXT NOT NULL,
+          tax_regime TEXT NOT NULL,
+          legal_effect TEXT DEFAULT 'simulation_2026' NOT NULL,
+          status TEXT DEFAULT 'draft' NOT NULL,
+          active_revision INTEGER DEFAULT 1 NOT NULL,
+          rule_set_id INTEGER,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS tax_ledger_entries (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          period_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          source_key TEXT NOT NULL,
+          tax TEXT NOT NULL,
+          entry_kind TEXT NOT NULL,
+          amount_cents INTEGER NOT NULL,
+          source_type TEXT NOT NULL,
+          source_document_key TEXT,
+          credit_status TEXT DEFAULT 'not_applicable' NOT NULL,
+          evidence_status TEXT DEFAULT 'pending' NOT NULL,
+          classification_status TEXT DEFAULT 'pending' NOT NULL,
+          classification_json TEXT DEFAULT '{}' NOT NULL,
+          occurred_at TEXT NOT NULL,
+          extinguishment_method TEXT,
+          reversal_of_entry_id INTEGER,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS tax_reconciliation_snapshots (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          period_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          source_type TEXT NOT NULL,
+          tax TEXT NOT NULL,
+          debits_cents INTEGER NOT NULL,
+          credits_cents INTEGER NOT NULL,
+          extinguishments_cents INTEGER NOT NULL,
+          evidence_hash TEXT NOT NULL,
+          captured_at TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS tax_period_closures (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          period_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          revision INTEGER NOT NULL,
+          status TEXT DEFAULT 'ready_for_review' NOT NULL,
+          rule_set_id INTEGER,
+          calculation_version TEXT NOT NULL,
+          snapshot_json TEXT NOT NULL,
+          input_hash TEXT NOT NULL,
+          signature_version TEXT NOT NULL,
+          record_signature TEXT NOT NULL,
+          reviewer_reference TEXT,
+          reviewed_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
     ]);
 
     try {
@@ -235,6 +304,15 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_rule_sets_status_effective_idx ON fiscal_rule_sets (status, effective_from, effective_to)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_reference_cases_rule_code_idx ON fiscal_reference_cases (rule_set_id, code)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_reference_cases_rule_set_idx ON fiscal_reference_cases (rule_set_id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_periods_owner_company_period_idx ON tax_periods (owner_user_id, company_id, period_key)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_periods_owner_status_period_idx ON tax_periods (owner_user_id, status, period_key, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_ledger_entries_period_source_idx ON tax_ledger_entries (period_id, source_key)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_ledger_entries_period_tax_date_idx ON tax_ledger_entries (period_id, tax, occurred_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_ledger_entries_owner_period_idx ON tax_ledger_entries (owner_user_id, period_id, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_reconciliation_period_source_tax_capture_idx ON tax_reconciliation_snapshots (period_id, source_type, tax, captured_at)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_reconciliation_owner_period_idx ON tax_reconciliation_snapshots (owner_user_id, period_id, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_period_closures_period_revision_idx ON tax_period_closures (period_id, revision)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_period_closures_owner_status_idx ON tax_period_closures (owner_user_id, status, id)"),
     ]);
 
     const contentHash = await hashFiscalRuleContent(rtc2026RuleSeed.contentJson);

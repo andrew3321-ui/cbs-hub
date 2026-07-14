@@ -92,3 +92,25 @@ test("catálogo fiscal exige integridade, regressão e homologação antes da ex
   assert.doesNotMatch(ruleDefinition, /automaticNetPayableCalculation: true/);
   assert.match(schema, /fiscal_rule_sets_code_version_idx/);
 });
+
+test("apuração líquida mantém 2026 bloqueado e prepara fechamento auditável", async () => {
+  const [client, determinationApi, determinationDomain, schema, health] = await Promise.all([
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/api/tax-determination/route.ts", root), "utf8"),
+    readFile(new URL("domain/tax-determination.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("app/api/health/route.ts", root), "utf8"),
+  ]);
+
+  assert.match(client, /Apuração líquida sob controle/);
+  assert.match(client, /não é valor a pagar/);
+  assert.match(client, /Conciliação em três vias/i);
+  assert.match(determinationApi, /netPayableEnabled: false/);
+  assert.match(determinationApi, /writesEnabled: false/);
+  assert.match(determinationDomain, /SIMULATION_ONLY_2026/);
+  assert.match(determinationDomain, /input\.legalEffect === "production"/);
+  assert.match(determinationDomain, /PENDING_CREDIT/);
+  assert.match(schema, /tax_period_closures/);
+  assert.match(schema, /tax_reconciliation_snapshots/);
+  assert.match(health, /TAX_DETERMINATION_ENGINE_VERSION/);
+});

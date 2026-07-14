@@ -101,6 +101,84 @@ export const fiscalReferenceCases = sqliteTable("fiscal_reference_cases", {
   index("fiscal_reference_cases_rule_set_idx").on(table.ruleSetId),
 ]);
 
+export const taxPeriods = sqliteTable("tax_periods", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerUserId: integer("owner_user_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  periodKey: text("period_key").notNull(),
+  taxRegime: text("tax_regime").notNull(),
+  legalEffect: text("legal_effect").notNull().default("simulation_2026"),
+  status: text("status").notNull().default("draft"),
+  activeRevision: integer("active_revision").notNull().default(1),
+  ruleSetId: integer("rule_set_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("tax_periods_owner_company_period_idx").on(table.ownerUserId, table.companyId, table.periodKey),
+  index("tax_periods_owner_status_period_idx").on(table.ownerUserId, table.status, table.periodKey, table.id),
+]);
+
+export const taxLedgerEntries = sqliteTable("tax_ledger_entries", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  periodId: integer("period_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  sourceKey: text("source_key").notNull(),
+  tax: text("tax").notNull(),
+  entryKind: text("entry_kind").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  sourceType: text("source_type").notNull(),
+  sourceDocumentKey: text("source_document_key"),
+  creditStatus: text("credit_status").notNull().default("not_applicable"),
+  evidenceStatus: text("evidence_status").notNull().default("pending"),
+  classificationStatus: text("classification_status").notNull().default("pending"),
+  classificationJson: text("classification_json").notNull().default("{}"),
+  occurredAt: text("occurred_at").notNull(),
+  extinguishmentMethod: text("extinguishment_method"),
+  reversalOfEntryId: integer("reversal_of_entry_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("tax_ledger_entries_period_source_idx").on(table.periodId, table.sourceKey),
+  index("tax_ledger_entries_period_tax_date_idx").on(table.periodId, table.tax, table.occurredAt, table.id),
+  index("tax_ledger_entries_owner_period_idx").on(table.ownerUserId, table.periodId, table.id),
+]);
+
+export const taxReconciliationSnapshots = sqliteTable("tax_reconciliation_snapshots", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  periodId: integer("period_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  sourceType: text("source_type").notNull(),
+  tax: text("tax").notNull(),
+  debitsCents: integer("debits_cents").notNull(),
+  creditsCents: integer("credits_cents").notNull(),
+  extinguishmentsCents: integer("extinguishments_cents").notNull(),
+  evidenceHash: text("evidence_hash").notNull(),
+  capturedAt: text("captured_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("tax_reconciliation_period_source_tax_capture_idx").on(table.periodId, table.sourceType, table.tax, table.capturedAt),
+  index("tax_reconciliation_owner_period_idx").on(table.ownerUserId, table.periodId, table.id),
+]);
+
+export const taxPeriodClosures = sqliteTable("tax_period_closures", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  periodId: integer("period_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  revision: integer("revision").notNull(),
+  status: text("status").notNull().default("ready_for_review"),
+  ruleSetId: integer("rule_set_id"),
+  calculationVersion: text("calculation_version").notNull(),
+  snapshotJson: text("snapshot_json").notNull(),
+  inputHash: text("input_hash").notNull(),
+  signatureVersion: text("signature_version").notNull(),
+  recordSignature: text("record_signature").notNull(),
+  reviewerReference: text("reviewer_reference"),
+  reviewedAt: text("reviewed_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("tax_period_closures_period_revision_idx").on(table.periodId, table.revision),
+  index("tax_period_closures_owner_status_idx").on(table.ownerUserId, table.status, table.id),
+]);
+
 export const billingAccounts = sqliteTable("billing_accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull().unique(),

@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { calculateScenarioValues } from "../scenario-calculations";
 import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 
-type Section = "overview" | "companies" | "simulator" | "documents" | "rules" | "academy";
+type Section = "overview" | "companies" | "simulator" | "documents" | "rules" | "determination" | "academy";
 
 type SavedScenario = {
   id: number;
@@ -136,6 +136,58 @@ type FiscalRule = {
 type FiscalCatalog = {
   rules: FiscalRule[];
   metrics: { totalRules: number; totalSources: number; passedCases: number; totalCases: number; executionEnabled: number };
+};
+
+type TaxDeterminationLedger = {
+  tax: "CBS" | "IBS";
+  grossDebitsCents: number;
+  debitAdjustmentsCents: number;
+  eligibleCreditsCents: number;
+  creditAdjustmentsCents: number;
+  openingCreditCents: number;
+  confirmedExtinguishmentsCents: number;
+  preliminaryDebitBalanceCents: number;
+  preliminaryCreditCarryforwardCents: number;
+  netPayableCents: number | null;
+};
+
+type TaxDeterminationModel = {
+  blueprint: {
+    title: string;
+    version: string;
+    status: string;
+    legalBoundary: string;
+    formula: string;
+    stages: Array<{ code: string; title: string; description: string }>;
+    controls: Array<{ key: string; label: string }>;
+    entryMatrix: Array<{ kind: string; source: string; inclusion: string }>;
+    sources: Array<{ title: string; url: string; publisher: string; checkedAt: string }>;
+  };
+  fingerprint: string;
+  engineVersion: string;
+  integrityStatus: "verified" | "invalid";
+  casesPassed: boolean;
+  referenceCases: Array<{
+    code: string;
+    title: string;
+    passed: boolean;
+    legalEffect: "simulation_2026" | "production";
+    closingReady: boolean;
+    cbsPreliminaryDebitCents: number;
+    ibsPreliminaryDebitCents: number;
+    cbsNetPayableCents: number | null;
+    ibsNetPayableCents: number | null;
+    issueCodes: string[];
+  }>;
+  execution: { status: "blocked"; netPayableEnabled: false; reasons: string[] };
+  simulationExample: {
+    period: string;
+    legalEffect: "simulation_2026";
+    cbs: TaxDeterminationLedger;
+    ibs: TaxDeterminationLedger;
+    netPayableEnabled: false;
+  };
+  workspace: { totalPeriods: number; closedPeriods: number; writesEnabled: false };
 };
 
 const currency = new Intl.NumberFormat("pt-BR", {
@@ -291,6 +343,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const [demoPlaying, setDemoPlaying] = useState(false);
   const [fiscalCatalog, setFiscalCatalog] = useState<FiscalCatalog | null>(null);
   const [rulesError, setRulesError] = useState("");
+  const [taxDetermination, setTaxDetermination] = useState<TaxDeterminationModel | null>(null);
+  const [determinationError, setDeterminationError] = useState("");
   const pendingScenarioRequest = useRef<{ fingerprint: string; id: string } | null>(null);
 
   const activeCompany = useMemo(() => companies.find((company) => company.id === activeCompanyId) ?? null, [companies, activeCompanyId]);
@@ -356,6 +410,17 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       .then(setFiscalCatalog)
       .catch(() => setRulesError("Não foi possível verificar o catálogo fiscal agora."));
   }, [section, fiscalCatalog, rulesError]);
+
+  useEffect(() => {
+    if (section !== "determination" || taxDetermination || determinationError) return;
+    fetch("/api/tax-determination")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("determination unavailable");
+        return response.json() as Promise<TaxDeterminationModel>;
+      })
+      .then(setTaxDetermination)
+      .catch(() => setDeterminationError("Não foi possível verificar o modelo de apuração agora."));
+  }, [section, taxDetermination, determinationError]);
 
   useEffect(() => {
     fetch("/api/companies")
@@ -736,6 +801,9 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           <button className={section === "rules" ? "active" : ""} onClick={() => setSection("rules")}>
             <span className="nav-icon">§</span>Regras fiscais
           </button>
+          <button className={section === "determination" ? "active" : ""} onClick={() => setSection("determination")}>
+            <span className="nav-icon">≋</span>Apuração fiscal
+          </button>
           <button className={section === "academy" ? "active" : ""} onClick={() => setSection("academy")}>
             <span className="nav-icon">▷</span>Demonstrações
           </button>
@@ -1091,6 +1159,83 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                   <details className="rule-limitations"><summary>Ver limites explícitos desta regra</summary><ul>{rule.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></details>
                 </article>;
               })}</div>
+            </>}
+          </div>
+        )}
+
+        {section === "determination" && (
+          <div className="page-content determination-page">
+            <div className="page-heading determination-heading">
+              <div><p className="kicker">APURAÇÃO ASSISTIDA · MODELO EM HOMOLOGAÇÃO</p><h1>Apuração líquida sob controle</h1><p>Do documento ao fechamento: cada débito, crédito, ajuste e pagamento precisa ser explicado antes de formar um valor a recolher.</p></div>
+              <span className="determination-lock-badge"><i /> Cálculo produtivo bloqueado</span>
+            </div>
+
+            {determinationError && <div className="toast" role="alert">{determinationError}</div>}
+            {!taxDetermination && !determinationError && <section className="panel rules-loading"><span className="loading-spinner" /><div><b>Verificando o livro fiscal e os portões de fechamento…</b><p>Casos adversos, segregação dos tributos e evidências estão sendo conferidos.</p></div></section>}
+
+            {taxDetermination && <>
+              <section className="determination-metrics" aria-label="Indicadores do modelo de apuração">
+                <article className="protected"><span>Motor de referência</span><strong>{taxDetermination.integrityStatus === "verified" ? "Íntegro" : "Falha"}</strong><small>#{taxDetermination.fingerprint}</small></article>
+                <article className="protected"><span>Regressões</span><strong>{taxDetermination.referenceCases.filter((item) => item.passed).length}/{taxDetermination.referenceCases.length}</strong><small>{taxDetermination.casesPassed ? "Todos os casos reproduzidos" : "Existem falhas"}</small></article>
+                <article><span>Competências abertas</span><strong>{taxDetermination.workspace.totalPeriods}</strong><small>Escrita desativada nesta fase</small></article>
+                <article className="risk"><span>Valor a recolher</span><strong>Bloqueado</strong><small>Aguardando homologação contábil</small></article>
+              </section>
+
+              <section className="panel determination-hero">
+                <div className="determination-hero-copy"><span className="eyebrow">FÓRMULA CONTROLADA · {taxDetermination.engineVersion}</span><h2>O número final só aparece depois que a prova fecha.</h2><p>{taxDetermination.blueprint.legalBoundary}</p><code>{taxDetermination.blueprint.formula}</code></div>
+                <div className="determination-final-lock"><span>VALOR LÍQUIDO A RECOLHER</span><strong>—</strong><b>Não liberado</b><small>{taxDetermination.execution.reasons[0]}</small></div>
+              </section>
+
+              <section className="determination-workflow" aria-label="Fluxo de apuração">
+                {taxDetermination.blueprint.stages.map((stage) => <article key={stage.code}><span>{stage.code}</span><div><h3>{stage.title}</h3><p>{stage.description}</p></div></article>)}
+              </section>
+
+              <div className="determination-main-grid">
+                <section className="panel ledger-preview-panel">
+                  <div className="panel-heading"><div><span className="eyebrow">EXEMPLO SINTÉTICO · COMPETÊNCIA {taxDetermination.simulationExample.period}</span><h3>Dois livros, dois saldos independentes</h3></div><span className="simulation-chip">Sem efeito jurídico</span></div>
+                  <div className="ledger-card-grid">{[taxDetermination.simulationExample.cbs, taxDetermination.simulationExample.ibs].map((ledger) => <article key={ledger.tax}>
+                    <div className="ledger-title"><span>{ledger.tax}</span><small>{ledger.tax === "CBS" ? "Federal" : "Estadual + municipal"}</small></div>
+                    <dl>
+                      <div><dt>Débitos documentados</dt><dd>{preciseCurrency.format((ledger.grossDebitsCents + ledger.debitAdjustmentsCents) / 100)}</dd></div>
+                      <div><dt>Créditos elegíveis</dt><dd>− {preciseCurrency.format((ledger.openingCreditCents + ledger.eligibleCreditsCents + ledger.creditAdjustmentsCents) / 100)}</dd></div>
+                      <div><dt>Extinções confirmadas</dt><dd>− {preciseCurrency.format(ledger.confirmedExtinguishmentsCents / 100)}</dd></div>
+                    </dl>
+                    <div className="ledger-preliminary"><span>Saldo preliminar devedor</span><strong>{preciseCurrency.format(ledger.preliminaryDebitBalanceCents / 100)}</strong><small>não é valor a pagar</small></div>
+                    <div className="ledger-final"><span>Líquido exigível</span><strong>—</strong><small>portão fechado</small></div>
+                  </article>)}</div>
+                  <p className="synthetic-warning"><b>Importante:</b> os números acima existem somente para testar a mecânica do livro. Em 2026, o motor mantém o resultado líquido como nulo.</p>
+                </section>
+
+                <aside className="panel determination-gates">
+                  <div className="panel-heading"><div><span className="eyebrow">PORTÃO DE FECHAMENTO</span><h3>O que ainda impede a execução</h3></div><span className="rule-status blocked"><i />Fechado</span></div>
+                  <div className="determination-gate-list">
+                    <article className="done"><span>✓</span><p><b>Motor e casos de regressão</b><small>Integridade e cálculos-base conferidos</small></p></article>
+                    <article className="done"><span>✓</span><p><b>Segregação CBS × IBS</b><small>Compensação cruzada não é permitida</small></p></article>
+                    {taxDetermination.execution.reasons.slice(0, 3).map((reason) => <article className="pending" key={reason}><span>…</span><p><b>{reason}</b><small>Obrigatório antes do fechamento</small></p></article>)}
+                  </div>
+                  <button type="button" disabled>Iniciar competência — após homologação</button>
+                </aside>
+              </div>
+
+              <section className="panel reconciliation-panel">
+                <div className="panel-heading"><div><span className="eyebrow">CONCILIAÇÃO EM TRÊS VIAS</span><h3>O saldo precisa bater em três fontes</h3></div><span className="simulation-chip">Arquitetura preparada</span></div>
+                <div className="reconciliation-grid">
+                  <article><span>01</span><div><small>LIVRO INTERNO</small><b>DF-e, DeRE e eventos</b><p>Chave única, classificação e memória de cada lançamento.</p></div><em className="ready">Modelo pronto</em></article>
+                  <article><span>02</span><div><small>ERP + CONTABILIDADE</small><b>Razão e saldos contábeis</b><p>Conferência por competência, documento e conta de tributo.</p></div><em>Pendente integração</em></article>
+                  <article><span>03</span><div><small>FONTE OFICIAL</small><b>Apuração Assistida</b><p>Débitos, créditos, pagamentos e pagamentos a fornecedores via relatórios ou APIs.</p></div><em>Pendente integração</em></article>
+                </div>
+                <div className="exception-queue"><span>FILA DE EXCEÇÕES</span><p><b>Crédito pendente</b> não reduz o saldo</p><p><b>Documento duplicado</b> não entra duas vezes</p><p><b>Ajuste sem vínculo</b> bloqueia fechamento</p><p><b>Extinção sem confirmação</b> não reduz o débito</p></div>
+              </section>
+
+              <div className="determination-detail-grid">
+                <section className="panel entry-matrix-panel"><div className="panel-heading"><div><span className="eyebrow">MATRIZ DE LANÇAMENTOS</span><h3>Critério de entrada no saldo</h3></div></div><div className="entry-matrix">{taxDetermination.blueprint.entryMatrix.map((entry) => <article key={entry.kind}><span>{entry.kind}</span><p><b>{entry.source}</b><small>{entry.inclusion}</small></p></article>)}</div></section>
+                <section className="panel determination-cases-panel"><div className="panel-heading"><div><span className="eyebrow">CASOS ADVERSOS</span><h3>Regressões obrigatórias</h3></div><span className="case-count">{taxDetermination.referenceCases.length}</span></div><div className="determination-case-list">{taxDetermination.referenceCases.map((referenceCase) => <article key={referenceCase.code}><span className={referenceCase.passed ? "case-pass" : "case-fail"}>{referenceCase.passed ? "✓" : "×"}</span><p><b>{referenceCase.title}</b><small>{referenceCase.closingReady ? "Fechamento permitido apenas neste caso produtivo sintético" : "Bloqueio reproduzido como esperado"}</small></p></article>)}</div></section>
+              </div>
+
+              <section className="panel determination-sources-panel">
+                <div className="panel-heading"><div><span className="eyebrow">BASE TÉCNICA</span><h3>Fontes que governam o modelo</h3></div><code>#{taxDetermination.fingerprint}</code></div>
+                <div className="determination-source-grid">{taxDetermination.blueprint.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.url}><span>↗</span><p><b>{source.title}</b><small>{source.publisher} · conferida em {new Date(`${source.checkedAt}T12:00:00`).toLocaleDateString("pt-BR")}</small></p></a>)}</div>
+              </section>
             </>}
           </div>
         )}
