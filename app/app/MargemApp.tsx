@@ -2,6 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { calculateScenarioValues } from "../scenario-calculations";
+import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 
 type Section = "overview" | "companies" | "simulator" | "documents" | "academy";
 
@@ -15,7 +16,24 @@ type SavedScenario = {
   fixedCostsCents: number;
   volumeLossBps: number;
   priceAdjustmentBps: number;
+  targetYear: number;
+  rateSource: RateSource;
+  sourceNote: string;
+  reviewStatus: ReviewStatus;
+  calculationVersion: string;
+  methodologyVersion: string;
+  inputHash: string | null;
+  snapshotJson: string | null;
+  calculatedAt: string | null;
   companyId: number;
+  createdAt: string;
+};
+
+type AuditEvent = {
+  id: number;
+  scenarioId: number | null;
+  eventType: string;
+  eventData: Record<string, unknown>;
   createdAt: string;
 };
 
@@ -96,6 +114,14 @@ const products = [
   { name: "Treinamento corporativo", share: "18%", current: "8,65%", projected: "9,20%", impact: "+ R$ 282", tone: "neutral" },
   { name: "Licenciamento de conteúdo", share: "14%", current: "8,65%", projected: "7,80%", impact: "− R$ 338", tone: "good" },
 ];
+
+const auditEventLabels: Record<string, string> = {
+  "scenario.created": "Versão de cálculo congelada",
+  "scenario.ready_for_review": "Encaminhada à revisão",
+  "scenario.deleted": "Cenário excluído",
+  "report_share.created": "Relatório compartilhado",
+  "report_share.revoked": "Compartilhamento revogado",
+};
 
 const productDemos: ProductDemo[] = [
   {
@@ -192,8 +218,13 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const [volumeLoss, setVolumeLoss] = useState(0);
   const [priceAdjustment, setPriceAdjustment] = useState(0);
   const [scenarioName, setScenarioName] = useState("Cenário base · 2027");
+  const [targetYear, setTargetYear] = useState(2027);
+  const [rateSource, setRateSource] = useState<Exclude<RateSource, "legacy_unverified">>("custom");
+  const [sourceNote, setSourceNote] = useState("Projeção informada pelo responsável pela análise; validar incidência e créditos.");
   const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
   const [reportShares, setReportShares] = useState<ReportShare[]>([]);
+  const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
+  const [reviewingScenarioId, setReviewingScenarioId] = useState<number | null>(null);
   const [creatingShareId, setCreatingShareId] = useState<number | null>(null);
   const [comparisonIds, setComparisonIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
@@ -213,15 +244,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const comparedScenarios = useMemo(() => comparisonIds.map((id) => {
     const scenario = savedScenarios.find((item) => item.id === id);
     if (!scenario) return null;
-    const values = calculateScenarioValues({
-      revenue: scenario.revenueCents / 100,
-      currentRate: scenario.currentRateBps / 100,
-      newRate: scenario.newRateBps / 100,
-      costRate: scenario.costRateBps / 100,
-      fixedCosts: (scenario.fixedCostsCents ?? 0) / 100,
-      volumeLoss: (scenario.volumeLossBps ?? 0) / 100,
-      priceAdjustment: (scenario.priceAdjustmentBps ?? 0) / 100,
-    });
+    const values = resolveStoredScenarioValues(scenario);
     return { scenario, values };
   }).filter((item): item is NonNullable<typeof item> => item !== null), [comparisonIds, savedScenarios]);
 
@@ -235,7 +258,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     const analyses = companies.map((company) => {
       if (!company.latestScenario) return { company, values: null };
       const item = company.latestScenario;
-      return { company, values: calculateScenarioValues({ revenue: item.revenueCents / 100, currentRate: item.currentRateBps / 100, newRate: item.newRateBps / 100, costRate: item.costRateBps / 100, fixedCosts: (item.fixedCostsCents ?? 0) / 100, volumeLoss: (item.volumeLossBps ?? 0) / 100, priceAdjustment: (item.priceAdjustmentBps ?? 0) / 100 }) };
+      return { company, values: resolveStoredScenarioValues(item) };
     });
     return {
       analyzed: analyses.filter((item) => item.values).length,
@@ -285,6 +308,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     if (!activeCompanyId) return;
     window.localStorage.setItem("margem-clara-company", String(activeCompanyId));
     void refreshReportShares(activeCompanyId);
+    void refreshAuditEvents(activeCompanyId);
     fetch(`/api/scenarios?companyId=${activeCompanyId}`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { scenarios?: SavedScenario[] }) => {
@@ -324,6 +348,17 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     }
   }
 
+  async function refreshAuditEvents(companyId: number) {
+    try {
+      const response = await fetch(`/api/audit-events?companyId=${companyId}`);
+      if (!response.ok) throw new Error("audit list failed");
+      const data = (await response.json()) as { events?: AuditEvent[] };
+      setAuditEvents(data.events ?? []);
+    } catch {
+      setAuditEvents([]);
+    }
+  }
+
   function resetScenarioFields() {
     setRevenue(100000);
     setCurrentRate(8.65);
@@ -332,7 +367,10 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     setFixedCosts(10000);
     setVolumeLoss(0);
     setPriceAdjustment(0);
-    setScenarioName("Primeiro cenário");
+    setScenarioName("Primeiro cenário · 2027");
+    setTargetYear(2027);
+    setRateSource("custom");
+    setSourceNote("Projeção informada pelo responsável pela análise; validar incidência e créditos.");
   }
 
   async function saveScenario() {
@@ -356,15 +394,19 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           fixedCostsCents: Math.round(fixedCosts * 100),
           volumeLossBps: Math.round(volumeLoss * 100),
           priceAdjustmentBps: Math.round(priceAdjustment * 100),
+          targetYear,
+          rateSource,
+          sourceNote,
         }),
       });
-      if (!response.ok) throw new Error("save failed");
-      const data = (await response.json()) as { scenario: SavedScenario };
+      const data = (await response.json()) as { scenario?: SavedScenario; error?: string };
+      if (!response.ok || !data.scenario) throw new Error(data.error || "save failed");
       setSavedScenarios((current) => [data.scenario, ...current].slice(0, 8));
       setCompanies((current) => current.map((company) => company.id === activeCompanyId ? { ...company, latestScenario: data.scenario } : company));
-      setMessage("Cenário salvo com sucesso.");
-    } catch {
-      setMessage("Não foi possível salvar agora. A simulação continua disponível nesta tela.");
+      setMessage(`Cenário congelado na versão ${data.scenario.calculationVersion}. Agora encaminhe-o para revisão antes de compartilhar.`);
+      void refreshAuditEvents(activeCompanyId);
+    } catch (error) {
+      setMessage(error instanceof Error && error.message !== "save failed" ? error.message : "Não foi possível salvar agora. A prévia continua disponível nesta tela.");
     } finally {
       setSaving(false);
     }
@@ -412,7 +454,28 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     setVolumeLoss((item.volumeLossBps ?? 0) / 100);
     setPriceAdjustment((item.priceAdjustmentBps ?? 0) / 100);
     setScenarioName(item.name);
+    setTargetYear(item.targetYear ?? 2027);
+    setRateSource(item.rateSource === "accountant" ? "accountant" : "custom");
+    setSourceNote(item.rateSource === "legacy_unverified" ? "Registro legado carregado. Descreva a fonte e salve uma nova versão." : item.sourceNote);
     if (notify) setMessage("Cenário carregado.");
+  }
+
+  async function markReadyForReview(item: SavedScenario) {
+    setReviewingScenarioId(item.id);
+    setMessage("");
+    try {
+      const response = await fetch("/api/scenarios/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scenarioId: item.id }) });
+      const data = (await response.json()) as { scenario?: { id: number; reviewStatus: ReviewStatus }; error?: string };
+      if (!response.ok || !data.scenario) throw new Error(data.error || "review failed");
+      setSavedScenarios((current) => current.map((scenario) => scenario.id === item.id ? { ...scenario, reviewStatus: data.scenario!.reviewStatus } : scenario));
+      setCompanies((current) => current.map((company) => company.latestScenario?.id === item.id ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: data.scenario!.reviewStatus } } : company));
+      setMessage("Cenário fechado para edição e encaminhado à revisão. O status ainda não significa validação profissional.");
+      if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
+    } catch (error) {
+      setMessage(error instanceof Error && error.message !== "review failed" ? error.message : "Não foi possível encaminhar o cenário para revisão.");
+    } finally {
+      setReviewingScenarioId(null);
+    }
   }
 
   async function deleteScenario(item: SavedScenario) {
@@ -425,6 +488,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       setReportShares((current) => current.filter((share) => share.scenarioId !== item.id));
       setMessage("Cenário excluído.");
       void refreshCompanies();
+      if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
     } catch {
       setMessage("Não foi possível excluir o cenário agora.");
     }
@@ -441,6 +505,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       setReportShares((current) => [share, ...current.map((row) => row.scenarioId === item.id && !row.revokedAt ? { ...row, revokedAt: new Date().toISOString() } : row)]);
       try { await navigator.clipboard.writeText(share.url); } catch { /* The link remains available in the sharing center. */ }
       setMessage("Link seguro gerado e copiado. Ele expira em 30 dias.");
+      if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "share failed" ? error.message : "Não foi possível gerar o link agora.");
     } finally {
@@ -464,6 +529,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       if (!response.ok) throw new Error("revoke failed");
       setReportShares((current) => current.map((row) => row.id === share.id ? { ...row, revokedAt: new Date().toISOString() } : row));
       setMessage("Link revogado. O cliente não poderá mais abrir o relatório.");
+      if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
     } catch {
       setMessage("Não foi possível revogar o link agora.");
     }
@@ -474,10 +540,14 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       ["Relatório Margem Clara", scenarioName],
       ["Empresa", activeCompany?.name ?? "Não selecionada"],
       ["Regime tributário", activeCompany?.taxRegime ?? "Não informado"],
+      ["Ano-alvo", String(targetYear)],
+      ["Origem da alíquota", rateSourceLabel(rateSource)],
+      ["Nota de origem", sourceNote],
+      ["Estado", "Prévia local ainda não congelada nem validada"],
       ["Premissa", "Valor"],
       ["Receita mensal", revenue.toFixed(2)],
       ["Alíquota atual", `${currentRate.toFixed(2)}%`],
-      ["IBS + CBS efetivos", `${newRate.toFixed(2)}%`],
+      ["Alíquota IBS + CBS informada", `${newRate.toFixed(2)}%`],
       ["Custos variáveis", `${costRate.toFixed(2)}%`],
       ["Custos fixos mensais", fixedCosts.toFixed(2)],
       ["Reajuste simulado", `${priceAdjustment.toFixed(2)}%`],
@@ -489,7 +559,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       ["Margem de segurança", `${figures.marginOfSafetyRate.toFixed(2)}%`],
       ["Perda máxima de volume", `${figures.maxVolumeLoss.toFixed(2)}%`],
       ["Impacto anual", figures.annualImpact.toFixed(2)],
-      ["Observação", "Estimativa gerencial; valide as premissas com sua contabilidade."],
+      ["Observação", "Prévia técnica. Não representa validação contábil ou fiscal."],
     ];
     const csv = `\uFEFF${rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";")).join("\r\n")}`;
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
@@ -578,7 +648,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             <span className="nav-icon">▦</span>Empresas
           </button>
           <button className={section === "simulator" ? "active" : ""} onClick={() => setSection("simulator")}>
-            <span className="nav-icon">↗</span>Simulador
+            <span className="nav-icon">↗</span>Análises
           </button>
           <button className={section === "documents" ? "active" : ""} onClick={() => setSection("documents")}>
             <span className="nav-icon">▤</span>Documentos
@@ -595,6 +665,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           <p>{portfolioInsights.pending ? `${portfolioInsights.pending} empresa${portfolioInsights.pending > 1 ? "s" : ""} sem cenário.` : "Toda a carteira possui análise."}</p>
         </div>
 
+        <a className="support-button methodology-link" href="/metodologia"><span>✓</span> Metodologia</a>
         <button className="support-button" onClick={() => setSection("academy")}><span>?</span> Central de ajuda</button>
       </aside>
 
@@ -608,7 +679,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             </select>
           </div>
           <div className="topbar-actions">
-            <span className="year-chip"><i /> Ano teste 2026</span>
+            <span className="year-chip"><i /> Ano {targetYear} · {rateSource === "accountant" ? "fonte: contador" : "premissa informada"}</span>
             <button className="notification" aria-label="Notificações">•</button>
             <div className="account-summary">
               <div className="avatar" aria-label={`Perfil de ${user.displayName}`}>{userInitials}</div>
@@ -647,7 +718,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             <section className="company-grid">
               {companies.map((company) => {
                 const latest = company.latestScenario;
-                const values = latest ? calculateScenarioValues({ revenue: latest.revenueCents / 100, currentRate: latest.currentRateBps / 100, newRate: latest.newRateBps / 100, costRate: latest.costRateBps / 100, fixedCosts: (latest.fixedCostsCents ?? 0) / 100, volumeLoss: (latest.volumeLossBps ?? 0) / 100, priceAdjustment: (latest.priceAdjustmentBps ?? 0) / 100 }) : null;
+                const values = latest ? resolveStoredScenarioValues(latest) : null;
                 const protectedMargin = values ? values.projectedMargin >= values.currentMargin : false;
                 return <article className={`company-card ${activeCompanyId === company.id ? "active-company" : ""}`} key={company.id}>
                   <div className="company-card-top"><span className="company-monogram">{company.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span><span className={`portfolio-status ${!values ? "pending" : protectedMargin ? "protected" : "risk"}`}>{!values ? "Sem análise" : protectedMargin ? "Protegida" : "Em risco"}</span></div>
@@ -754,8 +825,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
         {section === "simulator" && (
           <div className="page-content simulator-page">
             <div className="page-heading">
-              <div><p className="kicker">PLANEJAMENTO · {activeCompany?.name?.toUpperCase() ?? "EMPRESA"}</p><h1>Simulador de margem</h1><p>Ajuste as premissas; este histórico pertence somente à empresa selecionada.</p></div>
-              <div className="heading-actions"><button className="secondary-button" onClick={exportScenarioReport}>Exportar CSV</button><button className="primary-button" onClick={saveScenario} disabled={saving || !scenarioName.trim() || revenue < 1000}>{saving ? "Salvando…" : "Salvar cenário"}</button></div>
+              <div><p className="kicker">ANÁLISE TRIBUTÁRIA CONTROLADA · {activeCompany?.name?.toUpperCase() ?? "EMPRESA"}</p><h1>Análise de impacto tributário</h1><p>Registre premissas, origem e ano-alvo. Cada versão salva fica congelada e auditável.</p></div>
+              <div className="heading-actions"><button className="secondary-button" onClick={exportScenarioReport}>Exportar prévia</button><button className="primary-button" onClick={saveScenario} disabled={saving || !scenarioName.trim() || revenue < 1000 || sourceNote.trim().length < 10}>{saving ? "Salvando…" : "Salvar versão"}</button></div>
             </div>
 
             {message && <div className="toast" role="status">{message}</div>}
@@ -764,24 +835,30 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
               <section className="panel assumptions-panel">
                 <div className="panel-heading"><div><span className="eyebrow">PREMISSAS</span><h3>Configure o cenário</h3></div><span className="editable-chip">Editável</span></div>
                 <label>Nome do cenário<input value={scenarioName} onChange={(event) => setScenarioName(event.target.value)} /></label>
+                <div className="field-row reliability-fields">
+                  <label>Ano-alvo<select value={targetYear} onChange={(event) => setTargetYear(Number(event.target.value))}>{[2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033].map((year) => <option value={year} key={year}>{year}</option>)}</select></label>
+                  <label>Origem da alíquota<select value={rateSource} onChange={(event) => setRateSource(event.target.value as Exclude<RateSource, "legacy_unverified">)}><option value="custom">Premissa informada</option><option value="accountant">Fornecida por contador</option></select></label>
+                </div>
+                <label>Registro da fonte<textarea minLength={10} maxLength={400} value={sourceNote} onChange={(event) => setSourceNote(event.target.value)} placeholder="Documento, memória de cálculo, nome do responsável ou hipótese usada." /></label>
+                {targetYear === 2026 && <p className="reliability-warning"><b>Atenção a 2026:</b> é ano de teste da CBS e do IBS. A alíquota deste campo é uma premissa informada e não é tratada pelo sistema como alíquota oficial homologada.</p>}
                 <div className="field-row">
                   <label>Receita mensal (R$)<input type="number" min="1000" step="1000" value={revenue} onChange={(event) => setRevenue(Number(event.target.value))} /></label>
                   <label>Reajuste de preço (%)<input type="number" min="0" max="100" step="0.1" value={priceAdjustment} onChange={(event) => setPriceAdjustment(Number(event.target.value))} /></label>
                 </div>
                 <div className="field-row">
                   <label>Alíquota atual (%)<input type="number" min="0" max="100" step="0.05" value={currentRate} onChange={(event) => setCurrentRate(Number(event.target.value))} /></label>
-                  <label>IBS + CBS efetivos (%)<input type="number" min="0" max="100" step="0.05" value={newRate} onChange={(event) => setNewRate(Number(event.target.value))} /></label>
+                  <label>Alíquota IBS + CBS projetada (%)<input type="number" min="0" max="99" step="0.05" value={newRate} onChange={(event) => setNewRate(Number(event.target.value))} /></label>
                 </div>
                 <div className="field-row">
                   <label>Custos fixos mensais (R$)<input type="number" min="0" step="500" value={fixedCosts} onChange={(event) => setFixedCosts(Number(event.target.value))} /></label>
                   <label>Queda esperada no volume (%)<input type="number" min="0" max="95" step="0.5" value={volumeLoss} onChange={(event) => setVolumeLoss(Number(event.target.value))} /></label>
                 </div>
                 <label>Custos variáveis (% da receita)<input type="range" min="0" max="95" step="0.1" value={costRate} onChange={(event) => setCostRate(Number(event.target.value))} /><span className="range-value">{costRate.toFixed(1).replace(".", ",")}%</span></label>
-                <p className="helper-text">O cálculo separa custos que acompanham o volume dos custos fixos e considera possível perda de vendas após o reajuste. Valide as alíquotas efetivas com sua contabilidade.</p>
+                <p className="helper-text">O motor calcula no servidor ao salvar, registra um hash SHA-256 das entradas e congela o resultado. A origem informada não substitui a conferência de incidência, créditos e enquadramento.</p>
               </section>
 
               <section className="panel result-panel">
-                <div className="result-header"><span>Resultado projetado</span><small>Cenário mensal</small></div>
+                <div className="result-header"><span>Prévia técnica</span><small>Ainda não congelada</small></div>
                 <strong className="result-number">{currency.format(figures.projectedMargin)}</strong>
                 <p>margem líquida de <b>{figures.projectedMarginRate.toFixed(1).replace(".", ",")}%</b></p>
                 <div className="comparison-bars">
@@ -841,16 +918,17 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             </section>}
 
             <section className="panel saved-panel">
-              <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h3>Cenários salvos</h3></div><span>{savedScenarios.length} registros · compare ou compartilhe</span></div>
+              <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO VERSIONADO</span><h3>Cenários congelados</h3></div><span>{savedScenarios.length} registros · cada hash identifica uma entrada</span></div>
               {savedScenarios.length ? (
                 <div className="saved-list">{savedScenarios.map((item) => (
                   <div className="saved-row" key={item.id}>
                     <button className="saved-load" onClick={() => loadScenario(item)}>
-                      <span><b>{item.name}</b><small>{new Date(item.createdAt).toLocaleDateString("pt-BR")} · receita {currency.format(item.revenueCents / 100)}</small></span>
-                      <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS</small></span>
-                      <i>Carregar →</i>
+                      <span><b>{item.name}</b><small>{new Date(item.createdAt).toLocaleDateString("pt-BR")} · ano {item.targetYear} · {rateSourceLabel(item.rateSource)}</small></span>
+                      <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS informados</small></span>
+                      <i>{item.inputHash ? `#${item.inputHash.slice(0, 8)}` : "Legado"}</i>
                     </button>
-                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id}>{creatingShareId === item.id ? "Gerando…" : "Compartilhar"}</button>
+                    <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""}`} onClick={() => void markReadyForReview(item)} disabled={item.reviewStatus === "ready_for_review" || reviewingScenarioId === item.id || !item.snapshotJson}>{item.reviewStatus === "ready_for_review" ? "Aguardando validação" : reviewingScenarioId === item.id ? "Encaminhando…" : item.snapshotJson ? "Enviar à revisão" : "Regravar versão"}</button>
+                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || item.reviewStatus !== "ready_for_review"}>{creatingShareId === item.id ? "Gerando…" : "Compartilhar"}</button>
                     <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
                     <button className="delete-button" onClick={() => deleteScenario(item)} aria-label={`Excluir ${item.name}`}>×</button>
                   </div>
@@ -860,7 +938,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
 
             <section className="panel share-center-panel">
               <div className="panel-heading"><div><span className="eyebrow">ENTREGA AO CLIENTE</span><h3>Relatórios compartilhados</h3></div><span className="share-count">{reportShares.filter((share) => !share.revokedAt && new Date(share.expiresAt) > new Date()).length} ativos</span></div>
-              <p className="share-center-intro">Gere um link somente leitura pelo botão “Compartilhar”. Cada novo link revoga o anterior daquele cenário e expira automaticamente.</p>
+              <p className="share-center-intro">Somente versões congeladas e encaminhadas à revisão podem gerar um link. O documento informa claramente que ainda aguarda validação profissional.</p>
               {reportShares.length ? <div className="share-list">{reportShares.map((share) => {
                 const expired = new Date(share.expiresAt) <= new Date();
                 const active = !share.revokedAt && !expired;
@@ -871,6 +949,11 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                   <div className="share-actions"><button disabled={!active} onClick={() => void copyReportShare(share)}>Copiar</button><a className={active ? "" : "disabled"} href={active ? share.url : undefined} target="_blank" rel="noreferrer">Abrir</a><button className="revoke" disabled={!active} onClick={() => void revokeReportShare(share)}>Revogar</button></div>
                 </article>;
               })}</div> : <div className="share-empty"><span>↗</span><div><b>Nenhum relatório compartilhado</b><p>Salve um cenário e use “Compartilhar” para entregar uma análise profissional ao cliente.</p></div></div>}
+            </section>
+
+            <section className="panel audit-panel">
+              <div className="panel-heading"><div><span className="eyebrow">TRILHA DE AUDITORIA</span><h3>Eventos desta empresa</h3></div><a href="/metodologia">Controles e metodologia →</a></div>
+              {auditEvents.length ? <div className="audit-list">{auditEvents.slice(0, 8).map((event) => <article key={event.id}><span>✓</span><div><b>{auditEventLabels[event.eventType] ?? event.eventType}</b><small>{new Date(event.createdAt).toLocaleString("pt-BR")} · {typeof event.eventData.calculationVersion === "string" ? event.eventData.calculationVersion : "evento operacional"}</small></div><code>{typeof event.eventData.inputHash === "string" ? `${event.eventData.inputHash.slice(0, 12)}…` : `evento ${event.id}`}</code></article>)}</div> : <div className="empty-state"><span>✓</span><b>A trilha começa no próximo salvamento</b><p>Criação, revisão, compartilhamento, revogação e exclusão serão registrados.</p></div>}
             </section>
           </div>
         )}

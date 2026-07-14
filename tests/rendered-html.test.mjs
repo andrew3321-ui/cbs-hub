@@ -31,3 +31,20 @@ test("credenciais de cobrança permanecem somente no servidor", async () => {
   assert.match(billing, /validateMercadoPagoWebhook/);
   assert.doesNotMatch(hosting, /MERCADO_PAGO|ACCESS_TOKEN|WEBHOOK_SECRET/);
 });
+
+test("análises publicadas expõem versionamento e não afirmam homologação", async () => {
+  const [app, report, methodology, scenariosApi] = await Promise.all([
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
+    readFile(new URL("app/metodologia/page.tsx", root), "utf8"),
+    readFile(new URL("app/api/scenarios/route.ts", root), "utf8"),
+  ]);
+
+  assert.doesNotMatch(app, /Ano teste 2026/);
+  assert.match(app, /Origem da alíquota/);
+  assert.match(report, /parseScenarioSnapshot/);
+  assert.match(report, /Aguardando validação profissional/);
+  assert.match(methodology, /Snapshot imutável por versão/);
+  assert.match(scenariosApi, /hashScenarioInput/);
+  assert.match(scenariosApi, /snapshotJson/);
+});

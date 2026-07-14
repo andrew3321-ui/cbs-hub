@@ -20,6 +20,7 @@ export default async function LandingPage() {
           <a href="#produto">Produto</a>
           <a href="#como-funciona">Como funciona</a>
           <a href="#demonstracoes">Demonstrações</a>
+          <Link href="/metodologia">Metodologia</Link>
           <Link href="/planos">Planos</Link>
         </nav>
         <div className="landing-nav-actions">
@@ -66,7 +67,7 @@ export default async function LandingPage() {
                 <div className="window-alert"><span>↘</span><div><small>ALERTA DE MARGEM</small><b>Margem pode cair 4,8 p.p.</b></div><button>Simular reajuste</button></div>
                 <div className="window-metrics">
                   <article><small>Receita analisada</small><b>R$ 284.650</b><em>cenário atualizado</em></article>
-                  <article><small>Projeção IBS + CBS</small><b>R$ 38.288</b><em className="risk">+ R$ 13.665</em></article>
+                  <article><small>Projeção informada · 2027</small><b>R$ 38.288</b><em className="risk">+ R$ 13.665</em></article>
                   <article><small>Margem projetada</small><b>19,4%</b><em className="risk">↓ 4,8 p.p.</em></article>
                 </div>
                 <div className="window-lower">
@@ -132,7 +133,7 @@ export default async function LandingPage() {
       <footer className="landing-footer">
         <Link className="landing-brand" href="/"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link>
         <p>Inteligência tributária para decisões comerciais mais claras.</p>
-        <span><Link href="/planos">Planos</Link> · © 2026 Margem Clara</span>
+        <span><Link href="/metodologia">Metodologia</Link> · <Link href="/planos">Planos</Link> · © 2026 Margem Clara</span>
       </footer>
     </main>
   );

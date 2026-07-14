@@ -40,7 +40,26 @@ export const scenarios = sqliteTable("scenarios", {
   fixedCostsCents: integer("fixed_costs_cents").notNull().default(0),
   volumeLossBps: integer("volume_loss_bps").notNull().default(0),
   priceAdjustmentBps: integer("price_adjustment_bps").notNull().default(0),
+  targetYear: integer("target_year").notNull().default(2027),
+  rateSource: text("rate_source").notNull().default("legacy_unverified"),
+  sourceNote: text("source_note").notNull().default("Registro anterior ao versionamento de premissas."),
+  reviewStatus: text("review_status").notNull().default("draft"),
+  calculationVersion: text("calculation_version").notNull().default("legacy"),
+  methodologyVersion: text("methodology_version").notNull().default("legacy"),
+  inputHash: text("input_hash"),
+  snapshotJson: text("snapshot_json"),
+  calculatedAt: text("calculated_at"),
   companyId: integer("company_id").notNull().default(1),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const auditEvents = sqliteTable("audit_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ownerUserId: integer("owner_user_id").notNull(),
+  companyId: integer("company_id"),
+  scenarioId: integer("scenario_id"),
+  eventType: text("event_type").notNull(),
+  eventData: text("event_data").notNull().default("{}"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 

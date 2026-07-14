@@ -48,6 +48,15 @@ export function ensureScenarioSchema() {
           fixed_costs_cents INTEGER DEFAULT 0 NOT NULL,
           volume_loss_bps INTEGER DEFAULT 0 NOT NULL,
           price_adjustment_bps INTEGER DEFAULT 0 NOT NULL,
+          target_year INTEGER DEFAULT 2027 NOT NULL,
+          rate_source TEXT DEFAULT 'legacy_unverified' NOT NULL,
+          source_note TEXT DEFAULT 'Registro anterior ao versionamento de premissas.' NOT NULL,
+          review_status TEXT DEFAULT 'draft' NOT NULL,
+          calculation_version TEXT DEFAULT 'legacy' NOT NULL,
+          methodology_version TEXT DEFAULT 'legacy' NOT NULL,
+          input_hash TEXT,
+          snapshot_json TEXT,
+          calculated_at TEXT,
           company_id INTEGER DEFAULT 1 NOT NULL,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
@@ -104,6 +113,17 @@ export function ensureScenarioSchema() {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS audit_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          company_id INTEGER,
+          scenario_id INTEGER,
+          event_type TEXT NOT NULL,
+          event_data TEXT DEFAULT '{}' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
     ]);
 
     try {
@@ -136,6 +156,25 @@ export function ensureScenarioSchema() {
       if (!String(error).toLowerCase().includes("duplicate column")) throw error;
     }
 
+    const reliabilityColumns = [
+      "ALTER TABLE scenarios ADD COLUMN target_year INTEGER DEFAULT 2027 NOT NULL",
+      "ALTER TABLE scenarios ADD COLUMN rate_source TEXT DEFAULT 'legacy_unverified' NOT NULL",
+      "ALTER TABLE scenarios ADD COLUMN source_note TEXT DEFAULT 'Registro anterior ao versionamento de premissas.' NOT NULL",
+      "ALTER TABLE scenarios ADD COLUMN review_status TEXT DEFAULT 'draft' NOT NULL",
+      "ALTER TABLE scenarios ADD COLUMN calculation_version TEXT DEFAULT 'legacy' NOT NULL",
+      "ALTER TABLE scenarios ADD COLUMN methodology_version TEXT DEFAULT 'legacy' NOT NULL",
+      "ALTER TABLE scenarios ADD COLUMN input_hash TEXT",
+      "ALTER TABLE scenarios ADD COLUMN snapshot_json TEXT",
+      "ALTER TABLE scenarios ADD COLUMN calculated_at TEXT",
+    ];
+    for (const statement of reliabilityColumns) {
+      try {
+        await env.DB.prepare(statement).run();
+      } catch (error) {
+        if (!String(error).toLowerCase().includes("duplicate column")) throw error;
+      }
+    }
+
     await env.DB.batch([
       env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_owner_user_id_idx ON companies (owner_user_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id)"),
@@ -146,6 +185,10 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_accounts_user_id_idx ON billing_accounts (user_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_accounts_external_reference_idx ON billing_accounts (external_reference)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_accounts_provider_subscription_id_idx ON billing_accounts (provider_subscription_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_owner_user_id_idx ON audit_events (owner_user_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_company_id_idx ON audit_events (company_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_scenario_id_idx ON audit_events (scenario_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_created_at_idx ON audit_events (created_at)"),
     ]);
   })();
 
