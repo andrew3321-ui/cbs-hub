@@ -6,7 +6,7 @@ import { sessions, users } from "../db/schema";
 
 const SESSION_COOKIE = "mc_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 30;
-const PASSWORD_ITERATIONS = 210_000;
+const PASSWORD_ITERATIONS = 100_000;
 
 export type AppUser = {
   id: number;
