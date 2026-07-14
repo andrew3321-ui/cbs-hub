@@ -57,6 +57,8 @@ export function ensureScenarioSchema() {
           input_hash TEXT,
           snapshot_json TEXT,
           calculated_at TEXT,
+          signature_version TEXT DEFAULT 'legacy' NOT NULL,
+          record_signature TEXT,
           company_id INTEGER DEFAULT 1 NOT NULL,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
@@ -166,6 +168,8 @@ export function ensureScenarioSchema() {
       "ALTER TABLE scenarios ADD COLUMN input_hash TEXT",
       "ALTER TABLE scenarios ADD COLUMN snapshot_json TEXT",
       "ALTER TABLE scenarios ADD COLUMN calculated_at TEXT",
+      "ALTER TABLE scenarios ADD COLUMN signature_version TEXT DEFAULT 'legacy' NOT NULL",
+      "ALTER TABLE scenarios ADD COLUMN record_signature TEXT",
     ];
     for (const statement of reliabilityColumns) {
       try {

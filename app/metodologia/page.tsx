@@ -36,8 +36,9 @@ export default function MethodologyPage() {
           <li><b>01</b><div><strong>Cálculo autoritativo no servidor</strong><p>O navegador exibe uma prévia; o resultado oficial do registro é recalculado no servidor ao salvar.</p></div></li>
           <li><b>02</b><div><strong>Snapshot imutável por versão</strong><p>Relatórios novos leem o resultado congelado. Uma futura mudança de fórmula não reescreve documentos antigos.</p></div></li>
           <li><b>03</b><div><strong>Hash SHA-256 das entradas</strong><p>Receita, alíquotas, custos, ano, origem e nota formam uma impressão digital única da versão.</p></div></li>
-          <li><b>04</b><div><strong>Trilha de auditoria</strong><p>Salvamento, envio à revisão, compartilhamento, revogação e exclusão deixam registro com data e versão.</p></div></li>
-          <li><b>05</b><div><strong>Estados sem falsa homologação</strong><p>Hoje existem “rascunho técnico” e “aguardando validação profissional”. O sistema não permite marcar algo como validado.</p></div></li>
+          <li><b>04</b><div><strong>Assinatura criptográfica HMAC</strong><p>Entradas, snapshot, empresa, proprietário e versões são assinados com uma chave secreta do servidor. Qualquer divergência bloqueia revisão, compartilhamento e relatório.</p></div></li>
+          <li><b>05</b><div><strong>Trilha de auditoria</strong><p>Salvamento, envio à revisão, compartilhamento, revogação e exclusão deixam registro com data e versão.</p></div></li>
+          <li><b>06</b><div><strong>Estados sem falsa homologação</strong><p>Hoje existem “rascunho técnico” e “aguardando validação profissional”. O sistema não permite marcar algo como validado.</p></div></li>
         </ol>
       </section>
 

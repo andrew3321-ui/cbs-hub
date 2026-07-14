@@ -25,6 +25,8 @@ type SavedScenario = {
   inputHash: string | null;
   snapshotJson: string | null;
   calculatedAt: string | null;
+  signatureVersion: string;
+  integrityStatus: "verified" | "legacy" | "invalid";
   companyId: number;
   createdAt: string;
 };
@@ -243,7 +245,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
 
   const comparedScenarios = useMemo(() => comparisonIds.map((id) => {
     const scenario = savedScenarios.find((item) => item.id === id);
-    if (!scenario) return null;
+    if (!scenario || scenario.integrityStatus === "invalid") return null;
     const values = resolveStoredScenarioValues(scenario);
     return { scenario, values };
   }).filter((item): item is NonNullable<typeof item> => item !== null), [comparisonIds, savedScenarios]);
@@ -256,7 +258,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
 
   const portfolioInsights = useMemo(() => {
     const analyses = companies.map((company) => {
-      if (!company.latestScenario) return { company, values: null };
+      if (!company.latestScenario || company.latestScenario.integrityStatus === "invalid") return { company, values: null };
       const item = company.latestScenario;
       return { company, values: resolveStoredScenarioValues(item) };
     });
@@ -314,7 +316,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       .then((data: { scenarios?: SavedScenario[] }) => {
         const rows = data.scenarios ?? [];
         setSavedScenarios(rows);
-        if (rows[0]) loadScenario(rows[0], false);
+        const latestUsable = rows.find((scenario) => scenario.integrityStatus !== "invalid");
+        if (latestUsable) loadScenario(latestUsable, false);
         else resetScenarioFields();
       })
       .catch(() => setSavedScenarios([]));
@@ -403,7 +406,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       if (!response.ok || !data.scenario) throw new Error(data.error || "save failed");
       setSavedScenarios((current) => [data.scenario, ...current].slice(0, 8));
       setCompanies((current) => current.map((company) => company.id === activeCompanyId ? { ...company, latestScenario: data.scenario } : company));
-      setMessage(`Cenário congelado na versão ${data.scenario.calculationVersion}. Agora encaminhe-o para revisão antes de compartilhar.`);
+      setMessage(`Cenário congelado e assinado na versão ${data.scenario.calculationVersion}. Agora encaminhe-o para revisão antes de compartilhar.`);
       void refreshAuditEvents(activeCompanyId);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "save failed" ? error.message : "Não foi possível salvar agora. A prévia continua disponível nesta tela.");
@@ -446,6 +449,10 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   }
 
   function loadScenario(item: SavedScenario, notify = true) {
+    if (item.integrityStatus === "invalid") {
+      setMessage("Este registro foi bloqueado porque a assinatura criptográfica não confere.");
+      return;
+    }
     setRevenue(item.revenueCents / 100);
     setCurrentRate(item.currentRateBps / 100);
     setNewRate(item.newRateBps / 100);
@@ -718,14 +725,15 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             <section className="company-grid">
               {companies.map((company) => {
                 const latest = company.latestScenario;
-                const values = latest ? resolveStoredScenarioValues(latest) : null;
+                const integrityBlocked = latest?.integrityStatus === "invalid";
+                const values = latest && !integrityBlocked ? resolveStoredScenarioValues(latest) : null;
                 const protectedMargin = values ? values.projectedMargin >= values.currentMargin : false;
                 return <article className={`company-card ${activeCompanyId === company.id ? "active-company" : ""}`} key={company.id}>
-                  <div className="company-card-top"><span className="company-monogram">{company.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span><span className={`portfolio-status ${!values ? "pending" : protectedMargin ? "protected" : "risk"}`}>{!values ? "Sem análise" : protectedMargin ? "Protegida" : "Em risco"}</span></div>
+                  <div className="company-card-top"><span className="company-monogram">{company.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span><span className={`portfolio-status ${integrityBlocked ? "risk" : !values ? "pending" : protectedMargin ? "protected" : "risk"}`}>{integrityBlocked ? "Registro bloqueado" : !values ? "Sem análise" : protectedMargin ? "Protegida" : "Em risco"}</span></div>
                   <h2>{company.name}</h2>
                   <p>{formatCnpj(company.cnpj)} · {company.taxRegime}</p>
                   <span className="sector-chip">{company.sector}</span>
-                  {values ? <div className="company-analysis"><div><span>Receita</span><strong>{compactCurrency.format(latest!.revenueCents / 100)}</strong></div><div><span>Margem projetada</span><strong>{values.projectedMarginRate.toFixed(1).replace(".", ",")}%</strong></div><div><span>Reajuste</span><strong>{((latest!.priceAdjustmentBps ?? 0) / 100).toFixed(1).replace(".", ",")}%</strong></div></div> : <div className="company-empty-analysis">Crie o primeiro cenário para medir o risco tributário.</div>}
+                  {values ? <div className="company-analysis"><div><span>Receita</span><strong>{compactCurrency.format(latest!.revenueCents / 100)}</strong></div><div><span>Margem projetada</span><strong>{values.projectedMarginRate.toFixed(1).replace(".", ",")}%</strong></div><div><span>Reajuste</span><strong>{((latest!.priceAdjustmentBps ?? 0) / 100).toFixed(1).replace(".", ",")}%</strong></div></div> : <div className="company-empty-analysis">{integrityBlocked ? "A assinatura não confere. Regrave as premissas em uma nova versão." : "Crie o primeiro cenário para medir o risco tributário."}</div>}
                   <div className="company-actions"><button onClick={() => openCompany(company.id, "overview")}>Abrir painel</button><button onClick={() => openCompany(company.id, "simulator")}>{values ? "Novo cenário" : "Analisar agora"}</button></div>
                 </article>;
               })}
@@ -922,14 +930,14 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
               {savedScenarios.length ? (
                 <div className="saved-list">{savedScenarios.map((item) => (
                   <div className="saved-row" key={item.id}>
-                    <button className="saved-load" onClick={() => loadScenario(item)}>
+                    <button className="saved-load" onClick={() => loadScenario(item)} disabled={item.integrityStatus === "invalid"}>
                       <span><b>{item.name}</b><small>{new Date(item.createdAt).toLocaleDateString("pt-BR")} · ano {item.targetYear} · {rateSourceLabel(item.rateSource)}</small></span>
                       <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS informados</small></span>
-                      <i>{item.inputHash ? `#${item.inputHash.slice(0, 8)}` : "Legado"}</i>
+                      <i className={`integrity-label ${item.integrityStatus}`}>{item.integrityStatus === "verified" ? `Assinado · #${item.inputHash?.slice(0, 8)}` : item.integrityStatus === "invalid" ? "Integridade bloqueada" : "Legado"}</i>
                     </button>
-                    <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""}`} onClick={() => void markReadyForReview(item)} disabled={item.reviewStatus === "ready_for_review" || reviewingScenarioId === item.id || !item.snapshotJson}>{item.reviewStatus === "ready_for_review" ? "Aguardando validação" : reviewingScenarioId === item.id ? "Encaminhando…" : item.snapshotJson ? "Enviar à revisão" : "Regravar versão"}</button>
-                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || item.reviewStatus !== "ready_for_review"}>{creatingShareId === item.id ? "Gerando…" : "Compartilhar"}</button>
-                    <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
+                    <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""}`} onClick={() => void markReadyForReview(item)} disabled={item.integrityStatus !== "verified" || item.reviewStatus === "ready_for_review" || reviewingScenarioId === item.id || !item.snapshotJson}>{item.integrityStatus === "invalid" ? "Bloqueado" : item.reviewStatus === "ready_for_review" ? "Aguardando validação" : reviewingScenarioId === item.id ? "Encaminhando…" : item.snapshotJson && item.integrityStatus === "verified" ? "Enviar à revisão" : "Regravar versão"}</button>
+                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || item.reviewStatus !== "ready_for_review" || item.integrityStatus !== "verified"}>{creatingShareId === item.id ? "Gerando…" : "Compartilhar"}</button>
+                    <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} disabled={item.integrityStatus === "invalid"} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
                     <button className="delete-button" onClick={() => deleteScenario(item)} aria-label={`Excluir ${item.name}`}>×</button>
                   </div>
                 ))}</div>

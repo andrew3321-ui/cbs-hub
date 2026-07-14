@@ -2,6 +2,7 @@ import { and, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { auditEvents, companies, scenarios } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
+import { signedRecordFromScenario, verifyScenarioRecord } from "../../../scenario-signing";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -13,9 +14,12 @@ export async function POST(request: Request) {
     if (!Number.isInteger(scenarioId) || scenarioId <= 0) return Response.json({ error: "Cenário inválido." }, { status: 400 });
 
     const db = getDb();
-    const [scenario] = await db.select({ id: scenarios.id, name: scenarios.name, companyId: scenarios.companyId, reviewStatus: scenarios.reviewStatus, snapshotJson: scenarios.snapshotJson, inputHash: scenarios.inputHash, calculationVersion: scenarios.calculationVersion, methodologyVersion: scenarios.methodologyVersion }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.id, scenarioId), eq(companies.ownerUserId, user.id))).limit(1);
+    const [owned] = await db.select({ scenario: scenarios }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.id, scenarioId), eq(companies.ownerUserId, user.id))).limit(1);
+    const scenario = owned?.scenario;
     if (!scenario) return Response.json({ error: "Cenário não encontrado." }, { status: 404 });
     if (!scenario.snapshotJson || !scenario.inputHash || scenario.calculationVersion === "legacy") return Response.json({ error: "Este registro é anterior à blindagem. Carregue as premissas e salve uma nova versão." }, { status: 409 });
+    const signedRecord = signedRecordFromScenario(scenario, user.id);
+    if (!signedRecord || !(await verifyScenarioRecord(signedRecord, scenario.recordSignature, scenario.signatureVersion))) return Response.json({ error: "A verificação criptográfica falhou. Este registro foi bloqueado e não pode seguir para revisão." }, { status: 409 });
     if (scenario.reviewStatus === "ready_for_review") return Response.json({ scenario: { id: scenario.id, reviewStatus: scenario.reviewStatus } });
 
     await db.update(scenarios).set({ reviewStatus: "ready_for_review" }).where(eq(scenarios.id, scenarioId));

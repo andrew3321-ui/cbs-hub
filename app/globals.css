@@ -248,10 +248,12 @@ tbody tr:last-child td { border-bottom: 0; }
 .saved-row { display: grid; grid-template-columns: 1fr 112px 86px 76px 38px; align-items: stretch; border-top: 1px solid #e9efec; }
 .saved-load { display: grid; grid-template-columns: 1fr 140px 90px; align-items: center; gap: 20px; padding: 14px 8px; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
 .saved-load:hover { background: #f8faf8; }
+.saved-load:disabled { cursor: not-allowed; opacity: .62; background: #fff8f5; }
 .saved-list b, .saved-list small { display: block; }
 .saved-list b { font-size: 11px; }
 .saved-list small { margin-top: 3px; color: #85938f; font-size: 9px; }
 .saved-list i { color: var(--teal); font-size: 9px; font-style: normal; font-weight: 750; }
+.saved-list i.integrity-label.verified { color: #5d8035; }.saved-list i.integrity-label.invalid { color: var(--danger); }.saved-list i.integrity-label.legacy { color: #8a7770; }
 .delete-button { align-self: center; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #9aa7a4; font-size: 18px; cursor: pointer; }
 .delete-button:hover { color: var(--danger); background: var(--danger-soft); }
 .compare-toggle { align-self: center; padding: 6px 7px; border: 1px solid #d9e2de; border-radius: 6px; background: white; color: #657875; font-size: 8px; font-weight: 750; cursor: pointer; }

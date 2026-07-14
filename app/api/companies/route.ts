@@ -2,6 +2,7 @@ import { asc, desc, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { companies, scenarios } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
+import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
 
 const allowedRegimes = new Set(["Simples Nacional", "Lucro Presumido", "Lucro Real", "MEI"]);
 
@@ -14,7 +15,12 @@ export async function GET() {
     const rows = await db.select().from(companies).where(eq(companies.ownerUserId, user.id)).orderBy(asc(companies.name));
     const enriched = await Promise.all(rows.map(async (company) => {
       const [latestScenario] = await db.select().from(scenarios).where(eq(scenarios.companyId, company.id)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(1);
-      return { ...company, latestScenario: latestScenario ?? null };
+      if (!latestScenario) return { ...company, latestScenario: null };
+      const { recordSignature, ...publicScenario } = latestScenario;
+      if (latestScenario.calculationVersion === "legacy") return { ...company, latestScenario: { ...publicScenario, integrityStatus: "legacy" } };
+      const signedRecord = signedRecordFromScenario(latestScenario, user.id);
+      const integrityStatus = signedRecord && await verifyScenarioRecord(signedRecord, recordSignature, latestScenario.signatureVersion) ? "verified" : "invalid";
+      return { ...company, latestScenario: { ...publicScenario, integrityStatus } };
     }));
     return Response.json({ companies: enriched });
   } catch {

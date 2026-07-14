@@ -2,6 +2,7 @@ import { and, desc, eq, isNull } from "drizzle-orm";
 import { getCurrentUser } from "../../auth";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { auditEvents, companies, reportShares, scenarios } from "../../../db/schema";
+import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
 
 function secureToken() {
   const bytes = new Uint8Array(24);
@@ -40,9 +41,12 @@ export async function POST(request: Request) {
     if (!Number.isInteger(scenarioId) || scenarioId <= 0) return Response.json({ error: "Cenário inválido." }, { status: 400 });
 
     const db = getDb();
-    const [ownedScenario] = await db.select({ scenarioId: scenarios.id, companyId: companies.id, reviewStatus: scenarios.reviewStatus, snapshotJson: scenarios.snapshotJson, inputHash: scenarios.inputHash, calculationVersion: scenarios.calculationVersion }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.id, scenarioId), eq(companies.ownerUserId, user.id))).limit(1);
+    const [owned] = await db.select({ scenario: scenarios }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.id, scenarioId), eq(companies.ownerUserId, user.id))).limit(1);
+    const ownedScenario = owned?.scenario;
     if (!ownedScenario) return Response.json({ error: "Cenário não encontrado." }, { status: 404 });
     if (ownedScenario.reviewStatus !== "ready_for_review" || !ownedScenario.snapshotJson || !ownedScenario.inputHash) return Response.json({ error: "Encaminhe o cenário para revisão antes de compartilhar. O relatório continuará identificado como aguardando validação profissional." }, { status: 409 });
+    const signedRecord = signedRecordFromScenario(ownedScenario, user.id);
+    if (!signedRecord || !(await verifyScenarioRecord(signedRecord, ownedScenario.recordSignature, ownedScenario.signatureVersion))) return Response.json({ error: "A assinatura de integridade deste cenário não confere. O compartilhamento foi bloqueado." }, { status: 409 });
 
     const now = new Date().toISOString();
     await db.update(reportShares).set({ revokedAt: now }).where(and(eq(reportShares.scenarioId, scenarioId), eq(reportShares.ownerUserId, user.id), isNull(reportShares.revokedAt)));

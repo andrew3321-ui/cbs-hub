@@ -4,6 +4,7 @@ import { ensureScenarioSchema, getDb } from "../../../db";
 import { companies, reportShares, scenarios, users } from "../../../db/schema";
 import { calculateScenarioValues } from "../../scenario-calculations";
 import { parseScenarioSnapshot, rateSourceLabel, valuesFromSnapshot, type RateSource } from "../../scenario-reliability";
+import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
 import ReportActions from "./ReportActions";
 
 export const dynamic = "force-dynamic";
@@ -15,6 +16,10 @@ function unavailable() {
   return <main className="public-report-unavailable"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>LINK INDISPONÍVEL</span><h1>Este relatório não está mais acessível.</h1><p>O link pode ter expirado ou sido revogado por quem preparou a análise.</p><Link href="/">Conhecer o Margem Clara →</Link></section></main>;
 }
 
+function integrityBlocked() {
+  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>INTEGRIDADE NÃO CONFIRMADA</span><h1>Este relatório foi bloqueado por segurança.</h1><p>A assinatura criptográfica do registro não confere. Nenhum número será exibido até que uma nova versão íntegra seja criada.</p><Link href="/metodologia">Entender os controles →</Link></section></main>;
+}
+
 export default async function PublicReportPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!/^[0-9a-f]{48}$/.test(token)) return unavailable();
@@ -23,10 +28,15 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
   const [report] = await db.select({
     shareId: reportShares.id, note: reportShares.note, expiresAt: reportShares.expiresAt, views: reportShares.views, createdAt: reportShares.createdAt,
     scenarioName: scenarios.name, revenueCents: scenarios.revenueCents, currentRateBps: scenarios.currentRateBps, newRateBps: scenarios.newRateBps, costRateBps: scenarios.costRateBps, fixedCostsCents: scenarios.fixedCostsCents, volumeLossBps: scenarios.volumeLossBps, priceAdjustmentBps: scenarios.priceAdjustmentBps,
-    targetYear: scenarios.targetYear, rateSource: scenarios.rateSource, sourceNote: scenarios.sourceNote, reviewStatus: scenarios.reviewStatus, calculationVersion: scenarios.calculationVersion, methodologyVersion: scenarios.methodologyVersion, inputHash: scenarios.inputHash, snapshotJson: scenarios.snapshotJson, calculatedAt: scenarios.calculatedAt,
+    targetYear: scenarios.targetYear, rateSource: scenarios.rateSource, sourceNote: scenarios.sourceNote, reviewStatus: scenarios.reviewStatus, calculationVersion: scenarios.calculationVersion, methodologyVersion: scenarios.methodologyVersion, inputHash: scenarios.inputHash, snapshotJson: scenarios.snapshotJson, calculatedAt: scenarios.calculatedAt, signatureVersion: scenarios.signatureVersion, recordSignature: scenarios.recordSignature,
+    companyId: scenarios.companyId, ownerUserId: reportShares.ownerUserId,
     scenarioCreatedAt: scenarios.createdAt, companyName: companies.name, taxRegime: companies.taxRegime, sector: companies.sector, authorName: users.name,
   }).from(reportShares).innerJoin(scenarios, eq(reportShares.scenarioId, scenarios.id)).innerJoin(companies, eq(reportShares.companyId, companies.id)).innerJoin(users, eq(reportShares.ownerUserId, users.id)).where(and(eq(reportShares.token, token), isNull(reportShares.revokedAt), gt(reportShares.expiresAt, new Date().toISOString()))).limit(1);
   if (!report) return unavailable();
+
+  const signedRecord = signedRecordFromScenario({ ...report, name: report.scenarioName }, report.ownerUserId);
+  const integrityVerified = Boolean(signedRecord && await verifyScenarioRecord(signedRecord, report.recordSignature, report.signatureVersion));
+  if (report.calculationVersion !== "legacy" && !integrityVerified) return integrityBlocked();
 
   await db.update(reportShares).set({ views: sql`${reportShares.views} + 1`, lastViewedAt: new Date().toISOString() }).where(eq(reportShares.id, report.shareId));
 
@@ -43,7 +53,7 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
     : calculateScenarioValues({ revenue, currentRate, newRate, costRate, fixedCosts, volumeLoss, priceAdjustment: adjustment });
   const { currentTax, projectedTax, currentMargin, projectedMargin, currentMarginRate, projectedMarginRate, requiredPriceIncrease, breakEvenRevenue, marginOfSafetyRate, annualImpact } = figures;
   const protectedMargin = projectedMargin >= currentMargin;
-  const versioned = Boolean(frozenSnapshot && report.inputHash && report.calculationVersion !== "legacy");
+  const versioned = Boolean(frozenSnapshot && report.inputHash && report.calculationVersion !== "legacy" && integrityVerified);
   const reviewLabel = report.reviewStatus === "ready_for_review" ? "Aguardando validação profissional" : "Rascunho técnico";
   const sourceLabel = rateSourceLabel(report.rateSource as RateSource);
 
@@ -64,7 +74,7 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
         <section className={`report-assurance ${versioned ? "versioned" : "legacy"}`}>
           <div><span>ESTADO DO DOCUMENTO</span><strong>{reviewLabel}</strong><small>Não representa homologação contábil ou fiscal.</small></div>
           <div><span>ORIGEM DA ALÍQUOTA</span><strong>{sourceLabel}</strong><small>{report.sourceNote}</small></div>
-          <div><span>INTEGRIDADE</span><strong>{versioned ? `Snapshot ${report.calculationVersion}` : "Registro legado não congelado"}</strong><small>{report.inputHash ? `SHA-256 ${report.inputHash.slice(0, 12)}…` : "Sem hash de entrada"}</small></div>
+          <div><span>INTEGRIDADE</span><strong>{versioned ? `Assinatura verificada · ${report.calculationVersion}` : "Registro legado não assinado"}</strong><small>{report.inputHash ? `SHA-256 ${report.inputHash.slice(0, 12)}…` : "Sem hash de entrada"}</small></div>
           <Link href="/metodologia">Ver metodologia e limitações →</Link>
         </section>
 

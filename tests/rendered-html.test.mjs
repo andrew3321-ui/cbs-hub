@@ -33,11 +33,12 @@ test("credenciais de cobrança permanecem somente no servidor", async () => {
 });
 
 test("análises publicadas expõem versionamento e não afirmam homologação", async () => {
-  const [app, report, methodology, scenariosApi] = await Promise.all([
+  const [app, report, methodology, scenariosApi, signing] = await Promise.all([
     readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
     readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
     readFile(new URL("app/metodologia/page.tsx", root), "utf8"),
     readFile(new URL("app/api/scenarios/route.ts", root), "utf8"),
+    readFile(new URL("app/scenario-signing.ts", root), "utf8"),
   ]);
 
   assert.doesNotMatch(app, /Ano teste 2026/);
@@ -47,4 +48,6 @@ test("análises publicadas expõem versionamento e não afirmam homologação", 
   assert.match(methodology, /Snapshot imutável por versão/);
   assert.match(scenariosApi, /hashScenarioInput/);
   assert.match(scenariosApi, /snapshotJson/);
+  assert.match(signing, /SCENARIO_SIGNING_KEY_V1/);
+  assert.match(report, /integrityBlocked/);
 });

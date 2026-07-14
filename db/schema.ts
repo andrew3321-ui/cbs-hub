@@ -49,6 +49,8 @@ export const scenarios = sqliteTable("scenarios", {
   inputHash: text("input_hash"),
   snapshotJson: text("snapshot_json"),
   calculatedAt: text("calculated_at"),
+  signatureVersion: text("signature_version").notNull().default("legacy"),
+  recordSignature: text("record_signature"),
   companyId: integer("company_id").notNull().default(1),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });

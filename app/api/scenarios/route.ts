@@ -3,6 +3,7 @@ import { ensureScenarioSchema, getDb } from "../../../db";
 import { auditEvents, companies, reportShares, scenarios } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
 import { buildScenarioSnapshot, CALCULATION_ENGINE_VERSION, hashScenarioInput, METHODOLOGY_VERSION, type RateSource, type ScenarioReliabilityInput } from "../../scenario-reliability";
+import { SCENARIO_SIGNATURE_VERSION, signedRecordFromScenario, signScenarioRecord, verifyScenarioRecord } from "../../scenario-signing";
 
 function validInteger(value: unknown, min: number, max: number) {
   return Number.isInteger(value) && Number(value) >= min && Number(value) <= max;
@@ -27,6 +28,8 @@ const scenarioSelection = {
   inputHash: scenarios.inputHash,
   snapshotJson: scenarios.snapshotJson,
   calculatedAt: scenarios.calculatedAt,
+  signatureVersion: scenarios.signatureVersion,
+  recordSignature: scenarios.recordSignature,
   companyId: scenarios.companyId,
   createdAt: scenarios.createdAt,
 };
@@ -46,7 +49,14 @@ export async function GET(request: Request) {
     } else {
       rows = await db.select(scenarioSelection).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(eq(companies.ownerUserId, user.id)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(100);
     }
-    return Response.json({ scenarios: rows });
+    const verifiedRows = await Promise.all(rows.map(async (row) => {
+      const { recordSignature, ...publicRow } = row;
+      if (row.calculationVersion === "legacy") return { ...publicRow, integrityStatus: "legacy" as const };
+      const signedRecord = signedRecordFromScenario(row, user.id);
+      const integrityStatus = signedRecord && await verifyScenarioRecord(signedRecord, recordSignature, row.signatureVersion) ? "verified" as const : "invalid" as const;
+      return { ...publicRow, integrityStatus };
+    }));
+    return Response.json({ scenarios: verifiedRows });
   } catch {
     return Response.json({ error: "O histórico ainda não está disponível." }, { status: 500 });
   }
@@ -90,6 +100,8 @@ export async function POST(request: Request) {
     const snapshot = buildScenarioSnapshot(reliabilityInput);
     const inputHash = await hashScenarioInput(reliabilityInput);
     const calculatedAt = new Date().toISOString();
+    const snapshotJson = JSON.stringify(snapshot);
+    const recordSignature = await signScenarioRecord({ ownerUserId: user.id, companyId, name, ...reliabilityInput, snapshotJson, calculationVersion: CALCULATION_ENGINE_VERSION, methodologyVersion: METHODOLOGY_VERSION, calculatedAt });
     const [scenario] = await db.insert(scenarios).values({
       name,
       ...reliabilityInput,
@@ -97,8 +109,10 @@ export async function POST(request: Request) {
       calculationVersion: CALCULATION_ENGINE_VERSION,
       methodologyVersion: METHODOLOGY_VERSION,
       inputHash,
-      snapshotJson: JSON.stringify(snapshot),
+      snapshotJson,
       calculatedAt,
+      signatureVersion: SCENARIO_SIGNATURE_VERSION,
+      recordSignature,
       companyId,
     }).returning();
 
@@ -107,10 +121,12 @@ export async function POST(request: Request) {
       companyId,
       scenarioId: scenario.id,
       eventType: "scenario.created",
-      eventData: JSON.stringify({ name, targetYear, rateSource, inputHash, calculationVersion: CALCULATION_ENGINE_VERSION, methodologyVersion: METHODOLOGY_VERSION }),
+      eventData: JSON.stringify({ name, targetYear, rateSource, inputHash, calculationVersion: CALCULATION_ENGINE_VERSION, methodologyVersion: METHODOLOGY_VERSION, signatureVersion: SCENARIO_SIGNATURE_VERSION }),
     });
-    return Response.json({ scenario }, { status: 201 });
-  } catch {
+    const publicScenario = Object.fromEntries(Object.entries(scenario).filter(([key]) => key !== "recordSignature"));
+    return Response.json({ scenario: { ...publicScenario, integrityStatus: "verified" } }, { status: 201 });
+  } catch (error) {
+    if (error instanceof Error && error.message === "scenario_signing_key_unavailable") return Response.json({ error: "A assinatura de integridade está temporariamente indisponível. Nenhum cenário foi salvo." }, { status: 503 });
     return Response.json({ error: "Não foi possível salvar o cenário." }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { buildScenarioSnapshot, hashScenarioInput, parseScenarioSnapshot, valuesFromSnapshot } from "../app/scenario-reliability.ts";
+import { SCENARIO_SIGNATURE_VERSION, signScenarioRecordWithSecret, verifyScenarioRecordWithSecret } from "../app/scenario-signing-core.ts";
 
 const storedInput = {
   revenueCents: 20_000_000,
@@ -40,4 +41,15 @@ test("hash é determinístico e cobre a proveniência", async () => {
   assert.match(first, /^[0-9a-f]{64}$/);
   assert.equal(first, same);
   assert.notEqual(first, changedSource);
+});
+
+test("assinatura aceita registro íntegro e rejeita adulteração de qualquer campo crítico", async () => {
+  const snapshotJson = JSON.stringify(buildScenarioSnapshot(storedInput));
+  const record = { ownerUserId: 7, companyId: 11, name: "Cenário assinado", ...storedInput, snapshotJson, calculationVersion: "mc-margin-1.0.0", methodologyVersion: "rtc-foundation-2026.07", calculatedAt: "2026-07-14T19:00:00.000Z" };
+  const secret = "chave-de-teste-com-mais-de-trinta-e-dois-caracteres";
+  const signature = await signScenarioRecordWithSecret(record, secret);
+  assert.equal(await verifyScenarioRecordWithSecret(record, signature, SCENARIO_SIGNATURE_VERSION, secret), true);
+  assert.equal(await verifyScenarioRecordWithSecret({ ...record, newRateBps: record.newRateBps + 1 }, signature, SCENARIO_SIGNATURE_VERSION, secret), false);
+  assert.equal(await verifyScenarioRecordWithSecret({ ...record, snapshotJson: snapshotJson.replace("projectedTaxCents", "projectedTaxTamperedCents") }, signature, SCENARIO_SIGNATURE_VERSION, secret), false);
+  assert.equal(await verifyScenarioRecordWithSecret({ ...record, companyId: 12 }, signature, SCENARIO_SIGNATURE_VERSION, secret), false);
 });

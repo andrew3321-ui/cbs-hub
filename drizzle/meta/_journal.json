@@ -50,6 +50,13 @@
       "when": 1784055284294,
       "tag": "0006_special_payback",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1784062865706,
+      "tag": "0007_loving_arclight",
+      "breakpoints": true
     }
   ]
 }
