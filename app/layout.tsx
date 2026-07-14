@@ -14,7 +14,7 @@ export async function generateMetadata(): Promise<Metadata> {
     openGraph: {
       title: "Margem Clara — Decisões fiscais. Margens protegidas.",
       description: "Entenda o impacto tributário antes que ele chegue à sua margem.",
-      images: [{ url: `${origin}/og.png`, width: 1736, height: 909, alt: "Margem Clara — decisões fiscais, margens protegidas" }],
+      images: [{ url: `${origin}/og.jpg`, width: 1736, height: 909, alt: "Margem Clara — decisões fiscais, margens protegidas" }],
       locale: "pt_BR",
       type: "website",
     },
@@ -22,7 +22,7 @@ export async function generateMetadata(): Promise<Metadata> {
       card: "summary_large_image",
       title: "Margem Clara",
       description: "Decisões fiscais. Margens protegidas.",
-      images: [`${origin}/og.png`],
+      images: [`${origin}/og.jpg`],
     },
   };
 }
