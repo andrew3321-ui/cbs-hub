@@ -1,10 +1,12 @@
 import { asc, desc, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { companies, scenarios } from "../../../db/schema";
+import { getChatGPTUser } from "../../chatgpt-auth";
 
 const allowedRegimes = new Set(["Simples Nacional", "Lucro Presumido", "Lucro Real", "MEI"]);
 
 export async function GET() {
+  if (!(await getChatGPTUser())) return Response.json({ error: "Faça login para acessar sua carteira." }, { status: 401 });
   try {
     await ensureScenarioSchema();
     const db = getDb();
@@ -20,6 +22,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  if (!(await getChatGPTUser())) return Response.json({ error: "Faça login para cadastrar empresas." }, { status: 401 });
   try {
     await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;

@@ -1,12 +1,14 @@
 import { desc, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { scenarios } from "../../../db/schema";
+import { getChatGPTUser } from "../../chatgpt-auth";
 
 function validInteger(value: unknown, min: number, max: number) {
   return Number.isInteger(value) && Number(value) >= min && Number(value) <= max;
 }
 
 export async function GET(request: Request) {
+  if (!(await getChatGPTUser())) return Response.json({ error: "Faça login para acessar os cenários." }, { status: 401 });
   try {
     await ensureScenarioSchema();
     const companyId = Number(new URL(request.url).searchParams.get("companyId"));
@@ -21,6 +23,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  if (!(await getChatGPTUser())) return Response.json({ error: "Faça login para salvar cenários." }, { status: 401 });
   try {
     await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;
@@ -47,6 +50,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  if (!(await getChatGPTUser())) return Response.json({ error: "Faça login para excluir cenários." }, { status: 401 });
   try {
     await ensureScenarioSchema();
     const id = Number(new URL(request.url).searchParams.get("id"));
