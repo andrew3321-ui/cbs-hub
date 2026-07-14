@@ -1,15 +1,13 @@
 import Link from "next/link";
-import { chatGPTSignInPath, getChatGPTUser } from "./chatgpt-auth";
+import { getCurrentUser } from "./auth";
 
 export const dynamic = "force-dynamic";
 
-const accessPath = chatGPTSignInPath("/app");
-const academyAccessPath = chatGPTSignInPath("/app?view=academy");
-
 export default async function LandingPage() {
-  const user = await getChatGPTUser();
-  const primaryPath = user ? "/app" : accessPath;
-  const demoPath = user ? "/app?view=academy" : academyAccessPath;
+  const user = await getCurrentUser();
+  const primaryPath = user ? "/app" : "/cadastro";
+  const loginPath = user ? "/app" : "/entrar";
+  const demoPath = user ? "/app?view=academy" : "/cadastro";
 
   return (
     <main className="landing-shell">
@@ -24,7 +22,7 @@ export default async function LandingPage() {
           <a href="#demonstracoes">Demonstrações</a>
         </nav>
         <div className="landing-nav-actions">
-          <Link className="landing-login" href={primaryPath}>{user ? "Ir para o painel" : "Entrar"}</Link>
+          <Link className="landing-login" href={loginPath}>{user ? "Ir para o painel" : "Entrar"}</Link>
           <Link className="landing-cta small" href={primaryPath}>{user ? "Continuar análise" : "Começar gratuitamente"}<span>→</span></Link>
         </div>
       </header>

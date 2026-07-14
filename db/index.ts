@@ -28,6 +28,7 @@ export function ensureScenarioSchema() {
           cnpj TEXT,
           tax_regime TEXT NOT NULL,
           sector TEXT DEFAULT 'Serviços' NOT NULL,
+          owner_user_id INTEGER,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
@@ -49,6 +50,27 @@ export function ensureScenarioSchema() {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS users (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          name TEXT NOT NULL,
+          email TEXT NOT NULL UNIQUE,
+          password_hash TEXT NOT NULL,
+          password_salt TEXT NOT NULL,
+          recovery_key_hash TEXT NOT NULL,
+          failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
+          locked_until TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS sessions (
+          id TEXT PRIMARY KEY NOT NULL,
+          user_id INTEGER NOT NULL,
+          expires_at TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
     ]);
 
     try {
@@ -62,6 +84,18 @@ export function ensureScenarioSchema() {
     } catch (error) {
       if (!String(error).toLowerCase().includes("duplicate column")) throw error;
     }
+
+    try {
+      await env.DB.prepare("ALTER TABLE companies ADD COLUMN owner_user_id INTEGER").run();
+    } catch (error) {
+      if (!String(error).toLowerCase().includes("duplicate column")) throw error;
+    }
+
+    await env.DB.batch([
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_owner_user_id_idx ON companies (owner_user_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions (expires_at)"),
+    ]);
   })();
 
   return scenarioSchemaReady;

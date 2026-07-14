@@ -279,6 +279,10 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       .then((data: { companies?: Company[] }) => {
         const rows = data.companies ?? [];
         setCompanies(rows);
+        if (!rows.length) {
+          setSection("companies");
+          setShowCompanyForm(true);
+        }
         const storedId = Number(window.localStorage.getItem("margem-clara-company"));
         const selected = rows.find((company) => company.id === storedId)?.id ?? rows[0]?.id ?? null;
         setActiveCompanyId(selected);
