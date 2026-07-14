@@ -25,6 +25,8 @@
 - `report_shares`: tokens revogáveis e com expiração.
 - `users` e `sessions`: autenticação e sessão da aplicação.
 - `billing_accounts`: estado de cobrança desacoplado do motor fiscal.
+- `fiscal_rule_sets`: conteúdo normativo versionado, vigência, estado e hash de integridade.
+- `fiscal_reference_cases`: entradas e saídas esperadas usadas como regressão de cada versão fiscal.
 
 Toda consulta de dados privados deve aplicar o proprietário no servidor. IDs recebidos do cliente nunca são autorização.
 
@@ -48,6 +50,17 @@ Uma nova regra deve incluir:
 6. revisão profissional antes de disponibilizar qualquer estado homologado.
 
 Nunca recalcule silenciosamente um relatório histórico com uma versão nova do motor.
+
+### Portão de execução fiscal
+
+O catálogo é separado do simulador financeiro. Uma regra só pode ser considerada executável quando, simultaneamente:
+
+1. o conteúdo armazenado reproduz o hash SHA-256 da versão;
+2. todos os casos de referência persistidos reproduzem a saída esperada;
+3. o modo da versão é `calculation`;
+4. o estado da versão é `approved`.
+
+A regra inicial `RTC-BR-2026-TEST@1.0.0` permanece em `reference_only` e `in_review`. Ela reproduz apenas os destaques brutos de CBS e IBS do ano-teste e sempre retorna `netPayableCents: null`. Alterar conteúdo mantendo o mesmo par código/versão provoca conflito e bloqueia a inicialização do catálogo; qualquer mudança normativa exige uma nova versão.
 
 ## Rotação de assinatura
 

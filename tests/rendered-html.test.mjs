@@ -73,3 +73,22 @@ test("infraestrutura escalável evita N+1, duplicidade e falhas sem correlação
   assert.match(telemetry, /X-Request-Id/);
   assert.doesNotMatch(health, /SCENARIO_SIGNING_KEY_V1/);
 });
+
+test("catálogo fiscal exige integridade, regressão e homologação antes da execução", async () => {
+  const [client, rulesApi, ruleDefinition, schema] = await Promise.all([
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/api/fiscal-rules/route.ts", root), "utf8"),
+    readFile(new URL("domain/fiscal-rules.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+  ]);
+
+  assert.match(client, /Catálogo fiscal versionado/);
+  assert.match(client, /Sem cálculo automático de valor a recolher/);
+  assert.match(rulesApi, /rule\.status === "approved"/);
+  assert.match(rulesApi, /definition\.executionMode === "calculation"/);
+  assert.match(rulesApi, /integrityStatus === "verified"/);
+  assert.match(rulesApi, /testsPassed/);
+  assert.match(ruleDefinition, /automaticNetPayableCalculation: false/);
+  assert.doesNotMatch(ruleDefinition, /automaticNetPayableCalculation: true/);
+  assert.match(schema, /fiscal_rule_sets_code_version_idx/);
+});

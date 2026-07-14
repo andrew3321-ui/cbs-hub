@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { calculateScenarioValues } from "../scenario-calculations";
 import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 
-type Section = "overview" | "companies" | "simulator" | "documents" | "academy";
+type Section = "overview" | "companies" | "simulator" | "documents" | "rules" | "academy";
 
 type SavedScenario = {
   id: number;
@@ -97,6 +97,47 @@ type ProductDemo = {
   steps: DemoStep[];
 };
 
+type FiscalReferenceOutput = {
+  cbsHighlightedCents: number;
+  ibsHighlightedCents: number;
+  totalHighlightedCents: number;
+  collectionTreatment: "conditional_waiver" | "offset_against_pis_cofins";
+  netPayableCents: null;
+};
+
+type FiscalRule = {
+  id: number;
+  code: string;
+  version: string;
+  name: string;
+  jurisdiction: string;
+  status: "draft" | "in_review" | "approved" | "retired";
+  effectiveFrom: string;
+  effectiveTo: string;
+  contentFingerprint: string;
+  integrityStatus: "verified" | "invalid";
+  testsPassed: boolean;
+  executionEnabled: boolean;
+  blockingReasons: string[];
+  executionMode: "reference_only" | "calculation";
+  components: Array<{ tax: "CBS" | "IBS"; rateBps: number }>;
+  limitations: string[];
+  sources: Array<{ title: string; url: string; publisher: string; sourceUpdatedAt: string | null; checkedAt: string }>;
+  referenceCases: Array<{
+    code: string;
+    title: string;
+    input: { taxableBaseCents: number; ancillaryObligationsStatus: "confirmed_compliant" | "not_confirmed" } | null;
+    expected: FiscalReferenceOutput | null;
+    actual: FiscalReferenceOutput | null;
+    passed: boolean;
+  }>;
+};
+
+type FiscalCatalog = {
+  rules: FiscalRule[];
+  metrics: { totalRules: number; totalSources: number; passedCases: number; totalCases: number; executionEnabled: number };
+};
+
 const currency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -108,6 +149,12 @@ const compactCurrency = new Intl.NumberFormat("pt-BR", {
   currency: "BRL",
   notation: "compact",
   maximumFractionDigits: 1,
+});
+
+const preciseCurrency = new Intl.NumberFormat("pt-BR", {
+  style: "currency",
+  currency: "BRL",
+  minimumFractionDigits: 2,
 });
 
 function createClientRequestId() {
@@ -242,6 +289,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const [demoIndex, setDemoIndex] = useState(0);
   const [demoStep, setDemoStep] = useState(0);
   const [demoPlaying, setDemoPlaying] = useState(false);
+  const [fiscalCatalog, setFiscalCatalog] = useState<FiscalCatalog | null>(null);
+  const [rulesError, setRulesError] = useState("");
   const pendingScenarioRequest = useRef<{ fingerprint: string; id: string } | null>(null);
 
   const activeCompany = useMemo(() => companies.find((company) => company.id === activeCompanyId) ?? null, [companies, activeCompanyId]);
@@ -296,6 +345,17 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     }, 4200);
     return () => window.clearTimeout(timer);
   }, [section, demoPlaying, demoStep, activeDemo.steps.length]);
+
+  useEffect(() => {
+    if (section !== "rules" || fiscalCatalog || rulesError) return;
+    fetch("/api/fiscal-rules")
+      .then(async (response) => {
+        if (!response.ok) throw new Error("catalog unavailable");
+        return response.json() as Promise<FiscalCatalog>;
+      })
+      .then(setFiscalCatalog)
+      .catch(() => setRulesError("Não foi possível verificar o catálogo fiscal agora."));
+  }, [section, fiscalCatalog, rulesError]);
 
   useEffect(() => {
     fetch("/api/companies")
@@ -673,6 +733,9 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           <button className={section === "documents" ? "active" : ""} onClick={() => setSection("documents")}>
             <span className="nav-icon">▤</span>Documentos
           </button>
+          <button className={section === "rules" ? "active" : ""} onClick={() => setSection("rules")}>
+            <span className="nav-icon">§</span>Regras fiscais
+          </button>
           <button className={section === "academy" ? "active" : ""} onClick={() => setSection("academy")}>
             <span className="nav-icon">▷</span>Demonstrações
           </button>
@@ -976,6 +1039,59 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
               <div className="panel-heading"><div><span className="eyebrow">TRILHA DE AUDITORIA</span><h3>Eventos desta empresa</h3></div><a href="/metodologia">Controles e metodologia →</a></div>
               {auditEvents.length ? <div className="audit-list">{auditEvents.slice(0, 8).map((event) => <article key={event.id}><span>✓</span><div><b>{auditEventLabels[event.eventType] ?? event.eventType}</b><small>{new Date(event.createdAt).toLocaleString("pt-BR")} · {typeof event.eventData.calculationVersion === "string" ? event.eventData.calculationVersion : "evento operacional"}</small></div><code>{typeof event.eventData.inputHash === "string" ? `${event.eventData.inputHash.slice(0, 12)}…` : `evento ${event.id}`}</code></article>)}</div> : <div className="empty-state"><span>✓</span><b>A trilha começa no próximo salvamento</b><p>Criação, revisão, compartilhamento, revogação e exclusão serão registrados.</p></div>}
             </section>
+          </div>
+        )}
+
+        {section === "rules" && (
+          <div className="page-content fiscal-rules-page">
+            <div className="page-heading">
+              <div><p className="kicker">GOVERNANÇA DO MOTOR FISCAL</p><h1>Catálogo fiscal versionado</h1><p>Nenhuma regra entra nos cálculos sem fonte, integridade, casos de referência e aprovação explícita.</p></div>
+              <a className="secondary-button" href="/metodologia">Ver metodologia</a>
+            </div>
+
+            {rulesError && <div className="toast" role="alert">{rulesError}</div>}
+            {!fiscalCatalog && !rulesError && <section className="panel rules-loading"><span className="loading-spinner" /><div><b>Verificando regras e casos de referência…</b><p>O conteúdo armazenado está sendo comparado ao hash registrado.</p></div></section>}
+
+            {fiscalCatalog && <>
+              <section className="rules-metrics" aria-label="Indicadores do catálogo fiscal">
+                <article><span>Versões registradas</span><strong>{fiscalCatalog.metrics.totalRules}</strong><small>Conteúdo imutável por versão</small></article>
+                <article><span>Fontes oficiais</span><strong>{fiscalCatalog.metrics.totalSources}</strong><small>Com data de conferência</small></article>
+                <article className="protected"><span>Casos aprovados</span><strong>{fiscalCatalog.metrics.passedCases}/{fiscalCatalog.metrics.totalCases}</strong><small>Resultado esperado reproduzido</small></article>
+                <article className={fiscalCatalog.metrics.executionEnabled ? "protected" : "risk"}><span>Regras em produção</span><strong>{fiscalCatalog.metrics.executionEnabled}</strong><small>{fiscalCatalog.metrics.executionEnabled ? "Liberadas para cálculo" : "Motor fiscal bloqueado"}</small></article>
+              </section>
+
+              <div className="rules-stack">{fiscalCatalog.rules.map((rule) => {
+                const statusLabel = rule.executionEnabled ? "Em produção" : rule.status === "in_review" ? "Em revisão" : rule.status === "approved" ? "Aprovada, mas bloqueada" : rule.status === "retired" ? "Retirada" : "Rascunho";
+                return <article className="panel fiscal-rule-card" key={rule.id}>
+                  <div className="rule-card-heading">
+                    <div><span className="eyebrow">{rule.code} · VERSÃO {rule.version}</span><h2>{rule.name}</h2><p>Brasil · vigência de {new Date(`${rule.effectiveFrom}T12:00:00`).toLocaleDateString("pt-BR")} a {new Date(`${rule.effectiveTo}T12:00:00`).toLocaleDateString("pt-BR")}</p></div>
+                    <div className="rule-badges"><span className={`rule-status ${rule.executionEnabled ? "enabled" : "blocked"}`}><i />{statusLabel}</span><code>#{rule.contentFingerprint}</code></div>
+                  </div>
+
+                  <div className="rule-control-grid">
+                    <section>
+                      <span className="rule-section-label">PARÂMETROS DE REFERÊNCIA</span>
+                      <div className="rule-rate-grid">{rule.components.map((component) => <article key={component.tax}><span>{component.tax}</span><strong>{(component.rateBps / 100).toFixed(2).replace(".", ",")}%</strong><small>alíquota de destaque</small></article>)}</div>
+                      <div className="rule-safety-note"><span>!</span><p><b>Sem cálculo automático de valor a recolher</b>Esta versão apenas reproduz destaques brutos e o tratamento normativo de referência. Não classifica a operação nem apura saldo líquido.</p></div>
+                    </section>
+                    <section className="rule-gate">
+                      <span className="rule-section-label">PORTÃO DE EXECUÇÃO</span>
+                      <div className="gate-check"><span className={rule.integrityStatus === "verified" ? "pass" : "fail"}>{rule.integrityStatus === "verified" ? "✓" : "×"}</span><p><b>Integridade do conteúdo</b><small>{rule.integrityStatus === "verified" ? "Hash confere" : "Divergência detectada"}</small></p></div>
+                      <div className="gate-check"><span className={rule.testsPassed ? "pass" : "fail"}>{rule.testsPassed ? "✓" : "×"}</span><p><b>Casos de referência</b><small>{rule.testsPassed ? "Todos reproduzidos" : "Falha de regressão"}</small></p></div>
+                      <div className="gate-check"><span className={rule.status === "approved" ? "pass" : "wait"}>{rule.status === "approved" ? "✓" : "…"}</span><p><b>Homologação profissional</b><small>{rule.status === "approved" ? "Aprovada" : "Pendente"}</small></p></div>
+                      {!rule.executionEnabled && <div className="execution-lock"><b>Execução bloqueada</b><small>{rule.blockingReasons.join(" · ")}</small></div>}
+                    </section>
+                  </div>
+
+                  <div className="rule-detail-grid">
+                    <section><span className="rule-section-label">CASOS DE REFERÊNCIA</span><div className="reference-case-list">{rule.referenceCases.map((referenceCase) => <article key={referenceCase.code}><span className={referenceCase.passed ? "case-pass" : "case-fail"}>{referenceCase.passed ? "✓" : "×"}</span><div><b>{referenceCase.title}</b><small>{referenceCase.input ? `Base ${preciseCurrency.format(referenceCase.input.taxableBaseCents / 100)}` : "Entrada inválida"}</small></div><strong>{referenceCase.actual ? preciseCurrency.format(referenceCase.actual.totalHighlightedCents / 100) : "Falhou"}<small>total destacado</small></strong></article>)}</div></section>
+                    <section><span className="rule-section-label">FONTES NORMATIVAS</span><div className="rule-source-list">{rule.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.url}><span>↗</span><p><b>{source.title}</b><small>{source.publisher} · conferida em {new Date(`${source.checkedAt}T12:00:00`).toLocaleDateString("pt-BR")}</small></p></a>)}</div></section>
+                  </div>
+
+                  <details className="rule-limitations"><summary>Ver limites explícitos desta regra</summary><ul>{rule.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}</ul></details>
+                </article>;
+              })}</div>
+            </>}
           </div>
         )}
 

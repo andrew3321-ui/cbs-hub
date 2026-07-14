@@ -69,6 +69,38 @@ export const auditEvents = sqliteTable("audit_events", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [index("audit_events_owner_company_created_idx").on(table.ownerUserId, table.companyId, table.createdAt, table.id)]);
 
+export const fiscalRuleSets = sqliteTable("fiscal_rule_sets", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  code: text("code").notNull(),
+  version: text("version").notNull(),
+  name: text("name").notNull(),
+  jurisdiction: text("jurisdiction").notNull(),
+  status: text("status").notNull().default("draft"),
+  effectiveFrom: text("effective_from").notNull(),
+  effectiveTo: text("effective_to").notNull(),
+  contentJson: text("content_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  sourceCount: integer("source_count").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_rule_sets_code_version_idx").on(table.code, table.version),
+  index("fiscal_rule_sets_status_effective_idx").on(table.status, table.effectiveFrom, table.effectiveTo),
+]);
+
+export const fiscalReferenceCases = sqliteTable("fiscal_reference_cases", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  ruleSetId: integer("rule_set_id").notNull(),
+  code: text("code").notNull(),
+  title: text("title").notNull(),
+  inputJson: text("input_json").notNull(),
+  expectedJson: text("expected_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_reference_cases_rule_code_idx").on(table.ruleSetId, table.code),
+  index("fiscal_reference_cases_rule_set_idx").on(table.ruleSetId),
+]);
+
 export const billingAccounts = sqliteTable("billing_accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   userId: integer("user_id").notNull().unique(),

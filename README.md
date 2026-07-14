@@ -9,6 +9,7 @@ SaaS de inteligência tributária para versionar premissas, calcular impacto em 
 - autenticação própria por sessão segura
 - snapshots financeiros em centavos e pontos-base
 - assinatura HMAC de registros críticos
+- catálogo fiscal versionado com hash e casos de referência
 
 ## Desenvolvimento
 
@@ -36,10 +37,13 @@ Comandos principais:
 5. Toda alteração de esquema exige migração Drizzle inspecionada e teste de produção.
 6. Escritas acionadas pelo navegador devem ser idempotentes.
 7. Toda rota crítica emite `X-Request-Id` e log estruturado sem dados fiscais ou pessoais.
+8. Nenhuma regra fiscal alimenta cálculos antes de passar integridade, regressão, modo de execução e aprovação.
 
 ## Operação
 
 `GET /api/health` verifica banco, assinatura criptográfica e versões ativas sem expor segredos. Responde `200` quando saudável e `503` em modo degradado.
+
+`GET /api/fiscal-rules` exige sessão e expõe o catálogo com fontes, vigência, fingerprint, regressões e motivos de bloqueio. A API não oferece escrita nem homologação automática.
 
 A chave `SCENARIO_SIGNING_KEY_V1` vive apenas no ambiente publicado. Nunca deve ser gravada no repositório ou enviada ao navegador.
 
