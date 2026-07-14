@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { calculateScenarioValues } from "../scenario-calculations";
 
 type Section = "overview" | "companies" | "simulator" | "documents" | "academy";
 
@@ -11,6 +12,8 @@ type SavedScenario = {
   currentRateBps: number;
   newRateBps: number;
   costRateBps: number;
+  fixedCostsCents: number;
+  volumeLossBps: number;
   priceAdjustmentBps: number;
   companyId: number;
   createdAt: string;
@@ -46,14 +49,6 @@ type CompanyForm = {
   cnpj: string;
   taxRegime: string;
   sector: string;
-};
-
-type ScenarioInputs = {
-  revenue: number;
-  currentRate: number;
-  newRate: number;
-  costRate: number;
-  priceAdjustment: number;
 };
 
 type ImportedDocument = {
@@ -177,33 +172,6 @@ function formatCnpj(value: string | null) {
   return value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
 
-function calculateScenarioValues({ revenue, currentRate, newRate, costRate, priceAdjustment }: ScenarioInputs) {
-  const safeRevenue = Math.max(revenue || 0, 1);
-  const projectedRevenue = safeRevenue * (1 + priceAdjustment / 100);
-  const currentTax = revenue * (currentRate / 100);
-  const projectedTax = projectedRevenue * (newRate / 100);
-  const costs = revenue * (costRate / 100);
-  const currentMargin = revenue - costs - currentTax;
-  const projectedMargin = projectedRevenue - costs - projectedTax;
-  const delta = projectedTax - currentTax;
-  const newRateDecimal = newRate / 100;
-  const requiredPriceIncrease = newRateDecimal >= 1
-    ? 0
-    : Math.max(0, (((1 - currentRate / 100) / (1 - newRateDecimal)) - 1) * 100);
-
-  return {
-    projectedRevenue,
-    currentTax,
-    projectedTax,
-    currentMargin,
-    projectedMargin,
-    delta,
-    requiredPriceIncrease,
-    currentMarginRate: (currentMargin / safeRevenue) * 100,
-    projectedMarginRate: (projectedMargin / projectedRevenue) * 100,
-  };
-}
-
 type MargemAppProps = {
   user: { displayName: string; email: string };
   signOutPath: string;
@@ -220,6 +188,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const [currentRate, setCurrentRate] = useState(8.65);
   const [newRate, setNewRate] = useState(13.45);
   const [costRate, setCostRate] = useState(67.2);
+  const [fixedCosts, setFixedCosts] = useState(15000);
+  const [volumeLoss, setVolumeLoss] = useState(0);
   const [priceAdjustment, setPriceAdjustment] = useState(0);
   const [scenarioName, setScenarioName] = useState("Cenário base · 2027");
   const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
@@ -238,7 +208,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const activeDemoStep = activeDemo.steps[demoStep];
   const userInitials = user.displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "MC";
 
-  const figures = useMemo(() => calculateScenarioValues({ revenue, currentRate, newRate, costRate, priceAdjustment }), [revenue, currentRate, newRate, costRate, priceAdjustment]);
+  const figures = useMemo(() => calculateScenarioValues({ revenue, currentRate, newRate, costRate, fixedCosts, volumeLoss, priceAdjustment }), [revenue, currentRate, newRate, costRate, fixedCosts, volumeLoss, priceAdjustment]);
 
   const comparedScenarios = useMemo(() => comparisonIds.map((id) => {
     const scenario = savedScenarios.find((item) => item.id === id);
@@ -248,6 +218,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       currentRate: scenario.currentRateBps / 100,
       newRate: scenario.newRateBps / 100,
       costRate: scenario.costRateBps / 100,
+      fixedCosts: (scenario.fixedCostsCents ?? 0) / 100,
+      volumeLoss: (scenario.volumeLossBps ?? 0) / 100,
       priceAdjustment: (scenario.priceAdjustmentBps ?? 0) / 100,
     });
     return { scenario, values };
@@ -263,7 +235,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     const analyses = companies.map((company) => {
       if (!company.latestScenario) return { company, values: null };
       const item = company.latestScenario;
-      return { company, values: calculateScenarioValues({ revenue: item.revenueCents / 100, currentRate: item.currentRateBps / 100, newRate: item.newRateBps / 100, costRate: item.costRateBps / 100, priceAdjustment: (item.priceAdjustmentBps ?? 0) / 100 }) };
+      return { company, values: calculateScenarioValues({ revenue: item.revenueCents / 100, currentRate: item.currentRateBps / 100, newRate: item.newRateBps / 100, costRate: item.costRateBps / 100, fixedCosts: (item.fixedCostsCents ?? 0) / 100, volumeLoss: (item.volumeLossBps ?? 0) / 100, priceAdjustment: (item.priceAdjustmentBps ?? 0) / 100 }) };
     });
     return {
       analyzed: analyses.filter((item) => item.values).length,
@@ -275,7 +247,9 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   }, [companies]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("view") === "academy") setSection("academy");
+    if (new URLSearchParams(window.location.search).get("view") !== "academy") return;
+    const timer = window.setTimeout(() => setSection("academy"), 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
@@ -302,7 +276,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
         }
         const storedId = Number(window.localStorage.getItem("margem-clara-company"));
         const selected = rows.find((company) => company.id === storedId)?.id ?? rows[0]?.id ?? null;
-        setActiveCompanyId(selected);
+        changeActiveCompany(selected);
       })
       .catch(() => setCompanies([]));
   }, []);
@@ -310,8 +284,6 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   useEffect(() => {
     if (!activeCompanyId) return;
     window.localStorage.setItem("margem-clara-company", String(activeCompanyId));
-    setComparisonIds([]);
-    setImportedDocuments([]);
     void refreshReportShares(activeCompanyId);
     fetch(`/api/scenarios?companyId=${activeCompanyId}`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
@@ -335,6 +307,12 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     }
   }
 
+  function changeActiveCompany(companyId: number | null) {
+    setComparisonIds([]);
+    setImportedDocuments([]);
+    setActiveCompanyId(companyId);
+  }
+
   async function refreshReportShares(companyId: number) {
     try {
       const response = await fetch(`/api/report-shares?companyId=${companyId}`);
@@ -351,6 +329,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     setCurrentRate(8.65);
     setNewRate(13.45);
     setCostRate(65);
+    setFixedCosts(10000);
+    setVolumeLoss(0);
     setPriceAdjustment(0);
     setScenarioName("Primeiro cenário");
   }
@@ -373,6 +353,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           currentRateBps: Math.round(currentRate * 100),
           newRateBps: Math.round(newRate * 100),
           costRateBps: Math.round(costRate * 100),
+          fixedCostsCents: Math.round(fixedCosts * 100),
+          volumeLossBps: Math.round(volumeLoss * 100),
           priceAdjustmentBps: Math.round(priceAdjustment * 100),
         }),
       });
@@ -426,6 +408,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     setCurrentRate(item.currentRateBps / 100);
     setNewRate(item.newRateBps / 100);
     setCostRate(item.costRateBps / 100);
+    setFixedCosts((item.fixedCostsCents ?? 0) / 100);
+    setVolumeLoss((item.volumeLossBps ?? 0) / 100);
     setPriceAdjustment((item.priceAdjustmentBps ?? 0) / 100);
     setScenarioName(item.name);
     if (notify) setMessage("Cenário carregado.");
@@ -494,10 +478,17 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       ["Receita mensal", revenue.toFixed(2)],
       ["Alíquota atual", `${currentRate.toFixed(2)}%`],
       ["IBS + CBS efetivos", `${newRate.toFixed(2)}%`],
+      ["Custos variáveis", `${costRate.toFixed(2)}%`],
+      ["Custos fixos mensais", fixedCosts.toFixed(2)],
       ["Reajuste simulado", `${priceAdjustment.toFixed(2)}%`],
+      ["Queda de volume estimada", `${volumeLoss.toFixed(2)}%`],
       ["Margem atual", figures.currentMargin.toFixed(2)],
       ["Margem projetada", figures.projectedMargin.toFixed(2)],
       ["Reajuste de equilíbrio", `${figures.requiredPriceIncrease.toFixed(2)}%`],
+      ["Ponto de equilíbrio", Number.isFinite(figures.breakEvenRevenue) ? figures.breakEvenRevenue.toFixed(2) : "Inviável"],
+      ["Margem de segurança", `${figures.marginOfSafetyRate.toFixed(2)}%`],
+      ["Perda máxima de volume", `${figures.maxVolumeLoss.toFixed(2)}%`],
+      ["Impacto anual", figures.annualImpact.toFixed(2)],
       ["Observação", "Estimativa gerencial; valide as premissas com sua contabilidade."],
     ];
     const csv = `\uFEFF${rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";")).join("\r\n")}`;
@@ -542,7 +533,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       if (!response.ok) throw new Error("create failed");
       const data = (await response.json()) as { company: Company };
       setCompanies((current) => [...current, data.company].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
-      setActiveCompanyId(data.company.id);
+      changeActiveCompany(data.company.id);
       setCompanyForm({ name: "", cnpj: "", taxRegime: "Simples Nacional", sector: "Serviços B2B" });
       setShowCompanyForm(false);
       setSection("simulator");
@@ -555,7 +546,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   }
 
   function openCompany(companyId: number, target: Section = "overview") {
-    setActiveCompanyId(companyId);
+    changeActiveCompany(companyId);
     setSection(target);
     setMessage("");
   }
@@ -611,7 +602,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
         <header className="topbar">
           <div>
             <p className="company-label">EMPRESA ANALISADA</p>
-            <select className="company-select" aria-label="Empresa analisada" value={activeCompanyId ?? ""} onChange={(event) => setActiveCompanyId(Number(event.target.value))}>
+            <select className="company-select" aria-label="Empresa analisada" value={activeCompanyId ?? ""} onChange={(event) => changeActiveCompany(Number(event.target.value))}>
               {!companies.length && <option value="">Carregando carteira…</option>}
               {companies.map((company) => <option value={company.id} key={company.id}>{company.name}</option>)}
             </select>
@@ -621,7 +612,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             <button className="notification" aria-label="Notificações">•</button>
             <div className="account-summary">
               <div className="avatar" aria-label={`Perfil de ${user.displayName}`}>{userInitials}</div>
-              <span><b>{user.displayName.split(" ")[0]}</b><a href={signOutPath}>Sair</a></span>
+              <span><b>{user.displayName.split(" ")[0]}</b><small><a href="/planos">Meu plano</a> · <a href={signOutPath}>Sair</a></small></span>
             </div>
           </div>
         </header>
@@ -656,7 +647,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             <section className="company-grid">
               {companies.map((company) => {
                 const latest = company.latestScenario;
-                const values = latest ? calculateScenarioValues({ revenue: latest.revenueCents / 100, currentRate: latest.currentRateBps / 100, newRate: latest.newRateBps / 100, costRate: latest.costRateBps / 100, priceAdjustment: (latest.priceAdjustmentBps ?? 0) / 100 }) : null;
+                const values = latest ? calculateScenarioValues({ revenue: latest.revenueCents / 100, currentRate: latest.currentRateBps / 100, newRate: latest.newRateBps / 100, costRate: latest.costRateBps / 100, fixedCosts: (latest.fixedCostsCents ?? 0) / 100, volumeLoss: (latest.volumeLossBps ?? 0) / 100, priceAdjustment: (latest.priceAdjustmentBps ?? 0) / 100 }) : null;
                 const protectedMargin = values ? values.projectedMargin >= values.currentMargin : false;
                 return <article className={`company-card ${activeCompanyId === company.id ? "active-company" : ""}`} key={company.id}>
                   <div className="company-card-top"><span className="company-monogram">{company.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span><span className={`portfolio-status ${!values ? "pending" : protectedMargin ? "protected" : "risk"}`}>{!values ? "Sem análise" : protectedMargin ? "Protegida" : "Em risco"}</span></div>
@@ -781,8 +772,12 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                   <label>Alíquota atual (%)<input type="number" min="0" max="100" step="0.05" value={currentRate} onChange={(event) => setCurrentRate(Number(event.target.value))} /></label>
                   <label>IBS + CBS efetivos (%)<input type="number" min="0" max="100" step="0.05" value={newRate} onChange={(event) => setNewRate(Number(event.target.value))} /></label>
                 </div>
-                <label>Custos operacionais (% da receita)<input type="range" min="20" max="90" step="0.1" value={costRate} onChange={(event) => setCostRate(Number(event.target.value))} /><span className="range-value">{costRate.toFixed(1).replace(".", ",")}%</span></label>
-                <p className="helper-text">Use as alíquotas efetivas estimadas pelo seu contador. Este MVP não substitui parecer fiscal.</p>
+                <div className="field-row">
+                  <label>Custos fixos mensais (R$)<input type="number" min="0" step="500" value={fixedCosts} onChange={(event) => setFixedCosts(Number(event.target.value))} /></label>
+                  <label>Queda esperada no volume (%)<input type="number" min="0" max="95" step="0.5" value={volumeLoss} onChange={(event) => setVolumeLoss(Number(event.target.value))} /></label>
+                </div>
+                <label>Custos variáveis (% da receita)<input type="range" min="0" max="95" step="0.1" value={costRate} onChange={(event) => setCostRate(Number(event.target.value))} /><span className="range-value">{costRate.toFixed(1).replace(".", ",")}%</span></label>
+                <p className="helper-text">O cálculo separa custos que acompanham o volume dos custos fixos e considera possível perda de vendas após o reajuste. Valide as alíquotas efetivas com sua contabilidade.</p>
               </section>
 
               <section className="panel result-panel">
@@ -790,17 +785,24 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                 <strong className="result-number">{currency.format(figures.projectedMargin)}</strong>
                 <p>margem líquida de <b>{figures.projectedMarginRate.toFixed(1).replace(".", ",")}%</b></p>
                 <div className="comparison-bars">
-                  <div><span>Margem atual</span><b>{currency.format(figures.currentMargin)}</b><i><em style={{ width: `${Math.max(figures.currentMarginRate, 2)}%` }} /></i></div>
-                  <div><span>Margem projetada</span><b>{currency.format(figures.projectedMargin)}</b><i><em className="projected" style={{ width: `${Math.max(figures.projectedMarginRate, 2)}%` }} /></i></div>
+                  <div><span>Margem atual</span><b>{currency.format(figures.currentMargin)}</b><i><em style={{ width: `${Math.min(100, Math.max(figures.currentMarginRate, 2))}%` }} /></i></div>
+                  <div><span>Margem projetada</span><b>{currency.format(figures.projectedMargin)}</b><i><em className="projected" style={{ width: `${Math.min(100, Math.max(figures.projectedMarginRate, 2))}%` }} /></i></div>
                 </div>
                 <div className="recommendation">
                   <span>RECOMENDAÇÃO</span>
                   <b>Reajuste de equilíbrio: {figures.requiredPriceIncrease.toFixed(1).replace(".", ",")}%</b>
-                  <p>Compensa a diferença de alíquota mantendo os custos operacionais em valor.</p>
+                  <p>Preserva o resultado mensal mesmo com {volumeLoss.toFixed(1).replace(".", ",")}% de queda no volume informado.</p>
                   <button onClick={() => setPriceAdjustment(Number(figures.requiredPriceIncrease.toFixed(2)))}>Aplicar reajuste sugerido</button>
                 </div>
               </section>
             </div>
+
+            <section className="decision-metrics-grid" aria-label="Indicadores de decisão">
+              <article><span>PONTO DE EQUILÍBRIO</span><strong>{Number.isFinite(figures.breakEvenRevenue) ? currency.format(figures.breakEvenRevenue) : "Inviável"}</strong><small>receita mínima para cobrir custos e tributos</small></article>
+              <article className={figures.marginOfSafetyRate >= 15 ? "good" : "risk"}><span>MARGEM DE SEGURANÇA</span><strong>{figures.marginOfSafetyRate.toFixed(1).replace(".", ",")}%</strong><small>{figures.marginOfSafetyRate >= 0 ? "receita acima do ponto de equilíbrio" : "receita abaixo do ponto de equilíbrio"}</small></article>
+              <article><span>PERDA MÁXIMA DE VOLUME</span><strong>{figures.maxVolumeLoss.toFixed(1).replace(".", ",")}%</strong><small>limite para ainda preservar o resultado atual</small></article>
+              <article className={figures.annualImpact >= 0 ? "good" : "risk"}><span>IMPACTO EM 12 MESES</span><strong>{figures.annualImpact >= 0 ? "+ " : "− "}{currency.format(Math.abs(figures.annualImpact))}</strong><small>diferença anual frente ao cenário atual</small></article>
+            </section>
 
             <section className="panel executive-panel">
               <div className="print-only print-brand"><span className="brand-mark">mc</span><strong>margemclara</strong><small>{activeCompany?.name ?? "Resumo executivo"}</small></div>
@@ -817,7 +819,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                 <div className="decision-list">
                   <div><span>01</span><p><b>Reajuste aplicado</b><small>{priceAdjustment.toFixed(2).replace(".", ",")}% de {figures.requiredPriceIncrease.toFixed(2).replace(".", ",")}% recomendados</small></p><strong>{priceAdjustment >= figures.requiredPriceIncrease ? "Coberto" : `Faltam ${(figures.requiredPriceIncrease - priceAdjustment).toFixed(2).replace(".", ",")} p.p.`}</strong></div>
                   <div><span>02</span><p><b>Impacto tributário</b><small>Comparação mensal entre os dois regimes</small></p><strong>{figures.delta >= 0 ? "+ " : "− "}{currency.format(Math.abs(figures.delta))}</strong></div>
-                  <div><span>03</span><p><b>Receita projetada</b><small>Após o reajuste informado</small></p><strong>{currency.format(figures.projectedRevenue)}</strong></div>
+                  <div><span>03</span><p><b>Receita projetada</b><small>Após preço e variação de volume</small></p><strong>{currency.format(figures.projectedRevenue)}</strong></div>
+                  <div><span>04</span><p><b>Limite de perda de volume</b><small>Para preservar o resultado atual</small></p><strong>{figures.maxVolumeLoss.toFixed(1).replace(".", ",")}%</strong></div>
                 </div>
               </div>
               <p className="executive-note">Estimativa gerencial para {activeCompany?.name ?? "a empresa"}, baseada nas premissas informadas em {new Date().toLocaleDateString("pt-BR")}. Valide enquadramento, créditos e alíquotas com sua contabilidade.</p>
@@ -830,7 +833,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                   <span className="compare-label">{scenario.name}</span>
                   <strong>{currency.format(values.projectedMargin)}</strong>
                   <small>margem projetada · {values.projectedMarginRate.toFixed(1).replace(".", ",")}%</small>
-                  <dl><div><dt>Receita</dt><dd>{currency.format(scenario.revenueCents / 100)}</dd></div><div><dt>IBS + CBS</dt><dd>{(scenario.newRateBps / 100).toFixed(2).replace(".", ",")}%</dd></div><div><dt>Reajuste</dt><dd>{((scenario.priceAdjustmentBps ?? 0) / 100).toFixed(2).replace(".", ",")}%</dd></div><div><dt>Tributos</dt><dd>{currency.format(values.projectedTax)}</dd></div></dl>
+                  <dl><div><dt>Receita</dt><dd>{currency.format(scenario.revenueCents / 100)}</dd></div><div><dt>IBS + CBS</dt><dd>{(scenario.newRateBps / 100).toFixed(2).replace(".", ",")}%</dd></div><div><dt>Reajuste</dt><dd>{((scenario.priceAdjustmentBps ?? 0) / 100).toFixed(2).replace(".", ",")}%</dd></div><div><dt>Queda de volume</dt><dd>{((scenario.volumeLossBps ?? 0) / 100).toFixed(2).replace(".", ",")}%</dd></div><div><dt>Ponto de equilíbrio</dt><dd>{Number.isFinite(values.breakEvenRevenue) ? currency.format(values.breakEvenRevenue) : "Inviável"}</dd></div><div><dt>Impacto anual</dt><dd>{currency.format(values.annualImpact)}</dd></div></dl>
                 </article>)}
                 {comparedScenarios.length === 1 && <div className="compare-empty"><span>＋</span><b>Selecione mais um cenário</b><p>Use o botão “Comparar” no histórico abaixo.</p></div>}
               </div>

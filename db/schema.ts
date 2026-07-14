@@ -37,9 +37,26 @@ export const scenarios = sqliteTable("scenarios", {
   currentRateBps: integer("current_rate_bps").notNull(),
   newRateBps: integer("new_rate_bps").notNull(),
   costRateBps: integer("cost_rate_bps").notNull(),
+  fixedCostsCents: integer("fixed_costs_cents").notNull().default(0),
+  volumeLossBps: integer("volume_loss_bps").notNull().default(0),
   priceAdjustmentBps: integer("price_adjustment_bps").notNull().default(0),
   companyId: integer("company_id").notNull().default(1),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const billingAccounts = sqliteTable("billing_accounts", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").notNull().unique(),
+  planKey: text("plan_key").notNull().default("beta"),
+  provider: text("provider").notNull().default("mercado_pago"),
+  externalReference: text("external_reference").notNull().unique(),
+  providerSubscriptionId: text("provider_subscription_id"),
+  status: text("status").notNull().default("beta"),
+  checkoutUrl: text("checkout_url"),
+  nextPaymentAt: text("next_payment_at"),
+  lastSyncedAt: text("last_synced_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
 export const reportShares = sqliteTable("report_shares", {

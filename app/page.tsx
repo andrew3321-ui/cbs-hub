@@ -20,6 +20,7 @@ export default async function LandingPage() {
           <a href="#produto">Produto</a>
           <a href="#como-funciona">Como funciona</a>
           <a href="#demonstracoes">Demonstrações</a>
+          <Link href="/planos">Planos</Link>
         </nav>
         <div className="landing-nav-actions">
           <Link className="landing-login" href={loginPath}>{user ? "Ir para o painel" : "Entrar"}</Link>
@@ -131,7 +132,7 @@ export default async function LandingPage() {
       <footer className="landing-footer">
         <Link className="landing-brand" href="/"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link>
         <p>Inteligência tributária para decisões comerciais mais claras.</p>
-        <span>© 2026 Margem Clara</span>
+        <span><Link href="/planos">Planos</Link> · © 2026 Margem Clara</span>
       </footer>
     </main>
   );

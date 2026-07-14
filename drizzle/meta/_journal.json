@@ -36,6 +36,13 @@
       "when": 1784042837111,
       "tag": "0004_bouncy_redwing",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1784046505087,
+      "tag": "0005_legal_storm",
+      "breakpoints": true
     }
   ]
 }

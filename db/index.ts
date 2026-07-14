@@ -45,9 +45,27 @@ export function ensureScenarioSchema() {
           current_rate_bps INTEGER NOT NULL,
           new_rate_bps INTEGER NOT NULL,
           cost_rate_bps INTEGER NOT NULL,
+          fixed_costs_cents INTEGER DEFAULT 0 NOT NULL,
+          volume_loss_bps INTEGER DEFAULT 0 NOT NULL,
           price_adjustment_bps INTEGER DEFAULT 0 NOT NULL,
           company_id INTEGER DEFAULT 1 NOT NULL,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS billing_accounts (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          user_id INTEGER NOT NULL UNIQUE,
+          plan_key TEXT DEFAULT 'beta' NOT NULL,
+          provider TEXT DEFAULT 'mercado_pago' NOT NULL,
+          external_reference TEXT NOT NULL UNIQUE,
+          provider_subscription_id TEXT,
+          status TEXT DEFAULT 'beta' NOT NULL,
+          checkout_url TEXT,
+          next_payment_at TEXT,
+          last_synced_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
       env.DB.prepare(`
@@ -95,6 +113,18 @@ export function ensureScenarioSchema() {
     }
 
     try {
+      await env.DB.prepare("ALTER TABLE scenarios ADD COLUMN fixed_costs_cents INTEGER DEFAULT 0 NOT NULL").run();
+    } catch (error) {
+      if (!String(error).toLowerCase().includes("duplicate column")) throw error;
+    }
+
+    try {
+      await env.DB.prepare("ALTER TABLE scenarios ADD COLUMN volume_loss_bps INTEGER DEFAULT 0 NOT NULL").run();
+    } catch (error) {
+      if (!String(error).toLowerCase().includes("duplicate column")) throw error;
+    }
+
+    try {
       await env.DB.prepare("ALTER TABLE scenarios ADD COLUMN company_id INTEGER DEFAULT 1 NOT NULL").run();
     } catch (error) {
       if (!String(error).toLowerCase().includes("duplicate column")) throw error;
@@ -113,6 +143,9 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_owner_user_id_idx ON report_shares (owner_user_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_company_id_idx ON report_shares (company_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_scenario_id_idx ON report_shares (scenario_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_accounts_user_id_idx ON billing_accounts (user_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_accounts_external_reference_idx ON billing_accounts (external_reference)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_accounts_provider_subscription_id_idx ON billing_accounts (provider_subscription_id)"),
     ]);
   })();
 

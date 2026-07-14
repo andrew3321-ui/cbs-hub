@@ -20,7 +20,7 @@ export async function GET(request: Request) {
       if (!ownedCompany) return Response.json({ error: "Empresa não encontrada." }, { status: 404 });
       rows = await db.select().from(scenarios).where(eq(scenarios.companyId, companyId)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(40);
     } else {
-      rows = await db.select({ id: scenarios.id, name: scenarios.name, revenueCents: scenarios.revenueCents, currentRateBps: scenarios.currentRateBps, newRateBps: scenarios.newRateBps, costRateBps: scenarios.costRateBps, priceAdjustmentBps: scenarios.priceAdjustmentBps, companyId: scenarios.companyId, createdAt: scenarios.createdAt }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(eq(companies.ownerUserId, user.id)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(100);
+      rows = await db.select({ id: scenarios.id, name: scenarios.name, revenueCents: scenarios.revenueCents, currentRateBps: scenarios.currentRateBps, newRateBps: scenarios.newRateBps, costRateBps: scenarios.costRateBps, fixedCostsCents: scenarios.fixedCostsCents, volumeLossBps: scenarios.volumeLossBps, priceAdjustmentBps: scenarios.priceAdjustmentBps, companyId: scenarios.companyId, createdAt: scenarios.createdAt }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(eq(companies.ownerUserId, user.id)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(100);
     }
     return Response.json({ scenarios: rows });
   } catch {
@@ -36,7 +36,9 @@ export async function POST(request: Request) {
     const payload = (await request.json()) as Record<string, unknown>;
     const name = typeof payload.name === "string" ? payload.name.trim().slice(0, 80) : "";
     const priceAdjustmentBps = payload.priceAdjustmentBps ?? 0;
-    if (!name || !validInteger(payload.companyId, 1, 1_000_000_000) || !validInteger(payload.revenueCents, 100_000, 10_000_000_000) || !validInteger(payload.currentRateBps, 0, 10_000) || !validInteger(payload.newRateBps, 0, 10_000) || !validInteger(payload.costRateBps, 0, 10_000) || !validInteger(priceAdjustmentBps, 0, 10_000)) {
+    const fixedCostsCents = payload.fixedCostsCents ?? 0;
+    const volumeLossBps = payload.volumeLossBps ?? 0;
+    if (!name || !validInteger(payload.companyId, 1, 1_000_000_000) || !validInteger(payload.revenueCents, 100_000, 10_000_000_000) || !validInteger(payload.currentRateBps, 0, 10_000) || !validInteger(payload.newRateBps, 0, 10_000) || !validInteger(payload.costRateBps, 0, 10_000) || !validInteger(fixedCostsCents, 0, 10_000_000_000) || !validInteger(volumeLossBps, 0, 9_500) || !validInteger(priceAdjustmentBps, 0, 10_000)) {
       return Response.json({ error: "Revise os valores do cenário." }, { status: 400 });
     }
 
@@ -50,6 +52,8 @@ export async function POST(request: Request) {
       currentRateBps: Number(payload.currentRateBps),
       newRateBps: Number(payload.newRateBps),
       costRateBps: Number(payload.costRateBps),
+      fixedCostsCents: Number(fixedCostsCents),
+      volumeLossBps: Number(volumeLossBps),
       priceAdjustmentBps: Number(priceAdjustmentBps),
       companyId,
     }).returning();
