@@ -1,12 +1,23 @@
-import { and, desc, eq } from "drizzle-orm";
+import { and, desc, eq, lt } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { auditEvents, companies, reportShares, scenarios } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
 import { buildScenarioSnapshot, CALCULATION_ENGINE_VERSION, hashScenarioInput, METHODOLOGY_VERSION, type RateSource, type ScenarioReliabilityInput } from "../../scenario-reliability";
 import { SCENARIO_SIGNATURE_VERSION, signedRecordFromScenario, signScenarioRecord, verifyScenarioRecord } from "../../scenario-signing";
+import { withApiTelemetry } from "../../api-infrastructure";
 
 function validInteger(value: unknown, min: number, max: number) {
   return Number.isInteger(value) && Number(value) >= min && Number(value) <= max;
+}
+
+async function sha256(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function publicScenarioRecord<T extends Record<string, unknown>>(scenario: T, integrityStatus: "verified" | "legacy" | "invalid") {
+  const safeEntries = Object.entries(scenario).filter(([key]) => key !== "recordSignature" && key !== "requestKey");
+  return { ...Object.fromEntries(safeEntries), integrityStatus };
 }
 
 const scenarioSelection = {
@@ -34,35 +45,41 @@ const scenarioSelection = {
   createdAt: scenarios.createdAt,
 };
 
-export async function GET(request: Request) {
+async function getScenarios(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para acessar os cenários." }, { status: 401 });
   try {
     await ensureScenarioSchema();
-    const companyId = Number(new URL(request.url).searchParams.get("companyId"));
+    const url = new URL(request.url);
+    const companyId = Number(url.searchParams.get("companyId"));
+    const cursor = Number(url.searchParams.get("cursor"));
+    const requestedLimit = Number(url.searchParams.get("limit"));
+    const pageSize = Number.isInteger(requestedLimit) ? Math.min(50, Math.max(10, requestedLimit)) : 40;
     const db = getDb();
     let rows;
     if (Number.isInteger(companyId) && companyId > 0) {
       const [ownedCompany] = await db.select({ id: companies.id }).from(companies).where(and(eq(companies.id, companyId), eq(companies.ownerUserId, user.id))).limit(1);
       if (!ownedCompany) return Response.json({ error: "Empresa não encontrada." }, { status: 404 });
-      rows = await db.select(scenarioSelection).from(scenarios).where(eq(scenarios.companyId, companyId)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(40);
+      rows = await db.select(scenarioSelection).from(scenarios).where(and(eq(scenarios.companyId, companyId), Number.isInteger(cursor) && cursor > 0 ? lt(scenarios.id, cursor) : undefined)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(pageSize + 1);
     } else {
-      rows = await db.select(scenarioSelection).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(eq(companies.ownerUserId, user.id)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(100);
+      rows = await db.select(scenarioSelection).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(companies.ownerUserId, user.id), Number.isInteger(cursor) && cursor > 0 ? lt(scenarios.id, cursor) : undefined)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(pageSize + 1);
     }
-    const verifiedRows = await Promise.all(rows.map(async (row) => {
-      const { recordSignature, ...publicRow } = row;
-      if (row.calculationVersion === "legacy") return { ...publicRow, integrityStatus: "legacy" as const };
+    const hasMore = rows.length > pageSize;
+    const page = rows.slice(0, pageSize);
+    const verifiedRows = await Promise.all(page.map(async (row) => {
+      const { recordSignature } = row;
+      if (row.calculationVersion === "legacy") return publicScenarioRecord(row, "legacy");
       const signedRecord = signedRecordFromScenario(row, user.id);
       const integrityStatus = signedRecord && await verifyScenarioRecord(signedRecord, recordSignature, row.signatureVersion) ? "verified" as const : "invalid" as const;
-      return { ...publicRow, integrityStatus };
+      return publicScenarioRecord(row, integrityStatus);
     }));
-    return Response.json({ scenarios: verifiedRows });
+    return Response.json({ scenarios: verifiedRows, nextCursor: hasMore ? page.at(-1)?.id ?? null : null });
   } catch {
     return Response.json({ error: "O histórico ainda não está disponível." }, { status: 500 });
   }
 }
 
-export async function POST(request: Request) {
+async function createScenario(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para salvar cenários." }, { status: 401 });
   try {
@@ -75,8 +92,9 @@ export async function POST(request: Request) {
     const targetYear = Number(payload.targetYear);
     const rateSource = payload.rateSource === "accountant" ? "accountant" : payload.rateSource === "custom" ? "custom" : null;
     const sourceNote = typeof payload.sourceNote === "string" ? payload.sourceNote.trim().slice(0, 400) : "";
+    const clientRequestId = typeof payload.clientRequestId === "string" ? payload.clientRequestId.trim() : "";
 
-    if (!name || !validInteger(payload.companyId, 1, 1_000_000_000) || !validInteger(payload.revenueCents, 100_000, 10_000_000_000) || !validInteger(payload.currentRateBps, 0, 9_900) || !validInteger(payload.newRateBps, 0, 9_900) || !validInteger(payload.costRateBps, 0, 9_900) || !validInteger(fixedCostsCents, 0, 10_000_000_000) || !validInteger(volumeLossBps, 0, 9_500) || !validInteger(priceAdjustmentBps, 0, 10_000) || !validInteger(targetYear, 2026, 2033) || !rateSource || sourceNote.length < 10) {
+    if (!name || !validInteger(payload.companyId, 1, 1_000_000_000) || !validInteger(payload.revenueCents, 100_000, 10_000_000_000) || !validInteger(payload.currentRateBps, 0, 9_900) || !validInteger(payload.newRateBps, 0, 9_900) || !validInteger(payload.costRateBps, 0, 9_900) || !validInteger(fixedCostsCents, 0, 10_000_000_000) || !validInteger(volumeLossBps, 0, 9_500) || !validInteger(priceAdjustmentBps, 0, 10_000) || !validInteger(targetYear, 2026, 2033) || !rateSource || sourceNote.length < 10 || (clientRequestId && !/^[a-zA-Z0-9_-]{16,100}$/.test(clientRequestId))) {
       return Response.json({ error: "Revise os valores e descreva a origem das premissas." }, { status: 400 });
     }
 
@@ -84,6 +102,15 @@ export async function POST(request: Request) {
     const db = getDb();
     const [ownedCompany] = await db.select({ id: companies.id }).from(companies).where(and(eq(companies.id, companyId), eq(companies.ownerUserId, user.id))).limit(1);
     if (!ownedCompany) return Response.json({ error: "Empresa não encontrada." }, { status: 404 });
+    const requestKey = clientRequestId ? await sha256(`${user.id}:scenario.create:${clientRequestId}`) : null;
+    if (requestKey) {
+      const [existing] = await db.select({ scenario: scenarios }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.requestKey, requestKey), eq(companies.ownerUserId, user.id))).limit(1);
+      if (existing?.scenario) {
+        const signedRecord = signedRecordFromScenario(existing.scenario, user.id);
+        const integrityStatus = signedRecord && await verifyScenarioRecord(signedRecord, existing.scenario.recordSignature, existing.scenario.signatureVersion) ? "verified" : "invalid";
+        return Response.json({ scenario: publicScenarioRecord(existing.scenario, integrityStatus), replayed: true });
+      }
+    }
 
     const reliabilityInput: ScenarioReliabilityInput = {
       revenueCents: Number(payload.revenueCents),
@@ -102,19 +129,34 @@ export async function POST(request: Request) {
     const calculatedAt = new Date().toISOString();
     const snapshotJson = JSON.stringify(snapshot);
     const recordSignature = await signScenarioRecord({ ownerUserId: user.id, companyId, name, ...reliabilityInput, snapshotJson, calculationVersion: CALCULATION_ENGINE_VERSION, methodologyVersion: METHODOLOGY_VERSION, calculatedAt });
-    const [scenario] = await db.insert(scenarios).values({
-      name,
-      ...reliabilityInput,
-      reviewStatus: "draft",
-      calculationVersion: CALCULATION_ENGINE_VERSION,
-      methodologyVersion: METHODOLOGY_VERSION,
-      inputHash,
-      snapshotJson,
-      calculatedAt,
-      signatureVersion: SCENARIO_SIGNATURE_VERSION,
-      recordSignature,
-      companyId,
-    }).returning();
+    let scenario: typeof scenarios.$inferSelect | undefined;
+    try {
+      [scenario] = await db.insert(scenarios).values({
+        name,
+        ...reliabilityInput,
+        reviewStatus: "draft",
+        calculationVersion: CALCULATION_ENGINE_VERSION,
+        methodologyVersion: METHODOLOGY_VERSION,
+        inputHash,
+        snapshotJson,
+        calculatedAt,
+        signatureVersion: SCENARIO_SIGNATURE_VERSION,
+        recordSignature,
+        requestKey,
+        companyId,
+      }).returning();
+    } catch (insertError) {
+      if (requestKey && String(insertError).toLowerCase().includes("unique")) {
+        const [existing] = await db.select({ scenario: scenarios }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.requestKey, requestKey), eq(companies.ownerUserId, user.id))).limit(1);
+        if (existing?.scenario) {
+          const signedRecord = signedRecordFromScenario(existing.scenario, user.id);
+          const integrityStatus = signedRecord && await verifyScenarioRecord(signedRecord, existing.scenario.recordSignature, existing.scenario.signatureVersion) ? "verified" : "invalid";
+          return Response.json({ scenario: publicScenarioRecord(existing.scenario, integrityStatus), replayed: true });
+        }
+      }
+      throw insertError;
+    }
+    if (!scenario) throw new Error("scenario_insert_failed");
 
     await db.insert(auditEvents).values({
       ownerUserId: user.id,
@@ -123,15 +165,14 @@ export async function POST(request: Request) {
       eventType: "scenario.created",
       eventData: JSON.stringify({ name, targetYear, rateSource, inputHash, calculationVersion: CALCULATION_ENGINE_VERSION, methodologyVersion: METHODOLOGY_VERSION, signatureVersion: SCENARIO_SIGNATURE_VERSION }),
     });
-    const publicScenario = Object.fromEntries(Object.entries(scenario).filter(([key]) => key !== "recordSignature"));
-    return Response.json({ scenario: { ...publicScenario, integrityStatus: "verified" } }, { status: 201 });
+    return Response.json({ scenario: publicScenarioRecord(scenario, "verified"), replayed: false }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "scenario_signing_key_unavailable") return Response.json({ error: "A assinatura de integridade está temporariamente indisponível. Nenhum cenário foi salvo." }, { status: 503 });
     return Response.json({ error: "Não foi possível salvar o cenário." }, { status: 500 });
   }
 }
 
-export async function DELETE(request: Request) {
+async function deleteScenario(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para excluir cenários." }, { status: 401 });
   try {
@@ -150,3 +191,7 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "Não foi possível excluir o cenário." }, { status: 500 });
   }
 }
+
+export const GET = withApiTelemetry("GET /api/scenarios", getScenarios);
+export const POST = withApiTelemetry("POST /api/scenarios", createScenario);
+export const DELETE = withApiTelemetry("DELETE /api/scenarios", deleteScenario);

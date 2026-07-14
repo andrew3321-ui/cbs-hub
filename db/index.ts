@@ -59,6 +59,7 @@ export function ensureScenarioSchema() {
           calculated_at TEXT,
           signature_version TEXT DEFAULT 'legacy' NOT NULL,
           record_signature TEXT,
+          request_key TEXT,
           company_id INTEGER DEFAULT 1 NOT NULL,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
@@ -170,6 +171,7 @@ export function ensureScenarioSchema() {
       "ALTER TABLE scenarios ADD COLUMN calculated_at TEXT",
       "ALTER TABLE scenarios ADD COLUMN signature_version TEXT DEFAULT 'legacy' NOT NULL",
       "ALTER TABLE scenarios ADD COLUMN record_signature TEXT",
+      "ALTER TABLE scenarios ADD COLUMN request_key TEXT",
     ];
     for (const statement of reliabilityColumns) {
       try {
@@ -193,8 +195,25 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_company_id_idx ON audit_events (company_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_scenario_id_idx ON audit_events (scenario_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_created_at_idx ON audit_events (created_at)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_owner_name_idx ON companies (owner_user_id, name)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_user_expires_idx ON sessions (user_id, expires_at)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenarios_request_key_idx ON scenarios (request_key) WHERE request_key IS NOT NULL"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_company_created_idx ON scenarios (company_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_owner_company_created_idx ON audit_events (owner_user_id, company_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_owner_company_created_idx ON report_shares (owner_user_id, company_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_scenario_owner_idx ON report_shares (scenario_id, owner_user_id)"),
     ]);
   })();
 
   return scenarioSchemaReady;
+}
+
+export async function checkDatabaseHealth() {
+  if (!env.DB) return false;
+  try {
+    const row = await env.DB.prepare("SELECT 1 AS healthy").first<{ healthy: number }>();
+    return row?.healthy === 1;
+  } catch {
+    return false;
+  }
 }

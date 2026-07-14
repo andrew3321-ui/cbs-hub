@@ -57,6 +57,13 @@
       "when": 1784062865706,
       "tag": "0007_loving_arclight",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "6",
+      "when": 1784065203069,
+      "tag": "0008_chilly_agent_brand",
+      "breakpoints": true
     }
   ]
 }

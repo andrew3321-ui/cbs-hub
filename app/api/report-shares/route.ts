@@ -3,6 +3,7 @@ import { getCurrentUser } from "../../auth";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { auditEvents, companies, reportShares, scenarios } from "../../../db/schema";
 import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
+import { withApiTelemetry } from "../../api-infrastructure";
 
 function secureToken() {
   const bytes = new Uint8Array(24);
@@ -10,7 +11,7 @@ function secureToken() {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-export async function GET(request: Request) {
+async function getReportShares(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para acessar os compartilhamentos." }, { status: 401 });
   try {
@@ -29,7 +30,7 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+async function createReportShare(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para compartilhar relatórios." }, { status: 401 });
   try {
@@ -58,7 +59,7 @@ export async function POST(request: Request) {
   }
 }
 
-export async function DELETE(request: Request) {
+async function revokeReportShare(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para revogar links." }, { status: 401 });
   try {
@@ -76,3 +77,7 @@ export async function DELETE(request: Request) {
     return Response.json({ error: "Não foi possível revogar o link." }, { status: 500 });
   }
 }
+
+export const GET = withApiTelemetry("GET /api/report-shares", getReportShares);
+export const POST = withApiTelemetry("POST /api/report-shares", createReportShare);
+export const DELETE = withApiTelemetry("DELETE /api/report-shares", revokeReportShare);

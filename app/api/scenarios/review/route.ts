@@ -3,8 +3,9 @@ import { ensureScenarioSchema, getDb } from "../../../../db";
 import { auditEvents, companies, scenarios } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
 import { signedRecordFromScenario, verifyScenarioRecord } from "../../../scenario-signing";
+import { withApiTelemetry } from "../../../api-infrastructure";
 
-export async function POST(request: Request) {
+async function requestScenarioReview(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para encaminhar a revisão." }, { status: 401 });
   try {
@@ -29,3 +30,5 @@ export async function POST(request: Request) {
     return Response.json({ error: "Não foi possível encaminhar o cenário para revisão." }, { status: 500 });
   }
 }
+
+export const POST = withApiTelemetry("POST /api/scenarios/review", requestScenarioReview);

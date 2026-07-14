@@ -12,6 +12,14 @@ function signingSecret() {
   return value;
 }
 
+export function scenarioSigningConfigured() {
+  try {
+    return signingSecret().length >= 32;
+  } catch {
+    return false;
+  }
+}
+
 export function signScenarioRecord(record: ScenarioSignedRecord) {
   return signScenarioRecordWithSecret(record, signingSecret());
 }

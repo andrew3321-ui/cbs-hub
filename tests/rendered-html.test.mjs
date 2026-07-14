@@ -51,3 +51,25 @@ test("análises publicadas expõem versionamento e não afirmam homologação", 
   assert.match(signing, /SCENARIO_SIGNING_KEY_V1/);
   assert.match(report, /integrityBlocked/);
 });
+
+test("infraestrutura escalável evita N+1, duplicidade e falhas sem correlação", async () => {
+  const [companiesApi, scenariosApi, schema, health, telemetry, client] = await Promise.all([
+    readFile(new URL("app/api/companies/route.ts", root), "utf8"),
+    readFile(new URL("app/api/scenarios/route.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("app/api/health/route.ts", root), "utf8"),
+    readFile(new URL("app/api-infrastructure.ts", root), "utf8"),
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+  ]);
+
+  assert.match(companiesApi, /latestScenarioIds/);
+  assert.match(companiesApi, /leftJoin\(latestScenarioIds/);
+  assert.doesNotMatch(companiesApi, /rows\.map\(async \(company\).*db\.select/s);
+  assert.match(scenariosApi, /clientRequestId/);
+  assert.match(scenariosApi, /replayed: true/);
+  assert.match(schema, /scenarios_request_key_idx/);
+  assert.match(client, /pendingScenarioRequest/);
+  assert.match(health, /scenarioSigningConfigured/);
+  assert.match(telemetry, /X-Request-Id/);
+  assert.doesNotMatch(health, /SCENARIO_SIGNING_KEY_V1/);
+});

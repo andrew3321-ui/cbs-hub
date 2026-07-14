@@ -1,6 +1,6 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { calculateScenarioValues } from "../scenario-calculations";
 import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 
@@ -109,6 +109,13 @@ const compactCurrency = new Intl.NumberFormat("pt-BR", {
   notation: "compact",
   maximumFractionDigits: 1,
 });
+
+function createClientRequestId() {
+  if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
 
 const products = [
   { name: "Consultoria mensal", share: "34%", current: "8,65%", projected: "13,45%", impact: "+ R$ 3.860", tone: "danger" },
@@ -235,6 +242,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const [demoIndex, setDemoIndex] = useState(0);
   const [demoStep, setDemoStep] = useState(0);
   const [demoPlaying, setDemoPlaying] = useState(false);
+  const pendingScenarioRequest = useRef<{ fingerprint: string; id: string } | null>(null);
 
   const activeCompany = useMemo(() => companies.find((company) => company.id === activeCompanyId) ?? null, [companies, activeCompanyId]);
   const activeDemo = productDemos[demoIndex];
@@ -384,29 +392,34 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     setSaving(true);
     setMessage("");
     try {
+      const scenarioPayload = {
+        name: scenarioName,
+        companyId: activeCompanyId,
+        revenueCents: Math.round(revenue * 100),
+        currentRateBps: Math.round(currentRate * 100),
+        newRateBps: Math.round(newRate * 100),
+        costRateBps: Math.round(costRate * 100),
+        fixedCostsCents: Math.round(fixedCosts * 100),
+        volumeLossBps: Math.round(volumeLoss * 100),
+        priceAdjustmentBps: Math.round(priceAdjustment * 100),
+        targetYear,
+        rateSource,
+        sourceNote,
+      };
+      const fingerprint = JSON.stringify(scenarioPayload);
+      const clientRequestId = pendingScenarioRequest.current?.fingerprint === fingerprint ? pendingScenarioRequest.current.id : createClientRequestId();
+      pendingScenarioRequest.current = { fingerprint, id: clientRequestId };
       const response = await fetch("/api/scenarios", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: scenarioName,
-          companyId: activeCompanyId,
-          revenueCents: Math.round(revenue * 100),
-          currentRateBps: Math.round(currentRate * 100),
-          newRateBps: Math.round(newRate * 100),
-          costRateBps: Math.round(costRate * 100),
-          fixedCostsCents: Math.round(fixedCosts * 100),
-          volumeLossBps: Math.round(volumeLoss * 100),
-          priceAdjustmentBps: Math.round(priceAdjustment * 100),
-          targetYear,
-          rateSource,
-          sourceNote,
-        }),
+        body: JSON.stringify({ ...scenarioPayload, clientRequestId }),
       });
-      const data = (await response.json()) as { scenario?: SavedScenario; error?: string };
+      const data = (await response.json()) as { scenario?: SavedScenario; replayed?: boolean; error?: string };
       if (!response.ok || !data.scenario) throw new Error(data.error || "save failed");
-      setSavedScenarios((current) => [data.scenario, ...current].slice(0, 8));
+      pendingScenarioRequest.current = null;
+      setSavedScenarios((current) => [data.scenario!, ...current.filter((scenario) => scenario.id !== data.scenario!.id)].slice(0, 8));
       setCompanies((current) => current.map((company) => company.id === activeCompanyId ? { ...company, latestScenario: data.scenario } : company));
-      setMessage(`Cenário congelado e assinado na versão ${data.scenario.calculationVersion}. Agora encaminhe-o para revisão antes de compartilhar.`);
+      setMessage(data.replayed ? "A tentativa anterior já havia sido salva; o sistema recuperou a mesma versão sem duplicar o cenário." : `Cenário congelado e assinado na versão ${data.scenario.calculationVersion}. Agora encaminhe-o para revisão antes de compartilhar.`);
       void refreshAuditEvents(activeCompanyId);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "save failed" ? error.message : "Não foi possível salvar agora. A prévia continua disponível nesta tela.");

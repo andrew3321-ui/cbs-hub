@@ -1,20 +1,21 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, eq, max } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { companies, scenarios } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
 import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
+import { withApiTelemetry } from "../../api-infrastructure";
 
 const allowedRegimes = new Set(["Simples Nacional", "Lucro Presumido", "Lucro Real", "MEI"]);
 
-export async function GET() {
+async function getCompanies() {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para acessar sua carteira." }, { status: 401 });
   try {
     await ensureScenarioSchema();
     const db = getDb();
-    const rows = await db.select().from(companies).where(eq(companies.ownerUserId, user.id)).orderBy(asc(companies.name));
-    const enriched = await Promise.all(rows.map(async (company) => {
-      const [latestScenario] = await db.select().from(scenarios).where(eq(scenarios.companyId, company.id)).orderBy(desc(scenarios.createdAt), desc(scenarios.id)).limit(1);
+    const latestScenarioIds = db.select({ companyId: scenarios.companyId, scenarioId: max(scenarios.id).as("scenario_id") }).from(scenarios).groupBy(scenarios.companyId).as("latest_scenario_ids");
+    const rows = await db.select({ company: companies, latestScenario: scenarios }).from(companies).leftJoin(latestScenarioIds, eq(companies.id, latestScenarioIds.companyId)).leftJoin(scenarios, eq(scenarios.id, latestScenarioIds.scenarioId)).where(eq(companies.ownerUserId, user.id)).orderBy(asc(companies.name));
+    const enriched = await Promise.all(rows.map(async ({ company, latestScenario }) => {
       if (!latestScenario) return { ...company, latestScenario: null };
       const { recordSignature, ...publicScenario } = latestScenario;
       if (latestScenario.calculationVersion === "legacy") return { ...company, latestScenario: { ...publicScenario, integrityStatus: "legacy" } };
@@ -28,7 +29,7 @@ export async function GET() {
   }
 }
 
-export async function POST(request: Request) {
+async function createCompany(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para cadastrar empresas." }, { status: 401 });
   try {
@@ -49,3 +50,6 @@ export async function POST(request: Request) {
     return Response.json({ error: "Não foi possível cadastrar a empresa." }, { status: 500 });
   }
 }
+
+export const GET = withApiTelemetry("GET /api/companies", getCompanies);
+export const POST = withApiTelemetry("POST /api/companies", createCompany);

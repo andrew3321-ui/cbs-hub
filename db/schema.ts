@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import { index, integer, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 
 export const companies = sqliteTable("companies", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -9,7 +9,7 @@ export const companies = sqliteTable("companies", {
   sector: text("sector").notNull().default("Serviços"),
   ownerUserId: integer("owner_user_id"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [index("companies_owner_name_idx").on(table.ownerUserId, table.name)]);
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -28,7 +28,7 @@ export const sessions = sqliteTable("sessions", {
   userId: integer("user_id").notNull(),
   expiresAt: text("expires_at").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [index("sessions_user_expires_idx").on(table.userId, table.expiresAt), index("sessions_expires_at_idx").on(table.expiresAt)]);
 
 export const scenarios = sqliteTable("scenarios", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -51,9 +51,13 @@ export const scenarios = sqliteTable("scenarios", {
   calculatedAt: text("calculated_at"),
   signatureVersion: text("signature_version").notNull().default("legacy"),
   recordSignature: text("record_signature"),
+  requestKey: text("request_key"),
   companyId: integer("company_id").notNull().default(1),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [
+  uniqueIndex("scenarios_request_key_idx").on(table.requestKey),
+  index("scenarios_company_created_idx").on(table.companyId, table.createdAt, table.id),
+]);
 
 export const auditEvents = sqliteTable("audit_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -63,7 +67,7 @@ export const auditEvents = sqliteTable("audit_events", {
   eventType: text("event_type").notNull(),
   eventData: text("event_data").notNull().default("{}"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [index("audit_events_owner_company_created_idx").on(table.ownerUserId, table.companyId, table.createdAt, table.id)]);
 
 export const billingAccounts = sqliteTable("billing_accounts", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -92,4 +96,7 @@ export const reportShares = sqliteTable("report_shares", {
   views: integer("views").notNull().default(0),
   lastViewedAt: text("last_viewed_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-});
+}, (table) => [
+  index("report_shares_owner_company_created_idx").on(table.ownerUserId, table.companyId, table.createdAt, table.id),
+  index("report_shares_scenario_owner_idx").on(table.scenarioId, table.ownerUserId),
+]);
