@@ -71,6 +71,7 @@ button:focus-visible, input:focus-visible, select:focus-visible, label.file-butt
 .primary-button:disabled { opacity: .6; cursor: wait; }
 .secondary-button { background: white; color: var(--deep); border: 1px solid var(--line); }
 .file-button input, .secondary-button input { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+.heading-actions { display: flex; align-items: center; gap: 9px; }
 
 .impact-banner { min-height: 132px; padding: 25px 28px; display: grid; grid-template-columns: 52px 1fr auto; align-items: center; gap: 22px; border-radius: 14px; background: var(--deep); color: white; box-shadow: 0 16px 40px rgba(18,58,59,.14); }
 .impact-symbol { width: 48px; height: 48px; display: grid; place-items: center; background: var(--lime); color: var(--deep); border-radius: 12px 4px 12px 4px; font-size: 25px; font-weight: 700; }
@@ -158,15 +159,20 @@ tbody tr:last-child td { border-bottom: 0; }
 .recommendation span { display: block; color: var(--lime); font-size: 8px; letter-spacing: 1px; font-weight: 850; }
 .recommendation b { display: block; margin: 6px 0 4px; font-size: 13px; }
 .recommendation p { margin: 0; color: #aac0bd; font-size: 9px; line-height: 1.45; }
+.recommendation button { margin-top: 12px; padding: 8px 10px; border: 1px solid rgba(201,240,108,.35); border-radius: 7px; background: var(--lime); color: var(--deep-2); font-size: 9px; font-weight: 800; cursor: pointer; }
+.recommendation button:hover { background: #d8fa87; }
 .saved-panel { margin-top: 16px; }
 .saved-panel .panel-heading > span { color: #7b8c89; font-size: 10px; }
 .saved-list { display: grid; }
-.saved-list button { display: grid; grid-template-columns: 1fr 140px 90px; align-items: center; gap: 20px; padding: 14px 8px; border: 0; border-top: 1px solid #e9efec; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
-.saved-list button:hover { background: #f8faf8; }
+.saved-row { display: grid; grid-template-columns: 1fr 38px; align-items: stretch; border-top: 1px solid #e9efec; }
+.saved-load { display: grid; grid-template-columns: 1fr 140px 90px; align-items: center; gap: 20px; padding: 14px 8px; border: 0; background: transparent; color: var(--ink); text-align: left; cursor: pointer; }
+.saved-load:hover { background: #f8faf8; }
 .saved-list b, .saved-list small { display: block; }
 .saved-list b { font-size: 11px; }
 .saved-list small { margin-top: 3px; color: #85938f; font-size: 9px; }
 .saved-list i { color: var(--teal); font-size: 9px; font-style: normal; font-weight: 750; }
+.delete-button { align-self: center; width: 30px; height: 30px; border: 0; border-radius: 7px; background: transparent; color: #9aa7a4; font-size: 18px; cursor: pointer; }
+.delete-button:hover { color: var(--danger); background: var(--danger-soft); }
 .empty-state { padding: 25px; text-align: center; border: 1px dashed #cedad5; border-radius: 9px; }
 .empty-state span { width: 34px; height: 34px; margin: 0 auto 8px; display: grid; place-items: center; border-radius: 50%; background: #eff4f1; color: var(--teal); }
 .empty-state b { display: block; font-size: 12px; }
@@ -182,6 +188,18 @@ tbody tr:last-child td { border-bottom: 0; }
 .import-success b { font-size: 11px; }
 .import-success p { margin: 3px 0 0; color: #69804f; font-size: 9px; }
 .import-success button { border: 0; background: none; color: #5c763b; font-size: 9px; cursor: pointer; }
+.document-metrics { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 16px; }
+.document-metrics article { min-height: 108px; padding: 17px 18px; display: flex; flex-direction: column; justify-content: center; border: 1px solid var(--line); border-radius: 11px; background: white; }
+.document-metrics span { color: #70827f; font-size: 9px; font-weight: 700; }
+.document-metrics strong { margin: 6px 0 3px; font-size: 20px; letter-spacing: -.5px; }
+.document-metrics small { color: #899693; font-size: 9px; }
+.document-metrics .metric-action { background: var(--deep); border-color: var(--deep); color: white; }
+.document-metrics .metric-action span, .document-metrics .metric-action small { color: #aac0bd; }
+.document-metrics .metric-action strong { font-size: 14px; }
+.document-metrics .metric-action button { width: fit-content; margin-top: 7px; padding: 0; border: 0; background: none; color: var(--lime); font-size: 9px; font-weight: 800; cursor: pointer; }
+.document-metrics .metric-action button:disabled { opacity: .45; cursor: not-allowed; }
+.imported-panel { margin-top: 16px; }
+.import-table td:first-child { max-width: 240px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .docs-panel { margin-top: 16px; }
 .docs-list { display: grid; }
 .doc-row { display: grid; grid-template-columns: 44px 1fr 100px 100px 30px; align-items: center; gap: 12px; padding: 14px 4px; border-top: 1px solid #e9efec; font-size: 10px; }
@@ -205,6 +223,8 @@ tbody tr:last-child td { border-bottom: 0; }
   .nav-icon { font-size: 18px; }
   .metrics-grid { grid-template-columns: repeat(2, 1fr); }
   .overview-grid, .simulator-grid { grid-template-columns: 1fr; }
+  .document-metrics { grid-template-columns: 1fr 1fr; }
+  .document-metrics .metric-action { grid-column: 1 / -1; }
 }
 
 @media (max-width: 720px) {
@@ -234,9 +254,14 @@ tbody tr:last-child td { border-bottom: 0; }
   .chart-panel { overflow: hidden; }
   .chart { gap: 3px; }
   .bar-group:nth-child(-n+4) { display: none; }
-  .saved-list button { grid-template-columns: 1fr auto; }
-  .saved-list button > span:nth-child(2) { display: none; }
+  .saved-load { grid-template-columns: 1fr auto; }
+  .saved-load > span:nth-child(2) { display: none; }
   .field-row { grid-template-columns: 1fr; gap: 0; }
+  .heading-actions { flex-direction: column-reverse; align-items: stretch; }
+  .heading-actions .secondary-button { padding: 8px 10px; font-size: 9px; }
+  .heading-actions .primary-button::after { content: "Salvar"; font-size: 9px; }
+  .document-metrics { grid-template-columns: 1fr; }
+  .document-metrics .metric-action { grid-column: auto; }
   .doc-row { grid-template-columns: 40px 1fr auto; }
   .doc-row > span:nth-child(3), .doc-row button { display: none; }
   .doc-row > span:nth-child(4) { grid-column: 3; grid-row: 1; }

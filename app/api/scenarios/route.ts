@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { scenarios } from "../../../db/schema";
 
@@ -36,5 +36,19 @@ export async function POST(request: Request) {
     return Response.json({ scenario }, { status: 201 });
   } catch {
     return Response.json({ error: "Não foi possível salvar o cenário." }, { status: 500 });
+  }
+}
+
+export async function DELETE(request: Request) {
+  try {
+    await ensureScenarioSchema();
+    const id = Number(new URL(request.url).searchParams.get("id"));
+    if (!Number.isInteger(id) || id <= 0) {
+      return Response.json({ error: "Cenário inválido." }, { status: 400 });
+    }
+    await getDb().delete(scenarios).where(eq(scenarios.id, id));
+    return Response.json({ deleted: true });
+  } catch {
+    return Response.json({ error: "Não foi possível excluir o cenário." }, { status: 500 });
   }
 }

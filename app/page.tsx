@@ -14,6 +14,14 @@ type SavedScenario = {
   createdAt: string;
 };
 
+type ImportedDocument = {
+  name: string;
+  issuer: string;
+  date: string;
+  value: number;
+  status: "Lido" | "Sem total" | "Inválido";
+};
+
 const currency = new Intl.NumberFormat("pt-BR", {
   style: "currency",
   currency: "BRL",
@@ -40,35 +48,72 @@ const documentRows = [
   { name: "Serviços tomados · Junho", date: "30 jun 2026", count: "28 notas", status: "Revisar 3" },
 ];
 
+function findXmlText(document: XMLDocument, names: string[]) {
+  const elements = Array.from(document.getElementsByTagName("*"));
+  for (const name of names) {
+    const match = elements.find((element) => element.localName === name);
+    const value = match?.textContent?.trim();
+    if (value) return value;
+  }
+  return "";
+}
+
+function parseXmlNumber(value: string) {
+  if (!value) return 0;
+  const normalized = value.includes(",") ? value.replace(/\./g, "").replace(",", ".") : value;
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function formatXmlDate(value: string) {
+  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : "Data não informada";
+}
+
 export default function Home() {
   const [section, setSection] = useState<Section>("overview");
   const [revenue, setRevenue] = useState(284650);
   const [currentRate, setCurrentRate] = useState(8.65);
   const [newRate, setNewRate] = useState(13.45);
   const [costRate, setCostRate] = useState(67.2);
+  const [priceAdjustment, setPriceAdjustment] = useState(0);
   const [scenarioName, setScenarioName] = useState("Cenário base · 2027");
   const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [importedFiles, setImportedFiles] = useState<string[]>([]);
+  const [importedDocuments, setImportedDocuments] = useState<ImportedDocument[]>([]);
 
   const figures = useMemo(() => {
+    const safeRevenue = Math.max(revenue || 0, 1);
+    const projectedRevenue = safeRevenue * (1 + priceAdjustment / 100);
     const currentTax = revenue * (currentRate / 100);
-    const projectedTax = revenue * (newRate / 100);
+    const projectedTax = projectedRevenue * (newRate / 100);
     const costs = revenue * (costRate / 100);
     const currentMargin = revenue - costs - currentTax;
-    const projectedMargin = revenue - costs - projectedTax;
+    const projectedMargin = projectedRevenue - costs - projectedTax;
     const delta = projectedTax - currentTax;
+    const newRateDecimal = newRate / 100;
+    const requiredPriceIncrease = newRateDecimal >= 1
+      ? 0
+      : Math.max(0, (((1 - currentRate / 100) / (1 - newRateDecimal)) - 1) * 100);
     return {
+      projectedRevenue,
       currentTax,
       projectedTax,
       currentMargin,
       projectedMargin,
       delta,
-      currentMarginRate: (currentMargin / revenue) * 100,
-      projectedMarginRate: (projectedMargin / revenue) * 100,
+      requiredPriceIncrease,
+      currentMarginRate: (currentMargin / safeRevenue) * 100,
+      projectedMarginRate: (projectedMargin / projectedRevenue) * 100,
     };
-  }, [revenue, currentRate, newRate, costRate]);
+  }, [revenue, currentRate, newRate, costRate, priceAdjustment]);
+
+  const importSummary = useMemo(() => ({
+    total: importedDocuments.reduce((sum, item) => sum + item.value, 0),
+    valid: importedDocuments.filter((item) => item.status === "Lido").length,
+    issues: importedDocuments.filter((item) => item.status !== "Lido").length,
+  }), [importedDocuments]);
 
   useEffect(() => {
     fetch("/api/scenarios")
@@ -103,15 +148,35 @@ export default function Home() {
     }
   }
 
-  function handleFileImport(event: ChangeEvent<HTMLInputElement>) {
+  async function handleFileImport(event: ChangeEvent<HTMLInputElement>) {
     const files = Array.from(event.target.files ?? []);
     if (!files.length) return;
-    const xmlFiles = files.filter((file) => file.name.toLowerCase().endsWith(".xml"));
-    setImportedFiles(xmlFiles.map((file) => file.name));
+    const xmlFiles = files
+      .filter((file) => file.name.toLowerCase().endsWith(".xml") && file.size <= 8 * 1024 * 1024)
+      .slice(0, 100);
+
+    const parsedDocuments = await Promise.all(xmlFiles.map(async (file): Promise<ImportedDocument> => {
+      try {
+        const xml = new DOMParser().parseFromString(await file.text(), "application/xml");
+        if (xml.getElementsByTagName("parsererror").length) throw new Error("invalid xml");
+        const value = parseXmlNumber(findXmlText(xml, ["vNF", "vServ", "ValorServicos", "ValorLiquidoNfse", "vProd", "vRec"]));
+        return {
+          name: file.name,
+          issuer: findXmlText(xml, ["xNome", "RazaoSocial", "CNPJ", "CPF"]) || "Emitente não identificado",
+          date: formatXmlDate(findXmlText(xml, ["dhEmi", "dEmi", "DataEmissao", "dCompet", "Competencia"])),
+          value,
+          status: value > 0 ? "Lido" : "Sem total",
+        };
+      } catch {
+        return { name: file.name, issuer: "Documento não reconhecido", date: "—", value: 0, status: "Inválido" };
+      }
+    }));
+
+    setImportedDocuments(parsedDocuments);
     setMessage(
-      xmlFiles.length
-        ? `${xmlFiles.length} arquivo${xmlFiles.length > 1 ? "s" : ""} XML analisado${xmlFiles.length > 1 ? "s" : ""} localmente.`
-        : "Selecione arquivos no formato XML."
+      parsedDocuments.length
+        ? `${parsedDocuments.length} XML analisado${parsedDocuments.length > 1 ? "s" : ""} localmente. Nenhum arquivo foi enviado.`
+        : "Selecione XMLs válidos de até 8 MB."
     );
     event.target.value = "";
   }
@@ -121,8 +186,53 @@ export default function Home() {
     setCurrentRate(item.currentRateBps / 100);
     setNewRate(item.newRateBps / 100);
     setCostRate(item.costRateBps / 100);
+    setPriceAdjustment(0);
     setScenarioName(item.name);
     setMessage("Cenário carregado.");
+  }
+
+  async function deleteScenario(item: SavedScenario) {
+    if (!window.confirm(`Excluir o cenário “${item.name}”?`)) return;
+    try {
+      const response = await fetch(`/api/scenarios?id=${item.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("delete failed");
+      setSavedScenarios((current) => current.filter((scenario) => scenario.id !== item.id));
+      setMessage("Cenário excluído.");
+    } catch {
+      setMessage("Não foi possível excluir o cenário agora.");
+    }
+  }
+
+  function exportScenarioReport() {
+    const rows = [
+      ["Relatório Margem Clara", scenarioName],
+      ["Premissa", "Valor"],
+      ["Receita mensal", revenue.toFixed(2)],
+      ["Alíquota atual", `${currentRate.toFixed(2)}%`],
+      ["IBS + CBS efetivos", `${newRate.toFixed(2)}%`],
+      ["Reajuste simulado", `${priceAdjustment.toFixed(2)}%`],
+      ["Margem atual", figures.currentMargin.toFixed(2)],
+      ["Margem projetada", figures.projectedMargin.toFixed(2)],
+      ["Reajuste de equilíbrio", `${figures.requiredPriceIncrease.toFixed(2)}%`],
+      ["Observação", "Estimativa gerencial; valide as premissas com sua contabilidade."],
+    ];
+    const csv = `\uFEFF${rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(";")).join("\r\n")}`;
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `margem-clara-${scenarioName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "cenario"}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    setMessage("Relatório exportado em CSV.");
+  }
+
+  function useImportedRevenue() {
+    if (importSummary.total <= 0) return;
+    setRevenue(Math.round(importSummary.total * 100) / 100);
+    setScenarioName("Cenário a partir dos XMLs");
+    setPriceAdjustment(0);
+    setSection("simulator");
+    setMessage("Receita dos XMLs aplicada ao simulador.");
   }
 
   return (
@@ -264,7 +374,7 @@ export default function Home() {
           <div className="page-content simulator-page">
             <div className="page-heading">
               <div><p className="kicker">PLANEJAMENTO</p><h1>Simulador de margem</h1><p>Ajuste as premissas e compare o cenário atual com a transição.</p></div>
-              <button className="primary-button" onClick={saveScenario} disabled={saving}>{saving ? "Salvando…" : "Salvar cenário"}</button>
+              <div className="heading-actions"><button className="secondary-button" onClick={exportScenarioReport}>Exportar CSV</button><button className="primary-button" onClick={saveScenario} disabled={saving || !scenarioName.trim() || revenue < 1000}>{saving ? "Salvando…" : "Salvar cenário"}</button></div>
             </div>
 
             {message && <div className="toast" role="status">{message}</div>}
@@ -273,7 +383,10 @@ export default function Home() {
               <section className="panel assumptions-panel">
                 <div className="panel-heading"><div><span className="eyebrow">PREMISSAS</span><h3>Configure o cenário</h3></div><span className="editable-chip">Editável</span></div>
                 <label>Nome do cenário<input value={scenarioName} onChange={(event) => setScenarioName(event.target.value)} /></label>
-                <label>Receita mensal (R$)<input type="number" min="1000" step="1000" value={revenue} onChange={(event) => setRevenue(Number(event.target.value))} /></label>
+                <div className="field-row">
+                  <label>Receita mensal (R$)<input type="number" min="1000" step="1000" value={revenue} onChange={(event) => setRevenue(Number(event.target.value))} /></label>
+                  <label>Reajuste de preço (%)<input type="number" min="0" max="100" step="0.1" value={priceAdjustment} onChange={(event) => setPriceAdjustment(Number(event.target.value))} /></label>
+                </div>
                 <div className="field-row">
                   <label>Alíquota atual (%)<input type="number" min="0" max="100" step="0.05" value={currentRate} onChange={(event) => setCurrentRate(Number(event.target.value))} /></label>
                   <label>IBS + CBS efetivos (%)<input type="number" min="0" max="100" step="0.05" value={newRate} onChange={(event) => setNewRate(Number(event.target.value))} /></label>
@@ -292,8 +405,9 @@ export default function Home() {
                 </div>
                 <div className="recommendation">
                   <span>RECOMENDAÇÃO</span>
-                  <b>Reajuste mínimo sugerido: {((figures.delta / revenue) * 100).toFixed(1).replace(".", ",")}%</b>
-                  <p>Esse reajuste recompõe a exposição tributária estimada, mantendo as demais premissas.</p>
+                  <b>Reajuste de equilíbrio: {figures.requiredPriceIncrease.toFixed(1).replace(".", ",")}%</b>
+                  <p>Compensa a diferença de alíquota mantendo os custos operacionais em valor.</p>
+                  <button onClick={() => setPriceAdjustment(Number(figures.requiredPriceIncrease.toFixed(2)))}>Aplicar reajuste sugerido</button>
                 </div>
               </section>
             </div>
@@ -302,11 +416,14 @@ export default function Home() {
               <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h3>Cenários salvos</h3></div><span>{savedScenarios.length} registros</span></div>
               {savedScenarios.length ? (
                 <div className="saved-list">{savedScenarios.map((item) => (
-                  <button key={item.id} onClick={() => loadScenario(item)}>
-                    <span><b>{item.name}</b><small>{new Date(item.createdAt).toLocaleDateString("pt-BR")} · receita {currency.format(item.revenueCents / 100)}</small></span>
-                    <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS</small></span>
-                    <i>Carregar →</i>
-                  </button>
+                  <div className="saved-row" key={item.id}>
+                    <button className="saved-load" onClick={() => loadScenario(item)}>
+                      <span><b>{item.name}</b><small>{new Date(item.createdAt).toLocaleDateString("pt-BR")} · receita {currency.format(item.revenueCents / 100)}</small></span>
+                      <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS</small></span>
+                      <i>Carregar →</i>
+                    </button>
+                    <button className="delete-button" onClick={() => deleteScenario(item)} aria-label={`Excluir ${item.name}`}>×</button>
+                  </div>
                 ))}</div>
               ) : <div className="empty-state"><span>＋</span><b>Nenhum cenário salvo</b><p>Ajuste as premissas e salve sua primeira comparação.</p></div>}
             </section>
@@ -330,7 +447,18 @@ export default function Home() {
               <small>XML · múltiplos arquivos permitidos</small>
             </section>
 
-            {importedFiles.length > 0 && <section className="import-success"><span>✓</span><div><b>{importedFiles.length} arquivo{importedFiles.length > 1 ? "s" : ""} pronto{importedFiles.length > 1 ? "s" : ""} para classificação</b><p>{importedFiles.slice(0, 3).join(" · ")}{importedFiles.length > 3 ? ` · +${importedFiles.length - 3}` : ""}</p></div><button onClick={() => setImportedFiles([])}>Limpar</button></section>}
+            {importedDocuments.length > 0 && <>
+              <section className="document-metrics">
+                <article><span>Documentos lidos</span><strong>{importedDocuments.length}</strong><small>{importSummary.issues ? `${importSummary.issues} exigem revisão` : "Todos reconhecidos"}</small></article>
+                <article><span>Valor identificado</span><strong>{currency.format(importSummary.total)}</strong><small>Somatório dos XMLs válidos</small></article>
+                <article className="metric-action"><span>Levar para o cenário</span><strong>{importSummary.valid} notas válidas</strong><button onClick={useImportedRevenue} disabled={!importSummary.total}>Usar como receita →</button></article>
+              </section>
+
+              <section className="panel imported-panel">
+                <div className="panel-heading"><div><span className="eyebrow">LEITURA LOCAL</span><h3>Documentos analisados</h3></div><button className="text-button" onClick={() => setImportedDocuments([])}>Limpar análise</button></div>
+                <div className="table-wrap"><table className="import-table"><thead><tr><th>Arquivo</th><th>Emitente</th><th>Emissão</th><th>Valor</th><th>Status</th></tr></thead><tbody>{importedDocuments.map((item) => <tr key={item.name}><td><b>{item.name}</b></td><td>{item.issuer}</td><td>{item.date}</td><td>{item.value ? currency.format(item.value) : "—"}</td><td><span className={item.status === "Lido" ? "ok-status" : "review-status"}>{item.status}</span></td></tr>)}</tbody></table></div>
+              </section>
+            </>}
 
             <section className="panel docs-panel">
               <div className="panel-heading"><div><span className="eyebrow">ÚLTIMAS IMPORTAÇÕES</span><h3>Conciliação fiscal</h3></div><span className="health-chip"><i /> 96% conciliado</span></div>
