@@ -71,6 +71,21 @@ export function ensureScenarioSchema() {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS report_shares (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          token TEXT NOT NULL UNIQUE,
+          scenario_id INTEGER NOT NULL,
+          company_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          note TEXT,
+          expires_at TEXT NOT NULL,
+          revoked_at TEXT,
+          views INTEGER DEFAULT 0 NOT NULL,
+          last_viewed_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
     ]);
 
     try {
@@ -95,6 +110,9 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_owner_user_id_idx ON companies (owner_user_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_user_id_idx ON sessions (user_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_expires_at_idx ON sessions (expires_at)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_owner_user_id_idx ON report_shares (owner_user_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_company_id_idx ON report_shares (company_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_scenario_id_idx ON report_shares (scenario_id)"),
     ]);
   })();
 

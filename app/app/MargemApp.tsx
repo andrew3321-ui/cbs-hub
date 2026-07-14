@@ -16,6 +16,21 @@ type SavedScenario = {
   createdAt: string;
 };
 
+type ReportShare = {
+  id: number;
+  token: string;
+  scenarioId: number;
+  scenarioName: string;
+  companyId: number;
+  note: string | null;
+  url: string;
+  expiresAt: string;
+  revokedAt: string | null;
+  views: number;
+  lastViewedAt: string | null;
+  createdAt: string;
+};
+
 type Company = {
   id: number;
   name: string;
@@ -208,6 +223,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const [priceAdjustment, setPriceAdjustment] = useState(0);
   const [scenarioName, setScenarioName] = useState("Cenário base · 2027");
   const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
+  const [reportShares, setReportShares] = useState<ReportShare[]>([]);
+  const [creatingShareId, setCreatingShareId] = useState<number | null>(null);
   const [comparisonIds, setComparisonIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
@@ -295,6 +312,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     window.localStorage.setItem("margem-clara-company", String(activeCompanyId));
     setComparisonIds([]);
     setImportedDocuments([]);
+    void refreshReportShares(activeCompanyId);
     fetch(`/api/scenarios?companyId=${activeCompanyId}`)
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { scenarios?: SavedScenario[] }) => {
@@ -314,6 +332,17 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       setCompanies(data.companies ?? []);
     } catch {
       // The active workflow remains usable if the portfolio refresh fails.
+    }
+  }
+
+  async function refreshReportShares(companyId: number) {
+    try {
+      const response = await fetch(`/api/report-shares?companyId=${companyId}`);
+      if (!response.ok) throw new Error("share list failed");
+      const data = (await response.json()) as { shares?: ReportShare[] };
+      setReportShares(data.shares ?? []);
+    } catch {
+      setReportShares([]);
     }
   }
 
@@ -409,10 +438,50 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       if (!response.ok) throw new Error("delete failed");
       setSavedScenarios((current) => current.filter((scenario) => scenario.id !== item.id));
       setComparisonIds((current) => current.filter((id) => id !== item.id));
+      setReportShares((current) => current.filter((share) => share.scenarioId !== item.id));
       setMessage("Cenário excluído.");
       void refreshCompanies();
     } catch {
       setMessage("Não foi possível excluir o cenário agora.");
+    }
+  }
+
+  async function createReportShare(item: SavedScenario) {
+    setCreatingShareId(item.id);
+    setMessage("");
+    try {
+      const response = await fetch("/api/report-shares", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scenarioId: item.id, expiryDays: 30 }) });
+      const data = (await response.json()) as { share?: ReportShare; error?: string };
+      if (!response.ok || !data.share) throw new Error(data.error || "share failed");
+      const share = { ...data.share, scenarioName: item.name };
+      setReportShares((current) => [share, ...current.map((row) => row.scenarioId === item.id && !row.revokedAt ? { ...row, revokedAt: new Date().toISOString() } : row)]);
+      try { await navigator.clipboard.writeText(share.url); } catch { /* The link remains available in the sharing center. */ }
+      setMessage("Link seguro gerado e copiado. Ele expira em 30 dias.");
+    } catch (error) {
+      setMessage(error instanceof Error && error.message !== "share failed" ? error.message : "Não foi possível gerar o link agora.");
+    } finally {
+      setCreatingShareId(null);
+    }
+  }
+
+  async function copyReportShare(share: ReportShare) {
+    try {
+      await navigator.clipboard.writeText(share.url);
+      setMessage("Link do relatório copiado.");
+    } catch {
+      setMessage("Abra o relatório e copie o endereço do navegador.");
+    }
+  }
+
+  async function revokeReportShare(share: ReportShare) {
+    if (!window.confirm(`Revogar o link do cenário “${share.scenarioName}”?`)) return;
+    try {
+      const response = await fetch(`/api/report-shares?id=${share.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("revoke failed");
+      setReportShares((current) => current.map((row) => row.id === share.id ? { ...row, revokedAt: new Date().toISOString() } : row));
+      setMessage("Link revogado. O cliente não poderá mais abrir o relatório.");
+    } catch {
+      setMessage("Não foi possível revogar o link agora.");
     }
   }
 
@@ -769,7 +838,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             </section>}
 
             <section className="panel saved-panel">
-              <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h3>Cenários salvos</h3></div><span>{savedScenarios.length} registros · selecione até 2</span></div>
+              <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO</span><h3>Cenários salvos</h3></div><span>{savedScenarios.length} registros · compare ou compartilhe</span></div>
               {savedScenarios.length ? (
                 <div className="saved-list">{savedScenarios.map((item) => (
                   <div className="saved-row" key={item.id}>
@@ -778,11 +847,27 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                       <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS</small></span>
                       <i>Carregar →</i>
                     </button>
+                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id}>{creatingShareId === item.id ? "Gerando…" : "Compartilhar"}</button>
                     <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
                     <button className="delete-button" onClick={() => deleteScenario(item)} aria-label={`Excluir ${item.name}`}>×</button>
                   </div>
                 ))}</div>
               ) : <div className="empty-state"><span>＋</span><b>Nenhum cenário salvo</b><p>Ajuste as premissas e salve sua primeira comparação.</p></div>}
+            </section>
+
+            <section className="panel share-center-panel">
+              <div className="panel-heading"><div><span className="eyebrow">ENTREGA AO CLIENTE</span><h3>Relatórios compartilhados</h3></div><span className="share-count">{reportShares.filter((share) => !share.revokedAt && new Date(share.expiresAt) > new Date()).length} ativos</span></div>
+              <p className="share-center-intro">Gere um link somente leitura pelo botão “Compartilhar”. Cada novo link revoga o anterior daquele cenário e expira automaticamente.</p>
+              {reportShares.length ? <div className="share-list">{reportShares.map((share) => {
+                const expired = new Date(share.expiresAt) <= new Date();
+                const active = !share.revokedAt && !expired;
+                return <article className={active ? "" : "inactive"} key={share.id}>
+                  <span className={`share-status ${active ? "active" : "inactive"}`}><i />{active ? "Ativo" : share.revokedAt ? "Revogado" : "Expirado"}</span>
+                  <div><b>{share.scenarioName}</b><small>Criado em {new Date(share.createdAt).toLocaleDateString("pt-BR")} · expira em {new Date(share.expiresAt).toLocaleDateString("pt-BR")}</small></div>
+                  <div className="share-views"><strong>{share.views}</strong><small>visualizações</small></div>
+                  <div className="share-actions"><button disabled={!active} onClick={() => void copyReportShare(share)}>Copiar</button><a className={active ? "" : "disabled"} href={active ? share.url : undefined} target="_blank" rel="noreferrer">Abrir</a><button className="revoke" disabled={!active} onClick={() => void revokeReportShare(share)}>Revogar</button></div>
+                </article>;
+              })}</div> : <div className="share-empty"><span>↗</span><div><b>Nenhum relatório compartilhado</b><p>Salve um cenário e use “Compartilhar” para entregar uma análise profissional ao cliente.</p></div></div>}
             </section>
           </div>
         )}

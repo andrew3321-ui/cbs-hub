@@ -41,3 +41,17 @@ export const scenarios = sqliteTable("scenarios", {
   companyId: integer("company_id").notNull().default(1),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const reportShares = sqliteTable("report_shares", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  token: text("token").notNull().unique(),
+  scenarioId: integer("scenario_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  note: text("note"),
+  expiresAt: text("expires_at").notNull(),
+  revokedAt: text("revoked_at"),
+  views: integer("views").notNull().default(0),
+  lastViewedAt: text("last_viewed_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});

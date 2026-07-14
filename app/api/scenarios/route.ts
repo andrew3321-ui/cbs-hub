@@ -1,6 +1,6 @@
 import { and, desc, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { companies, scenarios } from "../../../db/schema";
+import { companies, reportShares, scenarios } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
 
 function validInteger(value: unknown, min: number, max: number) {
@@ -72,6 +72,7 @@ export async function DELETE(request: Request) {
     const db = getDb();
     const [ownedScenario] = await db.select({ id: scenarios.id }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.id, id), eq(companies.ownerUserId, user.id))).limit(1);
     if (!ownedScenario) return Response.json({ error: "Cenário não encontrado." }, { status: 404 });
+    await db.delete(reportShares).where(eq(reportShares.scenarioId, id));
     await db.delete(scenarios).where(eq(scenarios.id, id));
     return Response.json({ deleted: true });
   } catch {
