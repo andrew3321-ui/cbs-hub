@@ -2,7 +2,7 @@
 
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 
-type Section = "overview" | "simulator" | "documents";
+type Section = "overview" | "companies" | "simulator" | "documents";
 
 type SavedScenario = {
   id: number;
@@ -12,7 +12,25 @@ type SavedScenario = {
   newRateBps: number;
   costRateBps: number;
   priceAdjustmentBps: number;
+  companyId: number;
   createdAt: string;
+};
+
+type Company = {
+  id: number;
+  name: string;
+  cnpj: string | null;
+  taxRegime: string;
+  sector: string;
+  createdAt: string;
+  latestScenario: SavedScenario | null;
+};
+
+type CompanyForm = {
+  name: string;
+  cnpj: string;
+  taxRegime: string;
+  sector: string;
 };
 
 type ScenarioInputs = {
@@ -79,6 +97,11 @@ function formatXmlDate(value: string) {
   return match ? `${match[3]}/${match[2]}/${match[1]}` : "Data não informada";
 }
 
+function formatCnpj(value: string | null) {
+  if (!value || value.length !== 14) return "CNPJ não informado";
+  return value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
+}
+
 function calculateScenarioValues({ revenue, currentRate, newRate, costRate, priceAdjustment }: ScenarioInputs) {
   const safeRevenue = Math.max(revenue || 0, 1);
   const projectedRevenue = safeRevenue * (1 + priceAdjustment / 100);
@@ -108,6 +131,11 @@ function calculateScenarioValues({ revenue, currentRate, newRate, costRate, pric
 
 export default function Home() {
   const [section, setSection] = useState<Section>("overview");
+  const [companies, setCompanies] = useState<Company[]>([]);
+  const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
+  const [showCompanyForm, setShowCompanyForm] = useState(false);
+  const [creatingCompany, setCreatingCompany] = useState(false);
+  const [companyForm, setCompanyForm] = useState<CompanyForm>({ name: "", cnpj: "", taxRegime: "Simples Nacional", sector: "Serviços B2B" });
   const [revenue, setRevenue] = useState(284650);
   const [currentRate, setCurrentRate] = useState(8.65);
   const [newRate, setNewRate] = useState(13.45);
@@ -119,6 +147,8 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
   const [importedDocuments, setImportedDocuments] = useState<ImportedDocument[]>([]);
+
+  const activeCompany = useMemo(() => companies.find((company) => company.id === activeCompanyId) ?? null, [companies, activeCompanyId]);
 
   const figures = useMemo(() => calculateScenarioValues({ revenue, currentRate, newRate, costRate, priceAdjustment }), [revenue, currentRate, newRate, costRate, priceAdjustment]);
 
@@ -141,14 +171,75 @@ export default function Home() {
     issues: importedDocuments.filter((item) => item.status !== "Lido").length,
   }), [importedDocuments]);
 
+  const portfolioInsights = useMemo(() => {
+    const analyses = companies.map((company) => {
+      if (!company.latestScenario) return { company, values: null };
+      const item = company.latestScenario;
+      return { company, values: calculateScenarioValues({ revenue: item.revenueCents / 100, currentRate: item.currentRateBps / 100, newRate: item.newRateBps / 100, costRate: item.costRateBps / 100, priceAdjustment: (item.priceAdjustmentBps ?? 0) / 100 }) };
+    });
+    return {
+      analyzed: analyses.filter((item) => item.values).length,
+      atRisk: analyses.filter((item) => item.values && item.values.projectedMargin < item.values.currentMargin).length,
+      protected: analyses.filter((item) => item.values && item.values.projectedMargin >= item.values.currentMargin).length,
+      pending: analyses.filter((item) => !item.values).length,
+      revenue: companies.reduce((sum, company) => sum + (company.latestScenario?.revenueCents ?? 0) / 100, 0),
+    };
+  }, [companies]);
+
   useEffect(() => {
-    fetch("/api/scenarios")
+    fetch("/api/companies")
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { scenarios?: SavedScenario[] }) => setSavedScenarios(data.scenarios ?? []))
-      .catch(() => setSavedScenarios([]));
+      .then((data: { companies?: Company[] }) => {
+        const rows = data.companies ?? [];
+        setCompanies(rows);
+        const storedId = Number(window.localStorage.getItem("margem-clara-company"));
+        const selected = rows.find((company) => company.id === storedId)?.id ?? rows[0]?.id ?? null;
+        setActiveCompanyId(selected);
+      })
+      .catch(() => setCompanies([]));
   }, []);
 
+  useEffect(() => {
+    if (!activeCompanyId) return;
+    window.localStorage.setItem("margem-clara-company", String(activeCompanyId));
+    setComparisonIds([]);
+    setImportedDocuments([]);
+    fetch(`/api/scenarios?companyId=${activeCompanyId}`)
+      .then((response) => (response.ok ? response.json() : Promise.reject()))
+      .then((data: { scenarios?: SavedScenario[] }) => {
+        const rows = data.scenarios ?? [];
+        setSavedScenarios(rows);
+        if (rows[0]) loadScenario(rows[0], false);
+        else resetScenarioFields();
+      })
+      .catch(() => setSavedScenarios([]));
+  }, [activeCompanyId]);
+
+  async function refreshCompanies() {
+    try {
+      const response = await fetch("/api/companies");
+      if (!response.ok) return;
+      const data = (await response.json()) as { companies?: Company[] };
+      setCompanies(data.companies ?? []);
+    } catch {
+      // The active workflow remains usable if the portfolio refresh fails.
+    }
+  }
+
+  function resetScenarioFields() {
+    setRevenue(100000);
+    setCurrentRate(8.65);
+    setNewRate(13.45);
+    setCostRate(65);
+    setPriceAdjustment(0);
+    setScenarioName("Primeiro cenário");
+  }
+
   async function saveScenario() {
+    if (!activeCompanyId) {
+      setMessage("Cadastre ou selecione uma empresa antes de salvar.");
+      return;
+    }
     setSaving(true);
     setMessage("");
     try {
@@ -157,6 +248,7 @@ export default function Home() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           name: scenarioName,
+          companyId: activeCompanyId,
           revenueCents: Math.round(revenue * 100),
           currentRateBps: Math.round(currentRate * 100),
           newRateBps: Math.round(newRate * 100),
@@ -167,6 +259,7 @@ export default function Home() {
       if (!response.ok) throw new Error("save failed");
       const data = (await response.json()) as { scenario: SavedScenario };
       setSavedScenarios((current) => [data.scenario, ...current].slice(0, 8));
+      setCompanies((current) => current.map((company) => company.id === activeCompanyId ? { ...company, latestScenario: data.scenario } : company));
       setMessage("Cenário salvo com sucesso.");
     } catch {
       setMessage("Não foi possível salvar agora. A simulação continua disponível nesta tela.");
@@ -208,14 +301,14 @@ export default function Home() {
     event.target.value = "";
   }
 
-  function loadScenario(item: SavedScenario) {
+  function loadScenario(item: SavedScenario, notify = true) {
     setRevenue(item.revenueCents / 100);
     setCurrentRate(item.currentRateBps / 100);
     setNewRate(item.newRateBps / 100);
     setCostRate(item.costRateBps / 100);
     setPriceAdjustment((item.priceAdjustmentBps ?? 0) / 100);
     setScenarioName(item.name);
-    setMessage("Cenário carregado.");
+    if (notify) setMessage("Cenário carregado.");
   }
 
   async function deleteScenario(item: SavedScenario) {
@@ -226,6 +319,7 @@ export default function Home() {
       setSavedScenarios((current) => current.filter((scenario) => scenario.id !== item.id));
       setComparisonIds((current) => current.filter((id) => id !== item.id));
       setMessage("Cenário excluído.");
+      void refreshCompanies();
     } catch {
       setMessage("Não foi possível excluir o cenário agora.");
     }
@@ -234,6 +328,8 @@ export default function Home() {
   function exportScenarioReport() {
     const rows = [
       ["Relatório Margem Clara", scenarioName],
+      ["Empresa", activeCompany?.name ?? "Não selecionada"],
+      ["Regime tributário", activeCompany?.taxRegime ?? "Não informado"],
       ["Premissa", "Valor"],
       ["Receita mensal", revenue.toFixed(2)],
       ["Alíquota atual", `${currentRate.toFixed(2)}%`],
@@ -274,6 +370,36 @@ export default function Home() {
     });
   }
 
+  async function createCompany() {
+    setCreatingCompany(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/companies", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(companyForm),
+      });
+      if (!response.ok) throw new Error("create failed");
+      const data = (await response.json()) as { company: Company };
+      setCompanies((current) => [...current, data.company].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      setActiveCompanyId(data.company.id);
+      setCompanyForm({ name: "", cnpj: "", taxRegime: "Simples Nacional", sector: "Serviços B2B" });
+      setShowCompanyForm(false);
+      setSection("simulator");
+      setMessage("Empresa cadastrada. Crie o primeiro cenário para iniciar a análise.");
+    } catch {
+      setMessage("Revise os dados. O CNPJ deve conter 14 dígitos quando informado.");
+    } finally {
+      setCreatingCompany(false);
+    }
+  }
+
+  function openCompany(companyId: number, target: Section = "overview") {
+    setActiveCompanyId(companyId);
+    setSection(target);
+    setMessage("");
+  }
+
   return (
     <main className="app-shell">
       <aside className="sidebar">
@@ -286,6 +412,9 @@ export default function Home() {
           <button className={section === "overview" ? "active" : ""} onClick={() => setSection("overview")}>
             <span className="nav-icon">⌂</span>Visão geral
           </button>
+          <button className={section === "companies" ? "active" : ""} onClick={() => setSection("companies")}>
+            <span className="nav-icon">▦</span>Empresas
+          </button>
           <button className={section === "simulator" ? "active" : ""} onClick={() => setSection("simulator")}>
             <span className="nav-icon">↗</span>Simulador
           </button>
@@ -295,10 +424,10 @@ export default function Home() {
         </nav>
 
         <div className="sidebar-insight">
-          <span className="eyebrow">Transição fiscal</span>
-          <strong>Você está em 62%</strong>
-          <div className="progress-track"><span /></div>
-          <p>Faltam revisar 3 categorias de receita.</p>
+          <span className="eyebrow">Cobertura da carteira</span>
+          <strong>{portfolioInsights.analyzed} de {companies.length} analisadas</strong>
+          <div className="progress-track"><span style={{ width: `${companies.length ? (portfolioInsights.analyzed / companies.length) * 100 : 0}%` }} /></div>
+          <p>{portfolioInsights.pending ? `${portfolioInsights.pending} empresa${portfolioInsights.pending > 1 ? "s" : ""} sem cenário.` : "Toda a carteira possui análise."}</p>
         </div>
 
         <button className="support-button"><span>?</span> Central de ajuda</button>
@@ -308,9 +437,9 @@ export default function Home() {
         <header className="topbar">
           <div>
             <p className="company-label">EMPRESA ANALISADA</p>
-            <select className="company-select" aria-label="Empresa analisada">
-              <option>Aurora Consultoria Ltda.</option>
-              <option>Empresa demonstrativa</option>
+            <select className="company-select" aria-label="Empresa analisada" value={activeCompanyId ?? ""} onChange={(event) => setActiveCompanyId(Number(event.target.value))}>
+              {!companies.length && <option value="">Carregando carteira…</option>}
+              {companies.map((company) => <option value={company.id} key={company.id}>{company.name}</option>)}
             </select>
           </div>
           <div className="topbar-actions">
@@ -320,13 +449,58 @@ export default function Home() {
           </div>
         </header>
 
+        {section === "companies" && (
+          <div className="page-content companies-page">
+            <div className="page-heading">
+              <div><p className="kicker">CARTEIRA DE CLIENTES</p><h1>Empresas monitoradas</h1><p>Priorize clientes por risco de margem e mantenha cada análise separada.</p></div>
+              <button className="primary-button" onClick={() => setShowCompanyForm((current) => !current)}>{showCompanyForm ? "Fechar cadastro" : "Adicionar empresa"}</button>
+            </div>
+
+            {message && <div className="toast" role="status">{message}</div>}
+
+            {showCompanyForm && <form className="panel company-form" onSubmit={(event) => { event.preventDefault(); void createCompany(); }}>
+              <div className="panel-heading"><div><span className="eyebrow">NOVO CLIENTE</span><h3>Dados essenciais da empresa</h3></div><span className="editable-chip">Carteira privada</span></div>
+              <div className="company-form-grid">
+                <label>Razão social<input required value={companyForm.name} onChange={(event) => setCompanyForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ex.: Horizonte Serviços Ltda." /></label>
+                <label>CNPJ (opcional)<input inputMode="numeric" value={companyForm.cnpj} onChange={(event) => setCompanyForm((current) => ({ ...current, cnpj: event.target.value.replace(/\D/g, "").slice(0, 14) }))} placeholder="14 dígitos" /></label>
+                <label>Regime tributário<select value={companyForm.taxRegime} onChange={(event) => setCompanyForm((current) => ({ ...current, taxRegime: event.target.value }))}><option>Simples Nacional</option><option>Lucro Presumido</option><option>Lucro Real</option><option>MEI</option></select></label>
+                <label>Setor<input required value={companyForm.sector} onChange={(event) => setCompanyForm((current) => ({ ...current, sector: event.target.value }))} placeholder="Ex.: Distribuição B2B" /></label>
+              </div>
+              <div className="form-actions"><button type="button" className="secondary-button" onClick={() => setShowCompanyForm(false)}>Cancelar</button><button className="primary-button" disabled={creatingCompany || !companyForm.name.trim() || !companyForm.sector.trim()}>{creatingCompany ? "Cadastrando…" : "Cadastrar e analisar"}</button></div>
+            </form>}
+
+            <section className="portfolio-metrics" aria-label="Indicadores da carteira">
+              <article><span>Empresas</span><strong>{companies.length}</strong><small>{portfolioInsights.analyzed} com cenário salvo</small></article>
+              <article className="risk"><span>Margem em risco</span><strong>{portfolioInsights.atRisk}</strong><small>Precisam de ação comercial</small></article>
+              <article className="protected"><span>Margem protegida</span><strong>{portfolioInsights.protected}</strong><small>Reajuste suficiente</small></article>
+              <article><span>Receita monitorada</span><strong>{compactCurrency.format(portfolioInsights.revenue)}</strong><small>Últimos cenários da carteira</small></article>
+            </section>
+
+            <section className="company-grid">
+              {companies.map((company) => {
+                const latest = company.latestScenario;
+                const values = latest ? calculateScenarioValues({ revenue: latest.revenueCents / 100, currentRate: latest.currentRateBps / 100, newRate: latest.newRateBps / 100, costRate: latest.costRateBps / 100, priceAdjustment: (latest.priceAdjustmentBps ?? 0) / 100 }) : null;
+                const protectedMargin = values ? values.projectedMargin >= values.currentMargin : false;
+                return <article className={`company-card ${activeCompanyId === company.id ? "active-company" : ""}`} key={company.id}>
+                  <div className="company-card-top"><span className="company-monogram">{company.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span><span className={`portfolio-status ${!values ? "pending" : protectedMargin ? "protected" : "risk"}`}>{!values ? "Sem análise" : protectedMargin ? "Protegida" : "Em risco"}</span></div>
+                  <h2>{company.name}</h2>
+                  <p>{formatCnpj(company.cnpj)} · {company.taxRegime}</p>
+                  <span className="sector-chip">{company.sector}</span>
+                  {values ? <div className="company-analysis"><div><span>Receita</span><strong>{compactCurrency.format(latest!.revenueCents / 100)}</strong></div><div><span>Margem projetada</span><strong>{values.projectedMarginRate.toFixed(1).replace(".", ",")}%</strong></div><div><span>Reajuste</span><strong>{((latest!.priceAdjustmentBps ?? 0) / 100).toFixed(1).replace(".", ",")}%</strong></div></div> : <div className="company-empty-analysis">Crie o primeiro cenário para medir o risco tributário.</div>}
+                  <div className="company-actions"><button onClick={() => openCompany(company.id, "overview")}>Abrir painel</button><button onClick={() => openCompany(company.id, "simulator")}>{values ? "Novo cenário" : "Analisar agora"}</button></div>
+                </article>;
+              })}
+            </section>
+          </div>
+        )}
+
         {section === "overview" && (
           <div className="page-content">
             <div className="page-heading">
               <div>
-                <p className="kicker">SEGUNDA-FEIRA, 13 DE JULHO</p>
-                <h1>Bom dia, Marina.</h1>
-                <p>Acompanhe o impacto estimado da transição tributária na sua operação.</p>
+                <p className="kicker">EMPRESA ATIVA · {activeCompany?.taxRegime?.toUpperCase() ?? "CARREGANDO"}</p>
+                <h1>{activeCompany?.name ?? "Sua empresa"}</h1>
+                <p>Acompanhe o impacto estimado da transição tributária neste cliente.</p>
               </div>
               <button className="primary-button" onClick={() => setSection("simulator")}>Abrir simulador <span>→</span></button>
             </div>
@@ -335,8 +509,8 @@ export default function Home() {
               <div className="impact-symbol">↘</div>
               <div>
                 <span className="eyebrow">ALERTA DE MARGEM</span>
-                <h2>Sua margem pode cair {Math.abs(figures.currentMarginRate - figures.projectedMarginRate).toFixed(1).replace(".", ",")} p.p.</h2>
-                <p>O aumento projetado concentra-se em consultoria mensal e implantação. Simule um reajuste antes de renovar contratos.</p>
+                <h2>{figures.projectedMargin < figures.currentMargin ? `Margem pode cair ${Math.abs(figures.currentMarginRate - figures.projectedMarginRate).toFixed(1).replace(".", ",")} p.p.` : "O reajuste informado protege a margem"}</h2>
+                <p>Compare a carga estimada e teste o reajuste necessário antes de renovar contratos ou tabelas de preço.</p>
               </div>
               <button onClick={() => setSection("simulator")}>Ver recomendações</button>
             </section>
@@ -345,7 +519,7 @@ export default function Home() {
               <article className="metric-card">
                 <span>Receita analisada</span>
                 <strong>{currency.format(revenue)}</strong>
-                <small><b>↑ 8,4%</b> vs. mês anterior</small>
+                <small><b>{savedScenarios.length ? "Cenário atualizado" : "Estimativa inicial"}</b> para {activeCompany?.sector ?? "a operação"}</small>
               </article>
               <article className="metric-card">
                 <span>Tributos no cenário atual</span>
@@ -412,7 +586,7 @@ export default function Home() {
         {section === "simulator" && (
           <div className="page-content simulator-page">
             <div className="page-heading">
-              <div><p className="kicker">PLANEJAMENTO</p><h1>Simulador de margem</h1><p>Ajuste as premissas e compare o cenário atual com a transição.</p></div>
+              <div><p className="kicker">PLANEJAMENTO · {activeCompany?.name?.toUpperCase() ?? "EMPRESA"}</p><h1>Simulador de margem</h1><p>Ajuste as premissas; este histórico pertence somente à empresa selecionada.</p></div>
               <div className="heading-actions"><button className="secondary-button" onClick={exportScenarioReport}>Exportar CSV</button><button className="primary-button" onClick={saveScenario} disabled={saving || !scenarioName.trim() || revenue < 1000}>{saving ? "Salvando…" : "Salvar cenário"}</button></div>
             </div>
 
@@ -452,7 +626,7 @@ export default function Home() {
             </div>
 
             <section className="panel executive-panel">
-              <div className="print-only print-brand"><span className="brand-mark">mc</span><strong>margemclara</strong><small>Resumo executivo</small></div>
+              <div className="print-only print-brand"><span className="brand-mark">mc</span><strong>margemclara</strong><small>{activeCompany?.name ?? "Resumo executivo"}</small></div>
               <div className="panel-heading">
                 <div><span className="eyebrow">RESUMO EXECUTIVO</span><h3>Decisão recomendada</h3></div>
                 <button className="text-button print-button" onClick={() => window.print()}>Imprimir resumo</button>
@@ -469,7 +643,7 @@ export default function Home() {
                   <div><span>03</span><p><b>Receita projetada</b><small>Após o reajuste informado</small></p><strong>{currency.format(figures.projectedRevenue)}</strong></div>
                 </div>
               </div>
-              <p className="executive-note">Estimativa gerencial baseada nas premissas informadas em {new Date().toLocaleDateString("pt-BR")}. Valide enquadramento, créditos e alíquotas com sua contabilidade.</p>
+              <p className="executive-note">Estimativa gerencial para {activeCompany?.name ?? "a empresa"}, baseada nas premissas informadas em {new Date().toLocaleDateString("pt-BR")}. Valide enquadramento, créditos e alíquotas com sua contabilidade.</p>
             </section>
 
             {comparedScenarios.length > 0 && <section className="panel compare-panel">
@@ -508,7 +682,7 @@ export default function Home() {
         {section === "documents" && (
           <div className="page-content documents-page">
             <div className="page-heading">
-              <div><p className="kicker">BASE DE CÁLCULO</p><h1>Documentos fiscais</h1><p>Organize as notas usadas nas projeções e identifique lacunas.</p></div>
+              <div><p className="kicker">BASE DE CÁLCULO · {activeCompany?.name?.toUpperCase() ?? "EMPRESA"}</p><h1>Documentos fiscais</h1><p>Leia os XMLs localmente e leve a receita identificada ao cenário desta empresa.</p></div>
               <label className="primary-button file-button">Importar XML<input type="file" accept=".xml,text/xml,application/xml" multiple onChange={handleFileImport} /></label>
             </div>
 

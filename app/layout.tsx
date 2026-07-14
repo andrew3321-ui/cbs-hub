@@ -9,11 +9,11 @@ export async function generateMetadata(): Promise<Metadata> {
   const origin = `${protocol}://${host}`;
 
   return {
-    title: "Margem Clara — Inteligência tributária para PMEs",
-    description: "Simule o impacto de IBS e CBS na margem da sua empresa e transforme mudanças tributárias em decisões claras.",
+    title: "Margem Clara — Inteligência tributária para PMEs e contadores",
+    description: "Monitore empresas, compare cenários e simule o impacto de IBS e CBS sobre margens e preços.",
     openGraph: {
       title: "Margem Clara — Decisões fiscais. Margens protegidas.",
-      description: "Entenda o impacto tributário antes que ele chegue à sua margem.",
+      description: "Monitore clientes e entenda o impacto tributário antes que ele chegue à margem.",
       images: [{ url: `${origin}/og.jpg`, width: 1736, height: 909, alt: "Margem Clara — decisões fiscais, margens protegidas" }],
       locale: "pt_BR",
       type: "website",
