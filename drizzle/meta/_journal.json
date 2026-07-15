@@ -92,6 +92,13 @@
       "when": 1784082159275,
       "tag": "0012_purple_loners",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "6",
+      "when": 1784086313413,
+      "tag": "0013_spooky_radioactive_man",
+      "breakpoints": true
     }
   ]
 }

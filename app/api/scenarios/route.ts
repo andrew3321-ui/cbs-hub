@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { auditEvents, companies, reportShares, scenarioApprovals, scenarios, users } from "../../../db/schema";
+import { auditEvents, companies, reportShares, scenarioApprovals, scenarioReviewComments, scenarioReviewRounds, scenarios, users } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
 import { scenarioApprovalSummary } from "../../scenario-approval";
 import { buildScenarioSnapshot, CALCULATION_ENGINE_VERSION, hashScenarioInput, METHODOLOGY_VERSION, type RateSource, type ScenarioReliabilityInput } from "../../scenario-reliability";
@@ -45,6 +45,7 @@ const scenarioSelection = {
   recordSignature: scenarios.recordSignature,
   companyId: scenarios.companyId,
   preparedByUserId: scenarios.preparedByUserId,
+  supersedesScenarioId: scenarios.supersedesScenarioId,
   createdAt: scenarios.createdAt,
 };
 
@@ -107,8 +108,9 @@ async function createScenario(request: Request) {
     const rateSource = payload.rateSource === "accountant" ? "accountant" : payload.rateSource === "custom" ? "custom" : null;
     const sourceNote = typeof payload.sourceNote === "string" ? payload.sourceNote.trim().slice(0, 400) : "";
     const clientRequestId = typeof payload.clientRequestId === "string" ? payload.clientRequestId.trim() : "";
+    const supersedesScenarioId = payload.supersedesScenarioId == null ? null : Number(payload.supersedesScenarioId);
 
-    if (!name || !validInteger(payload.companyId, 1, 1_000_000_000) || !validInteger(payload.revenueCents, 100_000, 10_000_000_000) || !validInteger(payload.currentRateBps, 0, 9_900) || !validInteger(payload.newRateBps, 0, 9_900) || !validInteger(payload.costRateBps, 0, 9_900) || !validInteger(fixedCostsCents, 0, 10_000_000_000) || !validInteger(volumeLossBps, 0, 9_500) || !validInteger(priceAdjustmentBps, 0, 10_000) || !validInteger(targetYear, 2026, 2033) || !rateSource || sourceNote.length < 10 || (clientRequestId && !/^[a-zA-Z0-9_-]{16,100}$/.test(clientRequestId))) {
+    if (!name || !validInteger(payload.companyId, 1, 1_000_000_000) || !validInteger(payload.revenueCents, 100_000, 10_000_000_000) || !validInteger(payload.currentRateBps, 0, 9_900) || !validInteger(payload.newRateBps, 0, 9_900) || !validInteger(payload.costRateBps, 0, 9_900) || !validInteger(fixedCostsCents, 0, 10_000_000_000) || !validInteger(volumeLossBps, 0, 9_500) || !validInteger(priceAdjustmentBps, 0, 10_000) || !validInteger(targetYear, 2026, 2033) || !rateSource || sourceNote.length < 10 || (clientRequestId && !/^[a-zA-Z0-9_-]{16,100}$/.test(clientRequestId)) || (supersedesScenarioId !== null && (!Number.isInteger(supersedesScenarioId) || supersedesScenarioId <= 0))) {
       return Response.json({ error: "Revise os valores e descreva a origem das premissas." }, { status: 400 });
     }
 
@@ -125,7 +127,16 @@ async function createScenario(request: Request) {
         return Response.json({ scenario: publicScenarioRecord(existing.scenario, integrityStatus, null, user.name), replayed: true });
       }
     }
-
+    let correctionSource: typeof scenarios.$inferSelect | null = null;
+    let correctionRound: typeof scenarioReviewRounds.$inferSelect | null = null;
+    if (supersedesScenarioId !== null) {
+      if (workspace.type !== "office") return Response.json({ error: "O fluxo de correções versionadas está disponível no modo escritório." }, { status: 403 });
+      const [source] = await db.select({ scenario: scenarios, round: scenarioReviewRounds }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).innerJoin(scenarioReviewRounds, eq(scenarioReviewRounds.scenarioId, scenarios.id)).where(and(eq(scenarios.id, supersedesScenarioId), eq(scenarios.companyId, companyId), eq(companies.workspaceId, workspace.id))).limit(1);
+      if (!source || source.scenario.reviewStatus !== "changes_requested" || source.round.status !== "changes_requested") return Response.json({ error: "A versão de origem não está aguardando correções." }, { status: 409 });
+      if (source.scenario.preparedByUserId !== user.id) return Response.json({ error: "Somente quem preparou a versão pode registrar a correção vinculada." }, { status: 403 });
+      correctionSource = source.scenario;
+      correctionRound = source.round;
+    }
     const reliabilityInput: ScenarioReliabilityInput = {
       revenueCents: Number(payload.revenueCents),
       currentRateBps: Number(payload.currentRateBps),
@@ -142,7 +153,7 @@ async function createScenario(request: Request) {
     const inputHash = await hashScenarioInput(reliabilityInput);
     const calculatedAt = new Date().toISOString();
     const snapshotJson = JSON.stringify(snapshot);
-    const recordSignature = await signScenarioRecord({ ownerUserId: workspace.ownerUserId, companyId, name, ...reliabilityInput, snapshotJson, calculationVersion: CALCULATION_ENGINE_VERSION, methodologyVersion: METHODOLOGY_VERSION, calculatedAt });
+    const recordSignature = await signScenarioRecord({ ownerUserId: workspace.ownerUserId, companyId, name, ...reliabilityInput, snapshotJson, calculationVersion: CALCULATION_ENGINE_VERSION, methodologyVersion: METHODOLOGY_VERSION, calculatedAt, supersedesScenarioId });
     let scenario: typeof scenarios.$inferSelect | undefined;
     try {
       [scenario] = await db.insert(scenarios).values({
@@ -159,6 +170,7 @@ async function createScenario(request: Request) {
         requestKey,
         companyId,
         preparedByUserId: user.id,
+        supersedesScenarioId,
       }).returning();
     } catch (insertError) {
       if (requestKey && String(insertError).toLowerCase().includes("unique")) {
@@ -173,13 +185,23 @@ async function createScenario(request: Request) {
     }
     if (!scenario) throw new Error("scenario_insert_failed");
 
-    await db.insert(auditEvents).values({
+    const now = new Date().toISOString();
+    const auditInsert = db.insert(auditEvents).values({
       ownerUserId: workspace.ownerUserId,
       companyId,
       scenarioId: scenario.id,
-      eventType: "scenario.created",
-      eventData: JSON.stringify({ name, targetYear, rateSource, inputHash, preparedByUserId: user.id, calculationVersion: CALCULATION_ENGINE_VERSION, methodologyVersion: METHODOLOGY_VERSION, signatureVersion: SCENARIO_SIGNATURE_VERSION }),
+      eventType: supersedesScenarioId ? "scenario.corrected_version_created" : "scenario.created",
+      eventData: JSON.stringify({ name, targetYear, rateSource, inputHash, preparedByUserId: user.id, supersedesScenarioId, calculationVersion: CALCULATION_ENGINE_VERSION, methodologyVersion: METHODOLOGY_VERSION, signatureVersion: SCENARIO_SIGNATURE_VERSION }),
     });
+    if (correctionSource && correctionRound) {
+      await db.batch([
+        db.update(scenarioReviewRounds).set({ status: "superseded", updatedAt: now }).where(and(eq(scenarioReviewRounds.id, correctionRound.id), eq(scenarioReviewRounds.status, "changes_requested"))),
+        db.insert(scenarioReviewComments).values({ reviewRoundId: correctionRound.id, workspaceId: workspace.id, scenarioId: correctionSource.id, authorUserId: user.id, kind: "superseded", body: `Nova versão corretiva criada: ${name}.`, createdAt: now }),
+        auditInsert,
+      ]);
+    } else {
+      await auditInsert;
+    }
     return Response.json({ scenario: publicScenarioRecord(scenario, "verified", null, user.name), replayed: false }, { status: 201 });
   } catch (error) {
     if (error instanceof Error && error.message === "scenario_signing_key_unavailable") return Response.json({ error: "A assinatura de integridade está temporariamente indisponível. Nenhum cenário foi salvo." }, { status: 503 });
@@ -199,11 +221,14 @@ async function deleteScenario(request: Request) {
     const db = getDb();
     const [ownedScenario] = await db.select({ id: scenarios.id, name: scenarios.name, companyId: scenarios.companyId, inputHash: scenarios.inputHash, calculationVersion: scenarios.calculationVersion, reviewStatus: scenarios.reviewStatus }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.id, id), eq(companies.workspaceId, workspace.id))).limit(1);
     if (!ownedScenario) return Response.json({ error: "Cenário não encontrado." }, { status: 404 });
-    if (["responsible_approved", "delivered"].includes(ownedScenario.reviewStatus)) return Response.json({ error: "Versões aprovadas são preservadas para manter a trilha de responsabilidade." }, { status: 409 });
+    if (ownedScenario.reviewStatus !== "draft") return Response.json({ error: "Toda versão enviada à revisão é preservada para manter a trilha de responsabilidade." }, { status: 409 });
 
     await db.insert(auditEvents).values({ ownerUserId: workspace.ownerUserId, companyId: ownedScenario.companyId, scenarioId: id, eventType: "scenario.deleted", eventData: JSON.stringify({ name: ownedScenario.name, actorUserId: user.id, inputHash: ownedScenario.inputHash, calculationVersion: ownedScenario.calculationVersion }) });
     await db.delete(reportShares).where(eq(reportShares.scenarioId, id));
     await db.delete(scenarioApprovals).where(eq(scenarioApprovals.scenarioId, id));
+    const reviewRows = await db.select({ id: scenarioReviewRounds.id }).from(scenarioReviewRounds).where(eq(scenarioReviewRounds.scenarioId, id));
+    if (reviewRows.length) await db.delete(scenarioReviewComments).where(inArray(scenarioReviewComments.reviewRoundId, reviewRows.map((round) => round.id)));
+    await db.delete(scenarioReviewRounds).where(eq(scenarioReviewRounds.scenarioId, id));
     await db.delete(scenarios).where(eq(scenarios.id, id));
     return Response.json({ deleted: true });
   } catch {

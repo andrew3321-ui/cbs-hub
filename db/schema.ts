@@ -101,11 +101,13 @@ export const scenarios = sqliteTable("scenarios", {
   requestKey: text("request_key"),
   companyId: integer("company_id").notNull().default(1),
   preparedByUserId: integer("prepared_by_user_id"),
+  supersedesScenarioId: integer("supersedes_scenario_id"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("scenarios_request_key_idx").on(table.requestKey),
   index("scenarios_company_created_idx").on(table.companyId, table.createdAt, table.id),
   index("scenarios_prepared_by_idx").on(table.preparedByUserId, table.createdAt, table.id),
+  uniqueIndex("scenarios_supersedes_idx").on(table.supersedesScenarioId),
 ]);
 
 export const scenarioApprovals = sqliteTable("scenario_approvals", {
@@ -131,6 +133,44 @@ export const scenarioApprovals = sqliteTable("scenario_approvals", {
 }, (table) => [
   uniqueIndex("scenario_approvals_scenario_idx").on(table.scenarioId),
   index("scenario_approvals_owner_company_decided_idx").on(table.ownerUserId, table.companyId, table.decidedAt, table.id),
+]);
+
+export const scenarioReviewRounds = sqliteTable("scenario_review_rounds", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id").notNull(),
+  scenarioId: integer("scenario_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  preparedByUserId: integer("prepared_by_user_id").notNull(),
+  assignedReviewerUserId: integer("assigned_reviewer_user_id"),
+  requestedByUserId: integer("requested_by_user_id").notNull(),
+  roundNumber: integer("round_number").notNull().default(1),
+  status: text("status").notNull().default("pending"),
+  dueAt: text("due_at"),
+  decisionByUserId: integer("decision_by_user_id"),
+  decisionNote: text("decision_note").notNull().default(""),
+  decidedAt: text("decided_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("scenario_review_rounds_scenario_idx").on(table.scenarioId),
+  index("scenario_review_rounds_workspace_status_due_idx").on(table.workspaceId, table.status, table.dueAt, table.id),
+  index("scenario_review_rounds_reviewer_status_idx").on(table.assignedReviewerUserId, table.status, table.id),
+  index("scenario_review_rounds_company_created_idx").on(table.companyId, table.createdAt, table.id),
+]);
+
+export const scenarioReviewComments = sqliteTable("scenario_review_comments", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reviewRoundId: integer("review_round_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  scenarioId: integer("scenario_id").notNull(),
+  authorUserId: integer("author_user_id").notNull(),
+  kind: text("kind").notNull().default("comment"),
+  body: text("body").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("scenario_review_comments_round_created_idx").on(table.reviewRoundId, table.createdAt, table.id),
+  index("scenario_review_comments_workspace_scenario_idx").on(table.workspaceId, table.scenarioId, table.id),
 ]);
 
 export const auditEvents = sqliteTable("audit_events", {

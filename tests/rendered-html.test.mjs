@@ -98,7 +98,7 @@ test("cadastro e escritório distinguem plano, papéis e revisão por segunda pe
   assert.match(registerApi, /workspaceMembers/);
   assert.match(membersApi, /Gerar|createWorkspaceInvitationToken/);
   assert.match(client, /Equipe e segregação de revisão/);
-  assert.match(client, /Aguardando outro revisor/);
+  assert.match(client, /Central de Revisão/);
   assert.match(approveApi, /scenario\.preparedByUserId === user\.id/);
   assert.match(approveApi, /office_second_person_review/);
   assert.match(workspace, /canReviewScenarios/);
@@ -106,6 +106,39 @@ test("cadastro e escritório distinguem plano, papéis e revisão por segunda pe
   assert.match(schema, /preparedByUserId/);
   assert.match(report, /Revisado por segundo profissional do escritório/);
   assert.match(report, /não equivale a homologação/);
+});
+
+test("central do escritório controla fila, decisões e correções por nova versão", async () => {
+  const [client, reviewsApi, reviewRequestApi, approvalApi, scenariosApi, membersApi, accountApi, schema, migration] = await Promise.all([
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/api/reviews/route.ts", root), "utf8"),
+    readFile(new URL("app/api/scenarios/review/route.ts", root), "utf8"),
+    readFile(new URL("app/api/scenarios/approve/route.ts", root), "utf8"),
+    readFile(new URL("app/api/scenarios/route.ts", root), "utf8"),
+    readFile(new URL("app/api/office/members/route.ts", root), "utf8"),
+    readFile(new URL("app/api/account/route.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("drizzle/0013_spooky_radioactive_man.sql", root), "utf8"),
+  ]);
+
+  assert.match(client, /DISCUSSÃO AUDITÁVEL/);
+  assert.match(client, /Criar versão corrigida/);
+  assert.match(client, /Preparador nunca aprova a própria versão/);
+  assert.match(reviewsApi, /assignedReviewerUserId !== user\.id/);
+  assert.match(reviewsApi, /decision === "changes_requested"/);
+  assert.match(reviewsApi, /scenario_review_comments/);
+  assert.match(reviewRequestApi, /reviewerUserId === scenario\.preparedByUserId/);
+  assert.match(reviewRequestApi, /roundNumber/);
+  assert.match(approvalApi, /Somente o revisor designado na Central de Revisão/);
+  assert.match(approvalApi, /status = 'approved'/);
+  assert.match(scenariosApi, /supersedesScenarioId/);
+  assert.match(scenariosApi, /status: "superseded"/);
+  assert.match(scenariosApi, /reviewStatus !== "draft"/);
+  assert.match(membersApi, /revisões pendentes ligadas a este membro/);
+  assert.match(accountApi, /reatribuir suas revisões pendentes/);
+  assert.match(schema, /scenarioReviewRounds/);
+  assert.match(schema, /scenarioReviewComments/);
+  assert.match(migration, /CREATE UNIQUE INDEX `scenarios_supersedes_idx`/);
 });
 
 test("infraestrutura escalável evita N+1, duplicidade e falhas sem correlação", async () => {

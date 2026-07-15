@@ -4,7 +4,7 @@ export const CALCULATION_ENGINE_VERSION = "mc-margin-1.0.0";
 export const METHODOLOGY_VERSION = "rtc-foundation-2026.07";
 
 export type RateSource = "custom" | "accountant" | "legacy_unverified";
-export type ReviewStatus = "draft" | "ready_for_review" | "responsible_approved" | "delivered";
+export type ReviewStatus = "draft" | "ready_for_review" | "changes_requested" | "rejected" | "responsible_approved" | "delivered";
 
 export type ScenarioReliabilityInput = {
   revenueCents: number;

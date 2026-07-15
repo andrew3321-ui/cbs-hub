@@ -45,6 +45,8 @@ Comandos principais:
 12. No modo escritório, o servidor exige `reviewer_user_id !== prepared_by_user_id` e um papel apto a revisar; isso é segunda revisão interna, não independência externa.
 13. A entrega ao cliente exige duas assinaturas válidas: a da versão calculada e a da aprovação aplicável ao modo de trabalho.
 14. O plano Profissional ou Escritório é apenas sugerido no cadastro durante o beta gratuito; nenhuma cobrança nasce automaticamente dessa escolha.
+15. No escritório, toda revisão congelada tem um responsável designado, prazo e rodada; somente o responsável distinto do preparador pode decidir.
+16. Comentários e decisões são append-only. Uma solicitação de correção nunca reabre a versão: cria outro cenário ligado por `supersedes_scenario_id`.
 
 ## Modos de trabalho
 
@@ -60,6 +62,8 @@ Comandos principais:
 `GET /api/fiscal-rules` exige sessão e expõe o catálogo com fontes, vigência, fingerprint, regressões e motivos de bloqueio. A API não oferece escrita nem homologação automática.
 
 `GET /api/tax-determination` exige sessão e expõe o blueprint do livro fiscal, casos adversos e portões de fechamento. Nesta fase, `writesEnabled` e `netPayableEnabled` permanecem falsos.
+
+`GET /api/reviews` lista a fila do escritório, métricas de prazo, revisores elegíveis e a conversa de cada rodada. `POST /api/reviews` adiciona comentários, reatribui itens ou registra devolução/rejeição; a aprovação assinada continua em `POST /api/scenarios/approve`.
 
 A chave `SCENARIO_SIGNING_KEY_V1` vive apenas no ambiente publicado. Nunca deve ser gravada no repositório ou enviada ao navegador.
 

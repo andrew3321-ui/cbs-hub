@@ -8,9 +8,11 @@
 4. As entradas recebem um hash SHA-256.
 5. Entradas, snapshot, empresa, proprietário estável do espaço e versões recebem assinatura HMAC.
 6. O cenário é persistido como rascunho imutável e gera um evento de auditoria.
-7. O preparador inicia a revisão interna. No modo independente, a própria conta assume a revisão; no escritório, outra conta com papel apto declara seu registro e revisa.
-8. A aprovação recebe assinatura própria, ligada ao hash e à assinatura do cenário.
-9. A entrega ao cliente só avança quando as duas assinaturas são válidas.
+7. O preparador inicia a revisão interna. No modo independente, a própria conta assume a revisão; no escritório, escolhe outra conta apta, prazo e orientação inicial.
+8. O escritório cria uma rodada única para a versão congelada. Comentários, reatribuições e decisões são append-only e permanecem ligados à versão.
+9. O revisor designado aprova, solicita correções ou rejeita. Aprovação e mudança de estado ocorrem atomicamente; devolução preserva a versão e exige uma nova versão vinculada.
+10. A aprovação recebe assinatura própria, ligada ao hash e à assinatura do cenário.
+11. A entrega ao cliente só avança quando as duas assinaturas são válidas.
 
 ## Limites de confiança
 
@@ -26,8 +28,10 @@
 - `workspace_members`: vínculo único do usuário com o espaço, papel e estado.
 - `workspace_invitations`: convite com token armazenado somente como hash, expiração, papel e aceite.
 - `companies`: carteira isolada pelo espaço; `owner_user_id` é preservado como proprietário estável para assinatura e compatibilidade.
-- `scenarios`: entrada, versões, snapshot, assinatura, chave idempotente e identidade explícita de quem preparou.
+- `scenarios`: entrada, versões, snapshot, assinatura, chave idempotente, identidade explícita de quem preparou e vínculo opcional com a versão substituída.
 - `scenario_approvals`: decisão append-only, identidade declarada do responsável, nível de garantia e assinatura vinculada à versão revisada.
+- `scenario_review_rounds`: responsável designado, prazo, número da rodada, estado e decisão para cada versão do escritório.
+- `scenario_review_comments`: conversa e eventos append-only de cada rodada.
 - `audit_events`: eventos append-only de cenário e compartilhamento.
 - `report_shares`: tokens revogáveis e com expiração.
 - `users` e `sessions`: autenticação e sessão da aplicação.
@@ -47,6 +51,7 @@ Toda consulta de dados privados deve aplicar `workspace_id` e vínculo ativo no 
 - Listagens extensas usam cursor por ID, sem custo crescente de `OFFSET`.
 - Índices compostos acompanham empresa, data e proprietário nos caminhos quentes.
 - A criação de cenário é idempotente e tolera concorrência por índice único.
+- A fila de revisão usa índices por espaço/estado/prazo e por revisor/estado; carregamentos relacionados são feitos em lote.
 - Logs operacionais são emitidos para a infraestrutura, sem gravar uma linha no D1 por requisição.
 
 ## Evolução do motor fiscal
@@ -72,6 +77,8 @@ O estado interno `responsible_approved` representa uma aprovação assinada, mas
 Ambos usam credencial profissional `self_declared` nesta fase. O segundo nível é uma revisão interna segregada, não uma revisão independente externa nem uma credencial verificada pelo CFC/CRC. O relatório público distingue os dois casos e identifica preparador e revisor quando aplicável.
 
 O estado `delivered` registra que uma versão já aprovada gerou um link para o cliente. Versões aprovadas não podem ser excluídas pela operação comum; qualquer correção cria uma nova versão e uma nova aprovação.
+
+No escritório, qualquer versão enviada à revisão é preservada, mesmo devolvida ou rejeitada. `changes_requested` encerra a rodada atual; o preparador cria um novo cenário com `supersedes_scenario_id`, e a rodada anterior passa a `superseded`. O índice único desse vínculo impede duas correções concorrentes para a mesma versão.
 
 Uma futura revisão **externa independente** exigirá escopo próprio, convite externo e ausência de vínculo operacional com o escritório; não deve reutilizar o rótulo de segunda revisão interna.
 
@@ -111,4 +118,4 @@ O valor `netPayableCents` só pode deixar de ser `null` quando a competência te
 
 ## Rotação de assinatura
 
-A versão atual é `hmac-sha256-v1:k1`. Uma rotação deve adicionar uma nova chave e manter a anterior disponível para leitura. Não reutilize o mesmo identificador de versão com outro segredo; isso invalidaria todo o histórico.
+A versão atual é `hmac-sha256-v2:k1`, que também cobre `supersedes_scenario_id`. A leitura de `hmac-sha256-v1:k1` permanece compatível somente quando esse vínculo é nulo. Uma rotação deve adicionar uma nova chave e manter a anterior disponível para leitura. Não reutilize o mesmo identificador de versão com outro segredo; isso invalidaria todo o histórico.

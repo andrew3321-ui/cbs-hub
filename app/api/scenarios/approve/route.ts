@@ -1,6 +1,7 @@
+import { env } from "cloudflare:workers";
 import { and, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
-import { auditEvents, companies, scenarioApprovals, scenarios } from "../../../../db/schema";
+import { auditEvents, companies, scenarioApprovals, scenarioReviewRounds, scenarios } from "../../../../db/schema";
 import {
   approvalRecordFromStored,
   OFFICE_SECOND_REVIEW_DECLARATION_VERSION,
@@ -91,6 +92,8 @@ async function approveAsResponsible(request: Request) {
     if (workspace.type === "office") {
       if (!canReviewScenarios(workspace.role)) return Response.json({ error: "Seu papel no escritório não permite aprovar revisões." }, { status: 403 });
       if (!scenario.preparedByUserId || scenario.preparedByUserId === user.id) return Response.json({ error: "No modo escritório, quem preparou a versão não pode aprová-la. Peça a outro revisor da equipe." }, { status: 409 });
+      const [activeRound] = await db.select().from(scenarioReviewRounds).where(and(eq(scenarioReviewRounds.scenarioId, scenario.id), eq(scenarioReviewRounds.workspaceId, workspace.id))).limit(1);
+      if (!activeRound || activeRound.status !== "pending" || activeRound.assignedReviewerUserId !== user.id) return Response.json({ error: "Somente o revisor designado na Central de Revisão pode aprovar esta versão." }, { status: 403 });
     }
 
     const decidedAt = new Date().toISOString();
@@ -113,6 +116,28 @@ async function approveAsResponsible(request: Request) {
       decidedAt,
     };
     const approvalSignature = await signScenarioApprovalRecord(approvalRecord);
+    if (officeSecondReview) {
+      const eventData = JSON.stringify({
+        assuranceLevel: approvalRecord.assuranceLevel,
+        credentialVerification: approvalRecord.credentialVerification,
+        declarationVersion: approvalRecord.declarationVersion,
+        preparedByUserId: scenario.preparedByUserId,
+        reviewerUserId: user.id,
+        inputHash: scenario.inputHash,
+        calculationVersion: scenario.calculationVersion,
+      });
+      const results = await env.DB.batch([
+        env.DB.prepare("INSERT INTO scenario_approvals (scenario_id, company_id, owner_user_id, reviewer_user_id, reviewer_name, reviewer_email, professional_registration, assurance_level, credential_verification, decision, declaration_version, scenario_input_hash, scenario_record_signature, decision_note, signature_version, approval_signature, decided_at) SELECT ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ? WHERE EXISTS (SELECT 1 FROM scenario_review_rounds WHERE scenario_id = ? AND workspace_id = ? AND status = 'pending' AND assigned_reviewer_user_id = ? AND prepared_by_user_id <> ?) AND EXISTS (SELECT 1 FROM scenarios WHERE id = ? AND review_status = 'ready_for_review')").bind(approvalRecord.scenarioId, approvalRecord.companyId, approvalRecord.ownerUserId, approvalRecord.reviewerUserId, approvalRecord.reviewerName, approvalRecord.reviewerEmail, approvalRecord.professionalRegistration, approvalRecord.assuranceLevel, approvalRecord.credentialVerification, approvalRecord.decision, approvalRecord.declarationVersion, approvalRecord.scenarioInputHash, approvalRecord.scenarioRecordSignature, approvalRecord.decisionNote, SCENARIO_APPROVAL_SIGNATURE_VERSION, approvalSignature, decidedAt, scenario.id, workspace.id, user.id, user.id, scenario.id),
+        env.DB.prepare("UPDATE scenarios SET review_status = 'responsible_approved' WHERE id = ? AND review_status = 'ready_for_review' AND EXISTS (SELECT 1 FROM scenario_approvals WHERE scenario_id = ? AND reviewer_user_id = ? AND decided_at = ?)").bind(scenario.id, scenario.id, user.id, decidedAt),
+        env.DB.prepare("UPDATE scenario_review_rounds SET status = 'approved', decision_by_user_id = ?, decision_note = ?, decided_at = ?, updated_at = ? WHERE scenario_id = ? AND workspace_id = ? AND status = 'pending' AND assigned_reviewer_user_id = ? AND prepared_by_user_id <> ? AND EXISTS (SELECT 1 FROM scenarios WHERE id = ? AND review_status = 'responsible_approved')").bind(user.id, decisionNote, decidedAt, decidedAt, scenario.id, workspace.id, user.id, user.id, scenario.id),
+        env.DB.prepare("INSERT INTO scenario_review_comments (review_round_id, workspace_id, scenario_id, author_user_id, kind, body, created_at) SELECT id, workspace_id, scenario_id, ?, 'approved', ?, ? FROM scenario_review_rounds WHERE scenario_id = ? AND status = 'approved' AND decision_by_user_id = ? AND decided_at = ?").bind(user.id, decisionNote || "Versão aprovada e assinada pelo segundo revisor.", decidedAt, scenario.id, user.id, decidedAt),
+        env.DB.prepare("INSERT INTO audit_events (owner_user_id, company_id, scenario_id, event_type, event_data, created_at) SELECT owner_user_id, company_id, scenario_id, 'scenario.office_second_review_approved', ?, ? FROM scenario_review_rounds WHERE scenario_id = ? AND status = 'approved' AND decision_by_user_id = ? AND decided_at = ?").bind(eventData, decidedAt, scenario.id, user.id, decidedAt),
+      ]);
+      if (results[0].meta.changes !== 1 || results[1].meta.changes !== 1 || results[2].meta.changes !== 1) return Response.json({ error: "A revisão recebeu outra decisão enquanto você aprovava. Atualize a Central de Revisão." }, { status: 409 });
+      const [approval] = await db.select().from(scenarioApprovals).where(eq(scenarioApprovals.scenarioId, scenario.id)).limit(1);
+      if (!approval) throw new Error("scenario_approval_insert_failed");
+      return Response.json({ scenario: { id: scenario.id, reviewStatus: "responsible_approved", approval: publicApproval(approval) } }, { status: 201 });
+    }
     const [approvalRows] = await db.batch([
       db.insert(scenarioApprovals).values({
         ...approvalRecord,
@@ -124,7 +149,7 @@ async function approveAsResponsible(request: Request) {
         ownerUserId: workspace.ownerUserId,
         companyId: scenario.companyId,
         scenarioId: scenario.id,
-        eventType: officeSecondReview ? "scenario.office_second_review_approved" : "scenario.responsible_approved",
+        eventType: "scenario.responsible_approved",
         eventData: JSON.stringify({
           assuranceLevel: approvalRecord.assuranceLevel,
           credentialVerification: approvalRecord.credentialVerification,

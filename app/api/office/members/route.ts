@@ -1,6 +1,6 @@
-import { and, asc, desc, eq, gt } from "drizzle-orm";
+import { and, asc, desc, eq, gt, or } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
-import { accountingWorkspaces, auditEvents, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
+import { accountingWorkspaces, auditEvents, scenarioReviewRounds, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
 import { getCurrentUser, normalizeEmail } from "../../../auth";
 import { canManageWorkspace, createWorkspaceInvitationToken, getWorkspaceContext, sha256Hex } from "../../../workspace";
 import { withApiTelemetry } from "../../../api-infrastructure";
@@ -97,6 +97,8 @@ async function revokeInvitation(request: Request) {
       const [member] = await db.select({ id: workspaceMembers.id, userId: users.id, name: users.name, role: workspaceMembers.role }).from(workspaceMembers).innerJoin(users, eq(workspaceMembers.userId, users.id)).where(and(eq(workspaceMembers.id, memberId), eq(workspaceMembers.workspaceId, workspace.id))).limit(1);
       if (!member) return Response.json({ error: "Membro não encontrado." }, { status: 404 });
       if (member.role === "owner" || member.userId === user.id) return Response.json({ error: "O proprietário e a própria conta não podem ser removidos por este fluxo." }, { status: 409 });
+      const [activeReview] = await db.select({ id: scenarioReviewRounds.id }).from(scenarioReviewRounds).where(and(eq(scenarioReviewRounds.workspaceId, workspace.id), or(eq(scenarioReviewRounds.assignedReviewerUserId, member.userId), eq(scenarioReviewRounds.preparedByUserId, member.userId)), eq(scenarioReviewRounds.status, "pending"))).limit(1);
+      if (activeReview) return Response.json({ error: "Conclua ou reatribua as revisões pendentes ligadas a este membro antes de removê-lo." }, { status: 409 });
       const [personalWorkspace] = await db.insert(accountingWorkspaces).values({ name: `Espaço profissional de ${member.name}`, workspaceType: "individual", ownerUserId: member.userId, suggestedPlanKey: "pro" }).returning({ id: accountingWorkspaces.id });
       if (!personalWorkspace) throw new Error("personal_workspace_insert_failed");
       try {
@@ -136,6 +138,10 @@ async function updateMemberRole(request: Request) {
     const [member] = await db.select({ id: workspaceMembers.id, userId: workspaceMembers.userId, role: workspaceMembers.role }).from(workspaceMembers).where(and(eq(workspaceMembers.id, memberId), eq(workspaceMembers.workspaceId, workspace.id))).limit(1);
     if (!member) return Response.json({ error: "Membro não encontrado." }, { status: 404 });
     if (member.role === "owner" || member.userId === user.id) return Response.json({ error: "O papel do proprietário ou da própria conta não pode ser alterado aqui." }, { status: 409 });
+    if (role === "preparer") {
+      const [assignedReview] = await db.select({ id: scenarioReviewRounds.id }).from(scenarioReviewRounds).where(and(eq(scenarioReviewRounds.workspaceId, workspace.id), eq(scenarioReviewRounds.assignedReviewerUserId, member.userId), eq(scenarioReviewRounds.status, "pending"))).limit(1);
+      if (assignedReview) return Response.json({ error: "Reatribua as revisões pendentes antes de retirar a permissão de revisor." }, { status: 409 });
+    }
     await db.batch([
       db.update(workspaceMembers).set({ role }).where(eq(workspaceMembers.id, member.id)),
       db.insert(auditEvents).values({ ownerUserId: workspace.ownerUserId, eventType: "workspace.member_role_changed", eventData: JSON.stringify({ actorUserId: user.id, targetUserId: member.userId, previousRole: member.role, role }) }),

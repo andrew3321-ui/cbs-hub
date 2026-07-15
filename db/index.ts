@@ -64,6 +64,7 @@ export function ensureScenarioSchema() {
           request_key TEXT,
           company_id INTEGER DEFAULT 1 NOT NULL,
           prepared_by_user_id INTEGER,
+          supersedes_scenario_id INTEGER,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
@@ -87,6 +88,38 @@ export function ensureScenarioSchema() {
           signature_version TEXT NOT NULL,
           approval_signature TEXT NOT NULL,
           decided_at TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS scenario_review_rounds (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          scenario_id INTEGER NOT NULL,
+          company_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          prepared_by_user_id INTEGER NOT NULL,
+          assigned_reviewer_user_id INTEGER,
+          requested_by_user_id INTEGER NOT NULL,
+          round_number INTEGER DEFAULT 1 NOT NULL,
+          status TEXT DEFAULT 'pending' NOT NULL,
+          due_at TEXT,
+          decision_by_user_id INTEGER,
+          decision_note TEXT DEFAULT '' NOT NULL,
+          decided_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS scenario_review_comments (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          review_round_id INTEGER NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          scenario_id INTEGER NOT NULL,
+          author_user_id INTEGER NOT NULL,
+          kind TEXT DEFAULT 'comment' NOT NULL,
+          body TEXT NOT NULL,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
@@ -333,6 +366,7 @@ export function ensureScenarioSchema() {
       "ALTER TABLE scenarios ADD COLUMN record_signature TEXT",
       "ALTER TABLE scenarios ADD COLUMN request_key TEXT",
       "ALTER TABLE scenarios ADD COLUMN prepared_by_user_id INTEGER",
+      "ALTER TABLE scenarios ADD COLUMN supersedes_scenario_id INTEGER",
     ];
     for (const statement of reliabilityColumns) {
       try {
@@ -407,6 +441,7 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenarios_request_key_idx ON scenarios (request_key) WHERE request_key IS NOT NULL"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_company_created_idx ON scenarios (company_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_prepared_by_idx ON scenarios (prepared_by_user_id, created_at, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenarios_supersedes_idx ON scenarios (supersedes_scenario_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS accounting_workspaces_owner_idx ON accounting_workspaces (owner_user_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS workspace_members_user_idx ON workspace_members (user_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS workspace_members_workspace_user_idx ON workspace_members (workspace_id, user_id)"),
@@ -415,6 +450,12 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS workspace_invitations_workspace_status_idx ON workspace_invitations (workspace_id, status, created_at)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenario_approvals_scenario_idx ON scenario_approvals (scenario_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenario_approvals_owner_company_decided_idx ON scenario_approvals (owner_user_id, company_id, decided_at, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenario_review_rounds_scenario_idx ON scenario_review_rounds (scenario_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS scenario_review_rounds_workspace_status_due_idx ON scenario_review_rounds (workspace_id, status, due_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS scenario_review_rounds_reviewer_status_idx ON scenario_review_rounds (assigned_reviewer_user_id, status, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS scenario_review_rounds_company_created_idx ON scenario_review_rounds (company_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS scenario_review_comments_round_created_idx ON scenario_review_comments (review_round_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS scenario_review_comments_workspace_scenario_idx ON scenario_review_comments (workspace_id, scenario_id, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_owner_company_created_idx ON audit_events (owner_user_id, company_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_owner_company_created_idx ON report_shares (owner_user_id, company_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_scenario_owner_idx ON report_shares (scenario_id, owner_user_id)"),

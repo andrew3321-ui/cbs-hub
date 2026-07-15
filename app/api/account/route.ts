@@ -1,7 +1,7 @@
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { clearSessionCookieHeader, getCurrentUser, verifyPassword } from "../../auth";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { accountingWorkspaces, auditEvents, billingAccounts, companies, reportShares, scenarioApprovals, scenarios, sessions, users, workspaceInvitations, workspaceMembers } from "../../../db/schema";
+import { accountingWorkspaces, auditEvents, billingAccounts, companies, reportShares, scenarioApprovals, scenarioReviewComments, scenarioReviewRounds, scenarios, sessions, users, workspaceInvitations, workspaceMembers } from "../../../db/schema";
 import { getWorkspaceContext } from "../../workspace";
 
 export async function DELETE(request: Request) {
@@ -20,6 +20,8 @@ export async function DELETE(request: Request) {
     if (workspace.role === "owner" && workspace.type === "office" && members.length > 1) return Response.json({ error: "Remova os demais membros ou transfira a responsabilidade do escritório antes de excluir a conta." }, { status: 409 });
 
     if (workspace.role !== "owner") {
+      const [assignedReview] = await db.select({ id: scenarioReviewRounds.id }).from(scenarioReviewRounds).where(and(eq(scenarioReviewRounds.workspaceId, workspace.id), eq(scenarioReviewRounds.assignedReviewerUserId, user.id), eq(scenarioReviewRounds.status, "pending"))).limit(1);
+      if (assignedReview) return Response.json({ error: "Peça a um gestor para reatribuir suas revisões pendentes antes de excluir a conta." }, { status: 409 });
       await db.delete(workspaceMembers).where(eq(workspaceMembers.userId, user.id));
       await db.delete(billingAccounts).where(eq(billingAccounts.userId, user.id));
       await db.delete(sessions).where(eq(sessions.userId, user.id));
@@ -33,6 +35,8 @@ export async function DELETE(request: Request) {
     await db.delete(auditEvents).where(eq(auditEvents.ownerUserId, user.id));
     await db.delete(reportShares).where(eq(reportShares.ownerUserId, user.id));
     await db.delete(scenarioApprovals).where(eq(scenarioApprovals.ownerUserId, user.id));
+    await db.delete(scenarioReviewComments).where(eq(scenarioReviewComments.workspaceId, workspace.id));
+    await db.delete(scenarioReviewRounds).where(eq(scenarioReviewRounds.workspaceId, workspace.id));
     if (companyIds.length) await db.delete(scenarios).where(inArray(scenarios.companyId, companyIds));
     await db.delete(companies).where(eq(companies.ownerUserId, user.id));
     await db.delete(workspaceInvitations).where(eq(workspaceInvitations.workspaceId, workspace.id));

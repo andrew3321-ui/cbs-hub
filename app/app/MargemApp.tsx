@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { calculateScenarioValues } from "../scenario-calculations";
 import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 
-type Section = "overview" | "companies" | "simulator" | "documents" | "team" | "rules" | "determination" | "academy";
+type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "rules" | "determination" | "academy";
 
 type ScenarioApproval = {
   id: number;
@@ -43,9 +43,49 @@ type SavedScenario = {
   companyId: number;
   preparedByUserId: number | null;
   preparerName: string | null;
+  supersedesScenarioId: number | null;
+  companyName?: string | null;
   createdAt: string;
   approval: ScenarioApproval | null;
 };
+
+type ReviewRoundStatus = "pending" | "changes_requested" | "rejected" | "approved" | "superseded";
+
+type ReviewComment = {
+  id: number;
+  reviewRoundId: number;
+  authorUserId: number;
+  authorName: string;
+  kind: "submission" | "assignment" | "comment" | "changes_requested" | "rejected" | "approved" | "superseded";
+  body: string;
+  createdAt: string;
+};
+
+type ReviewQueueItem = {
+  id: number;
+  scenarioId: number;
+  companyId: number;
+  preparedByUserId: number;
+  assignedReviewerUserId: number | null;
+  requestedByUserId: number;
+  roundNumber: number;
+  status: ReviewRoundStatus;
+  dueAt: string | null;
+  decisionByUserId: number | null;
+  decisionByName: string | null;
+  decisionNote: string;
+  decidedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+  preparerName: string;
+  assigneeName: string | null;
+  company: { id: number; name: string; taxRegime: string; sector: string } | null;
+  scenario: SavedScenario;
+  comments: ReviewComment[];
+};
+
+type EligibleReviewer = { userId: number; name: string; email: string; role: "owner" | "admin" | "reviewer" };
+type ReviewMetrics = { pending: number; mine: number; overdue: number; changesRequested: number; approved: number; averageHours: number | null };
 
 type AuditEvent = {
   id: number;
@@ -261,13 +301,35 @@ const products = [
 
 const auditEventLabels: Record<string, string> = {
   "scenario.created": "Versão de cálculo congelada",
+  "scenario.corrected_version_created": "Versão corretiva vinculada",
   "scenario.ready_for_review": "Revisão interna iniciada",
+  "scenario.review_requested": "Revisão atribuída com prazo",
+  "scenario.review_assigned": "Revisão reatribuída",
+  "scenario.review_changes_requested": "Correções solicitadas pelo revisor",
+  "scenario.review_rejected": "Versão rejeitada pelo revisor",
   "scenario.responsible_approved": "Aprovada pelo responsável técnico",
   "scenario.office_second_review_approved": "Aprovada por segundo profissional do escritório",
   "scenario.deleted": "Cenário excluído",
   "report_share.created": "Relatório compartilhado",
   "report_share.revoked": "Compartilhamento revogado",
 };
+
+const reviewStatusLabels: Record<ReviewRoundStatus, string> = {
+  pending: "Aguardando revisão",
+  changes_requested: "Correções solicitadas",
+  rejected: "Rejeitada",
+  approved: "Aprovada",
+  superseded: "Substituída por correção",
+};
+
+function dateInputValue(daysFromNow = 3) {
+  const date = new Date(Date.now() + daysFromNow * 86_400_000);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+function reviewDueIso(date: string) {
+  return new Date(`${date}T18:00:00`).toISOString();
+}
 
 const productDemos: ProductDemo[] = [
   {
@@ -392,6 +454,24 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
   const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [teamInvitations, setTeamInvitations] = useState<TeamInvitation[]>([]);
   const [teamLoading, setTeamLoading] = useState(false);
+  const [reviewQueue, setReviewQueue] = useState<ReviewQueueItem[]>([]);
+  const [reviewMetrics, setReviewMetrics] = useState<ReviewMetrics>({ pending: 0, mine: 0, overdue: 0, changesRequested: 0, approved: 0, averageHours: null });
+  const [eligibleReviewers, setEligibleReviewers] = useState<EligibleReviewer[]>([]);
+  const [reviewPermissions, setReviewPermissions] = useState({ canManage: false, canReview: false });
+  const [reviewLoading, setReviewLoading] = useState(false);
+  const [reviewFilter, setReviewFilter] = useState<"all" | "mine" | "pending" | "changes_requested" | "approved" | "rejected">("all");
+  const [activeReviewId, setActiveReviewId] = useState<number | null>(null);
+  const [reviewSubmissionScenario, setReviewSubmissionScenario] = useState<SavedScenario | null>(null);
+  const [submissionReviewerId, setSubmissionReviewerId] = useState<number | null>(null);
+  const [submissionDueDate, setSubmissionDueDate] = useState(dateInputValue());
+  const [submissionNote, setSubmissionNote] = useState("");
+  const [reviewDecision, setReviewDecision] = useState<{ review: ReviewQueueItem; decision: "changes_requested" | "rejected" } | null>(null);
+  const [decisionNote, setDecisionNote] = useState("");
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewMutating, setReviewMutating] = useState(false);
+  const [assignmentReviewerId, setAssignmentReviewerId] = useState<number | null>(null);
+  const [assignmentDueDate, setAssignmentDueDate] = useState(dateInputValue());
+  const [correctionSourceScenarioId, setCorrectionSourceScenarioId] = useState<number | null>(null);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteRole, setInviteRole] = useState<TeamInvitation["role"]>("reviewer");
   const [createdInviteUrl, setCreatedInviteUrl] = useState("");
@@ -405,7 +485,13 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
   const userInitials = user.displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "MC";
   const canManageTeam = workspace.role === "owner" || workspace.role === "admin";
   const canPrepare = workspace.role !== "reviewer";
-  const canReview = workspace.role === "owner" || workspace.role === "admin" || workspace.role === "reviewer";
+  const filteredReviews = useMemo(() => reviewQueue.filter((review) => {
+    if (reviewFilter === "all") return true;
+    if (reviewFilter === "mine") return review.status === "pending" && review.assignedReviewerUserId === user.id;
+    return review.status === reviewFilter;
+  }), [reviewQueue, reviewFilter, user.id]);
+  const activeReview = useMemo(() => filteredReviews.find((review) => review.id === activeReviewId) ?? filteredReviews[0] ?? null, [filteredReviews, activeReviewId]);
+  const activeReviewValues = useMemo(() => activeReview?.scenario.integrityStatus === "verified" ? resolveStoredScenarioValues(activeReview.scenario) : null, [activeReview]);
 
   const figures = useMemo(() => calculateScenarioValues({ revenue, currentRate, newRate, costRate, fixedCosts, volumeLoss, priceAdjustment }), [revenue, currentRate, newRate, costRate, fixedCosts, volumeLoss, priceAdjustment]);
 
@@ -483,6 +569,13 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
   }, [section, workspace.type]);
 
   useEffect(() => {
+    if (section !== "reviews" || workspace.type !== "office") return;
+    void refreshReviews();
+    // The refresh function intentionally reads the current UI selection.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section, workspace.type]);
+
+  useEffect(() => {
     fetch("/api/companies")
       .then((response) => (response.ok ? response.json() : Promise.reject()))
       .then((data: { companies?: Company[] }) => {
@@ -509,12 +602,16 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
       .then((data: { scenarios?: SavedScenario[] }) => {
         const rows = data.scenarios ?? [];
         setSavedScenarios(rows);
-        const latestUsable = rows.find((scenario) => scenario.integrityStatus !== "invalid");
-        if (latestUsable) loadScenario(latestUsable, false);
+        const correctionSource = correctionSourceScenarioId ? rows.find((scenario) => scenario.id === correctionSourceScenarioId) : null;
+        const latestUsable = correctionSource ?? rows.find((scenario) => scenario.integrityStatus !== "invalid");
+        if (latestUsable) {
+          loadScenario(latestUsable, false);
+          if (correctionSource) setScenarioName(`${correctionSource.name} · correção`);
+        }
         else resetScenarioFields();
       })
       .catch(() => setSavedScenarios([]));
-  }, [activeCompanyId]);
+  }, [activeCompanyId, correctionSourceScenarioId]);
 
   async function refreshCompanies() {
     try {
@@ -568,6 +665,139 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
     } finally {
       setTeamLoading(false);
     }
+  }
+
+  async function refreshReviews(preferredScenarioId?: number) {
+    if (workspace.type !== "office") return null;
+    setReviewLoading(true);
+    try {
+      const response = await fetch("/api/reviews");
+      const data = (await response.json()) as { reviews?: ReviewQueueItem[]; eligibleReviewers?: EligibleReviewer[]; metrics?: ReviewMetrics; permissions?: { canManage: boolean; canReview: boolean }; error?: string };
+      if (!response.ok) throw new Error(data.error || "Central de revisão indisponível.");
+      const rows = data.reviews ?? [];
+      const reviewers = data.eligibleReviewers ?? [];
+      const selected = rows.find((review) => review.scenarioId === preferredScenarioId) ?? rows.find((review) => review.id === activeReviewId) ?? rows[0] ?? null;
+      setReviewQueue(rows);
+      setEligibleReviewers(reviewers);
+      if (data.metrics) setReviewMetrics(data.metrics);
+      if (data.permissions) setReviewPermissions(data.permissions);
+      setActiveReviewId(selected?.id ?? null);
+      setAssignmentReviewerId(selected?.assignedReviewerUserId ?? null);
+      setAssignmentDueDate(selected?.dueAt ? selected.dueAt.slice(0, 10) : dateInputValue());
+      setReviewComment("");
+      return { reviews: rows, eligibleReviewers: reviewers };
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível carregar a Central de Revisão.");
+      return null;
+    } finally {
+      setReviewLoading(false);
+    }
+  }
+
+  async function openReviewCenter(scenarioId?: number) {
+    setSection("reviews");
+    if (scenarioId) await refreshReviews(scenarioId);
+  }
+
+  function selectReview(review: ReviewQueueItem) {
+    setActiveReviewId(review.id);
+    setAssignmentReviewerId(review.assignedReviewerUserId);
+    setAssignmentDueDate(review.dueAt ? review.dueAt.slice(0, 10) : dateInputValue());
+    setReviewComment("");
+  }
+
+  function changeReviewFilter(filter: typeof reviewFilter) {
+    setReviewFilter(filter);
+    const first = reviewQueue.find((review) => filter === "all" || (filter === "mine" ? review.status === "pending" && review.assignedReviewerUserId === user.id : review.status === filter));
+    if (first) selectReview(first);
+  }
+
+  async function submitScenarioReview() {
+    if (!reviewSubmissionScenario || !submissionReviewerId || !submissionDueDate) return;
+    setReviewMutating(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/scenarios/review", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scenarioId: reviewSubmissionScenario.id, reviewerUserId: submissionReviewerId, dueAt: reviewDueIso(submissionDueDate), note: submissionNote }) });
+      const data = (await response.json()) as { scenario?: { id: number; reviewStatus: ReviewStatus }; review?: ReviewQueueItem; error?: string };
+      if (!response.ok || !data.scenario) throw new Error(data.error || "Não foi possível enviar a revisão.");
+      setSavedScenarios((current) => current.map((scenario) => scenario.id === data.scenario!.id ? { ...scenario, reviewStatus: data.scenario!.reviewStatus } : scenario));
+      setCompanies((current) => current.map((company) => company.latestScenario?.id === data.scenario!.id ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: data.scenario!.reviewStatus } } : company));
+      const scenarioId = reviewSubmissionScenario.id;
+      setReviewSubmissionScenario(null);
+      setSubmissionNote("");
+      setMessage("Versão enviada ao revisor designado com prazo e trilha de acompanhamento.");
+      await openReviewCenter(scenarioId);
+      if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível enviar a revisão.");
+    } finally {
+      setReviewMutating(false);
+    }
+  }
+
+  async function mutateReview(payload: Record<string, unknown>) {
+    const response = await fetch("/api/reviews", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const data = (await response.json()) as { error?: string };
+    if (!response.ok) throw new Error(data.error || "Não foi possível atualizar a revisão.");
+    return data;
+  }
+
+  async function addReviewComment() {
+    if (!activeReview || reviewComment.trim().length < 2) return;
+    setReviewMutating(true);
+    try {
+      await mutateReview({ action: "comment", reviewRoundId: activeReview.id, body: reviewComment });
+      setReviewComment("");
+      await refreshReviews(activeReview.scenarioId);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível registrar o comentário.");
+    } finally {
+      setReviewMutating(false);
+    }
+  }
+
+  async function reassignReview() {
+    if (!activeReview || !assignmentReviewerId || !assignmentDueDate) return;
+    setReviewMutating(true);
+    try {
+      await mutateReview({ action: "assign", reviewRoundId: activeReview.id, reviewerUserId: assignmentReviewerId, dueAt: reviewDueIso(assignmentDueDate) });
+      setMessage("Responsável e prazo da revisão atualizados.");
+      await refreshReviews(activeReview.scenarioId);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível reatribuir a revisão.");
+    } finally {
+      setReviewMutating(false);
+    }
+  }
+
+  async function decideReview() {
+    if (!reviewDecision || decisionNote.trim().length < 10) return;
+    setReviewMutating(true);
+    try {
+      await mutateReview({ action: "decide", reviewRoundId: reviewDecision.review.id, decision: reviewDecision.decision, note: decisionNote });
+      const scenarioId = reviewDecision.review.scenarioId;
+      const decision = reviewDecision.decision;
+      setSavedScenarios((current) => current.map((scenario) => scenario.id === scenarioId ? { ...scenario, reviewStatus: decision } : scenario));
+      setCompanies((current) => current.map((company) => company.latestScenario?.id === scenarioId ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: decision } } : company));
+      setReviewDecision(null);
+      setDecisionNote("");
+      setMessage(decision === "changes_requested" ? "Correções solicitadas. A versão original foi preservada." : "Versão rejeitada e preservada na trilha.");
+      await refreshReviews(scenarioId);
+      if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível registrar a decisão.");
+    } finally {
+      setReviewMutating(false);
+    }
+  }
+
+  function startCorrectedVersion(review: ReviewQueueItem) {
+    setCorrectionSourceScenarioId(review.scenarioId);
+    changeActiveCompany(review.companyId);
+    loadScenario(review.scenario, false);
+    setScenarioName(`${review.scenario.name} · correção`);
+    setSection("simulator");
+    setMessage("Você está criando uma nova versão vinculada. A versão devolvida não será alterada.");
   }
 
   async function inviteTeamMember() {
@@ -675,6 +905,7 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
         targetYear,
         rateSource,
         sourceNote,
+        supersedesScenarioId: correctionSourceScenarioId,
       };
       const fingerprint = JSON.stringify(scenarioPayload);
       const clientRequestId = pendingScenarioRequest.current?.fingerprint === fingerprint ? pendingScenarioRequest.current.id : createClientRequestId();
@@ -688,10 +919,13 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
       if (!response.ok || !data.scenario) throw new Error(data.error || "save failed");
       const savedScenario = data.scenario;
       pendingScenarioRequest.current = null;
+      const correctedVersion = correctionSourceScenarioId !== null;
+      setCorrectionSourceScenarioId(null);
       setSavedScenarios((current) => [savedScenario, ...current.filter((scenario) => scenario.id !== savedScenario.id)].slice(0, 8));
       setCompanies((current) => current.map((company) => company.id === activeCompanyId ? { ...company, latestScenario: savedScenario } : company));
-      setMessage(data.replayed ? "A tentativa anterior já havia sido salva; o sistema recuperou a mesma versão sem duplicar o cenário." : `Versão congelada e assinada no motor ${savedScenario.calculationVersion}. Agora inicie a revisão interna.`);
+      setMessage(data.replayed ? "A tentativa anterior já havia sido salva; o sistema recuperou a mesma versão sem duplicar o cenário." : correctedVersion ? `Versão corretiva vinculada e assinada no motor ${savedScenario.calculationVersion}. Envie-a para uma nova rodada de revisão.` : `Versão congelada e assinada no motor ${savedScenario.calculationVersion}. Agora inicie a revisão interna.`);
       void refreshAuditEvents(activeCompanyId);
+      if (correctedVersion) void refreshReviews(savedScenario.id);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "save failed" ? error.message : "Não foi possível salvar agora. A prévia continua disponível nesta tela.");
     } finally {
@@ -752,6 +986,15 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
   }
 
   async function markReadyForReview(item: SavedScenario) {
+    if (workspace.type === "office") {
+      const loaded = eligibleReviewers.length ? null : await refreshReviews();
+      const reviewers = loaded?.eligibleReviewers ?? eligibleReviewers;
+      setReviewSubmissionScenario(item);
+      setSubmissionReviewerId(reviewers.find((reviewer) => reviewer.userId !== item.preparedByUserId)?.userId ?? null);
+      setSubmissionDueDate(dateInputValue());
+      setSubmissionNote("");
+      return;
+    }
     setReviewingScenarioId(item.id);
     setMessage("");
     try {
@@ -760,7 +1003,7 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
       if (!response.ok || !data.scenario) throw new Error(data.error || "review failed");
       setSavedScenarios((current) => current.map((scenario) => scenario.id === item.id ? { ...scenario, reviewStatus: data.scenario!.reviewStatus } : scenario));
       setCompanies((current) => current.map((company) => company.latestScenario?.id === item.id ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: data.scenario!.reviewStatus } } : company));
-      setMessage(workspace.type === "office" ? "Revisão interna iniciada. Outro profissional habilitado da equipe deve conferir e aprovar esta versão." : "Revisão interna iniciada. Confira as premissas e, ao concluir, aprove como responsável técnico.");
+      setMessage("Revisão interna iniciada. Confira as premissas e, ao concluir, aprove como responsável técnico.");
       if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "review failed" ? error.message : "Não foi possível iniciar a revisão interna.");
@@ -800,6 +1043,7 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
       setApprovalScenario(null);
       setMessage(workspace.type === "office" ? "Segunda revisão concluída e assinada. O relatório identifica separadamente quem preparou e quem revisou." : "Revisão concluída e assinada. O relatório agora pode ser entregue ao cliente como revisado pelo responsável.");
       if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
+      if (workspace.type === "office") void refreshReviews(data.scenario.id);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "approval failed" ? error.message : "Não foi possível registrar a revisão responsável.");
     } finally {
@@ -983,11 +1227,14 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
           <button className={section === "simulator" ? "active" : ""} onClick={() => setSection("simulator")}>
             <span className="nav-icon">↗</span>Análises
           </button>
+          {workspace.type === "office" && <button className={section === "reviews" ? "active" : ""} onClick={() => setSection("reviews")}>
+            <span className="nav-icon">✓</span>Central de revisão
+          </button>}
           <button className={section === "documents" ? "active" : ""} onClick={() => setSection("documents")}>
             <span className="nav-icon">▤</span>Documentos
           </button>
           <button className={section === "team" ? "active" : ""} onClick={() => setSection("team")}>
-            <span className="nav-icon">◎</span>{workspace.type === "office" ? "Equipe e revisão" : "Modo de trabalho"}
+            <span className="nav-icon">◎</span>{workspace.type === "office" ? "Equipe" : "Modo de trabalho"}
           </button>
           <button className={section === "rules" ? "active" : ""} onClick={() => setSection("rules")}>
             <span className="nav-icon">§</span>Regras fiscais
@@ -1023,7 +1270,7 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
           <div className="topbar-actions">
             <span className={`workspace-chip ${workspace.type}`}><i />{workspace.type === "office" ? workspace.name : "Modo independente"}</span>
             <span className="year-chip"><i /> Ano {targetYear} · {rateSource === "accountant" ? "fonte: contador" : "premissa informada"}</span>
-            <button className="notification" aria-label="Notificações">•</button>
+            <button className="notification" aria-label="Notificações" onClick={() => workspace.type === "office" && setSection("reviews")}>{workspace.type === "office" && reviewMetrics.mine ? reviewMetrics.mine : "•"}</button>
             <div className="account-summary">
               <div className="avatar" aria-label={`Perfil de ${user.displayName}`}>{userInitials}</div>
               <span><b>{user.displayName.split(" ")[0]}</b><small>{workspace.role === "owner" ? "Proprietário" : workspace.role === "admin" ? "Administrador" : workspace.role === "reviewer" ? "Revisor" : "Preparador"} · <a href="/planos">Plano</a> · <a href={signOutPath}>Sair</a></small></span>
@@ -1174,6 +1421,7 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
             </div>
 
             {message && <div className="toast" role="status">{message}</div>}
+            {correctionSourceScenarioId && <div className="correction-banner"><span>↺</span><div><b>Nova versão corretiva</b><p>Você pode alterar as premissas sem reescrever a versão #{correctionSourceScenarioId}. Ao salvar, o vínculo e uma nova rodada serão preservados.</p></div><button type="button" onClick={() => setCorrectionSourceScenarioId(null)}>Cancelar correção</button></div>}
 
             <div className="simulator-grid">
               <section className="panel assumptions-panel">
@@ -1272,12 +1520,12 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
               {savedScenarios.length ? (
                 <div className="saved-list">{savedScenarios.map((item) => {
                   const finalized = ["responsible_approved", "delivered"].includes(item.reviewStatus);
+                  const preserved = item.reviewStatus !== "draft";
                   const approvalBlocked = finalized && item.approval?.integrityStatus !== "verified";
                   const approved = finalized && !approvalBlocked;
                   const delivered = item.reviewStatus === "delivered";
-                  const preparedByCurrentUser = item.preparedByUserId === user.id;
-                  const officeApprovalBlocked = workspace.type === "office" && item.reviewStatus === "ready_for_review" && (!canReview || preparedByCurrentUser);
                   const approvedBySecondPerson = item.approval?.assuranceLevel === "office_second_person_review";
+                  const officeWorkflow = workspace.type === "office" && item.reviewStatus !== "draft";
                   return (
                   <div className="saved-row" key={item.id}>
                     <button className="saved-load" onClick={() => loadScenario(item)} disabled={item.integrityStatus === "invalid"}>
@@ -1285,10 +1533,10 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
                       <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS informados</small></span>
                       <i className={`integrity-label ${item.integrityStatus}`}>{item.integrityStatus === "verified" ? `Assinado · #${item.inputHash?.slice(0, 8)}` : item.integrityStatus === "invalid" ? "Integridade bloqueada" : "Legado"}</i>
                     </button>
-                    <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""} ${approved ? "approved" : ""}`} onClick={() => item.reviewStatus === "ready_for_review" ? openResponsibleApproval(item) : void markReadyForReview(item)} disabled={item.integrityStatus !== "verified" || finalized || reviewingScenarioId === item.id || !item.snapshotJson || (item.reviewStatus === "ready_for_review" ? officeApprovalBlocked : !canPrepare)}>{item.integrityStatus === "invalid" ? "Cálculo bloqueado" : approvalBlocked ? "Aprovação bloqueada" : delivered ? "Entregue ao cliente" : approved ? approvedBySecondPerson ? "Revisado por outra pessoa" : "Aprovado pelo responsável" : item.reviewStatus === "ready_for_review" ? officeApprovalBlocked ? preparedByCurrentUser ? "Aguardando outro revisor" : "Papel sem permissão de revisar" : workspace.type === "office" ? "Revisar e aprovar" : "Aprovar como responsável" : reviewingScenarioId === item.id ? "Iniciando…" : item.snapshotJson && item.integrityStatus === "verified" ? "Iniciar revisão interna" : "Regravar versão"}</button>
+                    <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""} ${approved ? "approved" : ""}`} onClick={() => officeWorkflow ? void openReviewCenter(item.id) : item.reviewStatus === "ready_for_review" ? openResponsibleApproval(item) : void markReadyForReview(item)} disabled={item.integrityStatus !== "verified" || finalized || reviewingScenarioId === item.id || !item.snapshotJson || (item.reviewStatus === "draft" && !canPrepare)}>{item.integrityStatus === "invalid" ? "Cálculo bloqueado" : approvalBlocked ? "Aprovação bloqueada" : delivered ? "Entregue ao cliente" : approved ? approvedBySecondPerson ? "Revisado por outra pessoa" : "Aprovado pelo responsável" : item.reviewStatus === "changes_requested" ? "Ver correções solicitadas" : item.reviewStatus === "rejected" ? "Ver decisão da revisão" : item.reviewStatus === "ready_for_review" ? workspace.type === "office" ? "Abrir na Central de Revisão" : "Aprovar como responsável" : reviewingScenarioId === item.id ? "Iniciando…" : item.snapshotJson && item.integrityStatus === "verified" ? workspace.type === "office" ? "Enviar para revisor" : "Iniciar revisão interna" : "Regravar versão"}</button>
                     <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || !approved || item.integrityStatus !== "verified" || !canPrepare}>{creatingShareId === item.id ? "Gerando…" : delivered ? "Gerar novo link" : "Entregar ao cliente"}</button>
                     <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} disabled={item.integrityStatus === "invalid"} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
-                    <button className={`delete-button ${finalized ? "preserved" : ""}`} onClick={() => deleteScenario(item)} disabled={finalized} title={finalized ? "Versão preservada pela trilha de responsabilidade" : "Excluir versão"} aria-label={finalized ? `Preservar ${item.name}` : `Excluir ${item.name}`}>{finalized ? "⌑" : "×"}</button>
+                    <button className={`delete-button ${preserved ? "preserved" : ""}`} onClick={() => deleteScenario(item)} disabled={preserved} title={preserved ? "Versão preservada pela trilha de responsabilidade" : "Excluir versão"} aria-label={preserved ? `Preservar ${item.name}` : `Excluir ${item.name}`}>{preserved ? "⌑" : "×"}</button>
                   </div>
                 )})}</div>
               ) : <div className="empty-state"><span>＋</span><b>Nenhum cenário salvo</b><p>Ajuste as premissas e salve sua primeira comparação.</p></div>}
@@ -1312,6 +1560,84 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
             <section className="panel audit-panel">
               <div className="panel-heading"><div><span className="eyebrow">TRILHA DE AUDITORIA</span><h3>Eventos desta empresa</h3></div><a href="/metodologia">Controles e metodologia →</a></div>
               {auditEvents.length ? <div className="audit-list">{auditEvents.slice(0, 8).map((event) => <article key={event.id}><span>✓</span><div><b>{auditEventLabels[event.eventType] ?? event.eventType}</b><small>{new Date(event.createdAt).toLocaleString("pt-BR")} · {typeof event.eventData.calculationVersion === "string" ? event.eventData.calculationVersion : "evento operacional"}</small></div><code>{typeof event.eventData.inputHash === "string" ? `${event.eventData.inputHash.slice(0, 12)}…` : `evento ${event.id}`}</code></article>)}</div> : <div className="empty-state"><span>✓</span><b>A trilha começa no próximo salvamento</b><p>Criação, revisão, compartilhamento, revogação e exclusão serão registrados.</p></div>}
+            </section>
+          </div>
+        )}
+
+        {section === "reviews" && workspace.type === "office" && (
+          <div className="page-content review-center-page">
+            <div className="page-heading review-center-heading">
+              <div><p className="kicker">CONTROLE DE QUALIDADE DO ESCRITÓRIO</p><h1>Central de Revisão</h1><p>Acompanhe responsáveis, prazos, comentários e decisões sem alterar versões já congeladas.</p></div>
+              <button className="secondary-button" type="button" onClick={() => void refreshReviews(activeReview?.scenarioId)} disabled={reviewLoading}>{reviewLoading ? "Atualizando…" : "Atualizar fila"}</button>
+            </div>
+
+            {message && <div className="toast" role="status">{message}</div>}
+
+            <section className="review-metrics" aria-label="Indicadores das revisões">
+              <article><span>PENDENTES</span><strong>{reviewMetrics.pending}</strong><small>aguardando uma decisão</small></article>
+              <article className="mine"><span>ATRIBUÍDAS A VOCÊ</span><strong>{reviewMetrics.mine}</strong><small>itens na sua responsabilidade</small></article>
+              <article className={reviewMetrics.overdue ? "risk" : "protected"}><span>FORA DO PRAZO</span><strong>{reviewMetrics.overdue}</strong><small>{reviewMetrics.overdue ? "exigem priorização" : "nenhum atraso"}</small></article>
+              <article><span>CORREÇÕES ABERTAS</span><strong>{reviewMetrics.changesRequested}</strong><small>preservadas por versão</small></article>
+              <article><span>TEMPO MÉDIO</span><strong>{reviewMetrics.averageHours === null ? "—" : reviewMetrics.averageHours < 24 ? `${reviewMetrics.averageHours}h` : `${Math.round(reviewMetrics.averageHours / 24)}d`}</strong><small>das revisões aprovadas</small></article>
+            </section>
+
+            <div className="review-filter-bar" role="group" aria-label="Filtros da central">
+              {([['all', 'Todas'], ['mine', 'Minhas pendências'], ['pending', 'Pendentes'], ['changes_requested', 'Correções'], ['approved', 'Aprovadas'], ['rejected', 'Rejeitadas']] as const).map(([value, label]) => <button type="button" className={reviewFilter === value ? "active" : ""} onClick={() => changeReviewFilter(value)} key={value}>{label}</button>)}
+            </div>
+
+            <section className="review-workbench">
+              <aside className="review-queue-panel">
+                <div className="review-queue-heading"><span>FILA DO ESCRITÓRIO</span><b>{filteredReviews.length} registro{filteredReviews.length === 1 ? "" : "s"}</b></div>
+                {filteredReviews.map((review) => {
+                  const overdue = review.status === "pending" && Boolean(review.dueAt) && new Date(review.dueAt!).getTime() < Date.now();
+                  return <button type="button" className={`review-queue-item ${activeReview?.id === review.id ? "active" : ""} ${overdue ? "overdue" : ""}`} onClick={() => selectReview(review)} key={review.id}>
+                    <span className={`review-status-dot ${review.status}`} />
+                    <span><small>{review.company?.name ?? "Empresa"} · rodada {review.roundNumber}</small><b>{review.scenario.name}</b><em>{reviewStatusLabels[review.status]}</em></span>
+                    <span><small>{review.assigneeName ?? "Sem responsável"}</small><time>{review.dueAt ? new Date(review.dueAt).toLocaleDateString("pt-BR") : "Sem prazo"}</time></span>
+                  </button>;
+                })}
+                {!reviewLoading && !filteredReviews.length && <div className="review-queue-empty"><span>✓</span><b>Nenhuma revisão neste filtro</b><p>A fila será preenchida quando uma versão for enviada para outro profissional.</p></div>}
+                {reviewLoading && !reviewQueue.length && <div className="review-queue-empty"><span className="loading-spinner" /><b>Carregando fila…</b></div>}
+              </aside>
+
+              {activeReview ? <article className="review-detail-panel">
+                <header className="review-detail-header">
+                  <div><span className={`review-status-badge ${activeReview.status}`}><i />{reviewStatusLabels[activeReview.status]}</span><h2>{activeReview.scenario.name}</h2><p>{activeReview.company?.name} · rodada {activeReview.roundNumber} · hash #{activeReview.scenario.inputHash?.slice(0, 12)}</p></div>
+                  <div className="review-owner-card"><small>RESPONSÁVEL ATUAL</small><b>{activeReview.assigneeName ?? "Não atribuído"}</b><span>{activeReview.dueAt ? `Prazo ${new Date(activeReview.dueAt).toLocaleDateString("pt-BR")}` : "Sem prazo"}</span></div>
+                </header>
+
+                <section className="review-segregation-strip">
+                  <div><small>PREPARADO POR</small><b>{activeReview.preparerName}</b></div><span>→</span><div><small>REVISADO POR</small><b>{activeReview.assigneeName ?? "A definir"}</b></div><span>→</span><div><small>VERSÃO</small><b>#{activeReview.scenarioId} · imutável</b></div>
+                </section>
+
+                <section className="review-scenario-metrics">
+                  <div><span>Receita mensal</span><strong>{currency.format(activeReview.scenario.revenueCents / 100)}</strong></div>
+                  <div><span>IBS + CBS informados</span><strong>{(activeReview.scenario.newRateBps / 100).toFixed(2).replace(".", ",")}%</strong></div>
+                  <div><span>Margem projetada</span><strong>{activeReviewValues ? `${activeReviewValues.projectedMarginRate.toFixed(1).replace(".", ",")}%` : "Bloqueada"}</strong></div>
+                  <div><span>Impacto mensal</span><strong>{activeReviewValues ? currency.format(activeReviewValues.projectedMargin - activeReviewValues.currentMargin) : "—"}</strong></div>
+                </section>
+
+                <div className="review-source-note"><span>FONTE DA PREMISSA</span><p>{activeReview.scenario.sourceNote}</p><small>Motor {activeReview.scenario.calculationVersion} · metodologia {activeReview.scenario.methodologyVersion}</small></div>
+
+                {reviewPermissions.canManage && activeReview.status === "pending" && <section className="review-assignment-box">
+                  <div><span>GESTÃO DA FILA</span><b>Reatribuir responsável ou prazo</b></div>
+                  <select aria-label="Revisor responsável" value={assignmentReviewerId ?? ""} onChange={(event) => setAssignmentReviewerId(Number(event.target.value))}><option value="">Selecione</option>{eligibleReviewers.filter((reviewer) => reviewer.userId !== activeReview.preparedByUserId).map((reviewer) => <option value={reviewer.userId} key={reviewer.userId}>{reviewer.name} · {reviewer.role}</option>)}</select>
+                  <input type="date" min={dateInputValue(1)} value={assignmentDueDate} onChange={(event) => setAssignmentDueDate(event.target.value)} aria-label="Prazo da revisão" />
+                  <button type="button" onClick={() => void reassignReview()} disabled={reviewMutating || !assignmentReviewerId || !assignmentDueDate}>Atualizar</button>
+                </section>}
+
+                <section className="review-timeline-section">
+                  <div className="review-section-heading"><div><span>DISCUSSÃO AUDITÁVEL</span><h3>Histórico da rodada</h3></div><b>{activeReview.comments.length} registro{activeReview.comments.length === 1 ? "" : "s"}</b></div>
+                  <div className="review-timeline">
+                    {activeReview.comments.map((comment) => <article className={`kind-${comment.kind}`} key={comment.id}><span>{comment.kind === "approved" ? "✓" : comment.kind === "changes_requested" ? "↺" : comment.kind === "rejected" ? "×" : "•"}</span><div><b>{comment.authorName}</b><small>{new Date(comment.createdAt).toLocaleString("pt-BR")}</small><p>{comment.body}</p></div></article>)}
+                    {!activeReview.comments.length && <p className="review-no-comments">Ainda não há registros nesta rodada.</p>}
+                  </div>
+                  <div className="review-comment-composer"><textarea maxLength={1000} value={reviewComment} onChange={(event) => setReviewComment(event.target.value)} placeholder="Registre uma conferência, evidência ou pergunta para a equipe." /><button type="button" onClick={() => void addReviewComment()} disabled={reviewMutating || reviewComment.trim().length < 2}>Comentar</button></div>
+                </section>
+
+                {activeReview.status === "pending" && activeReview.assignedReviewerUserId === user.id && activeReview.preparedByUserId !== user.id && reviewPermissions.canReview && <footer className="review-decision-bar"><div><small>DECISÃO DO REVISOR DESIGNADO</small><b>Sua decisão ficará vinculada a esta versão.</b></div><button className="request-changes" type="button" onClick={() => { setReviewDecision({ review: activeReview, decision: "changes_requested" }); setDecisionNote(""); }}>Solicitar correções</button><button className="reject" type="button" onClick={() => { setReviewDecision({ review: activeReview, decision: "rejected" }); setDecisionNote(""); }}>Rejeitar</button><button className="approve" type="button" onClick={() => openResponsibleApproval(activeReview.scenario)} disabled={activeReview.scenario.integrityStatus !== "verified"}>Revisar e aprovar</button></footer>}
+                {activeReview.status === "changes_requested" && activeReview.preparedByUserId === user.id && <footer className="review-correction-bar"><div><small>PRÓXIMA RODADA</small><b>Crie uma nova versão; a devolvida continuará intacta.</b></div><button type="button" onClick={() => startCorrectedVersion(activeReview)}>Criar versão corrigida</button></footer>}
+              </article> : <div className="review-detail-empty"><span>✓</span><h2>Selecione uma revisão</h2><p>O cenário, a responsabilidade e toda a conversa aparecerão aqui.</p></div>}
             </section>
           </div>
         )}
@@ -1600,10 +1926,35 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
         )}
       </section>
 
+      {reviewSubmissionScenario && <div className="approval-modal-backdrop" role="presentation" onMouseDown={() => !reviewMutating && setReviewSubmissionScenario(null)}>
+        <section className="approval-modal review-submission-modal" role="dialog" aria-modal="true" aria-labelledby="submission-title" onMouseDown={(event) => event.stopPropagation()}>
+          <header><div><span>NOVA RODADA DE REVISÃO</span><h2 id="submission-title">Designar responsável e prazo</h2></div><button type="button" onClick={() => setReviewSubmissionScenario(null)} disabled={reviewMutating} aria-label="Fechar envio">×</button></header>
+          <div className="approval-scenario-summary"><span>VERSÃO CONGELADA</span><strong>{reviewSubmissionScenario.name}</strong><small>{activeCompany?.name} · preparado por {reviewSubmissionScenario.preparerName ?? user.displayName} · hash #{reviewSubmissionScenario.inputHash?.slice(0, 12)}</small></div>
+          <div className="approval-boundary"><b>O revisor precisa ser outra pessoa.</b><p>Depois do envio, esta versão não poderá ser excluída nem editada. Se houver correções, o sistema criará uma nova versão vinculada.</p></div>
+          <div className="review-submission-grid">
+            <label>Revisor designado<select value={submissionReviewerId ?? ""} onChange={(event) => setSubmissionReviewerId(Number(event.target.value))}><option value="">Selecione outro profissional</option>{eligibleReviewers.filter((reviewer) => reviewer.userId !== reviewSubmissionScenario.preparedByUserId).map((reviewer) => <option value={reviewer.userId} key={reviewer.userId}>{reviewer.name} · {reviewer.role}</option>)}</select></label>
+            <label>Prazo da revisão<input type="date" min={dateInputValue(1)} value={submissionDueDate} onChange={(event) => setSubmissionDueDate(event.target.value)} /></label>
+          </div>
+          <label>Orientação inicial (opcional)<textarea maxLength={1000} value={submissionNote} onChange={(event) => setSubmissionNote(event.target.value)} placeholder="Indique documentos conferidos, pontos sensíveis ou o que merece atenção." /></label>
+          {!eligibleReviewers.some((reviewer) => reviewer.userId !== reviewSubmissionScenario.preparedByUserId) && <p className="review-modal-warning">Convide um revisor, administrador ou proprietário diferente do preparador antes de enviar.</p>}
+          <footer><button type="button" className="secondary-button" onClick={() => setReviewSubmissionScenario(null)} disabled={reviewMutating}>Cancelar</button><button type="button" className="primary-button" onClick={() => void submitScenarioReview()} disabled={reviewMutating || !submissionReviewerId || !submissionDueDate}>{reviewMutating ? "Enviando…" : "Enviar para revisão"}</button></footer>
+        </section>
+      </div>}
+
+      {reviewDecision && <div className="approval-modal-backdrop" role="presentation" onMouseDown={() => !reviewMutating && setReviewDecision(null)}>
+        <section className="approval-modal review-decision-modal" role="dialog" aria-modal="true" aria-labelledby="decision-title" onMouseDown={(event) => event.stopPropagation()}>
+          <header><div><span>{reviewDecision.decision === "changes_requested" ? "DEVOLUÇÃO CONTROLADA" : "REJEIÇÃO DA VERSÃO"}</span><h2 id="decision-title">{reviewDecision.decision === "changes_requested" ? "Solicitar uma nova versão corrigida" : "Rejeitar esta versão congelada"}</h2></div><button type="button" onClick={() => setReviewDecision(null)} disabled={reviewMutating} aria-label="Fechar decisão">×</button></header>
+          <div className="approval-scenario-summary"><span>VERSÃO #{reviewDecision.review.scenarioId}</span><strong>{reviewDecision.review.scenario.name}</strong><small>{reviewDecision.review.company?.name} · preparado por {reviewDecision.review.preparerName}</small></div>
+          <div className="approval-boundary"><b>{reviewDecision.decision === "changes_requested" ? "A versão atual será preservada e marcada como devolvida." : "A rejeição é definitiva para esta versão."}</b><p>{reviewDecision.decision === "changes_requested" ? "O preparador poderá copiar as premissas para uma nova versão ligada a esta rodada." : "Se o trabalho continuar, deverá partir de uma nova análise, sem apagar este registro."}</p></div>
+          <label>Justificativa obrigatória<textarea autoFocus minLength={10} maxLength={1000} value={decisionNote} onChange={(event) => setDecisionNote(event.target.value)} placeholder="Descreva objetivamente o erro, a evidência faltante ou o motivo da decisão." /></label>
+          <footer><button type="button" className="secondary-button" onClick={() => setReviewDecision(null)} disabled={reviewMutating}>Cancelar</button><button type="button" className={`primary-button ${reviewDecision.decision === "rejected" ? "danger-action" : ""}`} onClick={() => void decideReview()} disabled={reviewMutating || decisionNote.trim().length < 10}>{reviewMutating ? "Registrando…" : reviewDecision.decision === "changes_requested" ? "Solicitar correções" : "Confirmar rejeição"}</button></footer>
+        </section>
+      </div>}
+
       {approvalScenario && <div className="approval-modal-backdrop" role="presentation" onMouseDown={() => approvingScenarioId === null && setApprovalScenario(null)}>
         <section className="approval-modal" role="dialog" aria-modal="true" aria-labelledby="approval-title" onMouseDown={(event) => event.stopPropagation()}>
           <header><div><span>{workspace.type === "office" ? "SEGUNDA REVISÃO INTERNA" : "REVISÃO DO RESPONSÁVEL"}</span><h2 id="approval-title">{workspace.type === "office" ? "Revisar uma versão preparada por outra pessoa" : "Assumir responsabilidade por esta versão"}</h2></div><button type="button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null} aria-label="Fechar revisão">×</button></header>
-          <div className="approval-scenario-summary"><span>VERSÃO CONGELADA</span><strong>{approvalScenario.name}</strong><small>{activeCompany?.name} · hash #{approvalScenario.inputHash?.slice(0, 12)}</small></div>
+          <div className="approval-scenario-summary"><span>VERSÃO CONGELADA</span><strong>{approvalScenario.name}</strong><small>{approvalScenario.companyName ?? activeCompany?.name} · hash #{approvalScenario.inputHash?.slice(0, 12)}</small></div>
           <div className="approval-boundary"><b>{workspace.type === "office" ? `Preparado por ${approvalScenario.preparerName ?? "outro membro do escritório"}; revisado por você.` : "Este é o modo para contador responsável ou profissional que trabalha sozinho."}</b><p>{workspace.type === "office" ? "O sistema registrará duas contas distintas e apresentará isso como revisão interna do escritório — não como revisão independente externa nem como validação do CFC." : "O sistema registrará que preparador e revisor são a mesma conta. Isso não será apresentado como revisão independente nem como validação do CFC."}</p></div>
           <label>Registro profissional declarado<input value={professionalRegistration} onChange={(event) => setProfessionalRegistration(event.target.value)} maxLength={40} placeholder="Ex.: CRC SP-123456/O-7" autoFocus /></label>
           <label>Nota da revisão (opcional)<textarea value={approvalNote} onChange={(event) => setApprovalNote(event.target.value)} maxLength={400} placeholder="Registre conferências, ressalvas ou documentos utilizados." /></label>
