@@ -79,6 +79,35 @@ test("fluxo remodelado trata o contador como usuário principal e exige aprovaç
   assert.doesNotMatch(`${client}\n${report}`, /Aguardando validação profissional/);
 });
 
+test("cadastro e escritório distinguem plano, papéis e revisão por segunda pessoa", async () => {
+  const [auth, client, registerApi, membersApi, approveApi, workspace, schema, report] = await Promise.all([
+    readFile(new URL("app/auth-ui/AuthScreen.tsx", root), "utf8"),
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/api/auth/register/route.ts", root), "utf8"),
+    readFile(new URL("app/api/office/members/route.ts", root), "utf8"),
+    readFile(new URL("app/api/scenarios/approve/route.ts", root), "utf8"),
+    readFile(new URL("app/workspace.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
+  ]);
+
+  assert.match(auth, /Contador independente/);
+  assert.match(auth, /Escritório contábil/);
+  assert.match(auth, /Plano Escritório sugerido/);
+  assert.match(registerApi, /suggestedPlanKey/);
+  assert.match(registerApi, /workspaceMembers/);
+  assert.match(membersApi, /Gerar|createWorkspaceInvitationToken/);
+  assert.match(client, /Equipe e segregação de revisão/);
+  assert.match(client, /Aguardando outro revisor/);
+  assert.match(approveApi, /scenario\.preparedByUserId === user\.id/);
+  assert.match(approveApi, /office_second_person_review/);
+  assert.match(workspace, /canReviewScenarios/);
+  assert.match(schema, /workspaceMembers/);
+  assert.match(schema, /preparedByUserId/);
+  assert.match(report, /Revisado por segundo profissional do escritório/);
+  assert.match(report, /não equivale a homologação/);
+});
+
 test("infraestrutura escalável evita N+1, duplicidade e falhas sem correlação", async () => {
   const [companiesApi, scenariosApi, schema, health, telemetry, client] = await Promise.all([
     readFile(new URL("app/api/companies/route.ts", root), "utf8"),

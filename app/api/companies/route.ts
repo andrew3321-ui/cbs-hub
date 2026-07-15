@@ -5,6 +5,7 @@ import { getCurrentUser } from "../../auth";
 import { scenarioApprovalSummary } from "../../scenario-approval";
 import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
 import { withApiTelemetry } from "../../api-infrastructure";
+import { canPrepareScenarios, getWorkspaceContext } from "../../workspace";
 
 const allowedRegimes = new Set(["Simples Nacional", "Lucro Presumido", "Lucro Real", "MEI"]);
 
@@ -13,9 +14,11 @@ async function getCompanies() {
   if (!user) return Response.json({ error: "Faça login para acessar sua carteira." }, { status: 401 });
   try {
     await ensureScenarioSchema();
+    const workspace = await getWorkspaceContext(user.id);
+    if (!workspace) return Response.json({ error: "Espaço profissional não encontrado." }, { status: 403 });
     const db = getDb();
     const latestScenarioIds = db.select({ companyId: scenarios.companyId, scenarioId: max(scenarios.id).as("scenario_id") }).from(scenarios).groupBy(scenarios.companyId).as("latest_scenario_ids");
-    const rows = await db.select({ company: companies, latestScenario: scenarios }).from(companies).leftJoin(latestScenarioIds, eq(companies.id, latestScenarioIds.companyId)).leftJoin(scenarios, eq(scenarios.id, latestScenarioIds.scenarioId)).where(eq(companies.ownerUserId, user.id)).orderBy(asc(companies.name));
+    const rows = await db.select({ company: companies, latestScenario: scenarios }).from(companies).leftJoin(latestScenarioIds, eq(companies.id, latestScenarioIds.companyId)).leftJoin(scenarios, eq(scenarios.id, latestScenarioIds.scenarioId)).where(eq(companies.workspaceId, workspace.id)).orderBy(asc(companies.name));
     const latestScenarioIdList = rows.flatMap(({ latestScenario }) => latestScenario ? [latestScenario.id] : []);
     const approvalRows = latestScenarioIdList.length ? await db.select().from(scenarioApprovals).where(inArray(scenarioApprovals.scenarioId, latestScenarioIdList)) : [];
     const approvalByScenario = new Map(approvalRows.map((approval) => [approval.scenarioId, approval]));
@@ -24,7 +27,7 @@ async function getCompanies() {
       const { recordSignature, ...publicScenario } = latestScenario;
       const approval = await scenarioApprovalSummary(approvalByScenario.get(latestScenario.id));
       if (latestScenario.calculationVersion === "legacy") return { ...company, latestScenario: { ...publicScenario, integrityStatus: "legacy", approval } };
-      const signedRecord = signedRecordFromScenario(latestScenario, user.id);
+      const signedRecord = signedRecordFromScenario(latestScenario, workspace.ownerUserId);
       const integrityStatus = signedRecord && await verifyScenarioRecord(signedRecord, recordSignature, latestScenario.signatureVersion) ? "verified" : "invalid";
       return { ...company, latestScenario: { ...publicScenario, integrityStatus, approval } };
     }));
@@ -39,6 +42,8 @@ async function createCompany(request: Request) {
   if (!user) return Response.json({ error: "Faça login para cadastrar empresas." }, { status: 401 });
   try {
     await ensureScenarioSchema();
+    const workspace = await getWorkspaceContext(user.id);
+    if (!workspace || !canPrepareScenarios(workspace.role)) return Response.json({ error: "Seu papel não permite cadastrar clientes." }, { status: 403 });
     const payload = (await request.json()) as Record<string, unknown>;
     const name = typeof payload.name === "string" ? payload.name.trim().slice(0, 100) : "";
     const cnpj = typeof payload.cnpj === "string" ? payload.cnpj.replace(/\D/g, "").slice(0, 14) : "";
@@ -49,7 +54,7 @@ async function createCompany(request: Request) {
       return Response.json({ error: "Revise os dados da empresa." }, { status: 400 });
     }
 
-    const [company] = await getDb().insert(companies).values({ name, cnpj: cnpj || null, taxRegime, sector, ownerUserId: user.id }).returning();
+    const [company] = await getDb().insert(companies).values({ name, cnpj: cnpj || null, taxRegime, sector, ownerUserId: workspace.ownerUserId, workspaceId: workspace.id }).returning();
     return Response.json({ company: { ...company, latestScenario: null } }, { status: 201 });
   } catch {
     return Response.json({ error: "Não foi possível cadastrar a empresa." }, { status: 500 });

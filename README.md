@@ -1,6 +1,6 @@
 # Margem Clara
 
-SaaS para escritórios contábeis versionarem premissas, revisarem análises com responsabilidade explícita e entregarem resultados rastreáveis aos clientes.
+SaaS para contadores independentes e escritórios contábeis versionarem premissas, revisarem análises com responsabilidade explícita e entregarem resultados rastreáveis aos clientes.
 
 ## Stack
 
@@ -41,8 +41,17 @@ Comandos principais:
 8. Nenhuma regra fiscal alimenta cálculos antes de passar integridade, regressão, modo de execução e aprovação.
 9. CBS e IBS são apurados em livros separados; crédito ou extinção sem evidência nunca reduz o saldo.
 10. Competências fechadas são snapshots imutáveis; correções posteriores usam lançamentos de ajuste ou estorno.
-11. “Revisão do responsável” registra autodeclaração e ausência de segregação de funções; nunca é apresentada como revisão independente.
-12. A entrega ao cliente exige duas assinaturas válidas: a da versão calculada e a da revisão responsável.
+11. No modo independente, “revisão do responsável” registra autodeclaração e ausência de segregação de funções; nunca é apresentada como revisão independente.
+12. No modo escritório, o servidor exige `reviewer_user_id !== prepared_by_user_id` e um papel apto a revisar; isso é segunda revisão interna, não independência externa.
+13. A entrega ao cliente exige duas assinaturas válidas: a da versão calculada e a da aprovação aplicável ao modo de trabalho.
+14. O plano Profissional ou Escritório é apenas sugerido no cadastro durante o beta gratuito; nenhuma cobrança nasce automaticamente dessa escolha.
+
+## Modos de trabalho
+
+- **Contador independente:** espaço individual, plano Profissional sugerido e revisão feita pela própria conta responsável, com essa limitação explícita no relatório.
+- **Escritório contábil:** carteira compartilhada, plano Escritório sugerido, convites de sete dias e papéis de proprietário, administrador, preparador e revisor.
+- Contas individuais existentes podem ativar o modo escritório sem perder empresas ou versões.
+- Um usuário pertence a um único espaço de trabalho nesta fase. Convites são destinados a e-mails ainda não cadastrados.
 
 ## Operação
 

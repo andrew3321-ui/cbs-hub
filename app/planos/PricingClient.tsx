@@ -92,8 +92,8 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
           <span className="pricing-label">PRO</span>
           <h2>Operação consultiva</h2>
           <div className="pricing-value"><strong>R$ 59</strong><small>/mês</small></div>
-          <p>Para profissionais que transformam análises em decisões para clientes.</p>
-          <ul><li>Até 10 empresas monitoradas</li><li>Cálculos avançados de rentabilidade</li><li>Relatórios sem marca de beta</li><li>Histórico e suporte prioritário</li></ul>
+          <p>Sugerido para o contador independente que prepara e assume a própria revisão.</p>
+          <ul><li>Até 10 empresas monitoradas</li><li>Espaço profissional individual</li><li>Revisão responsável explicitamente identificada</li><li>Histórico e suporte prioritário</li></ul>
           <button className="pricing-button" onClick={() => void choosePlan("pro")} disabled={loadingPlan === "pro"}>{loadingPlan === "pro" ? "Preparando…" : billing?.configured ? "Assinar Pro" : "Registrar interesse"}</button>
         </article>
 
@@ -101,8 +101,8 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
           <span className="pricing-label">ESCRITÓRIO</span>
           <h2>Carteira em escala</h2>
           <div className="pricing-value"><strong>R$ 149</strong><small>/mês</small></div>
-          <p>Para escritórios contábeis que precisam priorizar uma carteira maior.</p>
-          <ul><li>Até 50 empresas monitoradas</li><li>Visão consolidada da carteira</li><li>Relatórios e links rastreáveis</li><li>Novos recursos de equipe</li></ul>
+          <p>Sugerido para escritórios que dividem preparação, revisão e entrega.</p>
+          <ul><li>Até 50 empresas monitoradas</li><li>Preparadores, revisores e administradores</li><li>Bloqueio de autoaprovação por quem preparou</li><li>Relatórios com autoria e revisão separadas</li></ul>
           <button className="pricing-button dark" onClick={() => void choosePlan("escritorio")} disabled={loadingPlan === "escritorio"}>{loadingPlan === "escritorio" ? "Preparando…" : billing?.configured ? "Assinar Escritório" : "Registrar interesse"}</button>
         </article>
       </div>

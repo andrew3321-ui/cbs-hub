@@ -8,8 +8,12 @@ export const companies = sqliteTable("companies", {
   taxRegime: text("tax_regime").notNull(),
   sector: text("sector").notNull().default("Serviços"),
   ownerUserId: integer("owner_user_id"),
+  workspaceId: integer("workspace_id"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-}, (table) => [index("companies_owner_name_idx").on(table.ownerUserId, table.name)]);
+}, (table) => [
+  index("companies_owner_name_idx").on(table.ownerUserId, table.name),
+  index("companies_workspace_name_idx").on(table.workspaceId, table.name),
+]);
 
 export const users = sqliteTable("users", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -20,8 +24,51 @@ export const users = sqliteTable("users", {
   recoveryKeyHash: text("recovery_key_hash").notNull(),
   failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
   lockedUntil: text("locked_until"),
+  accountType: text("account_type").notNull().default("individual"),
+  suggestedPlanKey: text("suggested_plan_key").notNull().default("pro"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const accountingWorkspaces = sqliteTable("accounting_workspaces", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  name: text("name").notNull(),
+  workspaceType: text("workspace_type").notNull().default("individual"),
+  ownerUserId: integer("owner_user_id").notNull(),
+  suggestedPlanKey: text("suggested_plan_key").notNull().default("pro"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("accounting_workspaces_owner_idx").on(table.ownerUserId),
+]);
+
+export const workspaceMembers = sqliteTable("workspace_members", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id").notNull(),
+  userId: integer("user_id").notNull(),
+  role: text("role").notNull().default("preparer"),
+  status: text("status").notNull().default("active"),
+  joinedAt: text("joined_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("workspace_members_user_idx").on(table.userId),
+  uniqueIndex("workspace_members_workspace_user_idx").on(table.workspaceId, table.userId),
+  index("workspace_members_workspace_status_idx").on(table.workspaceId, table.status, table.id),
+]);
+
+export const workspaceInvitations = sqliteTable("workspace_invitations", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id").notNull(),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("reviewer"),
+  tokenHash: text("token_hash").notNull(),
+  invitedByUserId: integer("invited_by_user_id").notNull(),
+  status: text("status").notNull().default("pending"),
+  expiresAt: text("expires_at").notNull(),
+  acceptedByUserId: integer("accepted_by_user_id"),
+  acceptedAt: text("accepted_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("workspace_invitations_token_idx").on(table.tokenHash),
+  index("workspace_invitations_workspace_status_idx").on(table.workspaceId, table.status, table.createdAt),
+]);
 
 export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey(),
@@ -53,10 +100,12 @@ export const scenarios = sqliteTable("scenarios", {
   recordSignature: text("record_signature"),
   requestKey: text("request_key"),
   companyId: integer("company_id").notNull().default(1),
+  preparedByUserId: integer("prepared_by_user_id"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("scenarios_request_key_idx").on(table.requestKey),
   index("scenarios_company_created_idx").on(table.companyId, table.createdAt, table.id),
+  index("scenarios_prepared_by_idx").on(table.preparedByUserId, table.createdAt, table.id),
 ]);
 
 export const scenarioApprovals = sqliteTable("scenario_approvals", {

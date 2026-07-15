@@ -1,24 +1,54 @@
-import { count, eq, isNull } from "drizzle-orm";
+import { and, count, eq, gt, isNull } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { createRecoveryKey, createSession, hashPassword, hashRecoveryKey, normalizeEmail, passwordIsStrong, sessionCookieHeader } from "../../../auth";
 import { ensureScenarioSchema, getDb } from "../../../../db";
-import { companies, users } from "../../../../db/schema";
+import { accountingWorkspaces, companies, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
+import { sha256Hex } from "../../../workspace";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export async function POST(request: Request) {
+  let createdUserId: number | null = null;
+  let createdWorkspaceId: number | null = null;
+  let acceptedInvitationId: number | null = null;
   try {
     await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;
     const name = typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ").slice(0, 100) : "";
     const email = normalizeEmail(typeof payload.email === "string" ? payload.email : "");
     const password = typeof payload.password === "string" ? payload.password : "";
+    const requestedAccountType = payload.accountType === "office" ? "office" : "individual";
+    const requestedOfficeName = typeof payload.officeName === "string" ? payload.officeName.trim().replace(/\s+/g, " ").slice(0, 120) : "";
+    const inviteToken = typeof payload.inviteToken === "string" ? payload.inviteToken.trim().toLowerCase() : "";
 
     if (name.length < 2 || !emailPattern.test(email) || !passwordIsStrong(password)) {
       return Response.json({ error: "Informe nome, e-mail válido e uma senha com 8 caracteres, letra e número." }, { status: 400 });
     }
+    if (!inviteToken && requestedAccountType === "office" && requestedOfficeName.length < 2) {
+      return Response.json({ error: "Informe o nome do escritório contábil." }, { status: 400 });
+    }
 
     const db = getDb();
+    let invitation: { id: number; workspaceId: number; email: string; role: string; workspaceName: string } | null = null;
+    if (inviteToken) {
+      if (!/^[0-9a-f]{48}$/.test(inviteToken)) return Response.json({ error: "Este convite é inválido." }, { status: 400 });
+      const [row] = await db.select({
+        id: workspaceInvitations.id,
+        workspaceId: workspaceInvitations.workspaceId,
+        email: workspaceInvitations.email,
+        role: workspaceInvitations.role,
+        workspaceName: accountingWorkspaces.name,
+      }).from(workspaceInvitations)
+        .innerJoin(accountingWorkspaces, eq(workspaceInvitations.workspaceId, accountingWorkspaces.id))
+        .where(and(
+          eq(workspaceInvitations.tokenHash, await sha256Hex(inviteToken)),
+          eq(workspaceInvitations.status, "pending"),
+          gt(workspaceInvitations.expiresAt, new Date().toISOString()),
+        )).limit(1);
+      if (!row) return Response.json({ error: "Este convite expirou ou já foi utilizado." }, { status: 410 });
+      if (normalizeEmail(row.email) !== email) return Response.json({ error: `Use o e-mail convidado: ${row.email}.` }, { status: 400 });
+      invitation = row;
+    }
     const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
     if (existing) return Response.json({ error: "Já existe uma conta com este e-mail." }, { status: 409 });
 
@@ -26,15 +56,58 @@ export async function POST(request: Request) {
     const passwordData = await hashPassword(password);
     const recoveryKey = createRecoveryKey();
     const recoveryKeyHash = await hashRecoveryKey(recoveryKey);
-    const [user] = await db.insert(users).values({ name, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, recoveryKeyHash }).returning({ id: users.id, name: users.name, email: users.email });
+    const accountType = invitation ? "office" : requestedAccountType;
+    const suggestedPlanKey = accountType === "office" ? "escritorio" : "pro";
+    const [user] = await db.insert(users).values({ name, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, recoveryKeyHash, accountType, suggestedPlanKey }).returning({ id: users.id, name: users.name, email: users.email });
+    createdUserId = user.id;
+
+    let workspaceId: number;
+    let workspaceName: string;
+    if (invitation) {
+      workspaceId = invitation.workspaceId;
+      workspaceName = invitation.workspaceName;
+      acceptedInvitationId = invitation.id;
+      const acceptedAt = new Date().toISOString();
+      const safeRole = ["admin", "preparer", "reviewer"].includes(invitation.role) ? invitation.role : "reviewer";
+      const acceptance = await env.DB.batch([
+        env.DB.prepare(`
+          INSERT INTO workspace_members (workspace_id, user_id, role, status)
+          SELECT workspace_id, ?, ?, 'active' FROM workspace_invitations
+          WHERE id = ? AND status = 'pending' AND expires_at > ?
+        `).bind(user.id, safeRole, invitation.id, acceptedAt),
+        env.DB.prepare(`
+          UPDATE workspace_invitations SET status = 'accepted', accepted_by_user_id = ?, accepted_at = ?
+          WHERE id = ? AND status = 'pending' AND expires_at > ?
+        `).bind(user.id, acceptedAt, invitation.id, acceptedAt),
+      ]);
+      if (acceptance[0].meta.changes !== 1 || acceptance[1].meta.changes !== 1) throw new Error("invitation_no_longer_valid");
+    } else {
+      workspaceName = accountType === "office" ? requestedOfficeName : `Espaço profissional de ${name}`;
+      const [workspace] = await db.insert(accountingWorkspaces).values({ name: workspaceName, workspaceType: accountType, ownerUserId: user.id, suggestedPlanKey }).returning({ id: accountingWorkspaces.id });
+      if (!workspace) throw new Error("workspace_insert_failed");
+      workspaceId = workspace.id;
+      createdWorkspaceId = workspace.id;
+      await db.insert(workspaceMembers).values({ workspaceId, userId: user.id, role: "owner", status: "active" });
+    }
 
     const configuredLegacyOwner = normalizeEmail(String((env as unknown as { LEGACY_OWNER_EMAIL?: string }).LEGACY_OWNER_EMAIL ?? ""));
     const canClaimLegacyData = configuredLegacyOwner ? configuredLegacyOwner === email : Number(total) === 0;
-    if (canClaimLegacyData) await db.update(companies).set({ ownerUserId: user.id }).where(isNull(companies.ownerUserId));
+    if (canClaimLegacyData) await db.update(companies).set({ ownerUserId: user.id, workspaceId }).where(isNull(companies.ownerUserId));
 
     const session = await createSession(user.id);
-    return Response.json({ user, recoveryKey }, { status: 201, headers: { "Set-Cookie": sessionCookieHeader(session.token, request) } });
+    return Response.json({ user, recoveryKey, workspace: { id: workspaceId, name: workspaceName, type: accountType, suggestedPlanKey } }, { status: 201, headers: { "Set-Cookie": sessionCookieHeader(session.token, request) } });
   } catch (error) {
+    if (createdUserId) {
+      try {
+        const db = getDb();
+        await db.delete(workspaceMembers).where(eq(workspaceMembers.userId, createdUserId));
+        if (createdWorkspaceId) await db.delete(accountingWorkspaces).where(eq(accountingWorkspaces.id, createdWorkspaceId));
+        if (acceptedInvitationId) await db.update(workspaceInvitations).set({ status: "pending", acceptedByUserId: null, acceptedAt: null }).where(and(eq(workspaceInvitations.id, acceptedInvitationId), eq(workspaceInvitations.acceptedByUserId, createdUserId)));
+        await db.delete(users).where(eq(users.id, createdUserId));
+      } catch {
+        // A unique e-mail response below remains safer than exposing persistence details.
+      }
+    }
     if (String(error).toLowerCase().includes("unique")) return Response.json({ error: "Já existe uma conta com este e-mail." }, { status: 409 });
     return Response.json({ error: "Não foi possível criar sua conta agora." }, { status: 500 });
   }

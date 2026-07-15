@@ -30,6 +30,7 @@ export function ensureScenarioSchema() {
           tax_regime TEXT NOT NULL,
           sector TEXT DEFAULT 'Serviços' NOT NULL,
           owner_user_id INTEGER,
+          workspace_id INTEGER,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
@@ -62,6 +63,7 @@ export function ensureScenarioSchema() {
           record_signature TEXT,
           request_key TEXT,
           company_id INTEGER DEFAULT 1 NOT NULL,
+          prepared_by_user_id INTEGER,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
@@ -114,6 +116,43 @@ export function ensureScenarioSchema() {
           recovery_key_hash TEXT NOT NULL,
           failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
           locked_until TEXT,
+          account_type TEXT DEFAULT 'individual' NOT NULL,
+          suggested_plan_key TEXT DEFAULT 'pro' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS accounting_workspaces (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          name TEXT NOT NULL,
+          workspace_type TEXT DEFAULT 'individual' NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          suggested_plan_key TEXT DEFAULT 'pro' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS workspace_members (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          role TEXT DEFAULT 'preparer' NOT NULL,
+          status TEXT DEFAULT 'active' NOT NULL,
+          joined_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS workspace_invitations (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          email TEXT NOT NULL,
+          role TEXT DEFAULT 'reviewer' NOT NULL,
+          token_hash TEXT NOT NULL,
+          invited_by_user_id INTEGER NOT NULL,
+          status TEXT DEFAULT 'pending' NOT NULL,
+          expires_at TEXT NOT NULL,
+          accepted_by_user_id INTEGER,
+          accepted_at TEXT,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
@@ -293,6 +332,7 @@ export function ensureScenarioSchema() {
       "ALTER TABLE scenarios ADD COLUMN signature_version TEXT DEFAULT 'legacy' NOT NULL",
       "ALTER TABLE scenarios ADD COLUMN record_signature TEXT",
       "ALTER TABLE scenarios ADD COLUMN request_key TEXT",
+      "ALTER TABLE scenarios ADD COLUMN prepared_by_user_id INTEGER",
     ];
     for (const statement of reliabilityColumns) {
       try {
@@ -301,6 +341,51 @@ export function ensureScenarioSchema() {
         if (!String(error).toLowerCase().includes("duplicate column")) throw error;
       }
     }
+
+    const workspaceColumns = [
+      "ALTER TABLE users ADD COLUMN account_type TEXT DEFAULT 'individual' NOT NULL",
+      "ALTER TABLE users ADD COLUMN suggested_plan_key TEXT DEFAULT 'pro' NOT NULL",
+      "ALTER TABLE companies ADD COLUMN workspace_id INTEGER",
+    ];
+    for (const statement of workspaceColumns) {
+      try {
+        await env.DB.prepare(statement).run();
+      } catch (error) {
+        if (!String(error).toLowerCase().includes("duplicate column")) throw error;
+      }
+    }
+
+    await env.DB.prepare(`
+      INSERT INTO accounting_workspaces (name, workspace_type, owner_user_id, suggested_plan_key)
+      SELECT
+        CASE WHEN users.account_type = 'office' THEN users.name || ' Contabilidade' ELSE 'Espaço profissional de ' || users.name END,
+        CASE WHEN users.account_type = 'office' THEN 'office' ELSE 'individual' END,
+        users.id,
+        CASE WHEN users.account_type = 'office' THEN 'escritorio' ELSE 'pro' END
+      FROM users
+      WHERE NOT EXISTS (SELECT 1 FROM workspace_members WHERE workspace_members.user_id = users.id)
+        AND NOT EXISTS (SELECT 1 FROM accounting_workspaces WHERE accounting_workspaces.owner_user_id = users.id)
+    `).run();
+    await env.DB.prepare(`
+      INSERT OR IGNORE INTO workspace_members (workspace_id, user_id, role, status)
+      SELECT id, owner_user_id, 'owner', 'active' FROM accounting_workspaces
+    `).run();
+    await env.DB.prepare(`
+      UPDATE companies
+      SET workspace_id = (
+        SELECT workspace_members.workspace_id FROM workspace_members
+        WHERE workspace_members.user_id = companies.owner_user_id AND workspace_members.status = 'active'
+        LIMIT 1
+      )
+      WHERE workspace_id IS NULL AND owner_user_id IS NOT NULL
+    `).run();
+    await env.DB.prepare(`
+      UPDATE scenarios
+      SET prepared_by_user_id = (
+        SELECT companies.owner_user_id FROM companies WHERE companies.id = scenarios.company_id
+      )
+      WHERE prepared_by_user_id IS NULL
+    `).run();
 
     await env.DB.batch([
       env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_owner_user_id_idx ON companies (owner_user_id)"),
@@ -317,9 +402,17 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_scenario_id_idx ON audit_events (scenario_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_created_at_idx ON audit_events (created_at)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_owner_name_idx ON companies (owner_user_id, name)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_workspace_name_idx ON companies (workspace_id, name)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_user_expires_idx ON sessions (user_id, expires_at)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenarios_request_key_idx ON scenarios (request_key) WHERE request_key IS NOT NULL"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_company_created_idx ON scenarios (company_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_prepared_by_idx ON scenarios (prepared_by_user_id, created_at, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS accounting_workspaces_owner_idx ON accounting_workspaces (owner_user_id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS workspace_members_user_idx ON workspace_members (user_id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS workspace_members_workspace_user_idx ON workspace_members (workspace_id, user_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS workspace_members_workspace_status_idx ON workspace_members (workspace_id, status, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS workspace_invitations_token_idx ON workspace_invitations (token_hash)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS workspace_invitations_workspace_status_idx ON workspace_invitations (workspace_id, status, created_at)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenario_approvals_scenario_idx ON scenario_approvals (scenario_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenario_approvals_owner_company_decided_idx ON scenario_approvals (owner_user_id, company_id, decided_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_owner_company_created_idx ON audit_events (owner_user_id, company_id, created_at, id)"),

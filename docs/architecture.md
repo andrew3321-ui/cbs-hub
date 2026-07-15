@@ -2,13 +2,13 @@
 
 ## Fluxo de uma análise
 
-1. O contador registra as premissas recebidas do cliente com um identificador idempotente.
-2. A API valida propriedade da empresa e limites de entrada.
+1. Um membro com papel de preparação registra as premissas recebidas do cliente com um identificador idempotente.
+2. A API valida vínculo ativo com o espaço de trabalho, papel, empresa e limites de entrada.
 3. O servidor executa o motor financeiro e normaliza o snapshot.
 4. As entradas recebem um hash SHA-256.
-5. Entradas, snapshot, empresa, proprietário e versões recebem assinatura HMAC.
+5. Entradas, snapshot, empresa, proprietário estável do espaço e versões recebem assinatura HMAC.
 6. O cenário é persistido como rascunho imutável e gera um evento de auditoria.
-7. O contador inicia a revisão interna e declara seu registro profissional antes da aprovação responsável.
+7. O preparador inicia a revisão interna. No modo independente, a própria conta assume a revisão; no escritório, outra conta com papel apto declara seu registro e revisa.
 8. A aprovação recebe assinatura própria, ligada ao hash e à assinatura do cenário.
 9. A entrega ao cliente só avança quando as duas assinaturas são válidas.
 
@@ -16,13 +16,17 @@
 
 - O hash identifica uma combinação de entradas; não autentica sozinho a origem.
 - A assinatura HMAC detecta divergência do registro, mas não substitui validação fiscal.
-- `ready_for_review` significa apenas que as premissas foram fechadas pelo autor.
+- `ready_for_review` significa apenas que as premissas foram fechadas pelo preparador.
 - Nenhum fluxo atual atribui o estado “validado” ou “homologado”.
+- `office_second_person_review` comprova segregação interna de contas, mas não independência externa nem validação do conselho profissional.
 
 ## Modelo de dados
 
-- `companies`: raiz de isolamento da carteira por proprietário.
-- `scenarios`: entrada, versões, snapshot, assinatura e chave idempotente.
+- `accounting_workspaces`: espaço individual ou escritório, proprietário estável e plano sugerido.
+- `workspace_members`: vínculo único do usuário com o espaço, papel e estado.
+- `workspace_invitations`: convite com token armazenado somente como hash, expiração, papel e aceite.
+- `companies`: carteira isolada pelo espaço; `owner_user_id` é preservado como proprietário estável para assinatura e compatibilidade.
+- `scenarios`: entrada, versões, snapshot, assinatura, chave idempotente e identidade explícita de quem preparou.
 - `scenario_approvals`: decisão append-only, identidade declarada do responsável, nível de garantia e assinatura vinculada à versão revisada.
 - `audit_events`: eventos append-only de cenário e compartilhamento.
 - `report_shares`: tokens revogáveis e com expiração.
@@ -35,7 +39,7 @@
 - `tax_reconciliation_snapshots`: capturas assináveis das três fontes de conciliação: livro interno, contabilidade e ambiente oficial.
 - `tax_period_closures`: snapshots imutáveis do fechamento, com versão, hash, assinatura e referência do revisor.
 
-Toda consulta de dados privados deve aplicar o proprietário no servidor. IDs recebidos do cliente nunca são autorização.
+Toda consulta de dados privados deve aplicar `workspace_id` e vínculo ativo no servidor. IDs recebidos do cliente nunca são autorização. Escritas também validam o papel; o navegador não é fonte de autorização.
 
 ## Escalabilidade
 
@@ -60,9 +64,25 @@ Nunca recalcule silenciosamente um relatório histórico com uma versão nova do
 
 ## Segregação de funções
 
-O estado `responsible_approved` representa revisão pelo responsável usando a mesma conta que controla a carteira. O registro informa `responsible_self_review` e `self_declared`, portanto não pode ser rotulado como revisão independente ou credencial verificada externamente. O estado `delivered` registra que uma versão já aprovada gerou um link para o cliente. Versões aprovadas não podem ser excluídas pela operação comum; qualquer correção cria uma nova versão e uma nova aprovação.
+O estado interno `responsible_approved` representa uma aprovação assinada, mas seu nível de garantia depende do registro append-only:
 
-Uma futura revisão independente deverá exigir outro usuário autenticado, vínculo explícito com o escritório e proibição, no servidor, de `reviewer_user_id === preparer_user_id`.
+- `responsible_self_review`: modo independente; preparador e revisor são a mesma conta;
+- `office_second_person_review`: modo escritório; o servidor exige revisor distinto do preparador e papel `owner`, `admin` ou `reviewer`.
+
+Ambos usam credencial profissional `self_declared` nesta fase. O segundo nível é uma revisão interna segregada, não uma revisão independente externa nem uma credencial verificada pelo CFC/CRC. O relatório público distingue os dois casos e identifica preparador e revisor quando aplicável.
+
+O estado `delivered` registra que uma versão já aprovada gerou um link para o cliente. Versões aprovadas não podem ser excluídas pela operação comum; qualquer correção cria uma nova versão e uma nova aprovação.
+
+Uma futura revisão **externa independente** exigirá escopo próprio, convite externo e ausência de vínculo operacional com o escritório; não deve reutilizar o rótulo de segunda revisão interna.
+
+### Papéis do escritório
+
+- `owner`: administra o espaço, prepara e revisa versões de outras pessoas;
+- `admin`: convida membros, prepara e revisa versões de outras pessoas;
+- `preparer`: cadastra clientes, cria versões e inicia revisão;
+- `reviewer`: consulta a carteira e aprova versões preparadas por outras pessoas, sem criar ou entregar cenários.
+
+Convites expiram em sete dias, guardam apenas SHA-256 do token e são aceitos somente pelo e-mail convidado. Nesta fase, um usuário pertence a um único espaço de trabalho e convites aceitam apenas e-mails ainda sem conta.
 
 ### Portão de execução fiscal
 

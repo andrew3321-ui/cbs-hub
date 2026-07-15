@@ -11,6 +11,7 @@ import { ensureScenarioSchema, getDb } from "../../../db";
 import { taxPeriods } from "../../../db/schema";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
+import { getWorkspaceContext } from "../../workspace";
 
 async function getTaxDeterminationModel() {
   const user = await getCurrentUser();
@@ -18,10 +19,12 @@ async function getTaxDeterminationModel() {
 
   try {
     await ensureScenarioSchema();
+    const workspace = await getWorkspaceContext(user.id);
+    if (!workspace) return Response.json({ error: "Espaço profissional não encontrado." }, { status: 403 });
     const db = getDb();
     const [[periodTotal], [closedTotal]] = await Promise.all([
-      db.select({ value: count() }).from(taxPeriods).where(eq(taxPeriods.ownerUserId, user.id)),
-      db.select({ value: count() }).from(taxPeriods).where(and(eq(taxPeriods.ownerUserId, user.id), eq(taxPeriods.status, "closed"))),
+      db.select({ value: count() }).from(taxPeriods).where(eq(taxPeriods.ownerUserId, workspace.ownerUserId)),
+      db.select({ value: count() }).from(taxPeriods).where(and(eq(taxPeriods.ownerUserId, workspace.ownerUserId), eq(taxPeriods.status, "closed"))),
     ]);
     const fingerprint = await hashTaxDeterminationBlueprint();
     const referenceCases = taxDeterminationReferenceCases.map((referenceCase) => {

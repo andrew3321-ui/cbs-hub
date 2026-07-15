@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildScenarioSnapshot, hashScenarioInput, parseScenarioSnapshot, valuesFromSnapshot } from "../app/scenario-reliability.ts";
 import { SCENARIO_SIGNATURE_VERSION, signScenarioRecordWithSecret, verifyScenarioRecordWithSecret } from "../app/scenario-signing-core.ts";
-import { approvalRecordFromStored, RESPONSIBLE_REVIEW_DECLARATION_VERSION, SCENARIO_APPROVAL_SIGNATURE_VERSION, signScenarioApprovalWithSecret, verifyScenarioApprovalWithSecret } from "../app/scenario-approval-core.ts";
+import { approvalRecordFromStored, OFFICE_SECOND_REVIEW_DECLARATION_VERSION, RESPONSIBLE_REVIEW_DECLARATION_VERSION, SCENARIO_APPROVAL_SIGNATURE_VERSION, signScenarioApprovalWithSecret, verifyScenarioApprovalWithSecret } from "../app/scenario-approval-core.ts";
 
 const storedInput = {
   revenueCents: 20_000_000,
@@ -79,4 +79,29 @@ test("aprovação responsável assina identidade, registro e versão sem fingir 
   assert.equal(await verifyScenarioApprovalWithSecret({ ...record, professionalRegistration: "CRC SP-999999/O-9" }, signature, SCENARIO_APPROVAL_SIGNATURE_VERSION, secret), false);
   assert.equal(await verifyScenarioApprovalWithSecret({ ...record, scenarioInputHash: "c".repeat(64) }, signature, SCENARIO_APPROVAL_SIGNATURE_VERSION, secret), false);
   assert.equal(approvalRecordFromStored({ ...record, assuranceLevel: "independent_review" }), null);
+});
+
+test("segunda revisão do escritório vincula um revisor distinto à mesma versão congelada", async () => {
+  const secret = "chave-de-teste-com-mais-de-trinta-e-dois-caracteres";
+  const record = {
+    scenarioId: 44,
+    companyId: 11,
+    ownerUserId: 7,
+    reviewerUserId: 9,
+    reviewerName: "Revisor do Escritório",
+    reviewerEmail: "revisor@example.com",
+    professionalRegistration: "CRC SP-654321/O-1",
+    assuranceLevel: "office_second_person_review",
+    credentialVerification: "self_declared",
+    decision: "approved",
+    declarationVersion: OFFICE_SECOND_REVIEW_DECLARATION_VERSION,
+    scenarioInputHash: "d".repeat(64),
+    scenarioRecordSignature: "e".repeat(64),
+    decisionNote: "Memória e premissas conferidas por segunda pessoa.",
+    decidedAt: "2026-07-16T12:00:00.000Z",
+  };
+  const signature = await signScenarioApprovalWithSecret(record, secret);
+  assert.equal(await verifyScenarioApprovalWithSecret(record, signature, SCENARIO_APPROVAL_SIGNATURE_VERSION, secret), true);
+  assert.equal(await verifyScenarioApprovalWithSecret({ ...record, reviewerUserId: 7 }, signature, SCENARIO_APPROVAL_SIGNATURE_VERSION, secret), false);
+  assert.equal(approvalRecordFromStored(record)?.assuranceLevel, "office_second_person_review");
 });

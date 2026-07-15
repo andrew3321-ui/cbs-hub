@@ -1,5 +1,6 @@
 export const SCENARIO_APPROVAL_SIGNATURE_VERSION = "scenario-approval-hmac-sha256-v1:k1";
 export const RESPONSIBLE_REVIEW_DECLARATION_VERSION = "responsible-review.v1";
+export const OFFICE_SECOND_REVIEW_DECLARATION_VERSION = "office-second-review.v1";
 
 export type ScenarioApprovalSignedRecord = {
   scenarioId: number;
@@ -9,7 +10,7 @@ export type ScenarioApprovalSignedRecord = {
   reviewerName: string;
   reviewerEmail: string;
   professionalRegistration: string;
-  assuranceLevel: "responsible_self_review";
+  assuranceLevel: "responsible_self_review" | "office_second_person_review";
   credentialVerification: "self_declared";
   decision: "approved";
   declarationVersion: string;
@@ -84,6 +85,11 @@ export function approvalRecordFromStored(approval: {
   decisionNote: string;
   decidedAt: string;
 }): ScenarioApprovalSignedRecord | null {
-  if (approval.assuranceLevel !== "responsible_self_review" || approval.credentialVerification !== "self_declared" || approval.decision !== "approved") return null;
-  return { ...approval, assuranceLevel: "responsible_self_review", credentialVerification: "self_declared", decision: "approved" };
+  if (!["responsible_self_review", "office_second_person_review"].includes(approval.assuranceLevel) || approval.credentialVerification !== "self_declared" || approval.decision !== "approved") return null;
+  return {
+    ...approval,
+    assuranceLevel: approval.assuranceLevel as ScenarioApprovalSignedRecord["assuranceLevel"],
+    credentialVerification: "self_declared",
+    decision: "approved",
+  };
 }

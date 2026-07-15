@@ -30,11 +30,13 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
     shareId: reportShares.id, note: reportShares.note, expiresAt: reportShares.expiresAt, views: reportShares.views, createdAt: reportShares.createdAt,
     scenarioName: scenarios.name, revenueCents: scenarios.revenueCents, currentRateBps: scenarios.currentRateBps, newRateBps: scenarios.newRateBps, costRateBps: scenarios.costRateBps, fixedCostsCents: scenarios.fixedCostsCents, volumeLossBps: scenarios.volumeLossBps, priceAdjustmentBps: scenarios.priceAdjustmentBps,
     targetYear: scenarios.targetYear, rateSource: scenarios.rateSource, sourceNote: scenarios.sourceNote, reviewStatus: scenarios.reviewStatus, calculationVersion: scenarios.calculationVersion, methodologyVersion: scenarios.methodologyVersion, inputHash: scenarios.inputHash, snapshotJson: scenarios.snapshotJson, calculatedAt: scenarios.calculatedAt, signatureVersion: scenarios.signatureVersion, recordSignature: scenarios.recordSignature,
-    companyId: scenarios.companyId, ownerUserId: reportShares.ownerUserId,
+    companyId: scenarios.companyId, ownerUserId: reportShares.ownerUserId, preparedByUserId: scenarios.preparedByUserId,
     scenarioCreatedAt: scenarios.createdAt, companyName: companies.name, taxRegime: companies.taxRegime, sector: companies.sector, authorName: users.name,
     approval: scenarioApprovals,
   }).from(reportShares).innerJoin(scenarios, eq(reportShares.scenarioId, scenarios.id)).innerJoin(companies, eq(reportShares.companyId, companies.id)).innerJoin(users, eq(reportShares.ownerUserId, users.id)).leftJoin(scenarioApprovals, eq(scenarioApprovals.scenarioId, scenarios.id)).where(and(eq(reportShares.token, token), isNull(reportShares.revokedAt), gt(reportShares.expiresAt, new Date().toISOString()))).limit(1);
   if (!report) return unavailable();
+  const [preparer] = report.preparedByUserId ? await db.select({ name: users.name }).from(users).where(eq(users.id, report.preparedByUserId)).limit(1) : [];
+  const preparerName = preparer?.name ?? report.authorName;
 
   const signedRecord = signedRecordFromScenario({ ...report, name: report.scenarioName }, report.ownerUserId);
   const integrityVerified = Boolean(signedRecord && await verifyScenarioRecord(signedRecord, report.recordSignature, report.signatureVersion));
@@ -59,15 +61,16 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
   const { currentTax, projectedTax, currentMargin, projectedMargin, currentMarginRate, projectedMarginRate, requiredPriceIncrease, breakEvenRevenue, marginOfSafetyRate, annualImpact } = figures;
   const protectedMargin = projectedMargin >= currentMargin;
   const versioned = Boolean(frozenSnapshot && report.inputHash && report.calculationVersion !== "legacy" && integrityVerified);
+  const officeSecondReview = report.approval?.assuranceLevel === "office_second_person_review";
   const reviewLabel = report.reviewStatus === "delivered"
-    ? "Entregue ao cliente"
+    ? officeSecondReview ? "Entregue após revisão segregada" : "Entregue ao cliente"
     : report.reviewStatus === "responsible_approved"
-      ? "Revisado pelo responsável técnico"
+      ? officeSecondReview ? "Revisado por segundo profissional do escritório" : "Revisado pelo responsável técnico"
       : report.reviewStatus === "ready_for_review"
         ? "Em revisão interna"
         : "Em elaboração";
   const reviewDetail = approvalVerified && report.approval
-    ? `${report.approval.reviewerName} · ${report.approval.professionalRegistration} · registro autodeclarado`
+    ? `${report.approval.reviewerName} · ${report.approval.professionalRegistration} · ${officeSecondReview ? `revisão interna distinta de ${preparerName}` : "revisão do próprio responsável"} · registro autodeclarado`
     : report.reviewStatus === "ready_for_review"
       ? "O escritório ainda não concluiu sua revisão responsável."
       : "Documento ainda não liberado para entrega.";
@@ -94,7 +97,7 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
           <Link href="/metodologia">Ver metodologia e limitações →</Link>
         </section>
 
-        {report.note && <section className="report-note"><span>NOTA DE QUEM PREPAROU</span><p>“{report.note}”</p><small>{report.authorName}</small></section>}
+        {report.note && <section className="report-note"><span>NOTA DE QUEM PREPAROU</span><p>“{report.note}”</p><small>{preparerName}</small></section>}
 
         <section className="report-metrics">
           <article><span>Receita analisada</span><strong>{money.format(revenue)}</strong><small>base mensal informada</small></article>
@@ -112,7 +115,7 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
 
         <section className="report-next-actions"><div><span>CONTROLES DE ENTREGA</span><h2>Como usar este documento</h2></div><ol><li><b>01</b><span><strong>Confirmar as premissas com o cliente</strong><small>Receita, custos e expectativas comerciais continuam sendo dados declarados.</small></span></li><li><b>02</b><span><strong>Respeitar o escopo da análise</strong><small>A revisão responsável não equivale a homologação da autoridade fiscal.</small></span></li><li><b>03</b><span><strong>Preservar a versão entregue</strong><small>Qualquer correção deve gerar uma nova versão e uma nova revisão.</small></span></li></ol></section>
 
-        <footer className="report-document-footer"><span>Preparado por <b>{report.authorName}</b> no Margem Clara</span><small>Resultado congelado em {report.calculatedAt ? date.format(new Date(report.calculatedAt)) : "data não registrada"}{approvalVerified && report.approval ? ` e revisado em ${date.format(new Date(report.approval.decidedAt))}` : ""}. Estado: “{reviewLabel}”.</small><Link href="/metodologia">Metodologia e fontes →</Link></footer>
+        <footer className="report-document-footer"><span>Preparado por <b>{preparerName}</b>{officeSecondReview && report.approval ? <> · revisado por <b>{report.approval.reviewerName}</b></> : null} no Margem Clara</span><small>Resultado congelado em {report.calculatedAt ? date.format(new Date(report.calculatedAt)) : "data não registrada"}{approvalVerified && report.approval ? ` e revisado em ${date.format(new Date(report.approval.decidedAt))}` : ""}. Estado: “{reviewLabel}”.</small><Link href="/metodologia">Metodologia e fontes →</Link></footer>
       </article>
     </main>
   );

@@ -3,6 +3,7 @@ import { ensureScenarioSchema, getDb } from "../../../../db";
 import { auditEvents, companies, scenarioApprovals, scenarios } from "../../../../db/schema";
 import {
   approvalRecordFromStored,
+  OFFICE_SECOND_REVIEW_DECLARATION_VERSION,
   RESPONSIBLE_REVIEW_DECLARATION_VERSION,
   SCENARIO_APPROVAL_SIGNATURE_VERSION,
   type ScenarioApprovalSignedRecord,
@@ -10,6 +11,7 @@ import {
 import { getCurrentUser } from "../../../auth";
 import { signScenarioApprovalRecord, signedRecordFromScenario, verifyScenarioApprovalRecord, verifyScenarioRecord } from "../../../scenario-signing";
 import { withApiTelemetry } from "../../../api-infrastructure";
+import { canReviewScenarios, getWorkspaceContext } from "../../../workspace";
 
 function publicApproval(approval: typeof scenarioApprovals.$inferSelect) {
   return {
@@ -32,6 +34,8 @@ async function approveAsResponsible(request: Request) {
 
   try {
     await ensureScenarioSchema();
+    const workspace = await getWorkspaceContext(user.id);
+    if (!workspace) return Response.json({ error: "Espaço profissional não encontrado." }, { status: 403 });
     const payload = (await request.json()) as Record<string, unknown>;
     const scenarioId = Number(payload.scenarioId);
     const acknowledged = payload.acknowledged === true;
@@ -58,12 +62,12 @@ async function approveAsResponsible(request: Request) {
       .from(scenarios)
       .innerJoin(companies, eq(scenarios.companyId, companies.id))
       .leftJoin(scenarioApprovals, eq(scenarioApprovals.scenarioId, scenarios.id))
-      .where(and(eq(scenarios.id, scenarioId), eq(companies.ownerUserId, user.id)))
+      .where(and(eq(scenarios.id, scenarioId), eq(companies.workspaceId, workspace.id)))
       .limit(1);
     if (!owned?.scenario) return Response.json({ error: "Cenário não encontrado." }, { status: 404 });
 
     const scenario = owned.scenario;
-    const signedScenario = signedRecordFromScenario(scenario, user.id);
+    const signedScenario = signedRecordFromScenario(scenario, workspace.ownerUserId);
     if (
       !signedScenario ||
       !scenario.inputHash ||
@@ -84,20 +88,25 @@ async function approveAsResponsible(request: Request) {
     if (scenario.reviewStatus !== "ready_for_review") {
       return Response.json({ error: "Envie o cenário para revisão interna antes de aprová-lo." }, { status: 409 });
     }
+    if (workspace.type === "office") {
+      if (!canReviewScenarios(workspace.role)) return Response.json({ error: "Seu papel no escritório não permite aprovar revisões." }, { status: 403 });
+      if (!scenario.preparedByUserId || scenario.preparedByUserId === user.id) return Response.json({ error: "No modo escritório, quem preparou a versão não pode aprová-la. Peça a outro revisor da equipe." }, { status: 409 });
+    }
 
     const decidedAt = new Date().toISOString();
+    const officeSecondReview = workspace.type === "office";
     const approvalRecord: ScenarioApprovalSignedRecord = {
       scenarioId: scenario.id,
       companyId: scenario.companyId,
-      ownerUserId: user.id,
+      ownerUserId: workspace.ownerUserId,
       reviewerUserId: user.id,
       reviewerName: user.name,
       reviewerEmail: user.email,
       professionalRegistration,
-      assuranceLevel: "responsible_self_review",
+      assuranceLevel: officeSecondReview ? "office_second_person_review" : "responsible_self_review",
       credentialVerification: "self_declared",
       decision: "approved",
-      declarationVersion: RESPONSIBLE_REVIEW_DECLARATION_VERSION,
+      declarationVersion: officeSecondReview ? OFFICE_SECOND_REVIEW_DECLARATION_VERSION : RESPONSIBLE_REVIEW_DECLARATION_VERSION,
       scenarioInputHash: scenario.inputHash,
       scenarioRecordSignature: scenario.recordSignature,
       decisionNote,
@@ -112,14 +121,16 @@ async function approveAsResponsible(request: Request) {
       }).returning(),
       db.update(scenarios).set({ reviewStatus: "responsible_approved" }).where(and(eq(scenarios.id, scenario.id), eq(scenarios.reviewStatus, "ready_for_review"))),
       db.insert(auditEvents).values({
-        ownerUserId: user.id,
+        ownerUserId: workspace.ownerUserId,
         companyId: scenario.companyId,
         scenarioId: scenario.id,
-        eventType: "scenario.responsible_approved",
+        eventType: officeSecondReview ? "scenario.office_second_review_approved" : "scenario.responsible_approved",
         eventData: JSON.stringify({
           assuranceLevel: approvalRecord.assuranceLevel,
           credentialVerification: approvalRecord.credentialVerification,
           declarationVersion: approvalRecord.declarationVersion,
+          preparedByUserId: scenario.preparedByUserId,
+          reviewerUserId: user.id,
           inputHash: scenario.inputHash,
           calculationVersion: scenario.calculationVersion,
         }),

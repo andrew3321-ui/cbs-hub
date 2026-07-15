@@ -4,7 +4,7 @@ import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { calculateScenarioValues } from "../scenario-calculations";
 import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 
-type Section = "overview" | "companies" | "simulator" | "documents" | "rules" | "determination" | "academy";
+type Section = "overview" | "companies" | "simulator" | "documents" | "team" | "rules" | "determination" | "academy";
 
 type ScenarioApproval = {
   id: number;
@@ -41,6 +41,8 @@ type SavedScenario = {
   signatureVersion: string;
   integrityStatus: "verified" | "legacy" | "invalid";
   companyId: number;
+  preparedByUserId: number | null;
+  preparerName: string | null;
   createdAt: string;
   approval: ScenarioApproval | null;
 };
@@ -83,6 +85,26 @@ type CompanyForm = {
   cnpj: string;
   taxRegime: string;
   sector: string;
+};
+
+type TeamMember = {
+  id: number;
+  userId: number;
+  name: string;
+  email: string;
+  role: "owner" | "admin" | "preparer" | "reviewer";
+  status: string;
+  joinedAt: string;
+};
+
+type TeamInvitation = {
+  id: number;
+  email: string;
+  role: "admin" | "preparer" | "reviewer";
+  status: string;
+  expiresAt: string;
+  createdAt?: string;
+  url?: string;
 };
 
 type ImportedDocument = {
@@ -241,6 +263,7 @@ const auditEventLabels: Record<string, string> = {
   "scenario.created": "Versão de cálculo congelada",
   "scenario.ready_for_review": "Revisão interna iniciada",
   "scenario.responsible_approved": "Aprovada pelo responsável técnico",
+  "scenario.office_second_review_approved": "Aprovada por segundo profissional do escritório",
   "scenario.deleted": "Cenário excluído",
   "report_share.created": "Relatório compartilhado",
   "report_share.revoked": "Compartilhamento revogado",
@@ -322,11 +345,12 @@ function formatCnpj(value: string | null) {
 }
 
 type MargemAppProps = {
-  user: { displayName: string; email: string };
+  user: { id: number; displayName: string; email: string };
+  workspace: { id: number; name: string; type: "individual" | "office"; ownerUserId: number; suggestedPlanKey: "pro" | "escritorio"; role: "owner" | "admin" | "preparer" | "reviewer" };
   signOutPath: string;
 };
 
-export default function MargemApp({ user, signOutPath }: MargemAppProps) {
+export default function MargemApp({ user, workspace, signOutPath }: MargemAppProps) {
   const [section, setSection] = useState<Section>("overview");
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
@@ -365,12 +389,23 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const [rulesError, setRulesError] = useState("");
   const [taxDetermination, setTaxDetermination] = useState<TaxDeterminationModel | null>(null);
   const [determinationError, setDeterminationError] = useState("");
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
+  const [teamInvitations, setTeamInvitations] = useState<TeamInvitation[]>([]);
+  const [teamLoading, setTeamLoading] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState<TeamInvitation["role"]>("reviewer");
+  const [createdInviteUrl, setCreatedInviteUrl] = useState("");
+  const [officeUpgradeName, setOfficeUpgradeName] = useState("");
+  const [upgradingWorkspace, setUpgradingWorkspace] = useState(false);
   const pendingScenarioRequest = useRef<{ fingerprint: string; id: string } | null>(null);
 
   const activeCompany = useMemo(() => companies.find((company) => company.id === activeCompanyId) ?? null, [companies, activeCompanyId]);
   const activeDemo = productDemos[demoIndex];
   const activeDemoStep = activeDemo.steps[demoStep];
   const userInitials = user.displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "MC";
+  const canManageTeam = workspace.role === "owner" || workspace.role === "admin";
+  const canPrepare = workspace.role !== "reviewer";
+  const canReview = workspace.role === "owner" || workspace.role === "admin" || workspace.role === "reviewer";
 
   const figures = useMemo(() => calculateScenarioValues({ revenue, currentRate, newRate, costRate, fixedCosts, volumeLoss, priceAdjustment }), [revenue, currentRate, newRate, costRate, fixedCosts, volumeLoss, priceAdjustment]);
 
@@ -441,6 +476,11 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       .then(setTaxDetermination)
       .catch(() => setDeterminationError("Não foi possível verificar o modelo de apuração agora."));
   }, [section, taxDetermination, determinationError]);
+
+  useEffect(() => {
+    if (section !== "team" || workspace.type !== "office") return;
+    void refreshTeam();
+  }, [section, workspace.type]);
 
   useEffect(() => {
     fetch("/api/companies")
@@ -515,6 +555,91 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     }
   }
 
+  async function refreshTeam() {
+    setTeamLoading(true);
+    try {
+      const response = await fetch("/api/office/members");
+      const data = (await response.json()) as { members?: TeamMember[]; invitations?: TeamInvitation[]; error?: string };
+      if (!response.ok) throw new Error(data.error || "Equipe indisponível.");
+      setTeamMembers(data.members ?? []);
+      setTeamInvitations(data.invitations ?? []);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível carregar a equipe.");
+    } finally {
+      setTeamLoading(false);
+    }
+  }
+
+  async function inviteTeamMember() {
+    setTeamLoading(true);
+    setCreatedInviteUrl("");
+    setMessage("");
+    try {
+      const response = await fetch("/api/office/members", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: inviteEmail, role: inviteRole }) });
+      const data = (await response.json()) as { invitation?: TeamInvitation; error?: string };
+      if (!response.ok || !data.invitation?.url) throw new Error(data.error || "Não foi possível criar o convite.");
+      setCreatedInviteUrl(data.invitation.url);
+      setInviteEmail("");
+      try { await navigator.clipboard.writeText(data.invitation.url); } catch { /* The link remains visible for manual copying. */ }
+      setMessage("Convite criado e copiado. Ele expira em 7 dias.");
+      await refreshTeam();
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível criar o convite.");
+    } finally {
+      setTeamLoading(false);
+    }
+  }
+
+  async function revokeTeamInvitation(invitation: TeamInvitation) {
+    try {
+      const response = await fetch(`/api/office/members?id=${invitation.id}`, { method: "DELETE" });
+      if (!response.ok) throw new Error("Não foi possível revogar o convite.");
+      setTeamInvitations((current) => current.filter((item) => item.id !== invitation.id));
+      setMessage("Convite revogado.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível revogar o convite.");
+    }
+  }
+
+  async function changeTeamMemberRole(member: TeamMember, role: TeamInvitation["role"]) {
+    try {
+      const response = await fetch("/api/office/members", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ memberId: member.id, role }) });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "Não foi possível alterar o papel.");
+      setTeamMembers((current) => current.map((item) => item.id === member.id ? { ...item, role } : item));
+      setMessage(`Papel de ${member.name} atualizado.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível alterar o papel.");
+    }
+  }
+
+  async function removeTeamMember(member: TeamMember) {
+    if (!window.confirm(`Remover ${member.name} do escritório? A pessoa continuará com uma conta individual, sem acesso à carteira compartilhada.`)) return;
+    try {
+      const response = await fetch(`/api/office/members?memberId=${member.id}`, { method: "DELETE" });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "Não foi possível remover o membro.");
+      setTeamMembers((current) => current.filter((item) => item.id !== member.id));
+      setMessage(`${member.name} foi removido do escritório e recebeu um espaço individual.`);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível remover o membro.");
+    }
+  }
+
+  async function upgradeToOffice() {
+    setUpgradingWorkspace(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/workspace", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: officeUpgradeName }) });
+      const data = (await response.json()) as { error?: string };
+      if (!response.ok) throw new Error(data.error || "Não foi possível ativar o modo escritório.");
+      window.location.assign("/app");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível ativar o modo escritório.");
+      setUpgradingWorkspace(false);
+    }
+  }
+
   function resetScenarioFields() {
     setRevenue(100000);
     setCurrentRate(8.65);
@@ -561,10 +686,11 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       });
       const data = (await response.json()) as { scenario?: SavedScenario; replayed?: boolean; error?: string };
       if (!response.ok || !data.scenario) throw new Error(data.error || "save failed");
+      const savedScenario = data.scenario;
       pendingScenarioRequest.current = null;
-      setSavedScenarios((current) => [data.scenario!, ...current.filter((scenario) => scenario.id !== data.scenario!.id)].slice(0, 8));
-      setCompanies((current) => current.map((company) => company.id === activeCompanyId ? { ...company, latestScenario: data.scenario } : company));
-      setMessage(data.replayed ? "A tentativa anterior já havia sido salva; o sistema recuperou a mesma versão sem duplicar o cenário." : `Versão congelada e assinada no motor ${data.scenario.calculationVersion}. Agora inicie a revisão interna.`);
+      setSavedScenarios((current) => [savedScenario, ...current.filter((scenario) => scenario.id !== savedScenario.id)].slice(0, 8));
+      setCompanies((current) => current.map((company) => company.id === activeCompanyId ? { ...company, latestScenario: savedScenario } : company));
+      setMessage(data.replayed ? "A tentativa anterior já havia sido salva; o sistema recuperou a mesma versão sem duplicar o cenário." : `Versão congelada e assinada no motor ${savedScenario.calculationVersion}. Agora inicie a revisão interna.`);
       void refreshAuditEvents(activeCompanyId);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "save failed" ? error.message : "Não foi possível salvar agora. A prévia continua disponível nesta tela.");
@@ -634,7 +760,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       if (!response.ok || !data.scenario) throw new Error(data.error || "review failed");
       setSavedScenarios((current) => current.map((scenario) => scenario.id === item.id ? { ...scenario, reviewStatus: data.scenario!.reviewStatus } : scenario));
       setCompanies((current) => current.map((company) => company.latestScenario?.id === item.id ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: data.scenario!.reviewStatus } } : company));
-      setMessage("Revisão interna iniciada. Confira as premissas e, ao concluir, aprove como responsável técnico.");
+      setMessage(workspace.type === "office" ? "Revisão interna iniciada. Outro profissional habilitado da equipe deve conferir e aprovar esta versão." : "Revisão interna iniciada. Confira as premissas e, ao concluir, aprove como responsável técnico.");
       if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "review failed" ? error.message : "Não foi possível iniciar a revisão interna.");
@@ -672,7 +798,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       setSavedScenarios((current) => current.map((scenario) => scenario.id === data.scenario!.id ? { ...scenario, reviewStatus: data.scenario!.reviewStatus, approval: data.scenario!.approval } : scenario));
       setCompanies((current) => current.map((company) => company.latestScenario?.id === data.scenario!.id ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: data.scenario!.reviewStatus, approval: data.scenario!.approval } } : company));
       setApprovalScenario(null);
-      setMessage("Revisão concluída e assinada. O relatório agora pode ser entregue ao cliente como revisado pelo responsável.");
+      setMessage(workspace.type === "office" ? "Segunda revisão concluída e assinada. O relatório identifica separadamente quem preparou e quem revisou." : "Revisão concluída e assinada. O relatório agora pode ser entregue ao cliente como revisado pelo responsável.");
       if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "approval failed" ? error.message : "Não foi possível registrar a revisão responsável.");
@@ -860,6 +986,9 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           <button className={section === "documents" ? "active" : ""} onClick={() => setSection("documents")}>
             <span className="nav-icon">▤</span>Documentos
           </button>
+          <button className={section === "team" ? "active" : ""} onClick={() => setSection("team")}>
+            <span className="nav-icon">◎</span>{workspace.type === "office" ? "Equipe e revisão" : "Modo de trabalho"}
+          </button>
           <button className={section === "rules" ? "active" : ""} onClick={() => setSection("rules")}>
             <span className="nav-icon">§</span>Regras fiscais
           </button>
@@ -885,18 +1014,19 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="company-label">CLIENTE ATIVO DO ESCRITÓRIO</p>
+            <p className="company-label">{workspace.type === "office" ? "CLIENTE ATIVO DO ESCRITÓRIO" : "CLIENTE ATIVO"}</p>
             <select className="company-select" aria-label="Cliente analisado" value={activeCompanyId ?? ""} onChange={(event) => changeActiveCompany(Number(event.target.value))}>
               {!companies.length && <option value="">Carregando carteira…</option>}
               {companies.map((company) => <option value={company.id} key={company.id}>{company.name}</option>)}
             </select>
           </div>
           <div className="topbar-actions">
+            <span className={`workspace-chip ${workspace.type}`}><i />{workspace.type === "office" ? workspace.name : "Modo independente"}</span>
             <span className="year-chip"><i /> Ano {targetYear} · {rateSource === "accountant" ? "fonte: contador" : "premissa informada"}</span>
             <button className="notification" aria-label="Notificações">•</button>
             <div className="account-summary">
               <div className="avatar" aria-label={`Perfil de ${user.displayName}`}>{userInitials}</div>
-              <span><b>{user.displayName.split(" ")[0]}</b><small><a href="/planos">Meu plano</a> · <a href={signOutPath}>Sair</a></small></span>
+              <span><b>{user.displayName.split(" ")[0]}</b><small>{workspace.role === "owner" ? "Proprietário" : workspace.role === "admin" ? "Administrador" : workspace.role === "reviewer" ? "Revisor" : "Preparador"} · <a href="/planos">Plano</a> · <a href={signOutPath}>Sair</a></small></span>
             </div>
           </div>
         </header>
@@ -905,12 +1035,12 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           <div className="page-content companies-page">
             <div className="page-heading">
               <div><p className="kicker">CARTEIRA DO ESCRITÓRIO</p><h1>Clientes monitorados</h1><p>Organize cada empresa atendida, priorize riscos e preserve a responsabilidade por versão.</p></div>
-              <button className="primary-button" onClick={() => setShowCompanyForm((current) => !current)}>{showCompanyForm ? "Fechar cadastro" : "Adicionar cliente"}</button>
+              <button className="primary-button" onClick={() => setShowCompanyForm((current) => !current)} disabled={!canPrepare}>{canPrepare ? showCompanyForm ? "Fechar cadastro" : "Adicionar cliente" : "Acesso somente para revisão"}</button>
             </div>
 
             {message && <div className="toast" role="status">{message}</div>}
 
-            {showCompanyForm && <form className="panel company-form" onSubmit={(event) => { event.preventDefault(); void createCompany(); }}>
+            {showCompanyForm && canPrepare && <form className="panel company-form" onSubmit={(event) => { event.preventDefault(); void createCompany(); }}>
               <div className="panel-heading"><div><span className="eyebrow">NOVO CLIENTE</span><h3>Dados essenciais da empresa</h3></div><span className="editable-chip">Carteira privada</span></div>
               <div className="company-form-grid">
                 <label>Razão social<input required value={companyForm.name} onChange={(event) => setCompanyForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ex.: Horizonte Serviços Ltda." /></label>
@@ -1040,7 +1170,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           <div className="page-content simulator-page">
             <div className="page-heading">
               <div><p className="kicker">ANÁLISE TRIBUTÁRIA CONTROLADA · {activeCompany?.name?.toUpperCase() ?? "EMPRESA"}</p><h1>Análise de impacto tributário</h1><p>Registre premissas, origem e ano-alvo. Cada versão salva fica congelada e auditável.</p></div>
-              <div className="heading-actions"><button className="secondary-button" onClick={exportScenarioReport}>Exportar prévia</button><button className="primary-button" onClick={saveScenario} disabled={saving || !scenarioName.trim() || revenue < 1000 || sourceNote.trim().length < 10}>{saving ? "Salvando…" : "Salvar versão"}</button></div>
+              <div className="heading-actions"><button className="secondary-button" onClick={exportScenarioReport}>Exportar prévia</button><button className="primary-button" onClick={saveScenario} disabled={!canPrepare || saving || !scenarioName.trim() || revenue < 1000 || sourceNote.trim().length < 10}>{!canPrepare ? "Acesso somente para revisão" : saving ? "Salvando…" : "Salvar versão"}</button></div>
             </div>
 
             {message && <div className="toast" role="status">{message}</div>}
@@ -1135,7 +1265,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
               <div className="panel-heading"><div><span className="eyebrow">TRABALHO TÉCNICO VERSIONADO</span><h3>Análises e responsabilidade</h3></div><span>{savedScenarios.length} versões · nenhuma aprovação reescreve o cálculo</span></div>
               <div className="review-flow-strip" aria-label="Fluxo de revisão do escritório">
                 <span><b>01</b><small>EM ELABORAÇÃO</small><strong>Versão congelada</strong></span>
-                <i>→</i><span><b>02</b><small>CONTROLE INTERNO</small><strong>Revisão responsável</strong></span>
+                <i>→</i><span><b>02</b><small>CONTROLE INTERNO</small><strong>{workspace.type === "office" ? "Segundo profissional" : "Revisão responsável"}</strong></span>
                 <i>→</i><span><b>03</b><small>RESPONSABILIDADE</small><strong>Aprovação assinada</strong></span>
                 <i>→</i><span><b>04</b><small>CLIENTE</small><strong>Entrega rastreável</strong></span>
               </div>
@@ -1145,15 +1275,18 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                   const approvalBlocked = finalized && item.approval?.integrityStatus !== "verified";
                   const approved = finalized && !approvalBlocked;
                   const delivered = item.reviewStatus === "delivered";
+                  const preparedByCurrentUser = item.preparedByUserId === user.id;
+                  const officeApprovalBlocked = workspace.type === "office" && item.reviewStatus === "ready_for_review" && (!canReview || preparedByCurrentUser);
+                  const approvedBySecondPerson = item.approval?.assuranceLevel === "office_second_person_review";
                   return (
                   <div className="saved-row" key={item.id}>
                     <button className="saved-load" onClick={() => loadScenario(item)} disabled={item.integrityStatus === "invalid"}>
-                      <span><b>{item.name}</b><small>{new Date(item.createdAt).toLocaleDateString("pt-BR")} · ano {item.targetYear} · {rateSourceLabel(item.rateSource)}</small></span>
+                      <span><b>{item.name}</b><small>{new Date(item.createdAt).toLocaleDateString("pt-BR")} · {item.preparerName ? `preparado por ${item.preparerName} · ` : ""}ano {item.targetYear} · {rateSourceLabel(item.rateSource)}</small></span>
                       <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS informados</small></span>
                       <i className={`integrity-label ${item.integrityStatus}`}>{item.integrityStatus === "verified" ? `Assinado · #${item.inputHash?.slice(0, 8)}` : item.integrityStatus === "invalid" ? "Integridade bloqueada" : "Legado"}</i>
                     </button>
-                    <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""} ${approved ? "approved" : ""}`} onClick={() => item.reviewStatus === "ready_for_review" ? openResponsibleApproval(item) : void markReadyForReview(item)} disabled={item.integrityStatus !== "verified" || finalized || reviewingScenarioId === item.id || !item.snapshotJson}>{item.integrityStatus === "invalid" ? "Cálculo bloqueado" : approvalBlocked ? "Aprovação bloqueada" : delivered ? "Entregue ao cliente" : approved ? "Aprovado pelo responsável" : item.reviewStatus === "ready_for_review" ? "Aprovar como responsável" : reviewingScenarioId === item.id ? "Iniciando…" : item.snapshotJson && item.integrityStatus === "verified" ? "Iniciar revisão interna" : "Regravar versão"}</button>
-                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || !approved || item.integrityStatus !== "verified"}>{creatingShareId === item.id ? "Gerando…" : delivered ? "Gerar novo link" : "Entregar ao cliente"}</button>
+                    <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""} ${approved ? "approved" : ""}`} onClick={() => item.reviewStatus === "ready_for_review" ? openResponsibleApproval(item) : void markReadyForReview(item)} disabled={item.integrityStatus !== "verified" || finalized || reviewingScenarioId === item.id || !item.snapshotJson || (item.reviewStatus === "ready_for_review" ? officeApprovalBlocked : !canPrepare)}>{item.integrityStatus === "invalid" ? "Cálculo bloqueado" : approvalBlocked ? "Aprovação bloqueada" : delivered ? "Entregue ao cliente" : approved ? approvedBySecondPerson ? "Revisado por outra pessoa" : "Aprovado pelo responsável" : item.reviewStatus === "ready_for_review" ? officeApprovalBlocked ? preparedByCurrentUser ? "Aguardando outro revisor" : "Papel sem permissão de revisar" : workspace.type === "office" ? "Revisar e aprovar" : "Aprovar como responsável" : reviewingScenarioId === item.id ? "Iniciando…" : item.snapshotJson && item.integrityStatus === "verified" ? "Iniciar revisão interna" : "Regravar versão"}</button>
+                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || !approved || item.integrityStatus !== "verified" || !canPrepare}>{creatingShareId === item.id ? "Gerando…" : delivered ? "Gerar novo link" : "Entregar ao cliente"}</button>
                     <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} disabled={item.integrityStatus === "invalid"} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
                     <button className={`delete-button ${finalized ? "preserved" : ""}`} onClick={() => deleteScenario(item)} disabled={finalized} title={finalized ? "Versão preservada pela trilha de responsabilidade" : "Excluir versão"} aria-label={finalized ? `Preservar ${item.name}` : `Excluir ${item.name}`}>{finalized ? "⌑" : "×"}</button>
                   </div>
@@ -1163,7 +1296,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
 
             <section className="panel share-center-panel">
               <div className="panel-heading"><div><span className="eyebrow">ENTREGA AO CLIENTE</span><h3>Relatórios compartilhados</h3></div><span className="share-count">{reportShares.filter((share) => !share.revokedAt && new Date(share.expiresAt) > new Date()).length} ativos</span></div>
-              <p className="share-center-intro">Somente versões aprovadas e assinadas pelo responsável podem ser entregues. O relatório identifica o responsável e informa quando o registro profissional é autodeclarado.</p>
+              <p className="share-center-intro">Somente versões aprovadas e assinadas podem ser entregues. {workspace.type === "office" ? "No escritório, o relatório identifica separadamente preparador e revisor interno." : "No modo independente, o relatório informa que a revisão foi feita pelo próprio responsável."}</p>
               {reportShares.length ? <div className="share-list">{reportShares.map((share) => {
                 const expired = new Date(share.expiresAt) <= new Date();
                 const active = !share.revokedAt && !expired;
@@ -1180,6 +1313,62 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
               <div className="panel-heading"><div><span className="eyebrow">TRILHA DE AUDITORIA</span><h3>Eventos desta empresa</h3></div><a href="/metodologia">Controles e metodologia →</a></div>
               {auditEvents.length ? <div className="audit-list">{auditEvents.slice(0, 8).map((event) => <article key={event.id}><span>✓</span><div><b>{auditEventLabels[event.eventType] ?? event.eventType}</b><small>{new Date(event.createdAt).toLocaleString("pt-BR")} · {typeof event.eventData.calculationVersion === "string" ? event.eventData.calculationVersion : "evento operacional"}</small></div><code>{typeof event.eventData.inputHash === "string" ? `${event.eventData.inputHash.slice(0, 12)}…` : `evento ${event.id}`}</code></article>)}</div> : <div className="empty-state"><span>✓</span><b>A trilha começa no próximo salvamento</b><p>Criação, revisão, compartilhamento, revogação e exclusão serão registrados.</p></div>}
             </section>
+          </div>
+        )}
+
+        {section === "team" && workspace.type === "individual" && (
+          <div className="page-content team-page individual-mode-page">
+            <div className="page-heading"><div><p className="kicker">MODO CONTADOR INDEPENDENTE</p><h1>Seu espaço profissional individual</h1><p>Você prepara, revisa e assume a responsabilidade pelas próprias versões, com esse limite declarado em cada relatório.</p></div><span className="office-plan-badge individual"><small>PLANO SUGERIDO</small><b>Profissional</b><em>beta gratuito</em></span></div>
+            {message && <div className="toast" role="status">{message}</div>}
+            <section className="mode-comparison-grid">
+              <article className="current"><span>MODO ATUAL</span><h2>Contador independente</h2><p>Uma conta concentra preparação e revisão responsável. O relatório não chama isso de revisão independente.</p><ul><li>Carteira e versões privadas</li><li>Assinatura do responsável</li><li>Plano Profissional sugerido</li></ul></article>
+              <article><span>EVOLUIR PARA</span><h2>Escritório contábil</h2><p>Ative equipe, convide profissionais e passe a exigir outra pessoa na aprovação.</p><form onSubmit={(event) => { event.preventDefault(); void upgradeToOffice(); }}><label>Nome do escritório<input required minLength={2} maxLength={120} value={officeUpgradeName} onChange={(event) => setOfficeUpgradeName(event.target.value)} placeholder="Ex.: Horizonte Contabilidade" /></label><button className="primary-button" disabled={upgradingWorkspace || officeUpgradeName.trim().length < 2}>{upgradingWorkspace ? "Ativando…" : "Ativar modo escritório"}</button></form><small>A carteira e o histórico atuais serão preservados. Depois de convidar revisores, versões novas exigirão segregação.</small></article>
+            </section>
+          </div>
+        )}
+
+        {section === "team" && workspace.type === "office" && (
+          <div className="page-content team-page">
+            <div className="page-heading">
+              <div><p className="kicker">MODO ESCRITÓRIO CONTÁBIL</p><h1>Equipe e segregação de revisão</h1><p>Defina quem prepara, quem revisa e preserve a autoria de cada versão entregue.</p></div>
+              <span className="office-plan-badge"><small>PLANO SUGERIDO</small><b>Escritório</b><em>beta gratuito</em></span>
+            </div>
+
+            {message && <div className="toast" role="status">{message}</div>}
+
+            <section className="team-summary-grid">
+              <article><span>ESPAÇO DE TRABALHO</span><strong>{workspace.name}</strong><small>Carteira compartilhada com controle por papel</small></article>
+              <article><span>MEMBROS ATIVOS</span><strong>{teamMembers.length || (teamLoading ? "…" : 1)}</strong><small>{teamMembers.filter((member) => member.role === "reviewer" || member.role === "admin" || member.role === "owner").length} aptos por papel a revisar</small></article>
+              <article className="protected"><span>REGRA DE APROVAÇÃO</span><strong>Dupla pessoa</strong><small>Preparador nunca aprova a própria versão</small></article>
+            </section>
+
+            <section className="team-governance panel">
+              <div><span>01</span><p><small>PREPARAÇÃO</small><b>Um membro congela a versão</b><em>Autoria gravada no cenário e na auditoria.</em></p></div>
+              <i>→</i><div><span>02</span><p><small>REVISÃO</small><b>Outro membro confere e assina</b><em>O servidor bloqueia preparador = revisor.</em></p></div>
+              <i>→</i><div><span>03</span><p><small>ENTREGA</small><b>O relatório identifica os dois</b><em>Revisão interna, sem alegação de independência externa.</em></p></div>
+            </section>
+
+            <div className="team-layout">
+              <section className="panel team-members-panel">
+                <div className="panel-heading"><div><span className="eyebrow">PESSOAS E PAPÉIS</span><h3>Membros do escritório</h3></div><span>{teamLoading ? "Atualizando…" : `${teamMembers.length} ativos`}</span></div>
+                <div className="team-member-list">
+                  {teamMembers.map((member) => <article key={member.id}><span className="team-avatar">{member.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span><p><b>{member.name}{member.userId === user.id ? " · você" : ""}</b><small>{member.email}</small></p>{canManageTeam && member.role !== "owner" && member.userId !== user.id ? <div className="team-member-actions"><select aria-label={`Papel de ${member.name}`} value={member.role} onChange={(event) => void changeTeamMemberRole(member, event.target.value as TeamInvitation["role"])}><option value="reviewer">Revisor</option><option value="preparer">Preparador</option><option value="admin">Administrador</option></select><button type="button" onClick={() => void removeTeamMember(member)}>Remover</button></div> : <em className={`role-${member.role}`}>{member.role === "owner" ? "Proprietário" : member.role === "admin" ? "Administrador" : member.role === "reviewer" ? "Revisor" : "Preparador"}</em>}</article>)}
+                  {!teamMembers.length && !teamLoading && <div className="empty-state"><span>◎</span><b>Carregando estrutura da equipe</b><p>Atualize a página se os membros não aparecerem.</p></div>}
+                </div>
+              </section>
+
+              <aside className="panel team-invite-panel">
+                <div className="panel-heading"><div><span className="eyebrow">CONVITE SEGURO</span><h3>Adicionar profissional</h3></div></div>
+                {canManageTeam ? <form onSubmit={(event) => { event.preventDefault(); void inviteTeamMember(); }}>
+                  <label>E-mail profissional<input type="email" required value={inviteEmail} onChange={(event) => setInviteEmail(event.target.value)} placeholder="revisor@escritorio.com.br" /></label>
+                  <label>Papel no escritório<select value={inviteRole} onChange={(event) => setInviteRole(event.target.value as TeamInvitation["role"])}><option value="reviewer">Revisor</option><option value="preparer">Preparador</option><option value="admin">Administrador</option></select></label>
+                  <div className="role-explainer"><b>{inviteRole === "reviewer" ? "Revisor" : inviteRole === "preparer" ? "Preparador" : "Administrador"}</b><span>{inviteRole === "reviewer" ? "Confere e aprova versões preparadas por outras pessoas." : inviteRole === "preparer" ? "Cadastra clientes e cria versões, mas não aprova a própria versão." : "Gerencia equipe, prepara e revisa versões de outras pessoas."}</span></div>
+                  <button className="primary-button" disabled={teamLoading || !inviteEmail.trim()}>{teamLoading ? "Criando convite…" : "Gerar convite de 7 dias"}</button>
+                  {createdInviteUrl && <div className="created-invite"><span>LINK CRIADO E COPIADO</span><input readOnly value={createdInviteUrl} onFocus={(event) => event.currentTarget.select()} /></div>}
+                </form> : <div className="team-readonly"><span>i</span><p><b>Gestão somente para administradores</b><small>Seu papel permite trabalhar na carteira, mas não convidar novos membros.</small></p></div>}
+                {teamInvitations.length > 0 && <div className="pending-invites"><span>CONVITES PENDENTES</span>{teamInvitations.map((invitation) => <article key={invitation.id}><p><b>{invitation.email}</b><small>{invitation.role} · expira {new Date(invitation.expiresAt).toLocaleDateString("pt-BR")}</small></p>{canManageTeam && <button type="button" onClick={() => void revokeTeamInvitation(invitation)}>Revogar</button>}</article>)}</div>}
+              </aside>
+            </div>
           </div>
         )}
 
@@ -1413,13 +1602,13 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
 
       {approvalScenario && <div className="approval-modal-backdrop" role="presentation" onMouseDown={() => approvingScenarioId === null && setApprovalScenario(null)}>
         <section className="approval-modal" role="dialog" aria-modal="true" aria-labelledby="approval-title" onMouseDown={(event) => event.stopPropagation()}>
-          <header><div><span>REVISÃO DO RESPONSÁVEL</span><h2 id="approval-title">Assumir responsabilidade por esta versão</h2></div><button type="button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null} aria-label="Fechar revisão">×</button></header>
+          <header><div><span>{workspace.type === "office" ? "SEGUNDA REVISÃO INTERNA" : "REVISÃO DO RESPONSÁVEL"}</span><h2 id="approval-title">{workspace.type === "office" ? "Revisar uma versão preparada por outra pessoa" : "Assumir responsabilidade por esta versão"}</h2></div><button type="button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null} aria-label="Fechar revisão">×</button></header>
           <div className="approval-scenario-summary"><span>VERSÃO CONGELADA</span><strong>{approvalScenario.name}</strong><small>{activeCompany?.name} · hash #{approvalScenario.inputHash?.slice(0, 12)}</small></div>
-          <div className="approval-boundary"><b>Este é o modo para contador responsável ou profissional que trabalha sozinho.</b><p>O sistema registrará que preparador e revisor são a mesma conta. Isso não será apresentado como revisão independente nem como validação do CFC.</p></div>
+          <div className="approval-boundary"><b>{workspace.type === "office" ? `Preparado por ${approvalScenario.preparerName ?? "outro membro do escritório"}; revisado por você.` : "Este é o modo para contador responsável ou profissional que trabalha sozinho."}</b><p>{workspace.type === "office" ? "O sistema registrará duas contas distintas e apresentará isso como revisão interna do escritório — não como revisão independente externa nem como validação do CFC." : "O sistema registrará que preparador e revisor são a mesma conta. Isso não será apresentado como revisão independente nem como validação do CFC."}</p></div>
           <label>Registro profissional declarado<input value={professionalRegistration} onChange={(event) => setProfessionalRegistration(event.target.value)} maxLength={40} placeholder="Ex.: CRC SP-123456/O-7" autoFocus /></label>
           <label>Nota da revisão (opcional)<textarea value={approvalNote} onChange={(event) => setApprovalNote(event.target.value)} maxLength={400} placeholder="Registre conferências, ressalvas ou documentos utilizados." /></label>
-          <label className="approval-declaration"><input type="checkbox" checked={approvalAcknowledged} onChange={(event) => setApprovalAcknowledged(event.target.checked)} /><span>Eu, <b>{user.displayName}</b>, declaro que revisei as premissas, a origem da alíquota, o resultado congelado e os limites metodológicos desta versão.</span></label>
-          <footer><button type="button" className="secondary-button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null}>Cancelar</button><button type="button" className="primary-button" onClick={() => void approveAsResponsible()} disabled={approvingScenarioId !== null || !approvalAcknowledged || professionalRegistration.trim().length < 4}>{approvingScenarioId !== null ? "Assinando revisão…" : "Aprovar e assinar versão"}</button></footer>
+          <label className="approval-declaration"><input type="checkbox" checked={approvalAcknowledged} onChange={(event) => setApprovalAcknowledged(event.target.checked)} /><span>Eu, <b>{user.displayName}</b>, declaro que revisei as premissas, a origem da alíquota, o resultado congelado e os limites metodológicos desta versão{workspace.type === "office" ? " preparada por outro membro" : ""}.</span></label>
+          <footer><button type="button" className="secondary-button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null}>Cancelar</button><button type="button" className="primary-button" onClick={() => void approveAsResponsible()} disabled={approvingScenarioId !== null || !approvalAcknowledged || professionalRegistration.trim().length < 4}>{approvingScenarioId !== null ? "Assinando revisão…" : workspace.type === "office" ? "Aprovar como segundo revisor" : "Aprovar e assinar versão"}</button></footer>
         </section>
       </div>}
     </main>
