@@ -12,6 +12,7 @@ import {
 import { getCurrentUser } from "../../../auth";
 import { signScenarioApprovalRecord, signedRecordFromScenario, verifyScenarioApprovalRecord, verifyScenarioRecord } from "../../../scenario-signing";
 import { withApiTelemetry } from "../../../api-infrastructure";
+import { normalizeProfessionalRegistration, professionalRegistrationError } from "../../../professional-registration";
 import { canReviewScenarios, getWorkspaceContext } from "../../../workspace";
 
 function publicApproval(approval: typeof scenarioApprovals.$inferSelect) {
@@ -40,21 +41,17 @@ async function approveAsResponsible(request: Request) {
     const payload = (await request.json()) as Record<string, unknown>;
     const scenarioId = Number(payload.scenarioId);
     const acknowledged = payload.acknowledged === true;
-    const professionalRegistration = typeof payload.professionalRegistration === "string"
-      ? payload.professionalRegistration.trim().replace(/\s+/g, " ").toUpperCase().slice(0, 40)
-      : "";
+    const professionalRegistration = typeof payload.professionalRegistration === "string" ? normalizeProfessionalRegistration(payload.professionalRegistration) : "";
+    const registrationError = professionalRegistrationError(professionalRegistration);
     const decisionNote = typeof payload.decisionNote === "string" ? payload.decisionNote.trim().slice(0, 400) : "";
 
     if (
       !Number.isInteger(scenarioId) ||
       scenarioId <= 0 ||
       !acknowledged ||
-      professionalRegistration.length < 4 ||
-      !/[A-Z]/.test(professionalRegistration) ||
-      !/\d/.test(professionalRegistration) ||
-      !/^[A-Z0-9 ./-]+$/.test(professionalRegistration)
+      registrationError
     ) {
-      return Response.json({ error: "Confirme a declaração e informe seu registro profissional." }, { status: 400 });
+      return Response.json({ error: !acknowledged ? "Confirme a declaração de responsabilidade para assinar." : registrationError ?? "Revise os dados da aprovação." }, { status: 400 });
     }
 
     const db = getDb();
@@ -136,6 +133,8 @@ async function approveAsResponsible(request: Request) {
       if (results[0].meta.changes !== 1 || results[1].meta.changes !== 1 || results[2].meta.changes !== 1) return Response.json({ error: "A revisão recebeu outra decisão enquanto você aprovava. Atualize a Central de Revisão." }, { status: 409 });
       const [approval] = await db.select().from(scenarioApprovals).where(eq(scenarioApprovals.scenarioId, scenario.id)).limit(1);
       if (!approval) throw new Error("scenario_approval_insert_failed");
+      const storedRecord = approvalRecordFromStored(approval);
+      if (!storedRecord || !(await verifyScenarioApprovalRecord(storedRecord, approval.approvalSignature, approval.signatureVersion))) throw new Error("scenario_approval_verification_failed");
       return Response.json({ scenario: { id: scenario.id, reviewStatus: "responsible_approved", approval: publicApproval(approval) } }, { status: 201 });
     }
     const [approvalRows] = await db.batch([
@@ -163,11 +162,14 @@ async function approveAsResponsible(request: Request) {
     ]);
     const approval = approvalRows[0];
     if (!approval) throw new Error("scenario_approval_insert_failed");
+    const storedRecord = approvalRecordFromStored(approval);
+    if (!storedRecord || !(await verifyScenarioApprovalRecord(storedRecord, approval.approvalSignature, approval.signatureVersion))) throw new Error("scenario_approval_verification_failed");
 
     return Response.json({ scenario: { id: scenario.id, reviewStatus: "responsible_approved", approval: publicApproval(approval) } }, { status: 201 });
   } catch (error) {
     if (String(error).toLowerCase().includes("unique")) return Response.json({ error: "Este cenário já possui uma aprovação registrada. Atualize a página." }, { status: 409 });
     if (error instanceof Error && error.message === "scenario_signing_key_unavailable") return Response.json({ error: "A assinatura da aprovação está temporariamente indisponível." }, { status: 503 });
+    if (error instanceof Error && error.message === "scenario_approval_verification_failed") return Response.json({ error: "A aprovação foi registrada, mas a assinatura não pôde ser confirmada. A entrega continua bloqueada." }, { status: 409 });
     return Response.json({ error: "Não foi possível concluir a revisão responsável." }, { status: 500 });
   }
 }

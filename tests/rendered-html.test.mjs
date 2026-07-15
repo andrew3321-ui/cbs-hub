@@ -55,12 +55,13 @@ test("análises publicadas expõem versionamento e não afirmam homologação", 
 });
 
 test("fluxo remodelado trata o contador como usuário principal e exige aprovação antes da entrega", async () => {
-  const [landing, client, approveApi, shareApi, approvalCore, schema, report] = await Promise.all([
+  const [landing, client, approveApi, shareApi, approvalCore, registration, schema, report] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
     readFile(new URL("app/api/scenarios/approve/route.ts", root), "utf8"),
     readFile(new URL("app/api/report-shares/route.ts", root), "utf8"),
     readFile(new URL("app/scenario-approval-core.ts", root), "utf8"),
+    readFile(new URL("app/professional-registration.ts", root), "utf8"),
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
   ]);
@@ -71,6 +72,11 @@ test("fluxo remodelado trata o contador como usuário principal e exige aprovaç
   assert.match(client, /não será apresentado como revisão independente/);
   assert.match(approveApi, /responsible_self_review/);
   assert.match(approveApi, /credentialVerification: "self_declared"/);
+  assert.match(approveApi, /professionalRegistrationError/);
+  assert.match(client, /refreshScenarioAfterApproval/);
+  assert.match(client, /approval-inline-error/);
+  assert.match(registration, /\!\/\[A-Z\]\//);
+  assert.match(registration, /\!\/\\d\//);
   assert.match(shareApi, /responsible_approved/);
   assert.match(shareApi, /verifyScenarioApprovalRecord/);
   assert.match(approvalCore, /scenarioInputHash/);

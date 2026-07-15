@@ -1,6 +1,7 @@
 "use client";
 
 import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { normalizeProfessionalRegistration, professionalRegistrationError, professionalRegistrationIsValid } from "../professional-registration";
 import { calculateScenarioValues } from "../scenario-calculations";
 import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 import FiscalIntelligence from "./FiscalIntelligence";
@@ -439,6 +440,7 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
   const [professionalRegistration, setProfessionalRegistration] = useState("");
   const [approvalNote, setApprovalNote] = useState("");
   const [approvalAcknowledged, setApprovalAcknowledged] = useState(false);
+  const [approvalError, setApprovalError] = useState("");
   const [approvingScenarioId, setApprovingScenarioId] = useState<number | null>(null);
   const [creatingShareId, setCreatingShareId] = useState<number | null>(null);
   const [comparisonIds, setComparisonIds] = useState<number[]>([]);
@@ -623,6 +625,17 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
     } catch {
       // The active workflow remains usable if the portfolio refresh fails.
     }
+  }
+
+  async function refreshScenarioAfterApproval(companyId: number, scenarioId: number) {
+    const response = await fetch(`/api/scenarios?companyId=${companyId}`, { cache: "no-store" });
+    if (!response.ok) return null;
+    const data = (await response.json()) as { scenarios?: SavedScenario[] };
+    const rows = data.scenarios ?? [];
+    const confirmed = rows.find((scenario) => scenario.id === scenarioId) ?? null;
+    setSavedScenarios(rows);
+    if (confirmed) setCompanies((current) => current.map((company) => company.latestScenario?.id === scenarioId ? { ...company, latestScenario: confirmed } : company));
+    return confirmed;
   }
 
   function changeActiveCompany(companyId: number | null) {
@@ -1018,13 +1031,24 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
     setProfessionalRegistration(previousRegistration);
     setApprovalNote("");
     setApprovalAcknowledged(false);
+    setApprovalError("");
     setApprovalScenario(item);
     setMessage("");
   }
 
   async function approveAsResponsible() {
     if (!approvalScenario) return;
+    const registrationError = professionalRegistrationError(professionalRegistration);
+    if (registrationError) {
+      setApprovalError(registrationError);
+      return;
+    }
+    if (!approvalAcknowledged) {
+      setApprovalError("Confirme a declaração de responsabilidade para assinar esta versão.");
+      return;
+    }
     setApprovingScenarioId(approvalScenario.id);
+    setApprovalError("");
     setMessage("");
     try {
       const response = await fetch("/api/scenarios/approve", {
@@ -1032,21 +1056,24 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           scenarioId: approvalScenario.id,
-          professionalRegistration,
+          professionalRegistration: normalizeProfessionalRegistration(professionalRegistration),
           decisionNote: approvalNote,
           acknowledged: approvalAcknowledged,
         }),
       });
       const data = (await response.json()) as { scenario?: { id: number; reviewStatus: ReviewStatus; approval: ScenarioApproval }; error?: string };
       if (!response.ok || !data.scenario) throw new Error(data.error || "approval failed");
-      setSavedScenarios((current) => current.map((scenario) => scenario.id === data.scenario!.id ? { ...scenario, reviewStatus: data.scenario!.reviewStatus, approval: data.scenario!.approval } : scenario));
-      setCompanies((current) => current.map((company) => company.latestScenario?.id === data.scenario!.id ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: data.scenario!.reviewStatus, approval: data.scenario!.approval } } : company));
+      const confirmed = activeCompanyId ? await refreshScenarioAfterApproval(activeCompanyId, data.scenario.id) : null;
+      if (!confirmed || !["responsible_approved", "delivered"].includes(confirmed.reviewStatus) || confirmed.approval?.integrityStatus !== "verified") throw new Error("A aprovação foi recebida, mas a confirmação assinada ainda não voltou do servidor. Tente novamente; a entrega permanece protegida.");
       setApprovalScenario(null);
+      setProfessionalRegistration(confirmed.approval.professionalRegistration);
       setMessage(workspace.type === "office" ? "Segunda revisão concluída e assinada. O relatório identifica separadamente quem preparou e quem revisou." : "Revisão concluída e assinada. O relatório agora pode ser entregue ao cliente como revisado pelo responsável.");
       if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
       if (workspace.type === "office") void refreshReviews(data.scenario.id);
     } catch (error) {
-      setMessage(error instanceof Error && error.message !== "approval failed" ? error.message : "Não foi possível registrar a revisão responsável.");
+      const errorMessage = error instanceof Error && error.message !== "approval failed" ? error.message : "Não foi possível registrar a revisão responsável.";
+      setApprovalError(errorMessage);
+      setMessage(errorMessage);
     } finally {
       setApprovingScenarioId(null);
     }
@@ -1538,7 +1565,7 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
                       <i className={`integrity-label ${item.integrityStatus}`}>{item.integrityStatus === "verified" ? `Assinado · #${item.inputHash?.slice(0, 8)}` : item.integrityStatus === "invalid" ? "Integridade bloqueada" : "Legado"}</i>
                     </button>
                     <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""} ${approved ? "approved" : ""}`} onClick={() => officeWorkflow ? void openReviewCenter(item.id) : item.reviewStatus === "ready_for_review" ? openResponsibleApproval(item) : void markReadyForReview(item)} disabled={item.integrityStatus !== "verified" || finalized || reviewingScenarioId === item.id || !item.snapshotJson || (item.reviewStatus === "draft" && !canPrepare)}>{item.integrityStatus === "invalid" ? "Cálculo bloqueado" : approvalBlocked ? "Aprovação bloqueada" : delivered ? "Entregue ao cliente" : approved ? approvedBySecondPerson ? "Revisado por outra pessoa" : "Aprovado pelo responsável" : item.reviewStatus === "changes_requested" ? "Ver correções solicitadas" : item.reviewStatus === "rejected" ? "Ver decisão da revisão" : item.reviewStatus === "ready_for_review" ? workspace.type === "office" ? "Abrir na Central de Revisão" : "Aprovar como responsável" : reviewingScenarioId === item.id ? "Iniciando…" : item.snapshotJson && item.integrityStatus === "verified" ? workspace.type === "office" ? "Enviar para revisor" : "Iniciar revisão interna" : "Regravar versão"}</button>
-                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || !approved || item.integrityStatus !== "verified" || !canPrepare}>{creatingShareId === item.id ? "Gerando…" : delivered ? "Gerar novo link" : "Entregar ao cliente"}</button>
+                    <span className="delivery-action"><button className="share-report-button" title={!approved ? workspace.type === "office" ? "A entrega libera após a aprovação assinada pelo revisor designado." : "A entrega libera após concluir e assinar a revisão responsável." : "Gerar link rastreável para o cliente."} onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || !approved || item.integrityStatus !== "verified" || !canPrepare}>{creatingShareId === item.id ? "Gerando…" : delivered ? "Gerar novo link" : "Entregar ao cliente"}</button>{!approved && <small>{approvalBlocked ? "Assinatura inválida" : "Aguardando assinatura"}</small>}</span>
                     <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} disabled={item.integrityStatus === "invalid"} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
                     <button className={`delete-button ${preserved ? "preserved" : ""}`} onClick={() => deleteScenario(item)} disabled={preserved} title={preserved ? "Versão preservada pela trilha de responsabilidade" : "Excluir versão"} aria-label={preserved ? `Preservar ${item.name}` : `Excluir ${item.name}`}>{preserved ? "⌑" : "×"}</button>
                   </div>
@@ -1962,10 +1989,12 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
           <header><div><span>{workspace.type === "office" ? "SEGUNDA REVISÃO INTERNA" : "REVISÃO DO RESPONSÁVEL"}</span><h2 id="approval-title">{workspace.type === "office" ? "Revisar uma versão preparada por outra pessoa" : "Assumir responsabilidade por esta versão"}</h2></div><button type="button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null} aria-label="Fechar revisão">×</button></header>
           <div className="approval-scenario-summary"><span>VERSÃO CONGELADA</span><strong>{approvalScenario.name}</strong><small>{approvalScenario.companyName ?? activeCompany?.name} · hash #{approvalScenario.inputHash?.slice(0, 12)}</small></div>
           <div className="approval-boundary"><b>{workspace.type === "office" ? `Preparado por ${approvalScenario.preparerName ?? "outro membro do escritório"}; revisado por você.` : "Este é o modo para contador responsável ou profissional que trabalha sozinho."}</b><p>{workspace.type === "office" ? "O sistema registrará duas contas distintas e apresentará isso como revisão interna do escritório — não como revisão independente externa nem como validação do CFC." : "O sistema registrará que preparador e revisor são a mesma conta. Isso não será apresentado como revisão independente nem como validação do CFC."}</p></div>
-          <label>Registro profissional declarado<input value={professionalRegistration} onChange={(event) => setProfessionalRegistration(event.target.value)} maxLength={40} placeholder="Ex.: CRC SP-123456/O-7" autoFocus /></label>
+          <label className={professionalRegistration && !professionalRegistrationIsValid(professionalRegistration) ? "approval-field-invalid" : ""}>Registro profissional declarado<input value={professionalRegistration} onChange={(event) => { setProfessionalRegistration(event.target.value); setApprovalError(""); }} maxLength={40} placeholder="Ex.: CRC SP-123456/O-7" aria-invalid={professionalRegistration ? !professionalRegistrationIsValid(professionalRegistration) : undefined} autoFocus /><small>Precisa conter letras e números, como “CRC SP-123456/O-7”.</small></label>
           <label>Nota da revisão (opcional)<textarea value={approvalNote} onChange={(event) => setApprovalNote(event.target.value)} maxLength={400} placeholder="Registre conferências, ressalvas ou documentos utilizados." /></label>
-          <label className="approval-declaration"><input type="checkbox" checked={approvalAcknowledged} onChange={(event) => setApprovalAcknowledged(event.target.checked)} /><span>Eu, <b>{user.displayName}</b>, declaro que revisei as premissas, a origem da alíquota, o resultado congelado e os limites metodológicos desta versão{workspace.type === "office" ? " preparada por outro membro" : ""}.</span></label>
-          <footer><button type="button" className="secondary-button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null}>Cancelar</button><button type="button" className="primary-button" onClick={() => void approveAsResponsible()} disabled={approvingScenarioId !== null || !approvalAcknowledged || professionalRegistration.trim().length < 4}>{approvingScenarioId !== null ? "Assinando revisão…" : workspace.type === "office" ? "Aprovar como segundo revisor" : "Aprovar e assinar versão"}</button></footer>
+          <label className="approval-declaration"><input type="checkbox" checked={approvalAcknowledged} onChange={(event) => { setApprovalAcknowledged(event.target.checked); setApprovalError(""); }} /><span>Eu, <b>{user.displayName}</b>, declaro que revisei as premissas, a origem da alíquota, o resultado congelado e os limites metodológicos desta versão{workspace.type === "office" ? " preparada por outro membro" : ""}.</span></label>
+          {approvalError && <div className="approval-inline-error" role="alert"><b>A aprovação não foi concluída</b><span>{approvalError}</span></div>}
+          <div className="approval-release-note"><span>4</span><p><b>Liberação da entrega</b>O botão “Entregar ao cliente” será habilitado depois que esta assinatura for confirmada novamente pelo servidor.</p></div>
+          <footer><button type="button" className="secondary-button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null}>Cancelar</button><button type="button" className="primary-button" onClick={() => void approveAsResponsible()} disabled={approvingScenarioId !== null || !approvalAcknowledged || !professionalRegistrationIsValid(professionalRegistration)}>{approvingScenarioId !== null ? "Assinando revisão…" : workspace.type === "office" ? "Aprovar como segundo revisor" : "Aprovar e assinar versão"}</button></footer>
         </section>
       </div>}
     </main>
