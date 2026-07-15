@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
+import { fiscalIntelligenceSeed, hashFiscalIntelligenceContent } from "../domain/fiscal-intelligence";
 import { hashFiscalRuleContent, rtc2026ReferenceCases, rtc2026RuleSeed } from "../domain/fiscal-rules";
 import * as schema from "./schema";
 
@@ -252,6 +253,22 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_knowledge_bases (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          code TEXT NOT NULL,
+          version TEXT NOT NULL,
+          name TEXT NOT NULL,
+          scope TEXT NOT NULL,
+          status TEXT DEFAULT 'pilot' NOT NULL,
+          content_json TEXT NOT NULL,
+          content_hash TEXT NOT NULL,
+          source_count INTEGER DEFAULT 0 NOT NULL,
+          checked_at TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS tax_periods (
           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
           owner_user_id INTEGER NOT NULL,
@@ -463,6 +480,8 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_rule_sets_status_effective_idx ON fiscal_rule_sets (status, effective_from, effective_to)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_reference_cases_rule_code_idx ON fiscal_reference_cases (rule_set_id, code)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_reference_cases_rule_set_idx ON fiscal_reference_cases (rule_set_id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_knowledge_bases_code_version_idx ON fiscal_knowledge_bases (code, version)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_knowledge_bases_status_checked_idx ON fiscal_knowledge_bases (status, checked_at, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_periods_owner_company_period_idx ON tax_periods (owner_user_id, company_id, period_key)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_periods_owner_status_period_idx ON tax_periods (owner_user_id, status, period_key, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_ledger_entries_period_source_idx ON tax_ledger_entries (period_id, source_key)"),
@@ -510,6 +529,29 @@ export function ensureScenarioSchema() {
       JSON.stringify(referenceCase.input),
       JSON.stringify(referenceCase.expected),
     )));
+
+    const knowledgeHash = await hashFiscalIntelligenceContent(fiscalIntelligenceSeed.contentJson);
+    await env.DB.prepare(`
+      INSERT OR IGNORE INTO fiscal_knowledge_bases (
+        code, version, name, scope, status, content_json, content_hash, source_count, checked_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).bind(
+      fiscalIntelligenceSeed.code,
+      fiscalIntelligenceSeed.version,
+      fiscalIntelligenceSeed.name,
+      fiscalIntelligenceSeed.scope,
+      fiscalIntelligenceSeed.status,
+      fiscalIntelligenceSeed.contentJson,
+      knowledgeHash,
+      fiscalIntelligenceSeed.sourceCount,
+      fiscalIntelligenceSeed.checkedAt,
+    ).run();
+
+    const knowledgeBase = await env.DB.prepare(
+      "SELECT content_hash FROM fiscal_knowledge_bases WHERE code = ? AND version = ?",
+    ).bind(fiscalIntelligenceSeed.code, fiscalIntelligenceSeed.version).first<{ content_hash: string }>();
+    if (!knowledgeBase) throw new Error("fiscal_knowledge_seed_unavailable");
+    if (knowledgeBase.content_hash !== knowledgeHash) throw new Error("fiscal_knowledge_version_conflict");
   })();
 
   return scenarioSchemaReady;

@@ -215,6 +215,24 @@ export const fiscalReferenceCases = sqliteTable("fiscal_reference_cases", {
   index("fiscal_reference_cases_rule_set_idx").on(table.ruleSetId),
 ]);
 
+export const fiscalKnowledgeBases = sqliteTable("fiscal_knowledge_bases", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  code: text("code").notNull(),
+  version: text("version").notNull(),
+  name: text("name").notNull(),
+  scope: text("scope").notNull(),
+  status: text("status").notNull().default("pilot"),
+  contentJson: text("content_json").notNull(),
+  contentHash: text("content_hash").notNull(),
+  sourceCount: integer("source_count").notNull().default(0),
+  checkedAt: text("checked_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_knowledge_bases_code_version_idx").on(table.code, table.version),
+  index("fiscal_knowledge_bases_status_checked_idx").on(table.status, table.checkedAt, table.id),
+]);
+
 export const taxPeriods = sqliteTable("tax_periods", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ownerUserId: integer("owner_user_id").notNull(),

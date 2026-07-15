@@ -38,6 +38,7 @@
 - `billing_accounts`: estado de cobrança desacoplado do motor fiscal.
 - `fiscal_rule_sets`: conteúdo normativo versionado, vigência, estado e hash de integridade.
 - `fiscal_reference_cases`: entradas e saídas esperadas usadas como regressão de cada versão fiscal.
+- `fiscal_knowledge_bases`: bases de pesquisa manual imutáveis por código/versão, com escopo, fontes, data de conferência e hash de integridade.
 - `tax_periods`: contêiner da competência por empresa, regime, efeito jurídico e revisão ativa.
 - `tax_ledger_entries`: livro append-only de débitos, créditos, ajustes e extinções, sempre vinculado à evidência de origem.
 - `tax_reconciliation_snapshots`: capturas assináveis das três fontes de conciliação: livro interno, contabilidade e ambiente oficial.
@@ -66,6 +67,22 @@ Uma nova regra deve incluir:
 6. revisão profissional antes de disponibilizar qualquer estado homologado.
 
 Nunca recalcule silenciosamente um relatório histórico com uma versão nova do motor.
+
+### Inteligência fiscal determinística
+
+O motor `mc-manual-fiscal-0.1.0` não usa modelo generativo nem embeddings. Ele executa uma sequência verificável:
+
+1. normaliza a pergunta e reconhece termos da ontologia manual;
+2. extrai rota, tributo, segmento, NCM, CEST e condições declaradas;
+3. impede a execução quando o recorte não pertence à base ativa;
+4. pede os fatos operacionais ausentes, sem preenchê-los por inferência;
+5. aplica somente regras e classificações estruturadas da versão armazenada;
+6. devolve achados separados por natureza — alíquota própria, âmbito de ST e parâmetro de tabela;
+7. apresenta a trilha de decisão e apenas as fontes efetivamente usadas.
+
+A base inicial `ICMS-SP-MG-AUTOPECAS@0.1.0` cobre exclusivamente autopeças remetidas de São Paulo para Minas Gerais. O resultado máximo é `conditional` enquanto a base estiver no nível `pilot_conditional`. Simples Nacional, destinatário não contribuinte, benefício/regime especial, uso não automotivo ou classificação ausente bloqueiam a conclusão operacional.
+
+NCM, CEST, descrição e uso são condições cumulativas para localizar um item de ST. A MVA mostrada é apenas o parâmetro constante da tabela mineira: o motor não a transforma em ICMS-ST a recolher. Uma alteração de fonte, regra, ontologia ou classificação exige nova versão; reutilizar o mesmo código/versão com conteúdo diferente provoca conflito de hash na inicialização.
 
 ## Segregação de funções
 

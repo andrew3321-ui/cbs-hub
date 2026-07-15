@@ -203,3 +203,26 @@ test("apuração líquida mantém 2026 bloqueado e prepara fechamento auditável
   assert.match(schema, /tax_reconciliation_snapshots/);
   assert.match(health, /TAX_DETERMINATION_ENGINE_VERSION/);
 });
+
+test("inteligência manual expõe cobertura, pendências e fontes sem fabricar conclusão", async () => {
+  const [app, intelligenceUi, intelligenceApi, intelligenceDomain, schema, migration] = await Promise.all([
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/FiscalIntelligence.tsx", root), "utf8"),
+    readFile(new URL("app/api/fiscal-intelligence/route.ts", root), "utf8"),
+    readFile(new URL("domain/fiscal-intelligence.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("drizzle/0014_lean_silhouette.sql", root), "utf8"),
+  ]);
+
+  assert.match(app, /Inteligência fiscal/);
+  assert.match(intelligenceUi, /Sem IA generativa/);
+  assert.match(intelligenceUi, /FICHA DE CONFIRMAÇÃO/);
+  assert.match(intelligenceUi, /Fontes efetivamente usadas nesta resposta/);
+  assert.match(intelligenceApi, /fiscal_knowledge_integrity_failure/);
+  assert.match(intelligenceApi, /Cache-Control": "no-store/);
+  assert.match(intelligenceDomain, /pilot_conditional/);
+  assert.match(intelligenceDomain, /MVA de tabela não é valor de ICMS-ST/);
+  assert.match(intelligenceDomain, /REGIME-SIMPLES-PENDING/);
+  assert.match(schema, /fiscal_knowledge_bases_code_version_idx/);
+  assert.match(migration, /CREATE TABLE `fiscal_knowledge_bases`/);
+});
