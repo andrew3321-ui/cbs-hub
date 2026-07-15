@@ -7,7 +7,7 @@ import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function requestScenarioReview(request: Request) {
   const user = await getCurrentUser();
-  if (!user) return Response.json({ error: "Faça login para encaminhar a revisão." }, { status: 401 });
+  if (!user) return Response.json({ error: "Faça login para iniciar a revisão interna." }, { status: 401 });
   try {
     await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;
@@ -21,13 +21,14 @@ async function requestScenarioReview(request: Request) {
     if (!scenario.snapshotJson || !scenario.inputHash || scenario.calculationVersion === "legacy") return Response.json({ error: "Este registro é anterior à blindagem. Carregue as premissas e salve uma nova versão." }, { status: 409 });
     const signedRecord = signedRecordFromScenario(scenario, user.id);
     if (!signedRecord || !(await verifyScenarioRecord(signedRecord, scenario.recordSignature, scenario.signatureVersion))) return Response.json({ error: "A verificação criptográfica falhou. Este registro foi bloqueado e não pode seguir para revisão." }, { status: 409 });
-    if (scenario.reviewStatus === "ready_for_review") return Response.json({ scenario: { id: scenario.id, reviewStatus: scenario.reviewStatus } });
+    if (["ready_for_review", "responsible_approved", "delivered"].includes(scenario.reviewStatus)) return Response.json({ scenario: { id: scenario.id, reviewStatus: scenario.reviewStatus } });
+    if (scenario.reviewStatus !== "draft") return Response.json({ error: "O estado atual não permite iniciar uma nova revisão." }, { status: 409 });
 
     await db.update(scenarios).set({ reviewStatus: "ready_for_review" }).where(eq(scenarios.id, scenarioId));
     await db.insert(auditEvents).values({ ownerUserId: user.id, companyId: scenario.companyId, scenarioId, eventType: "scenario.ready_for_review", eventData: JSON.stringify({ name: scenario.name, inputHash: scenario.inputHash, calculationVersion: scenario.calculationVersion, methodologyVersion: scenario.methodologyVersion }) });
     return Response.json({ scenario: { id: scenario.id, reviewStatus: "ready_for_review" } });
   } catch {
-    return Response.json({ error: "Não foi possível encaminhar o cenário para revisão." }, { status: 500 });
+    return Response.json({ error: "Não foi possível iniciar a revisão interna." }, { status: 500 });
   }
 }
 

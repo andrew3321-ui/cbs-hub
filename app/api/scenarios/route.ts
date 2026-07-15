@@ -1,7 +1,8 @@
-import { and, desc, eq, lt } from "drizzle-orm";
+import { and, desc, eq, inArray, lt } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { auditEvents, companies, reportShares, scenarios } from "../../../db/schema";
+import { auditEvents, companies, reportShares, scenarioApprovals, scenarios } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
+import { scenarioApprovalSummary } from "../../scenario-approval";
 import { buildScenarioSnapshot, CALCULATION_ENGINE_VERSION, hashScenarioInput, METHODOLOGY_VERSION, type RateSource, type ScenarioReliabilityInput } from "../../scenario-reliability";
 import { SCENARIO_SIGNATURE_VERSION, signedRecordFromScenario, signScenarioRecord, verifyScenarioRecord } from "../../scenario-signing";
 import { withApiTelemetry } from "../../api-infrastructure";
@@ -15,9 +16,9 @@ async function sha256(value: string) {
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
 
-function publicScenarioRecord<T extends Record<string, unknown>>(scenario: T, integrityStatus: "verified" | "legacy" | "invalid") {
+function publicScenarioRecord<T extends Record<string, unknown>>(scenario: T, integrityStatus: "verified" | "legacy" | "invalid", approval: Awaited<ReturnType<typeof scenarioApprovalSummary>> = null) {
   const safeEntries = Object.entries(scenario).filter(([key]) => key !== "recordSignature" && key !== "requestKey");
-  return { ...Object.fromEntries(safeEntries), integrityStatus };
+  return { ...Object.fromEntries(safeEntries), integrityStatus, approval };
 }
 
 const scenarioSelection = {
@@ -66,12 +67,15 @@ async function getScenarios(request: Request) {
     }
     const hasMore = rows.length > pageSize;
     const page = rows.slice(0, pageSize);
+    const approvalRows = page.length ? await db.select().from(scenarioApprovals).where(inArray(scenarioApprovals.scenarioId, page.map((row) => row.id))) : [];
+    const approvalByScenario = new Map(approvalRows.map((approval) => [approval.scenarioId, approval]));
     const verifiedRows = await Promise.all(page.map(async (row) => {
       const { recordSignature } = row;
-      if (row.calculationVersion === "legacy") return publicScenarioRecord(row, "legacy");
+      const approval = await scenarioApprovalSummary(approvalByScenario.get(row.id));
+      if (row.calculationVersion === "legacy") return publicScenarioRecord(row, "legacy", approval);
       const signedRecord = signedRecordFromScenario(row, user.id);
       const integrityStatus = signedRecord && await verifyScenarioRecord(signedRecord, recordSignature, row.signatureVersion) ? "verified" as const : "invalid" as const;
-      return publicScenarioRecord(row, integrityStatus);
+      return publicScenarioRecord(row, integrityStatus, approval);
     }));
     return Response.json({ scenarios: verifiedRows, nextCursor: hasMore ? page.at(-1)?.id ?? null : null });
   } catch {
@@ -180,11 +184,13 @@ async function deleteScenario(request: Request) {
     const id = Number(new URL(request.url).searchParams.get("id"));
     if (!Number.isInteger(id) || id <= 0) return Response.json({ error: "Cenário inválido." }, { status: 400 });
     const db = getDb();
-    const [ownedScenario] = await db.select({ id: scenarios.id, name: scenarios.name, companyId: scenarios.companyId, inputHash: scenarios.inputHash, calculationVersion: scenarios.calculationVersion }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.id, id), eq(companies.ownerUserId, user.id))).limit(1);
+    const [ownedScenario] = await db.select({ id: scenarios.id, name: scenarios.name, companyId: scenarios.companyId, inputHash: scenarios.inputHash, calculationVersion: scenarios.calculationVersion, reviewStatus: scenarios.reviewStatus }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.id, id), eq(companies.ownerUserId, user.id))).limit(1);
     if (!ownedScenario) return Response.json({ error: "Cenário não encontrado." }, { status: 404 });
+    if (["responsible_approved", "delivered"].includes(ownedScenario.reviewStatus)) return Response.json({ error: "Versões aprovadas são preservadas para manter a trilha de responsabilidade." }, { status: 409 });
 
     await db.insert(auditEvents).values({ ownerUserId: user.id, companyId: ownedScenario.companyId, scenarioId: id, eventType: "scenario.deleted", eventData: JSON.stringify({ name: ownedScenario.name, inputHash: ownedScenario.inputHash, calculationVersion: ownedScenario.calculationVersion }) });
     await db.delete(reportShares).where(eq(reportShares.scenarioId, id));
+    await db.delete(scenarioApprovals).where(eq(scenarioApprovals.scenarioId, id));
     await db.delete(scenarios).where(eq(scenarios.id, id));
     return Response.json({ deleted: true });
   } catch {

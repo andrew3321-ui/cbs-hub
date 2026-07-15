@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { buildScenarioSnapshot, hashScenarioInput, parseScenarioSnapshot, valuesFromSnapshot } from "../app/scenario-reliability.ts";
 import { SCENARIO_SIGNATURE_VERSION, signScenarioRecordWithSecret, verifyScenarioRecordWithSecret } from "../app/scenario-signing-core.ts";
+import { approvalRecordFromStored, RESPONSIBLE_REVIEW_DECLARATION_VERSION, SCENARIO_APPROVAL_SIGNATURE_VERSION, signScenarioApprovalWithSecret, verifyScenarioApprovalWithSecret } from "../app/scenario-approval-core.ts";
 
 const storedInput = {
   revenueCents: 20_000_000,
@@ -52,4 +53,30 @@ test("assinatura aceita registro íntegro e rejeita adulteração de qualquer ca
   assert.equal(await verifyScenarioRecordWithSecret({ ...record, newRateBps: record.newRateBps + 1 }, signature, SCENARIO_SIGNATURE_VERSION, secret), false);
   assert.equal(await verifyScenarioRecordWithSecret({ ...record, snapshotJson: snapshotJson.replace("projectedTaxCents", "projectedTaxTamperedCents") }, signature, SCENARIO_SIGNATURE_VERSION, secret), false);
   assert.equal(await verifyScenarioRecordWithSecret({ ...record, companyId: 12 }, signature, SCENARIO_SIGNATURE_VERSION, secret), false);
+});
+
+test("aprovação responsável assina identidade, registro e versão sem fingir revisão independente", async () => {
+  const secret = "chave-de-teste-com-mais-de-trinta-e-dois-caracteres";
+  const record = {
+    scenarioId: 31,
+    companyId: 11,
+    ownerUserId: 7,
+    reviewerUserId: 7,
+    reviewerName: "Contadora Responsável",
+    reviewerEmail: "contadora@example.com",
+    professionalRegistration: "CRC SP-123456/O-7",
+    assuranceLevel: "responsible_self_review",
+    credentialVerification: "self_declared",
+    decision: "approved",
+    declarationVersion: RESPONSIBLE_REVIEW_DECLARATION_VERSION,
+    scenarioInputHash: "a".repeat(64),
+    scenarioRecordSignature: "b".repeat(64),
+    decisionNote: "Premissas e memória revisadas.",
+    decidedAt: "2026-07-15T12:00:00.000Z",
+  };
+  const signature = await signScenarioApprovalWithSecret(record, secret);
+  assert.equal(await verifyScenarioApprovalWithSecret(record, signature, SCENARIO_APPROVAL_SIGNATURE_VERSION, secret), true);
+  assert.equal(await verifyScenarioApprovalWithSecret({ ...record, professionalRegistration: "CRC SP-999999/O-9" }, signature, SCENARIO_APPROVAL_SIGNATURE_VERSION, secret), false);
+  assert.equal(await verifyScenarioApprovalWithSecret({ ...record, scenarioInputHash: "c".repeat(64) }, signature, SCENARIO_APPROVAL_SIGNATURE_VERSION, secret), false);
+  assert.equal(approvalRecordFromStored({ ...record, assuranceLevel: "independent_review" }), null);
 });

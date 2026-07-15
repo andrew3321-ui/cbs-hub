@@ -6,6 +6,19 @@ import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type Rev
 
 type Section = "overview" | "companies" | "simulator" | "documents" | "rules" | "determination" | "academy";
 
+type ScenarioApproval = {
+  id: number;
+  reviewerName: string;
+  professionalRegistration: string;
+  assuranceLevel: string;
+  credentialVerification: string;
+  decision: string;
+  decisionNote: string;
+  declarationVersion: string;
+  decidedAt: string;
+  integrityStatus: "verified" | "invalid";
+};
+
 type SavedScenario = {
   id: number;
   name: string;
@@ -29,6 +42,7 @@ type SavedScenario = {
   integrityStatus: "verified" | "legacy" | "invalid";
   companyId: number;
   createdAt: string;
+  approval: ScenarioApproval | null;
 };
 
 type AuditEvent = {
@@ -225,7 +239,8 @@ const products = [
 
 const auditEventLabels: Record<string, string> = {
   "scenario.created": "Versão de cálculo congelada",
-  "scenario.ready_for_review": "Encaminhada à revisão",
+  "scenario.ready_for_review": "Revisão interna iniciada",
+  "scenario.responsible_approved": "Aprovada pelo responsável técnico",
   "scenario.deleted": "Cenário excluído",
   "report_share.created": "Relatório compartilhado",
   "report_share.revoked": "Compartilhamento revogado",
@@ -328,11 +343,16 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
   const [scenarioName, setScenarioName] = useState("Cenário base · 2027");
   const [targetYear, setTargetYear] = useState(2027);
   const [rateSource, setRateSource] = useState<Exclude<RateSource, "legacy_unverified">>("custom");
-  const [sourceNote, setSourceNote] = useState("Projeção informada pelo responsável pela análise; validar incidência e créditos.");
+  const [sourceNote, setSourceNote] = useState("Premissa recebida do cliente e registrada pelo escritório; conferir incidência e créditos antes da aprovação.");
   const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
   const [reportShares, setReportShares] = useState<ReportShare[]>([]);
   const [auditEvents, setAuditEvents] = useState<AuditEvent[]>([]);
   const [reviewingScenarioId, setReviewingScenarioId] = useState<number | null>(null);
+  const [approvalScenario, setApprovalScenario] = useState<SavedScenario | null>(null);
+  const [professionalRegistration, setProfessionalRegistration] = useState("");
+  const [approvalNote, setApprovalNote] = useState("");
+  const [approvalAcknowledged, setApprovalAcknowledged] = useState(false);
+  const [approvingScenarioId, setApprovingScenarioId] = useState<number | null>(null);
   const [creatingShareId, setCreatingShareId] = useState<number | null>(null);
   const [comparisonIds, setComparisonIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
@@ -506,7 +526,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     setScenarioName("Primeiro cenário · 2027");
     setTargetYear(2027);
     setRateSource("custom");
-    setSourceNote("Projeção informada pelo responsável pela análise; validar incidência e créditos.");
+    setSourceNote("Premissa recebida do cliente e registrada pelo escritório; conferir incidência e créditos antes da aprovação.");
   }
 
   async function saveScenario() {
@@ -544,7 +564,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       pendingScenarioRequest.current = null;
       setSavedScenarios((current) => [data.scenario!, ...current.filter((scenario) => scenario.id !== data.scenario!.id)].slice(0, 8));
       setCompanies((current) => current.map((company) => company.id === activeCompanyId ? { ...company, latestScenario: data.scenario } : company));
-      setMessage(data.replayed ? "A tentativa anterior já havia sido salva; o sistema recuperou a mesma versão sem duplicar o cenário." : `Cenário congelado e assinado na versão ${data.scenario.calculationVersion}. Agora encaminhe-o para revisão antes de compartilhar.`);
+      setMessage(data.replayed ? "A tentativa anterior já havia sido salva; o sistema recuperou a mesma versão sem duplicar o cenário." : `Versão congelada e assinada no motor ${data.scenario.calculationVersion}. Agora inicie a revisão interna.`);
       void refreshAuditEvents(activeCompanyId);
     } catch (error) {
       setMessage(error instanceof Error && error.message !== "save failed" ? error.message : "Não foi possível salvar agora. A prévia continua disponível nesta tela.");
@@ -614,12 +634,50 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       if (!response.ok || !data.scenario) throw new Error(data.error || "review failed");
       setSavedScenarios((current) => current.map((scenario) => scenario.id === item.id ? { ...scenario, reviewStatus: data.scenario!.reviewStatus } : scenario));
       setCompanies((current) => current.map((company) => company.latestScenario?.id === item.id ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: data.scenario!.reviewStatus } } : company));
-      setMessage("Cenário fechado para edição e encaminhado à revisão. O status ainda não significa validação profissional.");
+      setMessage("Revisão interna iniciada. Confira as premissas e, ao concluir, aprove como responsável técnico.");
       if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
     } catch (error) {
-      setMessage(error instanceof Error && error.message !== "review failed" ? error.message : "Não foi possível encaminhar o cenário para revisão.");
+      setMessage(error instanceof Error && error.message !== "review failed" ? error.message : "Não foi possível iniciar a revisão interna.");
     } finally {
       setReviewingScenarioId(null);
+    }
+  }
+
+  function openResponsibleApproval(item: SavedScenario) {
+    const previousRegistration = savedScenarios.find((scenario) => scenario.approval?.professionalRegistration)?.approval?.professionalRegistration ?? "";
+    setProfessionalRegistration(previousRegistration);
+    setApprovalNote("");
+    setApprovalAcknowledged(false);
+    setApprovalScenario(item);
+    setMessage("");
+  }
+
+  async function approveAsResponsible() {
+    if (!approvalScenario) return;
+    setApprovingScenarioId(approvalScenario.id);
+    setMessage("");
+    try {
+      const response = await fetch("/api/scenarios/approve", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          scenarioId: approvalScenario.id,
+          professionalRegistration,
+          decisionNote: approvalNote,
+          acknowledged: approvalAcknowledged,
+        }),
+      });
+      const data = (await response.json()) as { scenario?: { id: number; reviewStatus: ReviewStatus; approval: ScenarioApproval }; error?: string };
+      if (!response.ok || !data.scenario) throw new Error(data.error || "approval failed");
+      setSavedScenarios((current) => current.map((scenario) => scenario.id === data.scenario!.id ? { ...scenario, reviewStatus: data.scenario!.reviewStatus, approval: data.scenario!.approval } : scenario));
+      setCompanies((current) => current.map((company) => company.latestScenario?.id === data.scenario!.id ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: data.scenario!.reviewStatus, approval: data.scenario!.approval } } : company));
+      setApprovalScenario(null);
+      setMessage("Revisão concluída e assinada. O relatório agora pode ser entregue ao cliente como revisado pelo responsável.");
+      if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
+    } catch (error) {
+      setMessage(error instanceof Error && error.message !== "approval failed" ? error.message : "Não foi possível registrar a revisão responsável.");
+    } finally {
+      setApprovingScenarioId(null);
     }
   }
 
@@ -644,10 +702,14 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
     setMessage("");
     try {
       const response = await fetch("/api/report-shares", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scenarioId: item.id, expiryDays: 30 }) });
-      const data = (await response.json()) as { share?: ReportShare; error?: string };
+      const data = (await response.json()) as { share?: ReportShare; scenarioReviewStatus?: ReviewStatus; error?: string };
       if (!response.ok || !data.share) throw new Error(data.error || "share failed");
       const share = { ...data.share, scenarioName: item.name };
       setReportShares((current) => [share, ...current.map((row) => row.scenarioId === item.id && !row.revokedAt ? { ...row, revokedAt: new Date().toISOString() } : row)]);
+      if (data.scenarioReviewStatus) {
+        setSavedScenarios((current) => current.map((scenario) => scenario.id === item.id ? { ...scenario, reviewStatus: data.scenarioReviewStatus! } : scenario));
+        setCompanies((current) => current.map((company) => company.latestScenario?.id === item.id ? { ...company, latestScenario: { ...company.latestScenario, reviewStatus: data.scenarioReviewStatus! } } : company));
+      }
       try { await navigator.clipboard.writeText(share.url); } catch { /* The link remains available in the sharing center. */ }
       setMessage("Link seguro gerado e copiado. Ele expira em 30 dias.");
       if (activeCompanyId) void refreshAuditEvents(activeCompanyId);
@@ -752,7 +814,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       setCompanyForm({ name: "", cnpj: "", taxRegime: "Simples Nacional", sector: "Serviços B2B" });
       setShowCompanyForm(false);
       setSection("simulator");
-      setMessage("Empresa cadastrada. Crie o primeiro cenário para iniciar a análise.");
+      setMessage("Cliente cadastrado. Crie a primeira análise para iniciar o trabalho técnico.");
     } catch {
       setMessage("Revise os dados. O CNPJ deve conter 14 dígitos quando informado.");
     } finally {
@@ -790,7 +852,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             <span className="nav-icon">⌂</span>Visão geral
           </button>
           <button className={section === "companies" ? "active" : ""} onClick={() => setSection("companies")}>
-            <span className="nav-icon">▦</span>Empresas
+            <span className="nav-icon">▦</span>Clientes
           </button>
           <button className={section === "simulator" ? "active" : ""} onClick={() => setSection("simulator")}>
             <span className="nav-icon">↗</span>Análises
@@ -813,7 +875,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           <span className="eyebrow">Cobertura da carteira</span>
           <strong>{portfolioInsights.analyzed} de {companies.length} analisadas</strong>
           <div className="progress-track"><span style={{ width: `${companies.length ? (portfolioInsights.analyzed / companies.length) * 100 : 0}%` }} /></div>
-          <p>{portfolioInsights.pending ? `${portfolioInsights.pending} empresa${portfolioInsights.pending > 1 ? "s" : ""} sem cenário.` : "Toda a carteira possui análise."}</p>
+          <p>{portfolioInsights.pending ? `${portfolioInsights.pending} cliente${portfolioInsights.pending > 1 ? "s" : ""} sem análise.` : "Toda a carteira possui análise."}</p>
         </div>
 
         <a className="support-button methodology-link" href="/metodologia"><span>✓</span> Metodologia</a>
@@ -823,8 +885,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
       <section className="workspace">
         <header className="topbar">
           <div>
-            <p className="company-label">EMPRESA ANALISADA</p>
-            <select className="company-select" aria-label="Empresa analisada" value={activeCompanyId ?? ""} onChange={(event) => changeActiveCompany(Number(event.target.value))}>
+            <p className="company-label">CLIENTE ATIVO DO ESCRITÓRIO</p>
+            <select className="company-select" aria-label="Cliente analisado" value={activeCompanyId ?? ""} onChange={(event) => changeActiveCompany(Number(event.target.value))}>
               {!companies.length && <option value="">Carregando carteira…</option>}
               {companies.map((company) => <option value={company.id} key={company.id}>{company.name}</option>)}
             </select>
@@ -842,8 +904,8 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
         {section === "companies" && (
           <div className="page-content companies-page">
             <div className="page-heading">
-              <div><p className="kicker">CARTEIRA DE CLIENTES</p><h1>Empresas monitoradas</h1><p>Priorize clientes por risco de margem e mantenha cada análise separada.</p></div>
-              <button className="primary-button" onClick={() => setShowCompanyForm((current) => !current)}>{showCompanyForm ? "Fechar cadastro" : "Adicionar empresa"}</button>
+              <div><p className="kicker">CARTEIRA DO ESCRITÓRIO</p><h1>Clientes monitorados</h1><p>Organize cada empresa atendida, priorize riscos e preserve a responsabilidade por versão.</p></div>
+              <button className="primary-button" onClick={() => setShowCompanyForm((current) => !current)}>{showCompanyForm ? "Fechar cadastro" : "Adicionar cliente"}</button>
             </div>
 
             {message && <div className="toast" role="status">{message}</div>}
@@ -860,7 +922,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             </form>}
 
             <section className="portfolio-metrics" aria-label="Indicadores da carteira">
-              <article><span>Empresas</span><strong>{companies.length}</strong><small>{portfolioInsights.analyzed} com cenário salvo</small></article>
+              <article><span>Clientes</span><strong>{companies.length}</strong><small>{portfolioInsights.analyzed} com análise salva</small></article>
               <article className="risk"><span>Margem em risco</span><strong>{portfolioInsights.atRisk}</strong><small>Precisam de ação comercial</small></article>
               <article className="protected"><span>Margem protegida</span><strong>{portfolioInsights.protected}</strong><small>Reajuste suficiente</small></article>
               <article><span>Receita monitorada</span><strong>{compactCurrency.format(portfolioInsights.revenue)}</strong><small>Últimos cenários da carteira</small></article>
@@ -890,7 +952,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             <div className="page-heading">
               <div>
                 <p className="kicker">EMPRESA ATIVA · {activeCompany?.taxRegime?.toUpperCase() ?? "CARREGANDO"}</p>
-                <h1>{activeCompany?.name ?? "Sua empresa"}</h1>
+                <h1>{activeCompany?.name ?? "Selecione um cliente"}</h1>
                 <p>Acompanhe o impacto estimado da transição tributária neste cliente.</p>
               </div>
               <button className="primary-button" onClick={() => setSection("simulator")}>Abrir simulador <span>→</span></button>
@@ -989,7 +1051,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                 <label>Nome do cenário<input value={scenarioName} onChange={(event) => setScenarioName(event.target.value)} /></label>
                 <div className="field-row reliability-fields">
                   <label>Ano-alvo<select value={targetYear} onChange={(event) => setTargetYear(Number(event.target.value))}>{[2026, 2027, 2028, 2029, 2030, 2031, 2032, 2033].map((year) => <option value={year} key={year}>{year}</option>)}</select></label>
-                  <label>Origem da alíquota<select value={rateSource} onChange={(event) => setRateSource(event.target.value as Exclude<RateSource, "legacy_unverified">)}><option value="custom">Premissa informada</option><option value="accountant">Fornecida por contador</option></select></label>
+                  <label>Origem da alíquota<select value={rateSource} onChange={(event) => setRateSource(event.target.value as Exclude<RateSource, "legacy_unverified">)}><option value="custom">Informada pelo cliente</option><option value="accountant">Definida pelo escritório</option></select></label>
                 </div>
                 <label>Registro da fonte<textarea minLength={10} maxLength={400} value={sourceNote} onChange={(event) => setSourceNote(event.target.value)} placeholder="Documento, memória de cálculo, nome do responsável ou hipótese usada." /></label>
                 {targetYear === 2026 && <p className="reliability-warning"><b>Atenção a 2026:</b> é ano de teste da CBS e do IBS. A alíquota deste campo é uma premissa informada e não é tratada pelo sistema como alíquota oficial homologada.</p>}
@@ -1052,7 +1114,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                   <div><span>04</span><p><b>Limite de perda de volume</b><small>Para preservar o resultado atual</small></p><strong>{figures.maxVolumeLoss.toFixed(1).replace(".", ",")}%</strong></div>
                 </div>
               </div>
-              <p className="executive-note">Estimativa gerencial para {activeCompany?.name ?? "a empresa"}, baseada nas premissas informadas em {new Date().toLocaleDateString("pt-BR")}. Valide enquadramento, créditos e alíquotas com sua contabilidade.</p>
+              <p className="executive-note">Prévia técnica para {activeCompany?.name ?? "o cliente"}, baseada nas premissas registradas em {new Date().toLocaleDateString("pt-BR")}. Conclua a revisão responsável antes de entregar este resultado.</p>
             </section>
 
             {comparedScenarios.length > 0 && <section className="panel compare-panel">
@@ -1070,27 +1132,38 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
             </section>}
 
             <section className="panel saved-panel">
-              <div className="panel-heading"><div><span className="eyebrow">HISTÓRICO VERSIONADO</span><h3>Cenários congelados</h3></div><span>{savedScenarios.length} registros · cada hash identifica uma entrada</span></div>
+              <div className="panel-heading"><div><span className="eyebrow">TRABALHO TÉCNICO VERSIONADO</span><h3>Análises e responsabilidade</h3></div><span>{savedScenarios.length} versões · nenhuma aprovação reescreve o cálculo</span></div>
+              <div className="review-flow-strip" aria-label="Fluxo de revisão do escritório">
+                <span><b>01</b><small>EM ELABORAÇÃO</small><strong>Versão congelada</strong></span>
+                <i>→</i><span><b>02</b><small>CONTROLE INTERNO</small><strong>Revisão responsável</strong></span>
+                <i>→</i><span><b>03</b><small>RESPONSABILIDADE</small><strong>Aprovação assinada</strong></span>
+                <i>→</i><span><b>04</b><small>CLIENTE</small><strong>Entrega rastreável</strong></span>
+              </div>
               {savedScenarios.length ? (
-                <div className="saved-list">{savedScenarios.map((item) => (
+                <div className="saved-list">{savedScenarios.map((item) => {
+                  const finalized = ["responsible_approved", "delivered"].includes(item.reviewStatus);
+                  const approvalBlocked = finalized && item.approval?.integrityStatus !== "verified";
+                  const approved = finalized && !approvalBlocked;
+                  const delivered = item.reviewStatus === "delivered";
+                  return (
                   <div className="saved-row" key={item.id}>
                     <button className="saved-load" onClick={() => loadScenario(item)} disabled={item.integrityStatus === "invalid"}>
                       <span><b>{item.name}</b><small>{new Date(item.createdAt).toLocaleDateString("pt-BR")} · ano {item.targetYear} · {rateSourceLabel(item.rateSource)}</small></span>
                       <span><b>{(item.newRateBps / 100).toFixed(2).replace(".", ",")}%</b><small>IBS + CBS informados</small></span>
                       <i className={`integrity-label ${item.integrityStatus}`}>{item.integrityStatus === "verified" ? `Assinado · #${item.inputHash?.slice(0, 8)}` : item.integrityStatus === "invalid" ? "Integridade bloqueada" : "Legado"}</i>
                     </button>
-                    <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""}`} onClick={() => void markReadyForReview(item)} disabled={item.integrityStatus !== "verified" || item.reviewStatus === "ready_for_review" || reviewingScenarioId === item.id || !item.snapshotJson}>{item.integrityStatus === "invalid" ? "Bloqueado" : item.reviewStatus === "ready_for_review" ? "Aguardando validação" : reviewingScenarioId === item.id ? "Encaminhando…" : item.snapshotJson && item.integrityStatus === "verified" ? "Enviar à revisão" : "Regravar versão"}</button>
-                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || item.reviewStatus !== "ready_for_review" || item.integrityStatus !== "verified"}>{creatingShareId === item.id ? "Gerando…" : "Compartilhar"}</button>
+                    <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""} ${approved ? "approved" : ""}`} onClick={() => item.reviewStatus === "ready_for_review" ? openResponsibleApproval(item) : void markReadyForReview(item)} disabled={item.integrityStatus !== "verified" || finalized || reviewingScenarioId === item.id || !item.snapshotJson}>{item.integrityStatus === "invalid" ? "Cálculo bloqueado" : approvalBlocked ? "Aprovação bloqueada" : delivered ? "Entregue ao cliente" : approved ? "Aprovado pelo responsável" : item.reviewStatus === "ready_for_review" ? "Aprovar como responsável" : reviewingScenarioId === item.id ? "Iniciando…" : item.snapshotJson && item.integrityStatus === "verified" ? "Iniciar revisão interna" : "Regravar versão"}</button>
+                    <button className="share-report-button" onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || !approved || item.integrityStatus !== "verified"}>{creatingShareId === item.id ? "Gerando…" : delivered ? "Gerar novo link" : "Entregar ao cliente"}</button>
                     <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} disabled={item.integrityStatus === "invalid"} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
-                    <button className="delete-button" onClick={() => deleteScenario(item)} aria-label={`Excluir ${item.name}`}>×</button>
+                    <button className={`delete-button ${finalized ? "preserved" : ""}`} onClick={() => deleteScenario(item)} disabled={finalized} title={finalized ? "Versão preservada pela trilha de responsabilidade" : "Excluir versão"} aria-label={finalized ? `Preservar ${item.name}` : `Excluir ${item.name}`}>{finalized ? "⌑" : "×"}</button>
                   </div>
-                ))}</div>
+                )})}</div>
               ) : <div className="empty-state"><span>＋</span><b>Nenhum cenário salvo</b><p>Ajuste as premissas e salve sua primeira comparação.</p></div>}
             </section>
 
             <section className="panel share-center-panel">
               <div className="panel-heading"><div><span className="eyebrow">ENTREGA AO CLIENTE</span><h3>Relatórios compartilhados</h3></div><span className="share-count">{reportShares.filter((share) => !share.revokedAt && new Date(share.expiresAt) > new Date()).length} ativos</span></div>
-              <p className="share-center-intro">Somente versões congeladas e encaminhadas à revisão podem gerar um link. O documento informa claramente que ainda aguarda validação profissional.</p>
+              <p className="share-center-intro">Somente versões aprovadas e assinadas pelo responsável podem ser entregues. O relatório identifica o responsável e informa quando o registro profissional é autodeclarado.</p>
               {reportShares.length ? <div className="share-list">{reportShares.map((share) => {
                 const expired = new Date(share.expiresAt) <= new Date();
                 const active = !share.revokedAt && !expired;
@@ -1100,7 +1173,7 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
                   <div className="share-views"><strong>{share.views}</strong><small>visualizações</small></div>
                   <div className="share-actions"><button disabled={!active} onClick={() => void copyReportShare(share)}>Copiar</button><a className={active ? "" : "disabled"} href={active ? share.url : undefined} target="_blank" rel="noreferrer">Abrir</a><button className="revoke" disabled={!active} onClick={() => void revokeReportShare(share)}>Revogar</button></div>
                 </article>;
-              })}</div> : <div className="share-empty"><span>↗</span><div><b>Nenhum relatório compartilhado</b><p>Salve um cenário e use “Compartilhar” para entregar uma análise profissional ao cliente.</p></div></div>}
+              })}</div> : <div className="share-empty"><span>↗</span><div><b>Nenhum relatório entregue</b><p>Congele, revise e aprove uma versão antes de gerar o link do cliente.</p></div></div>}
             </section>
 
             <section className="panel audit-panel">
@@ -1337,6 +1410,18 @@ export default function MargemApp({ user, signOutPath }: MargemAppProps) {
           </div>
         )}
       </section>
+
+      {approvalScenario && <div className="approval-modal-backdrop" role="presentation" onMouseDown={() => approvingScenarioId === null && setApprovalScenario(null)}>
+        <section className="approval-modal" role="dialog" aria-modal="true" aria-labelledby="approval-title" onMouseDown={(event) => event.stopPropagation()}>
+          <header><div><span>REVISÃO DO RESPONSÁVEL</span><h2 id="approval-title">Assumir responsabilidade por esta versão</h2></div><button type="button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null} aria-label="Fechar revisão">×</button></header>
+          <div className="approval-scenario-summary"><span>VERSÃO CONGELADA</span><strong>{approvalScenario.name}</strong><small>{activeCompany?.name} · hash #{approvalScenario.inputHash?.slice(0, 12)}</small></div>
+          <div className="approval-boundary"><b>Este é o modo para contador responsável ou profissional que trabalha sozinho.</b><p>O sistema registrará que preparador e revisor são a mesma conta. Isso não será apresentado como revisão independente nem como validação do CFC.</p></div>
+          <label>Registro profissional declarado<input value={professionalRegistration} onChange={(event) => setProfessionalRegistration(event.target.value)} maxLength={40} placeholder="Ex.: CRC SP-123456/O-7" autoFocus /></label>
+          <label>Nota da revisão (opcional)<textarea value={approvalNote} onChange={(event) => setApprovalNote(event.target.value)} maxLength={400} placeholder="Registre conferências, ressalvas ou documentos utilizados." /></label>
+          <label className="approval-declaration"><input type="checkbox" checked={approvalAcknowledged} onChange={(event) => setApprovalAcknowledged(event.target.checked)} /><span>Eu, <b>{user.displayName}</b>, declaro que revisei as premissas, a origem da alíquota, o resultado congelado e os limites metodológicos desta versão.</span></label>
+          <footer><button type="button" className="secondary-button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null}>Cancelar</button><button type="button" className="primary-button" onClick={() => void approveAsResponsible()} disabled={approvingScenarioId !== null || !approvalAcknowledged || professionalRegistration.trim().length < 4}>{approvingScenarioId !== null ? "Assinando revisão…" : "Aprovar e assinar versão"}</button></footer>
+        </section>
+      </div>}
     </main>
   );
 }

@@ -1,5 +1,6 @@
 import { env } from "cloudflare:workers";
 import { signScenarioRecordWithSecret, verifyScenarioRecordWithSecret, type ScenarioSignedRecord } from "./scenario-signing-core";
+import { signScenarioApprovalWithSecret, verifyScenarioApprovalWithSecret, type ScenarioApprovalSignedRecord } from "./scenario-approval-core";
 
 export { SCENARIO_SIGNATURE_VERSION, signedRecordFromScenario } from "./scenario-signing-core";
 
@@ -27,6 +28,18 @@ export function signScenarioRecord(record: ScenarioSignedRecord) {
 export async function verifyScenarioRecord(record: ScenarioSignedRecord, signature: string | null | undefined, signatureVersion: string | null | undefined) {
   try {
     return await verifyScenarioRecordWithSecret(record, signature, signatureVersion, signingSecret());
+  } catch {
+    return false;
+  }
+}
+
+export function signScenarioApprovalRecord(record: ScenarioApprovalSignedRecord) {
+  return signScenarioApprovalWithSecret(record, signingSecret());
+}
+
+export async function verifyScenarioApprovalRecord(record: ScenarioApprovalSignedRecord, signature: string | null | undefined, signatureVersion: string | null | undefined) {
+  try {
+    return await verifyScenarioApprovalWithSecret(record, signature, signatureVersion, signingSecret());
   } catch {
     return false;
   }

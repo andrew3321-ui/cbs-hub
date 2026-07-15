@@ -1,12 +1,13 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 type AuthMode = "login" | "register" | "recover";
 
 const content = {
-  login: { eyebrow: "BEM-VINDO DE VOLTA", title: "Entre no seu painel", subtitle: "Continue suas análises e acompanhe a margem de cada empresa." },
-  register: { eyebrow: "COMECE GRATUITAMENTE", title: "Crie seu acesso", subtitle: "Uma conta independente para manter sua carteira segura e organizada." },
+  login: { eyebrow: "BEM-VINDO DE VOLTA", title: "Entre no seu escritório", subtitle: "Continue o trabalho técnico e acompanhe cada cliente da carteira." },
+  register: { eyebrow: "COMECE GRATUITAMENTE", title: "Crie o acesso do escritório", subtitle: "Seu espaço profissional para organizar clientes, revisar versões e controlar entregas." },
   recover: { eyebrow: "RECUPERAÇÃO SEGURA", title: "Defina uma nova senha", subtitle: "Use a chave de segurança entregue quando sua conta foi criada." },
 };
 
@@ -25,7 +26,8 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const copy = content[mode];
 
   useEffect(() => {
-    setResetComplete(mode === "login" && new URLSearchParams(window.location.search).get("senha") === "alterada");
+    const timer = window.setTimeout(() => setResetComplete(mode === "login" && new URLSearchParams(window.location.search).get("senha") === "alterada"), 0);
+    return () => window.clearTimeout(timer);
   }, [mode]);
 
   const passwordScore = useMemo(() => {
@@ -76,7 +78,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   if (issuedRecoveryKey) {
     return (
       <main className="auth-shell">
-        <a className="auth-brand" href="/"><span>mc</span>margem<b>clara</b></a>
+        <Link className="auth-brand" href="/"><span>mc</span>margem<b>clara</b></Link>
         <section className="auth-success-card">
           <span className="auth-success-icon">✓</span>
           <p className="auth-eyebrow">CONTA CRIADA COM SUCESSO</p>
@@ -92,13 +94,13 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
 
   return (
     <main className="auth-shell">
-      <a className="auth-brand" href="/"><span>mc</span>margem<b>clara</b></a>
+      <Link className="auth-brand" href="/"><span>mc</span>margem<b>clara</b></Link>
       <section className="auth-layout">
         <div className="auth-story">
           <span className="auth-story-label">DECISÕES FISCAIS. MARGENS PROTEGIDAS.</span>
-          <h2>Seu espaço para transformar imposto em decisão.</h2>
-          <p>Uma conta segura, uma carteira organizada e cenários que pertencem somente a você.</p>
-          <div className="auth-story-points"><span><i>✓</i> Dados separados por usuário</span><span><i>✓</i> Senha protegida por criptografia forte</span><span><i>✓</i> Sessão privada por 30 dias</span></div>
+          <h2>Seu escritório com método, versão e responsabilidade.</h2>
+          <p>Organize as empresas atendidas, preserve o trabalho técnico e entregue relatórios com revisão explícita.</p>
+          <div className="auth-story-points"><span><i>✓</i> Carteira privada por contador</span><span><i>✓</i> Versões assinadas e auditáveis</span><span><i>✓</i> Aprovação responsável antes da entrega</span></div>
           <div className="auth-mini-panel"><span>EXPOSIÇÃO ESTIMADA</span><strong>+ R$ 13.665</strong><small>Reajuste recomendado <b>5,6%</b></small><i><em style={{height:"34%"}} /><em style={{height:"48%"}} /><em style={{height:"42%"}} /><em style={{height:"68%"}} /><em style={{height:"88%"}} /></i></div>
         </div>
 
@@ -109,13 +111,13 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
           {resetComplete && <div className="auth-success-message">Senha alterada. Entre com a nova senha.</div>}
           {error && <div className="auth-error" role="alert">{error}</div>}
           <form onSubmit={submit}>
-            {mode === "register" && <label>Nome completo<input autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Como podemos chamar você?" /></label>}
+            {mode === "register" && <label>Nome do profissional responsável<input autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome completo do contador ou responsável" /></label>}
             <label>E-mail<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} placeholder="voce@empresa.com.br" /></label>
             {mode === "recover" && <label>Chave de recuperação<input className="recovery-input" autoComplete="off" required value={recoveryKey} onChange={(event) => setRecoveryKey(event.target.value.toUpperCase())} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" /></label>}
             <label>{mode === "recover" ? "Nova senha" : "Senha"}<span className="password-field"><input type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={8} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Mínimo de 8 caracteres" /><button type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? "Ocultar" : "Mostrar"}</button></span></label>
             {mode !== "login" && <><div className="password-strength" aria-label={`Força da senha: ${passwordScore} de 4`}>{[1,2,3,4].map((item) => <i className={passwordScore >= item ? `active score-${passwordScore}` : ""} key={item} />)}<span>{passwordScore < 2 ? "Senha fraca" : passwordScore < 4 ? "Senha adequada" : "Senha forte"}</span></div><label>Confirmar senha<input type={showPassword ? "text" : "password"} autoComplete="new-password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Digite novamente" /></label></>}
             {mode === "login" && <div className="auth-form-options"><label><input type="checkbox" defaultChecked /> Manter conectado</label><a href="/recuperar-senha">Esqueci minha senha</a></div>}
-            <button className="auth-submit" disabled={loading || (mode !== "login" && passwordScore < 2)}>{loading ? "Protegendo seu acesso…" : mode === "login" ? "Entrar no painel" : mode === "register" ? "Criar minha conta" : "Redefinir senha"}<span>→</span></button>
+            <button className="auth-submit" disabled={loading || (mode !== "login" && passwordScore < 2)}>{loading ? "Protegendo seu acesso…" : mode === "login" ? "Entrar no escritório" : mode === "register" ? "Criar conta profissional" : "Redefinir senha"}<span>→</span></button>
           </form>
           <p className="auth-switch">{mode === "login" ? <>Ainda não tem acesso? <a href="/cadastro">Criar conta gratuita</a></> : mode === "register" ? <>Já tem uma conta? <a href="/entrar">Entrar</a></> : <>Lembrou sua senha? <a href="/entrar">Voltar ao login</a></>}</p>
           <p className="auth-legal">Ao continuar, você concorda com o uso seguro dos dados exclusivamente para operar sua conta.</p>

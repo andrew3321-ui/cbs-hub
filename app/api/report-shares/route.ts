@@ -1,8 +1,9 @@
 import { and, desc, eq, isNull } from "drizzle-orm";
 import { getCurrentUser } from "../../auth";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { auditEvents, companies, reportShares, scenarios } from "../../../db/schema";
-import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
+import { auditEvents, companies, reportShares, scenarioApprovals, scenarios } from "../../../db/schema";
+import { approvalRecordFromStored } from "../../scenario-approval-core";
+import { signedRecordFromScenario, verifyScenarioApprovalRecord, verifyScenarioRecord } from "../../scenario-signing";
 import { withApiTelemetry } from "../../api-infrastructure";
 
 function secureToken() {
@@ -42,18 +43,27 @@ async function createReportShare(request: Request) {
     if (!Number.isInteger(scenarioId) || scenarioId <= 0) return Response.json({ error: "Cenário inválido." }, { status: 400 });
 
     const db = getDb();
-    const [owned] = await db.select({ scenario: scenarios }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).where(and(eq(scenarios.id, scenarioId), eq(companies.ownerUserId, user.id))).limit(1);
+    const [owned] = await db.select({ scenario: scenarios, approval: scenarioApprovals }).from(scenarios).innerJoin(companies, eq(scenarios.companyId, companies.id)).leftJoin(scenarioApprovals, eq(scenarioApprovals.scenarioId, scenarios.id)).where(and(eq(scenarios.id, scenarioId), eq(companies.ownerUserId, user.id))).limit(1);
     const ownedScenario = owned?.scenario;
     if (!ownedScenario) return Response.json({ error: "Cenário não encontrado." }, { status: 404 });
-    if (ownedScenario.reviewStatus !== "ready_for_review" || !ownedScenario.snapshotJson || !ownedScenario.inputHash) return Response.json({ error: "Encaminhe o cenário para revisão antes de compartilhar. O relatório continuará identificado como aguardando validação profissional." }, { status: 409 });
+    if (!["responsible_approved", "delivered"].includes(ownedScenario.reviewStatus) || !ownedScenario.snapshotJson || !ownedScenario.inputHash || !owned.approval) return Response.json({ error: "A revisão do responsável técnico deve ser concluída antes da entrega ao cliente." }, { status: 409 });
     const signedRecord = signedRecordFromScenario(ownedScenario, user.id);
     if (!signedRecord || !(await verifyScenarioRecord(signedRecord, ownedScenario.recordSignature, ownedScenario.signatureVersion))) return Response.json({ error: "A assinatura de integridade deste cenário não confere. O compartilhamento foi bloqueado." }, { status: 409 });
+    const approvalRecord = approvalRecordFromStored(owned.approval);
+    if (!approvalRecord || !(await verifyScenarioApprovalRecord(approvalRecord, owned.approval.approvalSignature, owned.approval.signatureVersion))) return Response.json({ error: "A assinatura da revisão responsável não confere. A entrega foi bloqueada." }, { status: 409 });
 
     const now = new Date().toISOString();
-    await db.update(reportShares).set({ revokedAt: now }).where(and(eq(reportShares.scenarioId, scenarioId), eq(reportShares.ownerUserId, user.id), isNull(reportShares.revokedAt)));
-    const [share] = await db.insert(reportShares).values({ token: secureToken(), scenarioId, companyId: ownedScenario.companyId, ownerUserId: user.id, note: note || null, expiresAt: new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString() }).returning();
-    await db.insert(auditEvents).values({ ownerUserId: user.id, companyId: ownedScenario.companyId, scenarioId, eventType: "report_share.created", eventData: JSON.stringify({ shareId: share.id, expiresAt: share.expiresAt, inputHash: ownedScenario.inputHash, calculationVersion: ownedScenario.calculationVersion }) });
-    return Response.json({ share: { ...share, url: `${new URL(request.url).origin}/relatorio/${share.token}` } }, { status: 201 });
+    const expiresAt = new Date(Date.now() + expiryDays * 24 * 60 * 60 * 1000).toISOString();
+    const token = secureToken();
+    const [, shareRows] = await db.batch([
+      db.update(reportShares).set({ revokedAt: now }).where(and(eq(reportShares.scenarioId, scenarioId), eq(reportShares.ownerUserId, user.id), isNull(reportShares.revokedAt))),
+      db.insert(reportShares).values({ token, scenarioId, companyId: ownedScenario.companyId, ownerUserId: user.id, note: note || null, expiresAt }).returning(),
+      db.update(scenarios).set({ reviewStatus: "delivered" }).where(eq(scenarios.id, scenarioId)),
+      db.insert(auditEvents).values({ ownerUserId: user.id, companyId: ownedScenario.companyId, scenarioId, eventType: "report_share.created", eventData: JSON.stringify({ approvalId: owned.approval.id, assuranceLevel: owned.approval.assuranceLevel, expiresAt, inputHash: ownedScenario.inputHash, calculationVersion: ownedScenario.calculationVersion }) }),
+    ]);
+    const share = shareRows[0];
+    if (!share) throw new Error("report_share_insert_failed");
+    return Response.json({ share: { ...share, url: `${new URL(request.url).origin}/relatorio/${share.token}` }, scenarioReviewStatus: "delivered" }, { status: 201 });
   } catch {
     return Response.json({ error: "Não foi possível gerar o link agora." }, { status: 500 });
   }

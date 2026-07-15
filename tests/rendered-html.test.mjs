@@ -14,6 +14,7 @@ test("a experiência publicada contém identidade e rotas comerciais", async () 
   assert.match(landing, /Margem Clara/);
   assert.match(landing, /href="\/planos"/);
   assert.match(layout, /Inteligência tributária/);
+  assert.match(layout, /og-accountants\.png/);
   assert.match(pricing, /Beta gratuito ativo/);
   assert.match(pricing, /PricingClient/);
   assert.doesNotMatch(`${landing}\n${layout}`, /codex-preview|_sites-preview|Your site is taking shape/i);
@@ -44,12 +45,38 @@ test("análises publicadas expõem versionamento e não afirmam homologação", 
   assert.doesNotMatch(app, /Ano teste 2026/);
   assert.match(app, /Origem da alíquota/);
   assert.match(report, /parseScenarioSnapshot/);
-  assert.match(report, /Aguardando validação profissional/);
+  assert.match(report, /Revisado pelo responsável técnico/);
+  assert.match(report, /registro autodeclarado/);
   assert.match(methodology, /Snapshot imutável por versão/);
   assert.match(scenariosApi, /hashScenarioInput/);
   assert.match(scenariosApi, /snapshotJson/);
   assert.match(signing, /SCENARIO_SIGNING_KEY_V1/);
   assert.match(report, /integrityBlocked/);
+});
+
+test("fluxo remodelado trata o contador como usuário principal e exige aprovação antes da entrega", async () => {
+  const [landing, client, approveApi, shareApi, approvalCore, schema, report] = await Promise.all([
+    readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/api/scenarios/approve/route.ts", root), "utf8"),
+    readFile(new URL("app/api/report-shares/route.ts", root), "utf8"),
+    readFile(new URL("app/scenario-approval-core.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
+  ]);
+
+  assert.match(landing, /Inteligência tributária para escritórios contábeis/);
+  assert.match(client, /CLIENTE ATIVO DO ESCRITÓRIO/);
+  assert.match(client, /Aprovar como responsável/);
+  assert.match(client, /não será apresentado como revisão independente/);
+  assert.match(approveApi, /responsible_self_review/);
+  assert.match(approveApi, /credentialVerification: "self_declared"/);
+  assert.match(shareApi, /responsible_approved/);
+  assert.match(shareApi, /verifyScenarioApprovalRecord/);
+  assert.match(approvalCore, /scenarioInputHash/);
+  assert.match(schema, /scenario_approvals_scenario_idx/);
+  assert.match(report, /A revisão responsável não equivale a homologação/);
+  assert.doesNotMatch(`${client}\n${report}`, /Aguardando validação profissional/);
 });
 
 test("infraestrutura escalável evita N+1, duplicidade e falhas sem correlação", async () => {

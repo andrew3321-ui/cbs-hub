@@ -31,9 +31,9 @@ export default async function LandingPage() {
 
       <section className="landing-hero">
         <div className="landing-hero-copy">
-          <span className="landing-pill"><i /> Reforma tributária sem decisões no escuro</span>
-          <h1>Veja o impacto tributário <em>antes</em> que ele apareça na margem.</h1>
-          <p>Transforme dados fiscais em cenários claros de preço, imposto e rentabilidade para cada empresa da sua carteira.</p>
+          <span className="landing-pill"><i /> Inteligência tributária para escritórios contábeis</span>
+          <h1>Da premissa do cliente à entrega <em>revisada</em> pelo contador.</h1>
+          <p>Organize a carteira, preserve cada versão e transforme dados fiscais em análises rastreáveis para as empresas atendidas pelo seu escritório.</p>
           <div className="landing-hero-actions">
             <Link className="landing-cta" href={primaryPath}>{user ? "Abrir meu painel" : "Criar acesso gratuito"}<span>→</span></Link>
             <a className="landing-watch" href="#demonstracoes"><span className="play-dot">▶</span> Ver como funciona</a>
@@ -41,7 +41,7 @@ export default async function LandingPage() {
           <div className="landing-trust">
             <span><b>01</b> Sem cartão</span>
             <span><b>02</b> Dados separados por empresa</span>
-            <span><b>03</b> Primeira análise em minutos</span>
+            <span><b>03</b> Revisão e entrega rastreáveis</span>
           </div>
         </div>
 
@@ -83,8 +83,8 @@ export default async function LandingPage() {
       </section>
 
       <section className="landing-proof-strip" aria-label="Benefícios principais">
-        <p>Feito para quem precisa <strong>explicar o impacto</strong>, não apenas calcular.</p>
-        <div><span>Contadores consultivos</span><i /> <span>PMEs de serviços</span><i /> <span>Times financeiros</span><i /> <span>Gestores comerciais</span></div>
+        <p>Feito para o contador que precisa <strong>explicar, revisar e entregar</strong>, não apenas calcular.</p>
+        <div><span>Escritórios contábeis</span><i /> <span>Contadores consultivos</span><i /> <span>Responsáveis técnicos</span><i /> <span>Carteiras multiempresa</span></div>
       </section>
 
       <section className="landing-section product-section" id="produto">
@@ -108,7 +108,7 @@ export default async function LandingPage() {
         <div className="steps-grid">
           <article><span>1</span><small>ORGANIZE</small><h3>Cadastre a empresa</h3><p>Registre regime, setor e CNPJ para manter cada cliente em seu próprio contexto.</p></article>
           <article><span>2</span><small>SIMULE</small><h3>Informe as premissas</h3><p>Receita, carga atual, projeção e custos viram um cenário comparável em segundos.</p></article>
-          <article><span>3</span><small>DECIDA</small><h3>Proteja a margem</h3><p>Receba a faixa de reajuste e um resumo executivo pronto para a conversa com o cliente.</p></article>
+          <article><span>3</span><small>REVISE E ENTREGUE</small><h3>Assuma a responsabilidade</h3><p>Conclua a revisão do responsável, preserve a assinatura e entregue um relatório rastreável ao cliente.</p></article>
         </div>
       </section>
 
@@ -126,13 +126,13 @@ export default async function LandingPage() {
       </section>
 
       <section className="landing-final-cta">
-        <div><span className="landing-eyebrow">MARGEM CLARA</span><h2>Troque a incerteza por uma decisão explicável.</h2><p>Comece com uma empresa, simule o impacto e mostre o caminho para proteger a rentabilidade.</p></div>
+        <div><span className="landing-eyebrow">MARGEM CLARA PARA CONTADORES</span><h2>Do trabalho técnico à entrega, sem perder a responsabilidade.</h2><p>Comece com um cliente, registre as premissas, revise a versão e entregue um resultado com limites claros.</p></div>
         <Link className="landing-cta light" href={primaryPath}>{user ? "Voltar ao painel" : "Criar acesso gratuito"}<span>→</span></Link>
       </section>
 
       <footer className="landing-footer">
         <Link className="landing-brand" href="/"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link>
-        <p>Inteligência tributária para decisões comerciais mais claras.</p>
+        <p>Inteligência tributária e fluxo de revisão para escritórios contábeis.</p>
         <span><Link href="/metodologia">Metodologia</Link> · <Link href="/planos">Planos</Link> · © 2026 Margem Clara</span>
       </footer>
     </main>

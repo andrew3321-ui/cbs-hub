@@ -2,13 +2,15 @@
 
 ## Fluxo de uma análise
 
-1. O cliente envia as premissas com um identificador idempotente.
+1. O contador registra as premissas recebidas do cliente com um identificador idempotente.
 2. A API valida propriedade da empresa e limites de entrada.
 3. O servidor executa o motor financeiro e normaliza o snapshot.
 4. As entradas recebem um hash SHA-256.
 5. Entradas, snapshot, empresa, proprietário e versões recebem assinatura HMAC.
 6. O cenário é persistido como rascunho imutável e gera um evento de auditoria.
-7. Revisão e compartilhamento só avançam após verificação da assinatura.
+7. O contador inicia a revisão interna e declara seu registro profissional antes da aprovação responsável.
+8. A aprovação recebe assinatura própria, ligada ao hash e à assinatura do cenário.
+9. A entrega ao cliente só avança quando as duas assinaturas são válidas.
 
 ## Limites de confiança
 
@@ -21,6 +23,7 @@
 
 - `companies`: raiz de isolamento da carteira por proprietário.
 - `scenarios`: entrada, versões, snapshot, assinatura e chave idempotente.
+- `scenario_approvals`: decisão append-only, identidade declarada do responsável, nível de garantia e assinatura vinculada à versão revisada.
 - `audit_events`: eventos append-only de cenário e compartilhamento.
 - `report_shares`: tokens revogáveis e com expiração.
 - `users` e `sessions`: autenticação e sessão da aplicação.
@@ -36,7 +39,7 @@ Toda consulta de dados privados deve aplicar o proprietário no servidor. IDs re
 
 ## Escalabilidade
 
-- A carteira carrega a empresa e o último cenário em uma única consulta.
+- A carteira carrega a empresa e o último cenário em uma consulta; aprovações são buscadas em lote, sem N+1.
 - Listagens extensas usam cursor por ID, sem custo crescente de `OFFSET`.
 - Índices compostos acompanham empresa, data e proprietário nos caminhos quentes.
 - A criação de cenário é idempotente e tolera concorrência por índice único.
@@ -54,6 +57,12 @@ Uma nova regra deve incluir:
 6. revisão profissional antes de disponibilizar qualquer estado homologado.
 
 Nunca recalcule silenciosamente um relatório histórico com uma versão nova do motor.
+
+## Segregação de funções
+
+O estado `responsible_approved` representa revisão pelo responsável usando a mesma conta que controla a carteira. O registro informa `responsible_self_review` e `self_declared`, portanto não pode ser rotulado como revisão independente ou credencial verificada externamente. O estado `delivered` registra que uma versão já aprovada gerou um link para o cliente. Versões aprovadas não podem ser excluídas pela operação comum; qualquer correção cria uma nova versão e uma nova aprovação.
+
+Uma futura revisão independente deverá exigir outro usuário autenticado, vínculo explícito com o escritório e proibição, no servidor, de `reviewer_user_id === preparer_user_id`.
 
 ### Portão de execução fiscal
 

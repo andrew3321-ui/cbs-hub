@@ -18,8 +18,8 @@ export default function MethodologyPage() {
       <section className="methodology-hero">
         <span>CONFIABILIDADE POR CONSTRUÇÃO</span>
         <h1>Metodologia, versões e limites claramente documentados.</h1>
-        <p>O Margem Clara mantém o foco em inteligência tributária. Esta página mostra o que o motor calcula hoje, como cada resultado é preservado e o que ainda exige revisão profissional.</p>
-        <div className="methodology-version-grid"><div><small>MOTOR FINANCEIRO</small><strong>{CALCULATION_ENGINE_VERSION}</strong></div><div><small>MOTOR DE APURAÇÃO</small><strong>{TAX_DETERMINATION_ENGINE_VERSION}</strong></div><div><small>METODOLOGIA</small><strong>{METHODOLOGY_VERSION}</strong></div><div><small>ESTADO MAIS ALTO ATUAL</small><strong>Aguardando validação profissional</strong></div></div>
+        <p>O Margem Clara é um ambiente de trabalho para contadores. Esta página separa o que o motor verifica, o que o responsável técnico declara e o que ainda depende de fonte oficial.</p>
+        <div className="methodology-version-grid"><div><small>MOTOR FINANCEIRO</small><strong>{CALCULATION_ENGINE_VERSION}</strong></div><div><small>MOTOR DE APURAÇÃO</small><strong>{TAX_DETERMINATION_ENGINE_VERSION}</strong></div><div><small>METODOLOGIA</small><strong>{METHODOLOGY_VERSION}</strong></div><div><small>GARANTIA DISPONÍVEL</small><strong>Revisão do responsável</strong></div></div>
       </section>
 
       <section className="methodology-section">
@@ -38,8 +38,8 @@ export default function MethodologyPage() {
           <li><b>02</b><div><strong>Snapshot imutável por versão</strong><p>Relatórios novos leem o resultado congelado. Uma futura mudança de fórmula não reescreve documentos antigos.</p></div></li>
           <li><b>03</b><div><strong>Hash SHA-256 das entradas</strong><p>Receita, alíquotas, custos, ano, origem e nota formam uma impressão digital única da versão.</p></div></li>
           <li><b>04</b><div><strong>Assinatura criptográfica HMAC</strong><p>Entradas, snapshot, empresa, proprietário e versões são assinados com uma chave secreta do servidor. Qualquer divergência bloqueia revisão, compartilhamento e relatório.</p></div></li>
-          <li><b>05</b><div><strong>Trilha de auditoria</strong><p>Salvamento, envio à revisão, compartilhamento, revogação e exclusão deixam registro com data e versão.</p></div></li>
-          <li><b>06</b><div><strong>Estados sem falsa homologação</strong><p>Hoje existem “rascunho técnico” e “aguardando validação profissional”. O sistema não permite marcar algo como validado.</p></div></li>
+          <li><b>05</b><div><strong>Trilha de responsabilidade</strong><p>Salvamento, início da revisão, aprovação responsável, entrega e revogação deixam registro com data, identidade e versão.</p></div></li>
+          <li><b>06</b><div><strong>Níveis de garantia explícitos</strong><p>“Revisado pelo responsável” identifica autodeclaração do contador na mesma conta. Não é exibido como revisão independente nem como homologação do CFC ou da autoridade fiscal.</p></div></li>
         </ol>
       </section>
 
@@ -53,7 +53,7 @@ export default function MethodologyPage() {
         <div className="methodology-card-grid">
           <article><h3>Livros separados</h3><code>CBS ≠ IBS</code><p>Débitos, créditos, ajustes e extinções permanecem segregados. O motor não compensa um tributo com o outro.</p></article>
           <article><h3>Crédito condicionado</h3><code>elegibilidade + evidência + conciliação</code><p>Crédito pendente ou bloqueado não reduz o saldo. A divergência fica visível na fila de exceções.</p></article>
-          <article><h3>Fechamento controlado</h3><code>snapshot + hash + revisão independente</code><p>Um período fechado não é reescrito. Correções posteriores entram como ajuste ou estorno vinculado à origem.</p></article>
+          <article><h3>Fechamento controlado</h3><code>snapshot + hash + revisão responsável</code><p>Um período fechado não é reescrito. A revisão independente exigirá uma segunda identidade; correções entram em nova versão.</p></article>
         </div>
       </section>
 
@@ -70,7 +70,7 @@ export default function MethodologyPage() {
         </div>
       </section>
 
-      <section className="methodology-final"><div><small>POLÍTICA DE EVOLUÇÃO</small><h2>Nenhuma regra fiscal entra silenciosamente.</h2><p>Cada alteração relevante recebe versão, fonte primária, casos adversos e data de vigência. A próxima etapa é homologar o livro com os contadores convidados e conectar a conciliação às fontes oficiais.</p></div><Link href="/app">Abrir minhas análises →</Link></section>
+      <section className="methodology-final"><div><small>POLÍTICA DE EVOLUÇÃO</small><h2>Nenhuma regra ou aprovação entra silenciosamente.</h2><p>Cada mudança recebe versão, fonte, casos adversos e vigência. Cada entrega identifica preparador, nível de revisão e limites; a próxima etapa é habilitar equipes com segregação real de funções.</p></div><Link href="/app">Abrir carteira do escritório →</Link></section>
     </main>
   );
 }

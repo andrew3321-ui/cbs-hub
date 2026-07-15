@@ -1,7 +1,7 @@
 import { eq, inArray } from "drizzle-orm";
 import { clearSessionCookieHeader, getCurrentUser, verifyPassword } from "../../auth";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { auditEvents, billingAccounts, companies, reportShares, scenarios, sessions, users } from "../../../db/schema";
+import { auditEvents, billingAccounts, companies, reportShares, scenarioApprovals, scenarios, sessions, users } from "../../../db/schema";
 
 export async function DELETE(request: Request) {
   const currentUser = await getCurrentUser();
@@ -19,6 +19,7 @@ export async function DELETE(request: Request) {
     await db.delete(billingAccounts).where(eq(billingAccounts.userId, user.id));
     await db.delete(auditEvents).where(eq(auditEvents.ownerUserId, user.id));
     await db.delete(reportShares).where(eq(reportShares.ownerUserId, user.id));
+    await db.delete(scenarioApprovals).where(eq(scenarioApprovals.ownerUserId, user.id));
     if (companyIds.length) await db.delete(scenarios).where(inArray(scenarios.companyId, companyIds));
     await db.delete(companies).where(eq(companies.ownerUserId, user.id));
     await db.delete(sessions).where(eq(sessions.userId, user.id));

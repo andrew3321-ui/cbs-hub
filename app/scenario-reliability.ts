@@ -4,7 +4,7 @@ export const CALCULATION_ENGINE_VERSION = "mc-margin-1.0.0";
 export const METHODOLOGY_VERSION = "rtc-foundation-2026.07";
 
 export type RateSource = "custom" | "accountant" | "legacy_unverified";
-export type ReviewStatus = "draft" | "ready_for_review";
+export type ReviewStatus = "draft" | "ready_for_review" | "responsible_approved" | "delivered";
 
 export type ScenarioReliabilityInput = {
   revenueCents: number;
@@ -144,7 +144,7 @@ export async function hashScenarioInput(input: ScenarioReliabilityInput) {
 }
 
 export function rateSourceLabel(source: RateSource) {
-  if (source === "accountant") return "Premissa fornecida por contador";
-  if (source === "custom") return "Premissa informada pelo usuário";
+  if (source === "accountant") return "Premissa técnica do escritório";
+  if (source === "custom") return "Premissa informada pelo cliente ou responsável";
   return "Registro legado sem origem verificada";
 }

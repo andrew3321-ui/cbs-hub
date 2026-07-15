@@ -1,10 +1,11 @@
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
 import Link from "next/link";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { companies, reportShares, scenarios, users } from "../../../db/schema";
+import { companies, reportShares, scenarioApprovals, scenarios, users } from "../../../db/schema";
 import { calculateScenarioValues } from "../../scenario-calculations";
+import { approvalRecordFromStored } from "../../scenario-approval-core";
 import { parseScenarioSnapshot, rateSourceLabel, valuesFromSnapshot, type RateSource } from "../../scenario-reliability";
-import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
+import { signedRecordFromScenario, verifyScenarioApprovalRecord, verifyScenarioRecord } from "../../scenario-signing";
 import ReportActions from "./ReportActions";
 
 export const dynamic = "force-dynamic";
@@ -31,12 +32,16 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
     targetYear: scenarios.targetYear, rateSource: scenarios.rateSource, sourceNote: scenarios.sourceNote, reviewStatus: scenarios.reviewStatus, calculationVersion: scenarios.calculationVersion, methodologyVersion: scenarios.methodologyVersion, inputHash: scenarios.inputHash, snapshotJson: scenarios.snapshotJson, calculatedAt: scenarios.calculatedAt, signatureVersion: scenarios.signatureVersion, recordSignature: scenarios.recordSignature,
     companyId: scenarios.companyId, ownerUserId: reportShares.ownerUserId,
     scenarioCreatedAt: scenarios.createdAt, companyName: companies.name, taxRegime: companies.taxRegime, sector: companies.sector, authorName: users.name,
-  }).from(reportShares).innerJoin(scenarios, eq(reportShares.scenarioId, scenarios.id)).innerJoin(companies, eq(reportShares.companyId, companies.id)).innerJoin(users, eq(reportShares.ownerUserId, users.id)).where(and(eq(reportShares.token, token), isNull(reportShares.revokedAt), gt(reportShares.expiresAt, new Date().toISOString()))).limit(1);
+    approval: scenarioApprovals,
+  }).from(reportShares).innerJoin(scenarios, eq(reportShares.scenarioId, scenarios.id)).innerJoin(companies, eq(reportShares.companyId, companies.id)).innerJoin(users, eq(reportShares.ownerUserId, users.id)).leftJoin(scenarioApprovals, eq(scenarioApprovals.scenarioId, scenarios.id)).where(and(eq(reportShares.token, token), isNull(reportShares.revokedAt), gt(reportShares.expiresAt, new Date().toISOString()))).limit(1);
   if (!report) return unavailable();
 
   const signedRecord = signedRecordFromScenario({ ...report, name: report.scenarioName }, report.ownerUserId);
   const integrityVerified = Boolean(signedRecord && await verifyScenarioRecord(signedRecord, report.recordSignature, report.signatureVersion));
   if (report.calculationVersion !== "legacy" && !integrityVerified) return integrityBlocked();
+  const approvalRecord = report.approval ? approvalRecordFromStored(report.approval) : null;
+  const approvalVerified = Boolean(approvalRecord && report.approval && await verifyScenarioApprovalRecord(approvalRecord, report.approval.approvalSignature, report.approval.signatureVersion));
+  if (["responsible_approved", "delivered"].includes(report.reviewStatus) && !approvalVerified) return integrityBlocked();
 
   await db.update(reportShares).set({ views: sql`${reportShares.views} + 1`, lastViewedAt: new Date().toISOString() }).where(eq(reportShares.id, report.shareId));
 
@@ -54,7 +59,18 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
   const { currentTax, projectedTax, currentMargin, projectedMargin, currentMarginRate, projectedMarginRate, requiredPriceIncrease, breakEvenRevenue, marginOfSafetyRate, annualImpact } = figures;
   const protectedMargin = projectedMargin >= currentMargin;
   const versioned = Boolean(frozenSnapshot && report.inputHash && report.calculationVersion !== "legacy" && integrityVerified);
-  const reviewLabel = report.reviewStatus === "ready_for_review" ? "Aguardando validação profissional" : "Rascunho técnico";
+  const reviewLabel = report.reviewStatus === "delivered"
+    ? "Entregue ao cliente"
+    : report.reviewStatus === "responsible_approved"
+      ? "Revisado pelo responsável técnico"
+      : report.reviewStatus === "ready_for_review"
+        ? "Em revisão interna"
+        : "Em elaboração";
+  const reviewDetail = approvalVerified && report.approval
+    ? `${report.approval.reviewerName} · ${report.approval.professionalRegistration} · registro autodeclarado`
+    : report.reviewStatus === "ready_for_review"
+      ? "O escritório ainda não concluiu sua revisão responsável."
+      : "Documento ainda não liberado para entrega.";
   const sourceLabel = rateSourceLabel(report.rateSource as RateSource);
 
   return (
@@ -71,8 +87,8 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
           <div className={`report-verdict ${protectedMargin ? "protected" : "attention"}`}><span>{protectedMargin ? "RESULTADO MATEMÁTICO PROTEGIDO" : "AÇÃO INDICADA PELO CÁLCULO"}</span><strong>{protectedMargin ? "Cenário sustenta a margem" : "Revisar preço"}</strong><small>{protectedMargin ? `Reajuste informado de ${adjustment.toFixed(1).replace(".", ",")}%` : `Reajuste de equilíbrio de ${requiredPriceIncrease.toFixed(1).replace(".", ",")}%`}</small></div>
         </section>
 
-        <section className={`report-assurance ${versioned ? "versioned" : "legacy"}`}>
-          <div><span>ESTADO DO DOCUMENTO</span><strong>{reviewLabel}</strong><small>Não representa homologação contábil ou fiscal.</small></div>
+        <section className={`report-assurance ${versioned ? "versioned" : "legacy"} ${approvalVerified ? "approved" : ""}`}>
+          <div><span>REVISÃO DO ESCRITÓRIO</span><strong>{reviewLabel}</strong><small>{reviewDetail}</small></div>
           <div><span>ORIGEM DA ALÍQUOTA</span><strong>{sourceLabel}</strong><small>{report.sourceNote}</small></div>
           <div><span>INTEGRIDADE</span><strong>{versioned ? `Assinatura verificada · ${report.calculationVersion}` : "Registro legado não assinado"}</strong><small>{report.inputHash ? `SHA-256 ${report.inputHash.slice(0, 12)}…` : "Sem hash de entrada"}</small></div>
           <Link href="/metodologia">Ver metodologia e limitações →</Link>
@@ -94,9 +110,9 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
           <article className="report-decision-card"><span>RESULTADO DO MOTOR</span><strong>{protectedMargin ? `${adjustment.toFixed(1).replace(".", ",")}%` : `${requiredPriceIncrease.toFixed(1).replace(".", ",")}%`}</strong><h2>{protectedMargin ? "Reajuste informado" : "Reajuste de equilíbrio"}</h2><p>{protectedMargin ? `O cálculo preserva o resultado mesmo com ${volumeLoss.toFixed(1).replace(".", ",")}% de queda no volume.` : "Este aumento aproxima o resultado projetado do atual sob as premissas registradas."}</p></article>
         </section>
 
-        <section className="report-next-actions"><div><span>CONTROLES OBRIGATÓRIOS</span><h2>Antes de usar na decisão</h2></div><ol><li><b>01</b><span><strong>Validar com profissional responsável</strong><small>Confirme enquadramento, incidência, créditos e período.</small></span></li><li><b>02</b><span><strong>Conferir a origem das premissas</strong><small>Use a nota registrada e o hash para identificar esta versão.</small></span></li><li><b>03</b><span><strong>Documentar a decisão</strong><small>Registre o aceite e as condições comerciais fora deste rascunho.</small></span></li></ol></section>
+        <section className="report-next-actions"><div><span>CONTROLES DE ENTREGA</span><h2>Como usar este documento</h2></div><ol><li><b>01</b><span><strong>Confirmar as premissas com o cliente</strong><small>Receita, custos e expectativas comerciais continuam sendo dados declarados.</small></span></li><li><b>02</b><span><strong>Respeitar o escopo da análise</strong><small>A revisão responsável não equivale a homologação da autoridade fiscal.</small></span></li><li><b>03</b><span><strong>Preservar a versão entregue</strong><small>Qualquer correção deve gerar uma nova versão e uma nova revisão.</small></span></li></ol></section>
 
-        <footer className="report-document-footer"><span>Preparado por <b>{report.authorName}</b> no Margem Clara</span><small>Resultado congelado em {report.calculatedAt ? date.format(new Date(report.calculatedAt)) : "data não registrada"}. Documento em estado “{reviewLabel}”.</small><Link href="/metodologia">Metodologia e fontes →</Link></footer>
+        <footer className="report-document-footer"><span>Preparado por <b>{report.authorName}</b> no Margem Clara</span><small>Resultado congelado em {report.calculatedAt ? date.format(new Date(report.calculatedAt)) : "data não registrada"}{approvalVerified && report.approval ? ` e revisado em ${date.format(new Date(report.approval.decidedAt))}` : ""}. Estado: “{reviewLabel}”.</small><Link href="/metodologia">Metodologia e fontes →</Link></footer>
       </article>
     </main>
   );

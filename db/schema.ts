@@ -59,6 +59,31 @@ export const scenarios = sqliteTable("scenarios", {
   index("scenarios_company_created_idx").on(table.companyId, table.createdAt, table.id),
 ]);
 
+export const scenarioApprovals = sqliteTable("scenario_approvals", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  scenarioId: integer("scenario_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  reviewerUserId: integer("reviewer_user_id").notNull(),
+  reviewerName: text("reviewer_name").notNull(),
+  reviewerEmail: text("reviewer_email").notNull(),
+  professionalRegistration: text("professional_registration").notNull(),
+  assuranceLevel: text("assurance_level").notNull().default("responsible_self_review"),
+  credentialVerification: text("credential_verification").notNull().default("self_declared"),
+  decision: text("decision").notNull().default("approved"),
+  declarationVersion: text("declaration_version").notNull(),
+  scenarioInputHash: text("scenario_input_hash").notNull(),
+  scenarioRecordSignature: text("scenario_record_signature").notNull(),
+  decisionNote: text("decision_note").notNull().default(""),
+  signatureVersion: text("signature_version").notNull(),
+  approvalSignature: text("approval_signature").notNull(),
+  decidedAt: text("decided_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("scenario_approvals_scenario_idx").on(table.scenarioId),
+  index("scenario_approvals_owner_company_decided_idx").on(table.ownerUserId, table.companyId, table.decidedAt, table.id),
+]);
+
 export const auditEvents = sqliteTable("audit_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ownerUserId: integer("owner_user_id").notNull(),

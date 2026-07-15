@@ -66,6 +66,29 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS scenario_approvals (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          scenario_id INTEGER NOT NULL,
+          company_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          reviewer_user_id INTEGER NOT NULL,
+          reviewer_name TEXT NOT NULL,
+          reviewer_email TEXT NOT NULL,
+          professional_registration TEXT NOT NULL,
+          assurance_level TEXT DEFAULT 'responsible_self_review' NOT NULL,
+          credential_verification TEXT DEFAULT 'self_declared' NOT NULL,
+          decision TEXT DEFAULT 'approved' NOT NULL,
+          declaration_version TEXT NOT NULL,
+          scenario_input_hash TEXT NOT NULL,
+          scenario_record_signature TEXT NOT NULL,
+          decision_note TEXT DEFAULT '' NOT NULL,
+          signature_version TEXT NOT NULL,
+          approval_signature TEXT NOT NULL,
+          decided_at TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS billing_accounts (
           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
           user_id INTEGER NOT NULL UNIQUE,
@@ -297,6 +320,8 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_user_expires_idx ON sessions (user_id, expires_at)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenarios_request_key_idx ON scenarios (request_key) WHERE request_key IS NOT NULL"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_company_created_idx ON scenarios (company_id, created_at, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenario_approvals_scenario_idx ON scenario_approvals (scenario_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS scenario_approvals_owner_company_decided_idx ON scenario_approvals (owner_user_id, company_id, decided_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_owner_company_created_idx ON audit_events (owner_user_id, company_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_owner_company_created_idx ON report_shares (owner_user_id, company_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_scenario_owner_idx ON report_shares (scenario_id, owner_user_id)"),

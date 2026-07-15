@@ -1,6 +1,6 @@
 # Margem Clara
 
-SaaS de inteligência tributária para versionar premissas, calcular impacto em margem e preparar análises para revisão profissional.
+SaaS para escritórios contábeis versionarem premissas, revisarem análises com responsabilidade explícita e entregarem resultados rastreáveis aos clientes.
 
 ## Stack
 
@@ -41,6 +41,8 @@ Comandos principais:
 8. Nenhuma regra fiscal alimenta cálculos antes de passar integridade, regressão, modo de execução e aprovação.
 9. CBS e IBS são apurados em livros separados; crédito ou extinção sem evidência nunca reduz o saldo.
 10. Competências fechadas são snapshots imutáveis; correções posteriores usam lançamentos de ajuste ou estorno.
+11. “Revisão do responsável” registra autodeclaração e ausência de segregação de funções; nunca é apresentada como revisão independente.
+12. A entrega ao cliente exige duas assinaturas válidas: a da versão calculada e a da revisão responsável.
 
 ## Operação
 

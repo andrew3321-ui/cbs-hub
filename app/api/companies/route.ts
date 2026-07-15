@@ -1,7 +1,8 @@
-import { asc, eq, max } from "drizzle-orm";
+import { asc, eq, inArray, max } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { companies, scenarios } from "../../../db/schema";
+import { companies, scenarioApprovals, scenarios } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
+import { scenarioApprovalSummary } from "../../scenario-approval";
 import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
 import { withApiTelemetry } from "../../api-infrastructure";
 
@@ -15,13 +16,17 @@ async function getCompanies() {
     const db = getDb();
     const latestScenarioIds = db.select({ companyId: scenarios.companyId, scenarioId: max(scenarios.id).as("scenario_id") }).from(scenarios).groupBy(scenarios.companyId).as("latest_scenario_ids");
     const rows = await db.select({ company: companies, latestScenario: scenarios }).from(companies).leftJoin(latestScenarioIds, eq(companies.id, latestScenarioIds.companyId)).leftJoin(scenarios, eq(scenarios.id, latestScenarioIds.scenarioId)).where(eq(companies.ownerUserId, user.id)).orderBy(asc(companies.name));
+    const latestScenarioIdList = rows.flatMap(({ latestScenario }) => latestScenario ? [latestScenario.id] : []);
+    const approvalRows = latestScenarioIdList.length ? await db.select().from(scenarioApprovals).where(inArray(scenarioApprovals.scenarioId, latestScenarioIdList)) : [];
+    const approvalByScenario = new Map(approvalRows.map((approval) => [approval.scenarioId, approval]));
     const enriched = await Promise.all(rows.map(async ({ company, latestScenario }) => {
       if (!latestScenario) return { ...company, latestScenario: null };
       const { recordSignature, ...publicScenario } = latestScenario;
-      if (latestScenario.calculationVersion === "legacy") return { ...company, latestScenario: { ...publicScenario, integrityStatus: "legacy" } };
+      const approval = await scenarioApprovalSummary(approvalByScenario.get(latestScenario.id));
+      if (latestScenario.calculationVersion === "legacy") return { ...company, latestScenario: { ...publicScenario, integrityStatus: "legacy", approval } };
       const signedRecord = signedRecordFromScenario(latestScenario, user.id);
       const integrityStatus = signedRecord && await verifyScenarioRecord(signedRecord, recordSignature, latestScenario.signatureVersion) ? "verified" : "invalid";
-      return { ...company, latestScenario: { ...publicScenario, integrityStatus } };
+      return { ...company, latestScenario: { ...publicScenario, integrityStatus, approval } };
     }));
     return Response.json({ companies: enriched });
   } catch {

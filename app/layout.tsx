@@ -9,20 +9,20 @@ export async function generateMetadata(): Promise<Metadata> {
   const origin = `${protocol}://${host}`;
 
   return {
-    title: "Margem Clara — Inteligência tributária para PMEs e contadores",
-    description: "Monitore empresas, compare cenários e simule o impacto de IBS e CBS sobre margens e preços.",
+    title: "Margem Clara — Inteligência tributária para escritórios contábeis",
+    description: "Organize clientes, revise versões e entregue análises tributárias rastreáveis com responsabilidade explícita.",
     openGraph: {
-      title: "Margem Clara — Decisões fiscais. Margens protegidas.",
-      description: "Monitore clientes e entenda o impacto tributário antes que ele chegue à margem.",
-      images: [{ url: `${origin}/og.jpg`, width: 1736, height: 909, alt: "Margem Clara — decisões fiscais, margens protegidas" }],
+      title: "Margem Clara — Do cálculo à entrega revisada",
+      description: "Fluxo técnico para contadores organizarem clientes, revisarem versões e entregarem análises rastreáveis.",
+      images: [{ url: `${origin}/og-accountants.png`, width: 1736, height: 909, alt: "Margem Clara — do cálculo à entrega revisada para escritórios contábeis" }],
       locale: "pt_BR",
       type: "website",
     },
     twitter: {
       card: "summary_large_image",
       title: "Margem Clara",
-      description: "Decisões fiscais. Margens protegidas.",
-      images: [`${origin}/og.jpg`],
+      description: "Inteligência tributária e revisão responsável para escritórios contábeis.",
+      images: [`${origin}/og-accountants.png`],
     },
   };
 }
