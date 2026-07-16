@@ -39,7 +39,16 @@ type FiscalResult = {
   facts: Record<string, string | null>;
   factViews: Array<{ key: string; label: string; value: string; source: "question" | "manual" | "default" | "unknown" }>;
   completeness: { known: number; required: number; percentage: number };
-  findings: Array<{ code: string; label: string; value: string; detail: string; nature: "own_rate" | "st_scope" | "table_parameter" }>;
+  findings: Array<{ code: string; label: string; value: string; detail: string; nature: "own_rate" | "st_scope" | "table_parameter" | "additional_obligation" }>;
+  scenarioBranches: Array<{
+    code: string;
+    label: string;
+    value: string;
+    condition: string;
+    consequence: string;
+    status: "baseline" | "exception" | "additional" | "not_applicable";
+    sourceCodes: string[];
+  }>;
   clarifications: Array<{ field: string; question: string; reason: string }>;
   decisionTrace: Array<{ ruleCode: string; result: "applied" | "blocked" | "not_applicable"; detail: string }>;
   sources: KnowledgeSource[];
@@ -71,6 +80,19 @@ const emptyFacts: FactForm = {
   purpose: "",
   automotiveUse: "",
   specialTreatment: "",
+};
+
+const completeReferenceFacts: FactForm = {
+  productDescription: "Partes e acessórios dos veículos automóveis",
+  ncm: "8708",
+  cest: "01.075.00",
+  productOrigin: "domestic",
+  importRuleQualification: "",
+  issuerTaxRegime: "normal",
+  recipientTaxpayer: "yes",
+  purpose: "resale",
+  automotiveUse: "yes",
+  specialTreatment: "none",
 };
 
 const defaultQuestion = "Qual a alíquota de ICMS para autopeças de SP para MG?";
@@ -166,6 +188,13 @@ export default function FiscalIntelligence() {
     void search(example, emptyFacts);
   }
 
+  function runCompleteReferenceCase() {
+    setQuestion(defaultQuestion);
+    setForm(completeReferenceFacts);
+    setResult(null);
+    void search(defaultQuestion, completeReferenceFacts);
+  }
+
   return (
     <div className="page-content fiscal-intelligence-page">
       <div className="page-heading intelligence-heading">
@@ -190,7 +219,7 @@ export default function FiscalIntelligence() {
           <textarea id="fiscal-question" maxLength={500} rows={2} value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ex.: qual a alíquota de ICMS para autopeças de SP para MG?" />
           <button className="primary-button" disabled={loading || catalogLoading || question.trim().length < 5}>{loading ? "Analisando…" : "Pesquisar regras"}<span>→</span></button>
         </div>
-        <div className="intelligence-examples"><span>TESTAR PERGUNTA:</span>{examples.map((example) => <button type="button" onClick={() => runExample(example)} key={example}>{example}</button>)}</div>
+        <div className="intelligence-examples"><span>TESTAR PERGUNTA:</span>{examples.map((example) => <button type="button" onClick={() => runExample(example)} key={example}>{example}</button>)}<button className="complete-case-button" type="button" onClick={runCompleteReferenceCase}>Preencher caso demonstrativo · 100% dos fatos</button></div>
       </form>
 
       {error && <div className="intelligence-error" role="alert"><b>Consulta interrompida</b><span>{error}</span></div>}
@@ -207,13 +236,15 @@ export default function FiscalIntelligence() {
         <>
           <section className={`intelligence-result-hero ${result.status}`}>
             <div className="result-assurance"><span className={`result-status ${result.status}`}><i /> {result.statusLabel}</span><code>{result.engineVersion} · base {result.baseVersion}</code></div>
-            <div className="result-hero-body"><div><p>CONCLUSÃO DO RECORTE ATUAL</p><h2>{result.headline}</h2><span>{result.summary}</span></div><div className="result-completeness"><strong>{result.completeness.percentage}%</strong><span>fatos mínimos preenchidos</span><small>{result.completeness.known} de {result.completeness.required}</small></div></div>
+            <div className="result-hero-body"><div><p>CONCLUSÃO DO RECORTE ATUAL</p><h2>{result.headline}</h2><span>{result.summary}</span></div><div className="result-completeness"><strong>{result.completeness.percentage}%</strong><span>fatos mínimos preenchidos</span><small>{result.completeness.known} de {result.completeness.required} · não é garantia jurídica</small></div></div>
             <div className="result-progress"><i style={{ width: `${result.completeness.percentage}%` }} /></div>
           </section>
 
+          {result.scenarioBranches.length > 0 && <section className="panel intelligence-scenarios"><div className="panel-heading"><div><span className="eyebrow">MAPA COMPLETO DA PERGUNTA</span><h3>Qual número pode aparecer — e em qual condição</h3><p>A pergunta isolada não define uma única carga. Estes cenários são referências normativas; somente os achados abaixo foram aplicados aos fatos confirmados.</p></div><span>{result.scenarioBranches.length} cenários</span></div><div className="scenario-grid">{result.scenarioBranches.map((scenario) => <article className={scenario.status} key={scenario.code}><small>{scenario.label}</small><strong>{scenario.value}</strong><b>Quando</b><p>{scenario.condition}</p><b>Efeito</b><p>{scenario.consequence}</p><code>{scenario.code}</code></article>)}</div></section>}
+
           <div className="intelligence-workbench">
             <div className="intelligence-result-column">
-              {result.findings.length > 0 && <section className="panel intelligence-findings"><div className="panel-heading"><div><span className="eyebrow">ACHADOS ESTRUTURADOS</span><h3>Números sem mistura de conceitos</h3></div><span>{result.findings.length}</span></div><div className="finding-list">{result.findings.map((finding) => <article className={finding.nature} key={finding.code}><span>{finding.nature === "own_rate" ? "%" : finding.nature === "st_scope" ? "ST" : "MVA"}</span><div><small>{finding.label}</small><strong>{finding.value}</strong><p>{finding.detail}</p></div><code>{finding.code}</code></article>)}</div></section>}
+              {result.findings.length > 0 && <section className="panel intelligence-findings"><div className="panel-heading"><div><span className="eyebrow">ACHADOS ESTRUTURADOS</span><h3>Números sem mistura de conceitos</h3></div><span>{result.findings.length}</span></div><div className="finding-list">{result.findings.map((finding) => <article className={finding.nature} key={finding.code}><span>{finding.nature === "own_rate" ? "%" : finding.nature === "st_scope" ? "ST" : finding.nature === "table_parameter" ? "MVA" : "+"}</span><div><small>{finding.label}</small><strong>{finding.value}</strong><p>{finding.detail}</p></div><code>{finding.code}</code></article>)}</div></section>}
 
               <section className="panel intelligence-facts"><div className="panel-heading"><div><span className="eyebrow">FATOS DA OPERAÇÃO</span><h3>O que o motor realmente considerou</h3></div></div><div className="fact-grid">{result.factViews.filter((fact) => fact.key !== "referenceDate").map((fact) => <article className={fact.source === "unknown" ? "unknown" : ""} key={fact.key}><span>{fact.label}</span><b>{fact.value}</b><small>{sourceLabels[fact.source]}</small></article>)}</div></section>
 

@@ -33,6 +33,10 @@ test("pergunta curta não recebe número conclusivo quando faltam fatos", () => 
   const result = evaluateFiscalQuestion("Qual a alíquota de ICMS para autopeças de SP para MG?");
   assert.equal(result.status, "needs_information");
   assert.equal(result.findings.length, 0);
+  assert.match(result.headline, /Referência geral: 12%/);
+  assert.ok(result.scenarioBranches.some((item) => item.code === "SCENARIO-DOMESTIC-12" && item.value === "12%"));
+  assert.ok(result.scenarioBranches.some((item) => item.code === "SCENARIO-IMPORTED-4" && item.value === "4%"));
+  assert.ok(result.scenarioBranches.some((item) => item.code === "SCENARIO-SEVEN-NOT-SP-MG" && item.status === "not_applicable"));
   assert.ok(result.clarifications.some((item) => item.field === "ncm"));
   assert.ok(result.clarifications.some((item) => item.field === "productOrigin"));
   assert.ok(result.completeness.percentage < 50);
@@ -46,6 +50,7 @@ test("operação nacional completa localiza 12%, ST e MVA sem calcular imposto r
   assert.equal(result.findings.find((item) => item.nature === "table_parameter")?.value, "71,78%");
   assert.match(result.findings.find((item) => item.nature === "table_parameter")?.detail ?? "", /não valor do ICMS-ST/i);
   assert.equal(result.clarifications.length, 0);
+  assert.equal(result.completeness.percentage, 100);
 });
 
 test("mercadoria importada só recebe referência de 4% com qualificação explícita", () => {
@@ -59,15 +64,62 @@ test("mercadoria importada só recebe referência de 4% com qualificação expl�
   assert.equal(qualified.findings.find((item) => item.nature === "own_rate")?.value, "4%");
 });
 
-test("Simples Nacional e rota inversa bloqueiam a aplicação da regra geral", () => {
+test("Simples Nacional mantém a trilha de ST, mas não simula destaque de ICMS próprio", () => {
   const simples = evaluateFiscalQuestion("Qual o ICMS para autopeças de SP para MG?", { ...completeDomesticFacts, issuerTaxRegime: "simples" });
-  assert.equal(simples.status, "needs_information");
+  assert.equal(simples.status, "conditional");
   assert.equal(simples.findings.some((item) => item.nature === "own_rate"), false);
-  assert.ok(simples.decisionTrace.some((item) => item.ruleCode === "REGIME-SIMPLES-PENDING" && item.result === "blocked"));
+  assert.equal(simples.findings.find((item) => item.nature === "st_scope")?.value, "Enquadramento localizado");
+  assert.ok(simples.decisionTrace.some((item) => item.ruleCode === "ICMS-ST-SIMPLES-APPLIES" && item.result === "applied"));
+});
 
+test("rota inversa permanece fora da cobertura e não herda cenários de SP para MG", () => {
   const inverse = evaluateFiscalQuestion("Qual o ICMS para autopeças de MG para SP?", completeDomesticFacts);
   assert.equal(inverse.status, "out_of_scope");
   assert.equal(inverse.findings.length, 0);
+  assert.equal(inverse.scenarioBranches.length, 0);
+});
+
+test("industrialização afasta a ST do protocolo sem apagar a alíquota interestadual", () => {
+  const result = evaluateFiscalQuestion("Qual o ICMS para autopeças de SP para MG?", { ...completeDomesticFacts, purpose: "industrialization" });
+  assert.equal(result.findings.find((item) => item.nature === "own_rate")?.value, "12%");
+  assert.equal(result.findings.some((item) => item.nature === "st_scope" || item.nature === "table_parameter"), false);
+  assert.ok(result.decisionTrace.some((item) => item.ruleCode === "ICMS-ST-DESTINATION-EXCEPTIONS" && item.result === "not_applicable"));
+});
+
+test("uso e ativo seguem diferencial de alíquotas sem aplicar MVA de revenda", () => {
+  for (const purpose of ["use_consumption", "fixed_asset"]) {
+    const result = evaluateFiscalQuestion("Qual o ICMS para autopeças de SP para MG?", { ...completeDomesticFacts, purpose });
+    assert.equal(result.findings.find((item) => item.nature === "own_rate")?.value, "12%");
+    assert.equal(result.findings.some((item) => item.nature === "table_parameter"), false);
+    assert.equal(result.findings.find((item) => item.nature === "additional_obligation")?.value, "Analisar diferencial de alíquotas");
+  }
+});
+
+test("CEST 01.015.00 envolvendo São Paulo aplica a exceção vigente em 2026", () => {
+  const result = evaluateFiscalQuestion("Qual o ICMS para autopeça de vidro automotivo de SP para MG?", {
+    ...completeDomesticFacts,
+    productDescription: "Vidro automotivo para-brisa",
+    ncm: "70071100",
+    cest: "01.015.00",
+  });
+  assert.equal(result.findings.find((item) => item.nature === "own_rate")?.value, "12%");
+  assert.equal(result.findings.some((item) => item.nature === "st_scope" || item.nature === "table_parameter"), false);
+  assert.ok(result.decisionTrace.some((item) => item.ruleCode === "ICMS-ST-GLASS-SP-EXCEPTION-2026" && item.result === "not_applicable"));
+});
+
+test("consumidor final não contribuinte abre DIFAL e não ST de operações subsequentes", () => {
+  const result = evaluateFiscalQuestion("Qual o ICMS para autopeças de SP para MG?", { ...completeDomesticFacts, recipientTaxpayer: "no" });
+  assert.equal(result.status, "needs_information");
+  assert.equal(result.findings.find((item) => item.nature === "own_rate")?.value, "12%");
+  assert.equal(result.findings.some((item) => item.nature === "st_scope"), false);
+  assert.ok(result.decisionTrace.some((item) => item.ruleCode === "ICMS-DIFAL-NON-TAXPAYER" && item.result === "applied"));
+});
+
+test("base ampliada preserva fontes primárias, vigência e catálogo controlado", () => {
+  assert.ok(spMgAutoPartsKnowledge.sources.length >= 9);
+  assert.ok(spMgAutoPartsKnowledge.sources.filter((source) => source.primary).length >= 8);
+  assert.ok(spMgAutoPartsKnowledge.productClassifications.length >= 18);
+  assert.equal(spMgAutoPartsKnowledge.sources.find((source) => source.code === "MG-RICMS-INDEX")?.legalReference.includes("49.252/2026"), true);
 });
 
 test("impressão digital da base muda quando uma fonte ou regra muda", async () => {

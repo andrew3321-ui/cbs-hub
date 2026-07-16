@@ -223,12 +223,15 @@ test("inteligência manual expõe cobertura, pendências e fontes sem fabricar c
   assert.match(app, /Inteligência fiscal/);
   assert.match(intelligenceUi, /Sem IA generativa/);
   assert.match(intelligenceUi, /FICHA DE CONFIRMAÇÃO/);
+  assert.match(intelligenceUi, /MAPA COMPLETO DA PERGUNTA/);
+  assert.match(intelligenceUi, /Preencher caso demonstrativo · 100% dos fatos/);
   assert.match(intelligenceUi, /Fontes efetivamente usadas nesta resposta/);
   assert.match(intelligenceApi, /fiscal_knowledge_integrity_failure/);
   assert.match(intelligenceApi, /Cache-Control": "no-store/);
   assert.match(intelligenceDomain, /pilot_conditional/);
-  assert.match(intelligenceDomain, /MVA de tabela não é valor de ICMS-ST/);
-  assert.match(intelligenceDomain, /REGIME-SIMPLES-PENDING/);
+  assert.match(intelligenceDomain, /MVA de tabela não é o valor do ICMS-ST/);
+  assert.match(intelligenceDomain, /ICMS-ST-SIMPLES-APPLIES/);
+  assert.match(intelligenceDomain, /SCENARIO-SEVEN-NOT-SP-MG/);
   assert.match(schema, /fiscal_knowledge_bases_code_version_idx/);
   assert.match(migration, /CREATE TABLE `fiscal_knowledge_bases`/);
 });

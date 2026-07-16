@@ -94,13 +94,23 @@ export type FiscalFinding = {
   value: string;
   detail: string;
   sourceCodes: string[];
-  nature: "own_rate" | "st_scope" | "table_parameter";
+  nature: "own_rate" | "st_scope" | "table_parameter" | "additional_obligation";
 };
 
 export type FiscalDecisionTrace = {
   ruleCode: string;
   result: "applied" | "blocked" | "not_applicable";
   detail: string;
+};
+
+export type FiscalScenarioBranch = {
+  code: string;
+  label: string;
+  value: string;
+  condition: string;
+  consequence: string;
+  status: "baseline" | "exception" | "additional" | "not_applicable";
+  sourceCodes: string[];
 };
 
 export type FiscalIntelligenceResult = {
@@ -117,6 +127,7 @@ export type FiscalIntelligenceResult = {
   factViews: FiscalFactView[];
   completeness: { known: number; required: number; percentage: number };
   findings: FiscalFinding[];
+  scenarioBranches: FiscalScenarioBranch[];
   clarifications: FiscalClarification[];
   decisionTrace: FiscalDecisionTrace[];
   sources: FiscalKnowledgeSource[];
@@ -128,9 +139,9 @@ const CHECKED_AT = "2026-07-15";
 
 export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
   schemaVersion: "manual-fiscal-intelligence.v1",
-  engineVersion: "mc-manual-fiscal-0.1.0",
+  engineVersion: "mc-manual-fiscal-0.2.0",
   baseCode: "ICMS-SP-MG-AUTOPECAS",
-  version: "0.1.0",
+  version: "0.2.0",
   name: "ICMS · autopeças · São Paulo para Minas Gerais",
   assuranceLevel: "pilot_conditional",
   coverage: { tax: "ICMS", originState: "SP", destinationState: "MG", segment: "auto_parts" },
@@ -159,13 +170,37 @@ export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
       code: "ICMS-ST-AUTO-PARTS-SP-MG",
       title: "Protocolo interestadual de substituição tributária",
       conclusion: "São Paulo e Minas Gerais constam no acordo de ST de autopeças; a incidência concreta depende cumulativamente da descrição, NCM, CEST, uso automotivo e âmbito do item.",
-      sourceCodes: ["SP-ST-AGREEMENTS", "MG-RICMS-ANNEX-VII"],
+      sourceCodes: ["CONFAZ-PROTOCOL-41-2008", "CONFAZ-CONVENIO-142-2018", "MG-RICMS-ANNEX-VII"],
     },
     {
       code: "ICMS-ST-AUTOMOTIVE-USE",
       title: "Uso especificamente automotivo",
       conclusion: "O enquadramento mineiro de autopeças exige conferir o uso especificamente automotivo e as hipóteses de aplicação e inaplicabilidade do Anexo VII.",
-      sourceCodes: ["MG-RICMS-ANNEX-VII", "MG-RICMS-INDEX"],
+      sourceCodes: ["CONFAZ-PROTOCOL-41-2008", "MG-RICMS-ANNEX-VII", "MG-RICMS-INDEX"],
+    },
+    {
+      code: "ICMS-ST-SIMPLES-APPLIES",
+      title: "Substituição tributária e Simples Nacional",
+      conclusion: "O Convênio ICMS 142/2018 alcança contribuintes optantes ou não pelo Simples Nacional; isso não autoriza tratar o destaque do ICMS próprio como se o remetente estivesse no regime normal.",
+      sourceCodes: ["CONFAZ-CONVENIO-142-2018"],
+    },
+    {
+      code: "ICMS-ST-DESTINATION-EXCEPTIONS",
+      title: "Exceções conforme o destino e a finalidade",
+      conclusion: "O Protocolo ICMS 41/08 prevê inaplicabilidade para destino industrial e disciplina separadamente uso, consumo e ativo imobilizado.",
+      sourceCodes: ["CONFAZ-PROTOCOL-41-2008"],
+    },
+    {
+      code: "ICMS-DIFAL-NON-TAXPAYER",
+      title: "Consumidor final não contribuinte",
+      conclusion: "A LC 190/2022 atribui ao remetente a diferença entre a alíquota interna do destino e a interestadual quando o destinatário final não for contribuinte.",
+      sourceCodes: ["LC-190-2022", "MG-RICMS-ANNEX-I"],
+    },
+    {
+      code: "ICMS-ST-GLASS-SP-EXCEPTION-2026",
+      title: "Exceção para vidro automotivo envolvendo São Paulo",
+      conclusion: "Desde 1º de janeiro de 2026, o Protocolo ICMS 41/08 não se aplica ao CEST 01.015.00 quando São Paulo for origem ou destino.",
+      sourceCodes: ["CONFAZ-PROTOCOL-41-2008", "MG-RICMS-ANNEX-VII"],
     },
   ],
   productClassifications: [
@@ -199,6 +234,156 @@ export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
       tableMvaBps: 7178,
       sourceCodes: ["MG-RICMS-ANNEX-VII"],
     },
+    {
+      code: "MG-AUTO-001",
+      ncmPrefix: "38151210",
+      cest: "01.001.00",
+      description: "Catalisadores em colmeia cerâmica ou metálica para conversão catalítica de gases de escape",
+      descriptionTerms: ["catalisador", "colmeia cerâmica", "colmeia metalica"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-003",
+      ncmPrefix: "39181000",
+      cest: "01.003.00",
+      description: "Protetores de caçamba",
+      descriptionTerms: ["protetor de caçamba", "protetor de cacamba"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-004",
+      ncmPrefix: "39233000",
+      cest: "01.004.00",
+      description: "Reservatórios de óleo",
+      descriptionTerms: ["reservatório de óleo", "reservatorio de oleo"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-007",
+      ncmPrefix: "40169300",
+      cest: "01.007.00",
+      description: "Juntas, gaxetas e outros elementos com função semelhante de vedação",
+      descriptionTerms: ["junta", "gaxeta", "vedação", "vedacao"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-014",
+      ncmPrefix: "6813",
+      cest: "01.014.00",
+      description: "Guarnições de fricção e artigos semelhantes para freios, embreagens ou outros órgãos de fricção",
+      descriptionTerms: ["guarnição de fricção", "guarnicao de friccao", "pastilha", "freio", "embreagem"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-015",
+      ncmPrefix: "70071100",
+      cest: "01.015.00",
+      description: "Vidros de dimensões e formatos que permitam aplicação automotiva",
+      descriptionTerms: ["vidro automotivo", "para-brisa", "parabrisa"],
+      interstateScope: false,
+      tableMvaBps: 7178,
+      sourceCodes: ["CONFAZ-PROTOCOL-41-2008", "MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-016",
+      ncmPrefix: "70091000",
+      cest: "01.016.00",
+      description: "Espelhos retrovisores",
+      descriptionTerms: ["espelho retrovisor", "retrovisor"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-020",
+      ncmPrefix: "7320",
+      cest: "01.020.00",
+      description: "Molas e folhas de molas de ferro ou aço",
+      descriptionTerms: ["mola", "folha de mola"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-028",
+      ncmPrefix: "84073",
+      cest: "01.028.00",
+      description: "Motores de pistão alternativo dos tipos utilizados para propulsão de veículos",
+      descriptionTerms: ["motor", "pistão alternativo", "pistao alternativo"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-032",
+      ncmPrefix: "841330",
+      cest: "01.032.00",
+      description: "Bombas para combustíveis, lubrificantes ou líquidos de arrefecimento",
+      descriptionTerms: ["bomba de combustível", "bomba de combustivel", "bomba de óleo", "bomba de oleo"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-037",
+      ncmPrefix: "84212300",
+      cest: "01.037.00",
+      description: "Aparelhos para filtrar óleos minerais nos motores de ignição",
+      descriptionTerms: ["filtro de óleo", "filtro de oleo"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-043",
+      ncmPrefix: "84254200",
+      cest: "01.043.00",
+      description: "Macacos hidráulicos para veículos",
+      descriptionTerms: ["macaco hidráulico", "macaco hidraulico"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-050",
+      ncmPrefix: "8483",
+      cest: "01.050.00",
+      description: "Árvores de transmissão, engrenagens, caixas de transmissão e componentes",
+      descriptionTerms: ["árvore de transmissão", "arvore de transmissao", "engrenagem", "caixa de transmissão", "caixa de transmissao"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-070",
+      ncmPrefix: "853910",
+      cest: "01.070.00",
+      description: "Faróis e unidades seladas de uso automotivo",
+      descriptionTerms: ["farol", "unidade selada"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "MG-AUTO-073",
+      ncmPrefix: "85443000",
+      cest: "01.073.00",
+      description: "Jogos de fios para velas de ignição e outros jogos de fios",
+      descriptionTerms: ["fio para vela", "jogo de fios", "fio de ignição", "fio de ignicao"],
+      interstateScope: true,
+      tableMvaBps: 7178,
+      sourceCodes: ["MG-RICMS-ANNEX-VII"],
+    },
   ],
   sources: [
     {
@@ -226,8 +411,48 @@ export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
       title: "Regulamento do ICMS de Minas Gerais · 2023",
       publisher: "Secretaria de Estado de Fazenda de Minas Gerais",
       url: "https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms",
-      legalReference: "Decreto nº 48.589/2023; atualizado até o Decreto nº 49.253/2026",
+      legalReference: "Decreto nº 48.589/2023; atualizado até o Decreto nº 49.252/2026",
       sourceUpdatedAt: "2026-06-29",
+      checkedAt: CHECKED_AT,
+      primary: true,
+    },
+    {
+      code: "MG-RICMS-ANNEX-I",
+      title: "RICMS/MG 2023 · Anexo I · Alíquotas",
+      publisher: "Secretaria de Estado de Fazenda de Minas Gerais",
+      url: "https://www.fazenda.mg.gov.br/empresas/legislacao_tributaria/ricms2023/anexoi2023.pdf",
+      legalReference: "Parte 1, item 7; Parte 2, itens 1 a 3",
+      sourceUpdatedAt: "2024-02-28",
+      checkedAt: CHECKED_AT,
+      primary: true,
+    },
+    {
+      code: "CONFAZ-PROTOCOL-41-2008",
+      title: "Protocolo ICMS 41/2008 · Autopeças",
+      publisher: "Conselho Nacional de Política Fazendária",
+      url: "https://www.confaz.fazenda.gov.br/legislacao/protocolos/2008/pt041_08",
+      legalReference: "cláusula primeira, caput e §§ 1º a 3º; alteração do Protocolo 85/2025",
+      sourceUpdatedAt: "2026-01-01",
+      checkedAt: CHECKED_AT,
+      primary: true,
+    },
+    {
+      code: "CONFAZ-CONVENIO-142-2018",
+      title: "Convênio ICMS 142/2018 · Substituição tributária",
+      publisher: "Conselho Nacional de Política Fazendária",
+      url: "https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18",
+      legalReference: "cláusulas primeira a sétima, décima primeira e décima terceira; Anexo II",
+      sourceUpdatedAt: null,
+      checkedAt: CHECKED_AT,
+      primary: true,
+    },
+    {
+      code: "LC-190-2022",
+      title: "Lei Complementar nº 190/2022 · DIFAL",
+      publisher: "Presidência da República",
+      url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp190.htm",
+      legalReference: "art. 1º; alterações nos arts. 4º, 11 e 12 da LC 87/1996",
+      sourceUpdatedAt: "2022-01-05",
       checkedAt: CHECKED_AT,
       primary: true,
     },
@@ -254,9 +479,10 @@ export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
   ],
   limitations: [
     "A base inicial cobre somente ICMS de autopeças em operações de São Paulo para Minas Gerais.",
-    "A versão piloto não classifica automaticamente mercadorias apenas pela descrição comercial.",
-    "MVA de tabela não é valor de ICMS-ST a recolher e não é aplicada automaticamente.",
-    "Benefícios, regimes especiais, DIFAL, Simples Nacional e exceções ainda bloqueiam a conclusão.",
+    "A versão piloto cruza descrição, NCM e CEST em catálogo controlado; ela não substitui a classificação fiscal formal da mercadoria.",
+    "MVA de tabela não é o valor do ICMS-ST a recolher; preço, frete, IPI, base, alíquota interna, MVA ajustada e deduções ainda precisam ser calculados e revisados.",
+    "Cem por cento de completude significa que todos os fatos mínimos foram respondidos, não certeza jurídica de cem por cento.",
+    "Benefícios, regimes especiais, particularidades do Simples Nacional, DIFAL e exceções podem exigir cálculo ou validação adicional.",
     "A base ainda não recebeu homologação profissional externa; por isso, nenhuma resposta é rotulada como definitiva.",
   ],
 };
@@ -432,6 +658,83 @@ function sourceForFact(questionFacts: FiscalIntelligenceFacts, overrides: Fiscal
   return knownFact(field, questionFacts[field]) ? "question" : "unknown";
 }
 
+function spMgScenarioBranches(): FiscalScenarioBranch[] {
+  return [
+    {
+      code: "SCENARIO-DOMESTIC-12",
+      label: "Mercadoria nacional",
+      value: "12%",
+      condition: "Operação SP→MG no regime normal, sem regra específica que afaste a regra geral.",
+      consequence: "É a referência interestadual geral; não inclui eventual ICMS-ST ou DIFAL.",
+      status: "baseline",
+      sourceCodes: ["RSF-22-1989", "MG-RICMS-ANNEX-I"],
+    },
+    {
+      code: "SCENARIO-IMPORTED-4",
+      label: "Importada enquadrada na Resolução 13/2012",
+      value: "4%",
+      condition: "Bem importado sem industrialização ou com conteúdo de importação superior a 40%, ressalvadas as exceções legais.",
+      consequence: "A documentação de importação e o conteúdo importado precisam sustentar o enquadramento.",
+      status: "exception",
+      sourceCodes: ["RSF-13-2012", "MG-RICMS-ANNEX-I"],
+    },
+    {
+      code: "SCENARIO-IMPORTED-EXCEPTION-12",
+      label: "Importada fora da regra de 4%",
+      value: "12%",
+      condition: "A mercadoria importada não atende à Resolução 13/2012 ou está em uma de suas exceções.",
+      consequence: "Retorna-se à referência interestadual geral, após conferir a documentação.",
+      status: "exception",
+      sourceCodes: ["RSF-22-1989", "RSF-13-2012", "MG-RICMS-ANNEX-I"],
+    },
+    {
+      code: "SCENARIO-ST-RESALE",
+      label: "Revenda com autopeça sujeita a ST",
+      value: "12% ou 4% + ICMS-ST",
+      condition: "Descrição, NCM, CEST e uso automotivo coincidem; destinatário é contribuinte; não há exceção aplicável.",
+      consequence: "A alíquota interestadual é apenas uma camada. O imposto retido exige base, MVA e alíquota interna de MG.",
+      status: "additional",
+      sourceCodes: ["CONFAZ-PROTOCOL-41-2008", "CONFAZ-CONVENIO-142-2018", "MG-RICMS-ANNEX-VII"],
+    },
+    {
+      code: "SCENARIO-DIFAL-NON-TAXPAYER",
+      label: "Consumidor final não contribuinte",
+      value: "12% ou 4% + DIFAL",
+      condition: "A mercadoria é destinada a consumidor final mineiro não contribuinte do ICMS.",
+      consequence: "O remetente analisa a diferença entre a alíquota interna de MG e a interestadual.",
+      status: "additional",
+      sourceCodes: ["LC-190-2022", "MG-RICMS-ANNEX-I"],
+    },
+    {
+      code: "SCENARIO-DIFAL-USE-ASSET",
+      label: "Uso, consumo ou ativo imobilizado",
+      value: "Diferencial de alíquotas",
+      condition: "O destinatário contribuinte não comprará para revenda, mas para uso, consumo ou imobilização.",
+      consequence: "O Protocolo 41/08 trata essa entrada pelo diferencial, não pela MVA das operações subsequentes.",
+      status: "additional",
+      sourceCodes: ["CONFAZ-PROTOCOL-41-2008", "MG-RICMS-ANNEX-I"],
+    },
+    {
+      code: "SCENARIO-SEVEN-NOT-SP-MG",
+      label: "Alíquota de 7%",
+      value: "Não se aplica à rota SP→MG",
+      condition: "Os 7% valem para saídas do Sul/Sudeste com destino ao Norte, Nordeste, Centro-Oeste ou Espírito Santo.",
+      consequence: "Minas Gerais está no Sudeste e não integra a exceção destinada ao Espírito Santo.",
+      status: "not_applicable",
+      sourceCodes: ["RSF-22-1989", "MG-RICMS-ANNEX-I"],
+    },
+    {
+      code: "SCENARIO-GLASS-SP-2026",
+      label: "Vidro automotivo · CEST 01.015.00",
+      value: "Sem ST pelo Protocolo 41/08",
+      condition: "Desde 1º/01/2026, São Paulo é origem ou destino da remessa desse CEST.",
+      consequence: "A exceção não elimina o ICMS próprio; ela afasta especificamente a ST do Protocolo 41/08.",
+      status: "not_applicable",
+      sourceCodes: ["CONFAZ-PROTOCOL-41-2008", "MG-RICMS-ANNEX-VII"],
+    },
+  ];
+}
+
 export function evaluateFiscalQuestion(question: string, overrides: FiscalIntelligenceOverrides = {}, referenceDate = CHECKED_AT, definition = spMgAutoPartsKnowledge): FiscalIntelligenceResult {
   if (typeof question !== "string" || question.trim().length < 5 || question.length > 500) throw new Error("invalid_fiscal_question");
   assertFiscalIntelligenceDefinition(definition);
@@ -466,54 +769,101 @@ export function evaluateFiscalQuestion(question: string, overrides: FiscalIntell
       summary: outOfScope
         ? "A inteligência manual ainda cobre somente ICMS de autopeças em operações de São Paulo para Minas Gerais. Nenhum número foi aplicado fora desse recorte."
         : "A pergunta ainda não identifica todos os elementos mínimos do recorte fiscal. Complete a rota, o tributo e o segmento.",
-      findings, clarifications: blockingClarifications.length ? blockingClarifications : [clarificationCatalog.originState!, clarificationCatalog.destinationState!], decisionTrace,
+      findings,
+      scenarioBranches: scopeMissing ? spMgScenarioBranches() : [],
+      clarifications: blockingClarifications.length ? blockingClarifications : [clarificationCatalog.originState!, clarificationCatalog.destinationState!],
+      decisionTrace,
     });
   }
 
-  const hardBlock = facts.issuerTaxRegime === "simples" || facts.recipientTaxpayer === "no" || facts.specialTreatment === "exists" || facts.automotiveUse === "no";
-  if (facts.issuerTaxRegime === "simples") decisionTrace.push({ ruleCode: "REGIME-SIMPLES-PENDING", result: "blocked", detail: "A trilha específica do Simples Nacional ainda não foi modelada." });
-  if (facts.recipientTaxpayer === "no") decisionTrace.push({ ruleCode: "DIFAL-PENDING", result: "blocked", detail: "Destinatário não contribuinte exige análise própria de DIFAL, ainda fora desta versão." });
+  const scenarioBranches = spMgScenarioBranches();
+  const ownRateBlocked = facts.issuerTaxRegime === "simples" || facts.specialTreatment === "exists";
+  const unresolvedSpecialCase = facts.recipientTaxpayer === "no" || facts.specialTreatment === "exists";
+  if (facts.issuerTaxRegime === "simples") decisionTrace.push({
+    ruleCode: "ICMS-ST-SIMPLES-APPLIES",
+    result: "applied",
+    detail: "O Simples Nacional não afasta a ST. A alíquota interestadual continua relevante para a dedução no cálculo, mas não foi apresentada como destaque de ICMS próprio.",
+  });
+  if (facts.recipientTaxpayer === "no") decisionTrace.push({
+    ruleCode: "ICMS-DIFAL-NON-TAXPAYER",
+    result: "applied",
+    detail: "A operação exige a trilha de consumidor final não contribuinte e o cálculo do DIFAL com a alíquota interna pertinente em MG.",
+  });
   if (facts.specialTreatment === "exists") decisionTrace.push({ ruleCode: "SPECIAL-TREATMENT", result: "blocked", detail: "Benefício ou regime especial precisa prevalecer sobre a regra geral." });
   if (facts.automotiveUse === "no") decisionTrace.push({ ruleCode: "ICMS-ST-AUTOMOTIVE-USE", result: "not_applicable", detail: "A mercadoria informada não tem uso especificamente automotivo." });
 
-  if (!hardBlock && facts.productOrigin === "domestic") {
+  if (!ownRateBlocked && facts.productOrigin === "domestic") {
     findings.push({
       code: "OWN-RATE-12", label: "ICMS próprio interestadual", value: "12%",
       detail: "Referência para mercadoria nacional, remetente no regime normal e operação SP→MG, ressalvadas regras específicas.",
-      sourceCodes: ["RSF-22-1989"], nature: "own_rate",
+      sourceCodes: ["RSF-22-1989", "MG-RICMS-ANNEX-I"], nature: "own_rate",
     });
     decisionTrace.push({ ruleCode: "ICMS-INTERSTATE-SP-MG-DOMESTIC-12", result: "applied", detail: "Rota Sudeste→Sudeste e mercadoria nacional informada." });
-  } else if (!hardBlock && facts.productOrigin === "imported" && facts.importRuleQualification === "qualifies") {
+  } else if (!ownRateBlocked && facts.productOrigin === "imported" && facts.importRuleQualification === "qualifies") {
     findings.push({
       code: "OWN-RATE-4", label: "ICMS próprio interestadual", value: "4%",
       detail: "Referência condicionada ao enquadramento informado na Resolução do Senado nº 13/2012 e à inexistência de exceção.",
-      sourceCodes: ["RSF-13-2012"], nature: "own_rate",
+      sourceCodes: ["RSF-13-2012", "MG-RICMS-ANNEX-I"], nature: "own_rate",
     });
     decisionTrace.push({ ruleCode: "ICMS-INTERSTATE-IMPORTED-4", result: "applied", detail: "O usuário informou condição compatível com a regra de importados." });
-  } else if (!hardBlock && facts.productOrigin === "imported" && facts.importRuleQualification === "does_not_qualify") {
+  } else if (!ownRateBlocked && facts.productOrigin === "imported" && facts.importRuleQualification === "does_not_qualify") {
     findings.push({
       code: "OWN-RATE-12-IMPORT-EXCEPTION", label: "Referência interestadual fora da regra de 4%", value: "12%",
       detail: "O usuário informou que a mercadoria importada não se enquadra na regra de 4%; ainda é necessário conferir as exceções e a documentação da importação.",
-      sourceCodes: ["RSF-22-1989", "RSF-13-2012"], nature: "own_rate",
+      sourceCodes: ["RSF-22-1989", "RSF-13-2012", "MG-RICMS-ANNEX-I"], nature: "own_rate",
     });
     decisionTrace.push({ ruleCode: "ICMS-INTERSTATE-IMPORTED-4", result: "not_applicable", detail: "Condição informada não alcança a regra de 4%." });
   } else {
-    decisionTrace.push({ ruleCode: "ICMS-OWN-RATE", result: "blocked", detail: hardBlock ? "Uma condição especial bloqueia a regra geral." : "A origem da mercadoria ainda não foi informada." });
+    const detail = facts.issuerTaxRegime === "simples"
+      ? "No Simples Nacional, 12% ou 4% pode ser parâmetro do cálculo de ST, mas não foi tratado como destaque operacional do ICMS próprio."
+      : facts.specialTreatment === "exists"
+        ? "O tratamento especial informado precisa ser conferido antes da regra geral."
+        : "A origem da mercadoria ainda não foi informada.";
+    decisionTrace.push({ ruleCode: "ICMS-OWN-RATE", result: "blocked", detail });
   }
 
   const classification = definition.productClassifications.find((item) => facts.ncm?.startsWith(item.ncmPrefix) && facts.cest === item.cest);
   const classificationDescriptionMatches = classification && facts.productDescription
     ? classification.descriptionTerms.some((term) => normalizeText(facts.productDescription!).includes(normalizeText(term)))
     : false;
-  if (!hardBlock && classification && classificationDescriptionMatches && facts.automotiveUse === "yes") {
+  const stFactsMatch = classification && classificationDescriptionMatches && facts.automotiveUse === "yes";
+  const stOperationallyEligible = facts.recipientTaxpayer === "yes" && facts.specialTreatment !== "exists";
+
+  if (classification && stFactsMatch && !classification.interstateScope) {
+    decisionTrace.push({
+      ruleCode: "ICMS-ST-GLASS-SP-EXCEPTION-2026",
+      result: "not_applicable",
+      detail: "O CEST 01.015.00 está marcado com exceção para São Paulo; na data de referência, a ST do Protocolo 41/08 não foi aplicada.",
+    });
+  } else if (classification && stFactsMatch && facts.purpose === "industrialization") {
+    decisionTrace.push({
+      ruleCode: "ICMS-ST-DESTINATION-EXCEPTIONS",
+      result: "not_applicable",
+      detail: "A finalidade industrial aciona hipótese de inaplicabilidade do Protocolo 41/08; a operação concreta e a legislação mineira ainda devem ser conferidas.",
+    });
+  } else if (classification && stFactsMatch && (facts.purpose === "use_consumption" || facts.purpose === "fixed_asset") && stOperationallyEligible) {
     findings.push({
-      code: `ST-${classification.code}`, label: "Âmbito interestadual de ST", value: classification.interstateScope ? "Enquadramento localizado" : "Somente interno",
+      code: "DIFAL-USE-ASSET",
+      label: facts.purpose === "fixed_asset" ? "Entrada para ativo imobilizado" : "Entrada para uso ou consumo",
+      value: "Analisar diferencial de alíquotas",
+      detail: "O Protocolo 41/08 alcança a entrada pelo imposto correspondente ao diferencial de alíquotas. A MVA de operações subsequentes não foi aplicada.",
+      sourceCodes: ["CONFAZ-PROTOCOL-41-2008", "MG-RICMS-ANNEX-I"],
+      nature: "additional_obligation",
+    });
+    decisionTrace.push({
+      ruleCode: "ICMS-ST-DESTINATION-EXCEPTIONS",
+      result: "applied",
+      detail: "A finalidade informada leva à trilha de diferencial de alíquotas, sem aplicar MVA de revenda.",
+    });
+  } else if (classification && stFactsMatch && facts.purpose === "resale" && stOperationallyEligible) {
+    findings.push({
+      code: `ST-${classification.code}`, label: "Âmbito interestadual de ST", value: "Enquadramento localizado",
       detail: `${classification.description}. A coincidência de NCM, CEST, descrição e uso ainda deve ser revisada pelo responsável.`,
-      sourceCodes: classification.sourceCodes, nature: "st_scope",
+      sourceCodes: Array.from(new Set([...classification.sourceCodes, "CONFAZ-PROTOCOL-41-2008", "CONFAZ-CONVENIO-142-2018"])), nature: "st_scope",
     });
     findings.push({
       code: `MVA-${classification.code}`, label: "MVA constante da tabela mineira", value: `${(classification.tableMvaBps / 100).toFixed(2).replace(".", ",")}%`,
-      detail: "Parâmetro de tabela, não valor do ICMS-ST a recolher. Esta versão não calcula a base ajustada nem o imposto retido.",
+      detail: "Parâmetro de tabela, não valor do ICMS-ST a recolher. O cálculo ainda depende dos valores da operação, da alíquota interna, de eventual MVA ajustada e das deduções cabíveis.",
       sourceCodes: classification.sourceCodes, nature: "table_parameter",
     });
     decisionTrace.push({ ruleCode: "ICMS-ST-AUTO-PARTS-SP-MG", result: "applied", detail: `Correspondência controlada ${classification.code} por NCM e CEST.` });
@@ -523,18 +873,26 @@ export function evaluateFiscalQuestion(question: string, overrides: FiscalIntell
     decisionTrace.push({ ruleCode: "ICMS-ST-AUTO-PARTS-SP-MG", result: "blocked", detail: "A combinação NCM/CEST ainda não existe no catálogo manual desta versão." });
   } else if (!classificationDescriptionMatches) {
     decisionTrace.push({ ruleCode: "ICMS-ST-AUTO-PARTS-SP-MG", result: "blocked", detail: "A descrição informada não reproduz os termos controlados do item legal; a classificação precisa de revisão humana." });
-  } else {
+  } else if (facts.automotiveUse !== "yes") {
     decisionTrace.push({ ruleCode: "ICMS-ST-AUTO-PARTS-SP-MG", result: "blocked", detail: "O uso especificamente automotivo ainda não foi confirmado." });
+  } else if (facts.recipientTaxpayer === "no") {
+    decisionTrace.push({ ruleCode: "ICMS-ST-AUTO-PARTS-SP-MG", result: "not_applicable", detail: "A operação informada é para não contribuinte e segue a trilha de consumidor final/DIFAL, não a retenção por operações subsequentes." });
+  } else if (facts.purpose === "unknown") {
+    decisionTrace.push({ ruleCode: "ICMS-ST-AUTO-PARTS-SP-MG", result: "blocked", detail: "A finalidade da aquisição precisa ser informada para separar revenda, industrialização, uso/consumo e ativo." });
+  } else if (facts.specialTreatment === "exists") {
+    decisionTrace.push({ ruleCode: "ICMS-ST-AUTO-PARTS-SP-MG", result: "blocked", detail: "O tratamento especial informado deve ser validado antes do enquadramento de ST." });
+  } else {
+    decisionTrace.push({ ruleCode: "ICMS-ST-AUTO-PARTS-SP-MG", result: "blocked", detail: "A operação ainda não reúne todas as condições para conclusão da ST." });
   }
 
-  const status: FiscalIntelligenceStatus = hardBlock || blockingClarifications.length > 0 ? "needs_information" : "conditional";
+  const status: FiscalIntelligenceStatus = unresolvedSpecialCase || blockingClarifications.length > 0 ? "needs_information" : "conditional";
   const headline = findings.find((finding) => finding.nature === "own_rate")
     ? `${findings.find((finding) => finding.nature === "own_rate")!.label}: ${findings.find((finding) => finding.nature === "own_rate")!.value}`
-    : "Ainda não há base suficiente para indicar a alíquota operacional";
+    : "Referência geral: 12% — ainda não conclusiva";
   const summary = status === "conditional"
-    ? "A regra geral e o possível enquadramento de ST foram localizados. A conclusão permanece condicional porque a base está em piloto e exige revisão profissional da classificação e das exceções."
-    : "Há uma referência normativa possível, mas faltam fatos ou existe uma condição que impede transformar essa referência em orientação operacional.";
-  return buildResult({ definition, facts, factViews, status, headline, summary, findings, clarifications: blockingClarifications, decisionTrace });
+    ? "A alíquota interestadual e as camadas de ST ou DIFAL foram separadas conforme os fatos informados. A conclusão permanece condicional e exige revisão profissional da classificação, das exceções e do cálculo."
+    : "Para SP→MG, 12% é a referência geral para mercadoria nacional e 4% pode valer para importados enquadrados. ST e DIFAL são camadas separadas; complete os fatos para definir qual cenário alcança a operação.";
+  return buildResult({ definition, facts, factViews, status, headline, summary, findings, scenarioBranches, clarifications: blockingClarifications, decisionTrace });
 }
 
 function buildResult(input: {
@@ -545,6 +903,7 @@ function buildResult(input: {
   headline: string;
   summary: string;
   findings: FiscalFinding[];
+  scenarioBranches: FiscalScenarioBranch[];
   clarifications: FiscalClarification[];
   decisionTrace: FiscalDecisionTrace[];
 }): FiscalIntelligenceResult {
@@ -552,6 +911,7 @@ function buildResult(input: {
   if (input.facts.productOrigin === "imported") fields.push("importRuleQualification");
   const known = fields.filter((field) => knownFact(field, input.facts[field])).length;
   const sourceCodes = new Set(input.findings.flatMap((finding) => finding.sourceCodes));
+  input.scenarioBranches.flatMap((scenario) => scenario.sourceCodes).forEach((code) => sourceCodes.add(code));
   input.decisionTrace.forEach((trace) => input.definition.rules.find((rule) => rule.code === trace.ruleCode)?.sourceCodes.forEach((code) => sourceCodes.add(code)));
   const sources = input.definition.sources.filter((source) => sourceCodes.has(source.code));
   const statusLabels: Record<FiscalIntelligenceStatus, string> = { out_of_scope: "Fora da cobertura", needs_information: "Dados pendentes", conditional: "Conclusão condicional" };
@@ -569,6 +929,7 @@ function buildResult(input: {
     factViews: input.factViews,
     completeness: { known, required: fields.length, percentage: Math.round(known / fields.length * 100) },
     findings: input.findings,
+    scenarioBranches: input.scenarioBranches,
     clarifications: Array.from(new Map(input.clarifications.map((item) => [item.field, item])).values()),
     decisionTrace: input.decisionTrace,
     sources,
