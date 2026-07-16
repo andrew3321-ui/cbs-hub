@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useState } from "react";
+import FiscalDossierWorkbench from "./FiscalDossierWorkbench";
 
 type KnowledgeSource = {
   code: string;
@@ -239,6 +240,8 @@ export default function FiscalIntelligence() {
             <div className="result-hero-body"><div><p>CONCLUSÃO DO RECORTE ATUAL</p><h2>{result.headline}</h2><span>{result.summary}</span></div><div className="result-completeness"><strong>{result.completeness.percentage}%</strong><span>fatos mínimos preenchidos</span><small>{result.completeness.known} de {result.completeness.required} · não é garantia jurídica</small></div></div>
             <div className="result-progress"><i style={{ width: `${result.completeness.percentage}%` }} /></div>
           </section>
+
+          <FiscalDossierWorkbench question={question} facts={buildFacts(form)} completeness={result.completeness.percentage} />
 
           {result.scenarioBranches.length > 0 && <section className="panel intelligence-scenarios"><div className="panel-heading"><div><span className="eyebrow">MAPA COMPLETO DA PERGUNTA</span><h3>Qual número pode aparecer — e em qual condição</h3><p>A pergunta isolada não define uma única carga. Estes cenários são referências normativas; somente os achados abaixo foram aplicados aos fatos confirmados.</p></div><span>{result.scenarioBranches.length} cenários</span></div><div className="scenario-grid">{result.scenarioBranches.map((scenario) => <article className={scenario.status} key={scenario.code}><small>{scenario.label}</small><strong>{scenario.value}</strong><b>Quando</b><p>{scenario.condition}</p><b>Efeito</b><p>{scenario.consequence}</p><code>{scenario.code}</code></article>)}</div></section>}
 

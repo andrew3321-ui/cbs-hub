@@ -211,10 +211,11 @@ test("apuração líquida mantém 2026 bloqueado e prepara fechamento auditável
 });
 
 test("inteligência manual expõe cobertura, pendências e fontes sem fabricar conclusão", async () => {
-  const [app, intelligenceUi, intelligenceApi, intelligenceDomain, schema, migration] = await Promise.all([
+  const [app, intelligenceUi, intelligenceApi, intelligenceService, intelligenceDomain, schema, migration] = await Promise.all([
     readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
     readFile(new URL("app/app/FiscalIntelligence.tsx", root), "utf8"),
     readFile(new URL("app/api/fiscal-intelligence/route.ts", root), "utf8"),
+    readFile(new URL("app/fiscal-intelligence-service.ts", root), "utf8"),
     readFile(new URL("domain/fiscal-intelligence.ts", root), "utf8"),
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("drizzle/0014_lean_silhouette.sql", root), "utf8"),
@@ -226,7 +227,7 @@ test("inteligência manual expõe cobertura, pendências e fontes sem fabricar c
   assert.match(intelligenceUi, /MAPA COMPLETO DA PERGUNTA/);
   assert.match(intelligenceUi, /Preencher caso demonstrativo · 100% dos fatos/);
   assert.match(intelligenceUi, /Fontes efetivamente usadas nesta resposta/);
-  assert.match(intelligenceApi, /fiscal_knowledge_integrity_failure/);
+  assert.match(intelligenceService, /fiscal_knowledge_integrity_failure/);
   assert.match(intelligenceApi, /Cache-Control": "no-store/);
   assert.match(intelligenceDomain, /pilot_conditional/);
   assert.match(intelligenceDomain, /MVA de tabela não é o valor do ICMS-ST/);
@@ -234,4 +235,30 @@ test("inteligência manual expõe cobertura, pendências e fontes sem fabricar c
   assert.match(intelligenceDomain, /SCENARIO-SEVEN-NOT-SP-MG/);
   assert.match(schema, /fiscal_knowledge_bases_code_version_idx/);
   assert.match(migration, /CREATE TABLE `fiscal_knowledge_bases`/);
+});
+
+test("versão 22 congela memória fiscal e exige homologação segregada", async () => {
+  const [workbench, dossierApi, reviewApi, calculation, schema, migration] = await Promise.all([
+    readFile(new URL("app/app/FiscalDossierWorkbench.tsx", root), "utf8"),
+    readFile(new URL("app/api/fiscal-dossiers/route.ts", root), "utf8"),
+    readFile(new URL("app/api/fiscal-dossiers/review/route.ts", root), "utf8"),
+    readFile(new URL("domain/fiscal-dossier.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("drizzle/0015_mushy_doorman.sql", root), "utf8"),
+  ]);
+
+  assert.match(workbench, /VERSÃO 22 · DOSSIÊ FISCAL AUDITÁVEL/);
+  assert.match(workbench, /Calcular e congelar dossiê/);
+  assert.match(workbench, /Dupla revisão/);
+  assert.match(dossierApi, /createFiscalDossierSnapshot/);
+  assert.match(dossierApi, /evaluateFiscalQuestion/);
+  assert.match(reviewApi, /preparador não pode homologar o próprio dossiê/);
+  assert.match(reviewApi, /sha256Hex\(dossier\.snapshotJson\)/);
+  assert.match(reviewApi, /professionalRegistrationError/);
+  assert.match(calculation, /adjustedMvaBps/);
+  assert.match(calculation, /ICMS-ST condicionado/);
+  assert.match(calculation, /technical_memory_not_filing_instruction/);
+  assert.match(schema, /fiscalDossiers/);
+  assert.match(schema, /fiscalDossierEvents/);
+  assert.match(migration, /CREATE UNIQUE INDEX `fiscal_dossiers_workspace_hash_idx`/);
 });

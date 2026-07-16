@@ -233,6 +233,51 @@ export const fiscalKnowledgeBases = sqliteTable("fiscal_knowledge_bases", {
   index("fiscal_knowledge_bases_status_checked_idx").on(table.status, table.checkedAt, table.id),
 ]);
 
+export const fiscalDossiers = sqliteTable("fiscal_dossiers", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  companyId: integer("company_id"),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  assignedReviewerUserId: integer("assigned_reviewer_user_id"),
+  decisionByUserId: integer("decision_by_user_id"),
+  title: text("title").notNull(),
+  question: text("question").notNull(),
+  status: text("status").notNull().default("draft"),
+  baseCode: text("base_code").notNull(),
+  baseVersion: text("base_version").notNull(),
+  engineVersion: text("engine_version").notNull(),
+  factsJson: text("facts_json").notNull(),
+  calculationInputJson: text("calculation_input_json").notNull(),
+  snapshotJson: text("snapshot_json").notNull(),
+  inputHash: text("input_hash").notNull(),
+  professionalRegistration: text("professional_registration"),
+  reviewNote: text("review_note").notNull().default(""),
+  dueAt: text("due_at"),
+  decidedAt: text("decided_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("fiscal_dossiers_workspace_status_created_idx").on(table.workspaceId, table.status, table.createdAt, table.id),
+  index("fiscal_dossiers_reviewer_status_due_idx").on(table.assignedReviewerUserId, table.status, table.dueAt, table.id),
+  index("fiscal_dossiers_company_created_idx").on(table.companyId, table.createdAt, table.id),
+  uniqueIndex("fiscal_dossiers_workspace_hash_idx").on(table.workspaceId, table.inputHash),
+]);
+
+export const fiscalDossierEvents = sqliteTable("fiscal_dossier_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  dossierId: text("dossier_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  actorUserId: integer("actor_user_id").notNull(),
+  eventType: text("event_type").notNull(),
+  note: text("note").notNull().default(""),
+  eventData: text("event_data").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("fiscal_dossier_events_dossier_created_idx").on(table.dossierId, table.createdAt, table.id),
+  index("fiscal_dossier_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+]);
+
 export const taxPeriods = sqliteTable("tax_periods", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ownerUserId: integer("owner_user_id").notNull(),

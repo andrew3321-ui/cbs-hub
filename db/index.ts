@@ -269,6 +269,45 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_dossiers (
+          id TEXT PRIMARY KEY NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          company_id INTEGER,
+          created_by_user_id INTEGER NOT NULL,
+          assigned_reviewer_user_id INTEGER,
+          decision_by_user_id INTEGER,
+          title TEXT NOT NULL,
+          question TEXT NOT NULL,
+          status TEXT DEFAULT 'draft' NOT NULL,
+          base_code TEXT NOT NULL,
+          base_version TEXT NOT NULL,
+          engine_version TEXT NOT NULL,
+          facts_json TEXT NOT NULL,
+          calculation_input_json TEXT NOT NULL,
+          snapshot_json TEXT NOT NULL,
+          input_hash TEXT NOT NULL,
+          professional_registration TEXT,
+          review_note TEXT DEFAULT '' NOT NULL,
+          due_at TEXT,
+          decided_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_dossier_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          dossier_id TEXT NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          actor_user_id INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          note TEXT DEFAULT '' NOT NULL,
+          event_data TEXT DEFAULT '{}' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS tax_periods (
           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
           owner_user_id INTEGER NOT NULL,
@@ -482,6 +521,12 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_reference_cases_rule_set_idx ON fiscal_reference_cases (rule_set_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_knowledge_bases_code_version_idx ON fiscal_knowledge_bases (code, version)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_knowledge_bases_status_checked_idx ON fiscal_knowledge_bases (status, checked_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossiers_workspace_status_created_idx ON fiscal_dossiers (workspace_id, status, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossiers_reviewer_status_due_idx ON fiscal_dossiers (assigned_reviewer_user_id, status, due_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossiers_company_created_idx ON fiscal_dossiers (company_id, created_at, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_dossiers_workspace_hash_idx ON fiscal_dossiers (workspace_id, input_hash)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossier_events_dossier_created_idx ON fiscal_dossier_events (dossier_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossier_events_workspace_created_idx ON fiscal_dossier_events (workspace_id, created_at, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_periods_owner_company_period_idx ON tax_periods (owner_user_id, company_id, period_key)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_periods_owner_status_period_idx ON tax_periods (owner_user_id, status, period_key, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_ledger_entries_period_source_idx ON tax_ledger_entries (period_id, source_key)"),
