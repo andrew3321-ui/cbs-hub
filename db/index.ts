@@ -353,6 +353,50 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_homologation_cases (
+          id TEXT PRIMARY KEY NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          created_by_user_id INTEGER NOT NULL,
+          assigned_reviewer_user_id INTEGER,
+          decision_by_user_id INTEGER,
+          title TEXT NOT NULL,
+          question TEXT NOT NULL,
+          topic_code TEXT NOT NULL,
+          status TEXT DEFAULT 'draft' NOT NULL,
+          assurance_level TEXT DEFAULT 'engine_verified' NOT NULL,
+          base_code TEXT NOT NULL,
+          base_version TEXT NOT NULL,
+          base_hash TEXT NOT NULL,
+          engine_version TEXT NOT NULL,
+          snapshot_json TEXT NOT NULL,
+          snapshot_hash TEXT NOT NULL,
+          expected_json TEXT DEFAULT '{}' NOT NULL,
+          comparison_outcome TEXT,
+          independent_conclusion TEXT DEFAULT '' NOT NULL,
+          professional_registration TEXT,
+          review_note TEXT DEFAULT '' NOT NULL,
+          due_at TEXT,
+          decided_at TEXT,
+          signature_version TEXT,
+          decision_signature TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_homologation_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          case_id TEXT NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          actor_user_id INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          note TEXT DEFAULT '' NOT NULL,
+          event_data TEXT DEFAULT '{}' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS tax_periods (
           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
           owner_user_id INTEGER NOT NULL,
@@ -579,6 +623,12 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_documents_dossier_created_idx ON fiscal_documents (dossier_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_document_events_document_created_idx ON fiscal_document_events (document_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_document_events_workspace_created_idx ON fiscal_document_events (workspace_id, created_at, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_homologation_workspace_snapshot_idx ON fiscal_homologation_cases (workspace_id, snapshot_hash)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_homologation_workspace_status_created_idx ON fiscal_homologation_cases (workspace_id, status, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_homologation_reviewer_status_due_idx ON fiscal_homologation_cases (assigned_reviewer_user_id, status, due_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_homologation_topic_status_idx ON fiscal_homologation_cases (topic_code, status, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_homologation_events_case_created_idx ON fiscal_homologation_events (case_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_homologation_events_workspace_created_idx ON fiscal_homologation_events (workspace_id, created_at, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_periods_owner_company_period_idx ON tax_periods (owner_user_id, company_id, period_key)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_periods_owner_status_period_idx ON tax_periods (owner_user_id, status, period_key, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_ledger_entries_period_source_idx ON tax_ledger_entries (period_id, source_key)"),

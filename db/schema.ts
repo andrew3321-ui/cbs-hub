@@ -330,6 +330,56 @@ export const fiscalDocumentEvents = sqliteTable("fiscal_document_events", {
   index("fiscal_document_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
 ]);
 
+export const fiscalHomologationCases = sqliteTable("fiscal_homologation_cases", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  assignedReviewerUserId: integer("assigned_reviewer_user_id"),
+  decisionByUserId: integer("decision_by_user_id"),
+  title: text("title").notNull(),
+  question: text("question").notNull(),
+  topicCode: text("topic_code").notNull(),
+  status: text("status").notNull().default("draft"),
+  assuranceLevel: text("assurance_level").notNull().default("engine_verified"),
+  baseCode: text("base_code").notNull(),
+  baseVersion: text("base_version").notNull(),
+  baseHash: text("base_hash").notNull(),
+  engineVersion: text("engine_version").notNull(),
+  snapshotJson: text("snapshot_json").notNull(),
+  snapshotHash: text("snapshot_hash").notNull(),
+  expectedJson: text("expected_json").notNull().default("{}"),
+  comparisonOutcome: text("comparison_outcome"),
+  independentConclusion: text("independent_conclusion").notNull().default(""),
+  professionalRegistration: text("professional_registration"),
+  reviewNote: text("review_note").notNull().default(""),
+  dueAt: text("due_at"),
+  decidedAt: text("decided_at"),
+  signatureVersion: text("signature_version"),
+  decisionSignature: text("decision_signature"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_homologation_workspace_snapshot_idx").on(table.workspaceId, table.snapshotHash),
+  index("fiscal_homologation_workspace_status_created_idx").on(table.workspaceId, table.status, table.createdAt, table.id),
+  index("fiscal_homologation_reviewer_status_due_idx").on(table.assignedReviewerUserId, table.status, table.dueAt, table.id),
+  index("fiscal_homologation_topic_status_idx").on(table.topicCode, table.status, table.id),
+]);
+
+export const fiscalHomologationEvents = sqliteTable("fiscal_homologation_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  caseId: text("case_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  actorUserId: integer("actor_user_id").notNull(),
+  eventType: text("event_type").notNull(),
+  note: text("note").notNull().default(""),
+  eventData: text("event_data").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("fiscal_homologation_events_case_created_idx").on(table.caseId, table.createdAt, table.id),
+  index("fiscal_homologation_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+]);
+
 export const taxPeriods = sqliteTable("tax_periods", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ownerUserId: integer("owner_user_id").notNull(),

@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import FiscalDossierWorkbench from "./FiscalDossierWorkbench";
+import FiscalHomologationCenter from "./FiscalHomologationCenter";
 
 type KnowledgeSource = {
   code: string;
@@ -366,6 +367,8 @@ export default function FiscalIntelligence() {
           <section className="panel intelligence-sources"><div className="panel-heading"><div><span className="eyebrow">EVIDÊNCIA NORMATIVA</span><h3>Fontes efetivamente usadas nesta resposta</h3></div><code>#{knowledge?.fingerprint ?? "—"}</code></div>{result.sources.length ? <div className="intelligence-source-grid">{result.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span>↗</span><div><small>{source.primary ? "FONTE PRIMÁRIA" : "COMPILAÇÃO OFICIAL"}</small><b>{source.title}</b><p>{source.legalReference}</p><em>{source.publisher} · conferida em {dateLabel(source.checkedAt)}</em></div></a>)}</div> : <p className="no-result-sources">Nenhuma fonte foi aplicada porque a consulta ainda está fora do recorte ou sem fatos mínimos.</p>}<div className="intelligence-disclaimer"><b>Limite de responsabilidade da resposta</b><p>{result.disclaimer}</p></div></section>
         </>
       )}
+
+      {!catalogLoading && <FiscalHomologationCenter candidate={result ? { question, facts: buildFacts(form), result } : null} />}
 
       {!catalogLoading && catalogSources.length > 0 && <section className="knowledge-catalog-note"><span>BASE CONTROLADA</span><p>{knowledge?.topicCount ?? 0} módulos · {knowledge?.ruleCount ?? 0} regras manuais · {knowledge?.classificationCount ?? 0} combinações NCM/CEST · {catalogSources.length} fontes oficiais. Cada resposta preserva base, versão, trilha e bloqueios.</p></section>}
     </div>

@@ -315,3 +315,40 @@ test("versão 24 expande a inteligência fiscal sem promover triagem a cálculo 
   assert.match(expanded, /A plataforma separou CSRF, IRRF, retenção previdenciária e EFD-Reinf/);
   assert.match(expanded, /Nenhum valor líquido a pagar foi produzido/);
 });
+
+test("versão 25 transforma validações reais em casos homologados, assinados e revalidáveis", async () => {
+  const [ui, createApi, reviewApi, service, domain, signing, schema, runtimeDb, migration] = await Promise.all([
+    readFile(new URL("app/app/FiscalHomologationCenter.tsx", root), "utf8"),
+    readFile(new URL("app/api/fiscal-homologations/route.ts", root), "utf8"),
+    readFile(new URL("app/api/fiscal-homologations/review/route.ts", root), "utf8"),
+    readFile(new URL("app/fiscal-homologation-service.ts", root), "utf8"),
+    readFile(new URL("domain/fiscal-homologation.ts", root), "utf8"),
+    readFile(new URL("domain/fiscal-homologation-signing.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("db/index.ts", root), "utf8"),
+    readFile(new URL("drizzle/0017_wise_edwin_jarvis.sql", root), "utf8"),
+  ]);
+
+  assert.match(ui, /VERSÃO 25 · CENTRAL DE HOMOLOGAÇÃO/);
+  assert.match(ui, /Validação do motor ≠ homologação profissional/);
+  assert.match(ui, /Refiz o enquadramento\/cálculo de forma independente/);
+  assert.match(ui, /Homologar e assinar/);
+  assert.match(createApi, /evaluateExpandedFiscalQuestion/);
+  assert.match(createApi, /resultado enviado pelo navegador nunca é aceito/);
+  assert.match(createApi, /snapshotHash/);
+  assert.match(reviewApi, /preparador não pode homologar o próprio caso/);
+  assert.match(reviewApi, /comparisonOutcome !== "matches"/);
+  assert.match(reviewApi, /sourcesConfirmed/);
+  assert.match(reviewApi, /independentlyChecked/);
+  assert.match(reviewApi, /professionalRegistrationError/);
+  assert.match(service, /requires_revalidation/);
+  assert.match(service, /regressionStatus/);
+  assert.match(service, /evaluateExpandedFiscalQuestion/);
+  assert.match(service, /expectedOutcomeFromHomologation/);
+  assert.match(domain, /completeness\.percentage !== 100/);
+  assert.match(signing, /HMAC/);
+  assert.match(schema, /fiscalHomologationCases/);
+  assert.match(schema, /fiscalHomologationEvents/);
+  assert.match(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_homologation_cases/);
+  assert.match(migration, /CREATE UNIQUE INDEX `fiscal_homologation_workspace_snapshot_idx`/);
+});
