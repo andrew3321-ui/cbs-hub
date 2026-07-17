@@ -5,6 +5,7 @@ import { normalizeProfessionalRegistration, professionalRegistrationError, profe
 import { calculateScenarioValues } from "../scenario-calculations";
 import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 import FiscalIntelligence from "./FiscalIntelligence";
+import FederalPmeCompliance from "./FederalPmeCompliance";
 import NfeAuditWorkbench from "./NfeAuditWorkbench";
 
 type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "rules" | "determination" | "academy";
@@ -1658,9 +1659,11 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
         {section === "rules" && (
           <div className="page-content fiscal-rules-page">
             <div className="page-heading">
-              <div><p className="kicker">GOVERNANÇA DO MOTOR FISCAL</p><h1>Catálogo fiscal versionado</h1><p>Nenhuma regra entra nos cálculos sem fonte, integridade, casos de referência e aprovação explícita.</p></div>
+              <div><p className="kicker">GOVERNANÇA DO MOTOR FISCAL</p><h1>Regras federais e Catálogo fiscal versionado</h1><p>Mapeie as obrigações essenciais da PME e audite as regras que podem entrar nos cálculos.</p></div>
               <a className="secondary-button" href="/metodologia">Ver metodologia</a>
             </div>
+
+            <FederalPmeCompliance />
 
             {rulesError && <div className="toast" role="alert">{rulesError}</div>}
             {!fiscalCatalog && !rulesError && <section className="panel rules-loading"><span className="loading-spinner" /><div><b>Verificando regras e casos de referência…</b><p>O conteúdo armazenado está sendo comparado ao hash registrado.</p></div></section>}

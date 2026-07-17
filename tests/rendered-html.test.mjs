@@ -352,3 +352,27 @@ test("versão 25 transforma validações reais em casos homologados, assinados e
   assert.match(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_homologation_cases/);
   assert.match(migration, /CREATE UNIQUE INDEX `fiscal_homologation_workspace_snapshot_idx`/);
 });
+
+test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herdar obrigações", async () => {
+  const [ui, api, domain, shell, layout] = await Promise.all([
+    readFile(new URL("app/app/FederalPmeCompliance.tsx", root), "utf8"),
+    readFile(new URL("app/api/federal-pme-compliance/route.ts", root), "utf8"),
+    readFile(new URL("domain/federal-pme-compliance.ts", root), "utf8"),
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/layout.tsx", root), "utf8"),
+  ]);
+
+  assert.match(ui, /VERSÃO 26 · COBERTURA FEDERAL PARA PMEs/);
+  assert.match(ui, /Nenhuma regra é marcada como obrigatória apenas/);
+  assert.match(ui, /Exibir não aplicáveis/);
+  assert.match(api, /parseFederalPmeProfile/);
+  assert.match(api, /Cache-Control": "no-store/);
+  assert.match(domain, /SIMPLES-PGDAS-D/);
+  assert.match(domain, /DCTFWEB-GENERAL/);
+  assert.match(domain, /EFD-REINF-R4000/);
+  assert.match(domain, /ESOCIAL-SST/);
+  assert.match(domain, /RTC-2026-DOCUMENTS/);
+  assert.match(domain, /"not_applicable"/);
+  assert.match(shell, /FederalPmeCompliance/);
+  assert.match(layout, /federal-pme\.css/);
+});
