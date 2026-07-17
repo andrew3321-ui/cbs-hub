@@ -202,6 +202,26 @@ export const fiscalRuleSets = sqliteTable("fiscal_rule_sets", {
   index("fiscal_rule_sets_status_effective_idx").on(table.status, table.effectiveFrom, table.effectiveTo),
 ]);
 
+export const fiscalRuleApprovals = sqliteTable("fiscal_rule_approvals", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  ruleCode: text("rule_code").notNull(),
+  ruleVersion: text("rule_version").notNull(),
+  ruleHash: text("rule_hash").notNull(),
+  approvedByUserId: integer("approved_by_user_id").notNull(),
+  reviewerName: text("reviewer_name").notNull(),
+  professionalRole: text("professional_role").notNull(),
+  professionalRegistration: text("professional_registration").notNull(),
+  decision: text("decision").notNull().default("approved"),
+  declarationVersion: text("declaration_version").notNull(),
+  decisionSignature: text("decision_signature").notNull(),
+  decidedAt: text("decided_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_rule_approvals_workspace_rule_hash_idx").on(table.workspaceId, table.ruleCode, table.ruleVersion, table.ruleHash),
+  index("fiscal_rule_approvals_workspace_decided_idx").on(table.workspaceId, table.decidedAt, table.id),
+]);
+
 export const fiscalReferenceCases = sqliteTable("fiscal_reference_cases", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ruleSetId: integer("rule_set_id").notNull(),

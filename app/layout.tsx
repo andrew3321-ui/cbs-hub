@@ -3,6 +3,7 @@ import { headers } from "next/headers";
 import "./globals.css";
 import "./homologation.css";
 import "./federal-pme.css";
+import "./national-coverage.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

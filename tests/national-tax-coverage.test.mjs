@@ -1,0 +1,48 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, recurringScenarios, resolveInterstateIcms, stateCoverage, stSegments } from "../domain/national-tax-coverage.ts";
+import { inspectFiscalBatchText } from "../domain/fiscal-batch-import.ts";
+
+test("V27 exposes all 27 UFs without pretending internal rates are final", () => {
+  assert.equal(stateCoverage.length, 27);
+  assert.equal(new Set(stateCoverage.map((item) => item.uf)).size, 27);
+  assert.ok(stateCoverage.every((item) => item.status === "partial"));
+  assert.ok(stateCoverage.every((item) => item.blockers.some((text) => text.includes("alíquota interna"))));
+});
+
+test("interstate resolver reproduces 7%, 12% and qualified imported 4%", () => {
+  assert.equal(resolveInterstateIcms("SP", "MG", false).rateBps, 1200);
+  assert.equal(resolveInterstateIcms("SP", "BA", false).rateBps, 700);
+  assert.equal(resolveInterstateIcms("BA", "SP", false).rateBps, 1200);
+  assert.equal(resolveInterstateIcms("SP", "MG", true).rateBps, 400);
+  assert.equal(resolveInterstateIcms("SP", "SP", false).status, "blocked");
+});
+
+test("ISS, ST and recurring funnels disclose their unresolved facts", () => {
+  assert.equal(cityCoverage.length, 50);
+  assert.equal(new Set(cityCoverage.map((item) => item.ibgeCode)).size, 50);
+  assert.ok(cityCoverage.every((item) => item.rangeBps[0] === 200 && item.rangeBps[1] === 500));
+  assert.ok(stSegments.length >= 8);
+  assert.ok(recurringScenarios.length >= 7);
+  assert.ok([...cityCoverage, ...stSegments, ...recurringScenarios].every((item) => item.blockers.length > 0));
+});
+
+test("public metrics and fingerprint cover the national catalog", async () => {
+  const metrics = coverageMetrics();
+  assert.equal(metrics.states, 27);
+  assert.equal(metrics.cities, 50);
+  assert.ok(coverageSources.every((source) => /^https:\/\//.test(source.url)));
+  assert.match(await hashNationalCoverage(), /^[0-9a-f]{64}$/);
+});
+
+test("batch inspector accepts structural SPED and recognizes NF-e/NFS-e safely", () => {
+  const sped = inspectFiscalBatchText("efd.txt", "|0000|020|0|EMPRESA|123|SP|\n|C100|0|1|\n|9999|3|");
+  assert.equal(sped.documentType, "sped");
+  assert.equal(sped.status, "accepted");
+  const nfe = inspectFiscalBatchText("nfe.xml", "<nfeProc><NFe><infNFe><ide><mod>55</mod></ide><det nItem='1'/></infNFe></NFe></nfeProc>");
+  assert.equal(nfe.documentType, "nfe");
+  const nfse = inspectFiscalBatchText("nfse.xml", "<CompNfse><Nfse><InfNfse><Numero>123</Numero><ItemListaServico>1.07</ItemListaServico></InfNfse></Nfse></CompNfse>");
+  assert.equal(nfse.documentType, "nfse");
+  assert.equal(nfse.status, "warning");
+  assert.equal(inspectFiscalBatchText("evil.xml", "<!DOCTYPE x [<!ENTITY y SYSTEM 'file:///etc/passwd'>]><NFe/>").status, "blocked");
+});

@@ -465,6 +465,24 @@ export function ensureScenarioSchema() {
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_rule_approvals (
+          id TEXT PRIMARY KEY NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          rule_code TEXT NOT NULL,
+          rule_version TEXT NOT NULL,
+          rule_hash TEXT NOT NULL,
+          approved_by_user_id INTEGER NOT NULL,
+          reviewer_name TEXT NOT NULL,
+          professional_role TEXT NOT NULL,
+          professional_registration TEXT NOT NULL,
+          decision TEXT DEFAULT 'approved' NOT NULL,
+          declaration_version TEXT NOT NULL,
+          decision_signature TEXT NOT NULL,
+          decided_at TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
     ]);
 
     try {
@@ -606,6 +624,8 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_scenario_owner_idx ON report_shares (scenario_id, owner_user_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_rule_sets_code_version_idx ON fiscal_rule_sets (code, version)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_rule_sets_status_effective_idx ON fiscal_rule_sets (status, effective_from, effective_to)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_rule_approvals_workspace_rule_hash_idx ON fiscal_rule_approvals (workspace_id, rule_code, rule_version, rule_hash)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_rule_approvals_workspace_decided_idx ON fiscal_rule_approvals (workspace_id, decided_at, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_reference_cases_rule_code_idx ON fiscal_reference_cases (rule_set_id, code)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_reference_cases_rule_set_idx ON fiscal_reference_cases (rule_set_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_knowledge_bases_code_version_idx ON fiscal_knowledge_bases (code, version)"),

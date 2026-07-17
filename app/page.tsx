@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { getCurrentUser } from "./auth";
+import { coverageMetrics } from "../domain/national-tax-coverage";
 
 export const dynamic = "force-dynamic";
 
 export default async function LandingPage() {
   const user = await getCurrentUser();
+  const coverage = coverageMetrics();
   const primaryPath = user ? "/app" : "/cadastro";
   const loginPath = user ? "/app" : "/entrar";
   const demoPath = user ? "/app?view=academy" : "/cadastro";
@@ -85,6 +87,14 @@ export default async function LandingPage() {
       <section className="landing-proof-strip" aria-label="Benefícios principais">
         <p>Feito para o contador que precisa <strong>explicar, revisar e entregar</strong>, não apenas calcular.</p>
         <div><span>Escritórios contábeis</span><i /> <span>Contadores consultivos</span><i /> <span>Responsáveis técnicos</span><i /> <span>Carteiras multiempresa</span></div>
+      </section>
+
+      <section className="landing-coverage-strip" aria-label="Cobertura tributária pública">
+        <div><span>COBERTURA PÚBLICA · V27</span><strong>Saiba exatamente o que é suportado</strong><small>Nenhum cenário parcial é apresentado como conclusão.</small><br /><a href="/api/public/coverage" target="_blank" rel="noreferrer">Abrir indicador público ↗</a></div>
+        <div><span>ICMS</span><strong>{coverage.states}/27</strong><small>UFs mapeadas</small></div>
+        <div><span>ISS</span><strong>{coverage.cities}</strong><small>cidades prioritárias</small></div>
+        <div><span>ST</span><strong>{coverage.stSegments}</strong><small>segmentos controlados</small></div>
+        <div><span>FONTES</span><strong>{coverage.sourceCount}</strong><small>primárias nacionais</small></div>
       </section>
 
       <section className="landing-section product-section" id="produto">
