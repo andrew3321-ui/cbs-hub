@@ -9,8 +9,9 @@ import FederalPmeCompliance from "./FederalPmeCompliance";
 import NationalCoverageCenter from "./NationalCoverageCenter";
 import FiscalExpansionCenter from "./FiscalExpansionCenter";
 import NfeAuditWorkbench from "./NfeAuditWorkbench";
+import DeterministicTaxLab from "./DeterministicTaxLab";
 
-type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "coverage" | "expansion" | "rules" | "determination" | "academy";
+type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "academy";
 
 type ScenarioApproval = {
   id: number;
@@ -1200,6 +1201,9 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
           <button title="Inteligência fiscal" className={section === "intelligence" ? "active" : ""} onClick={() => setSection("intelligence")}>
             <span className="nav-icon">⌕</span>Inteligência fiscal
           </button>
+          <button title="Laboratório fiscal" className={section === "taxlab" ? "active" : ""} onClick={() => setSection("taxlab")}>
+            <span className="nav-icon">∑</span>Laboratório fiscal
+          </button>
           <button title="Cobertura nacional" className={section === "coverage" ? "active" : ""} onClick={() => setSection("coverage")}>
             <span className="nav-icon">◇</span>Cobertura nacional
           </button>
@@ -1669,6 +1673,8 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
         )}
 
         {section === "intelligence" && <FiscalIntelligence />}
+
+        {section === "taxlab" && <DeterministicTaxLab />}
 
         {section === "coverage" && <div className="page-content"><NationalCoverageCenter /></div>}
 
