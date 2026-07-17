@@ -1,7 +1,7 @@
 import {
-  evaluateFiscalQuestion,
   type FiscalIntelligenceOverrides,
 } from "../../../domain/fiscal-intelligence";
+import { evaluateExpandedFiscalQuestion, fiscalTopicCatalog } from "../../../domain/fiscal-intelligence-v24";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { loadFiscalKnowledgeBase, parseFiscalOverrides } from "../../fiscal-intelligence-service";
@@ -25,14 +25,19 @@ async function getFiscalIntelligence() {
         sourceCount: stored.sourceCount,
         ruleCount: definition.rules.length,
         classificationCount: definition.productClassifications.length,
+        topicCount: definition.nationalTopics.length,
       },
       coverage: definition.coverage,
+      topics: fiscalTopicCatalog(definition),
       sources: definition.sources,
       limitations: definition.limitations,
       examples: [
         "Qual a alíquota de ICMS para autopeças de SP para MG?",
-        "Venda para revenda de peça nacional NCM 8708 e CEST 01.075.00, de SP para MG",
-        "Autopeça importada de SP para MG com conteúdo de importação acima de 40%",
+        "Qual o ICMS de mercadoria nacional de SP para BA?",
+        "Onde é devido o ISS de consultoria prestada de Campinas para Belo Horizonte?",
+        "Qual a alíquota de PIS e Cofins no regime cumulativo?",
+        "Como destacar IBS e CBS em 2026?",
+        "Consultoria entre duas empresas tem retenção de PIS, Cofins e CSLL?",
       ],
     }, { headers: { "Cache-Control": "private, max-age=60" } });
   } catch {
@@ -61,7 +66,7 @@ async function searchFiscalIntelligence(request: Request) {
   try {
     const { stored, definition, fingerprint } = await loadFiscalKnowledgeBase();
     const referenceDate = new Date().toISOString().slice(0, 10);
-    const result = evaluateFiscalQuestion(question.trim(), overrides, referenceDate, definition);
+    const result = evaluateExpandedFiscalQuestion(question.trim(), overrides, referenceDate, definition);
     return Response.json({
       result,
       knowledge: { code: stored.code, version: stored.version, status: stored.status, fingerprint, checkedAt: stored.checkedAt },

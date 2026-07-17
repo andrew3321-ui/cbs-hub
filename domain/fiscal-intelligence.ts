@@ -2,11 +2,14 @@ export type FiscalIntelligenceStatus = "out_of_scope" | "needs_information" | "c
 
 export type FiscalFactSource = "question" | "manual" | "default" | "unknown";
 
+export type FiscalTaxCode = "ICMS" | "ISS" | "IPI" | "PIS_COFINS" | "SIMPLES" | "IRPJ_CSLL" | "IBS_CBS" | "WITHHOLDINGS";
+export type FiscalSegment = "auto_parts" | "general_goods" | "services" | "industry" | "general_business";
+
 export type FiscalIntelligenceFacts = {
-  tax: "ICMS" | null;
+  tax: FiscalTaxCode | null;
   originState: string | null;
   destinationState: string | null;
-  segment: "auto_parts" | null;
+  segment: FiscalSegment | null;
   productDescription: string | null;
   ncm: string | null;
   cest: string | null;
@@ -17,12 +20,23 @@ export type FiscalIntelligenceFacts = {
   purpose: "resale" | "industrialization" | "use_consumption" | "fixed_asset" | "unknown";
   automotiveUse: "yes" | "no" | "unknown";
   specialTreatment: "none" | "exists" | "unknown";
+  operationType: "goods" | "service" | "import" | "export" | "mixed" | "unknown";
+  businessActivity: "commerce" | "industry" | "service" | "mixed" | "unknown";
+  incomeTaxRegime: "real" | "presumed" | "simples" | "unknown";
+  pisCofinsRegime: "cumulative" | "non_cumulative" | "monophase" | "zero_rate" | "unknown";
+  serviceItem: string | null;
+  cnae: string | null;
+  originMunicipality: string | null;
+  destinationMunicipality: string | null;
+  payerType: "private_legal_entity" | "public_entity" | "individual" | "unknown";
+  paymentRecipientType: "legal_entity" | "individual" | "unknown";
+  serviceNature: "professional" | "cleaning_maintenance" | "labor_assignment" | "construction" | "general" | "unknown";
   referenceDate: string;
 };
 
 export type FiscalIntelligenceOverrides = Partial<Omit<FiscalIntelligenceFacts, "tax" | "segment" | "referenceDate">> & {
-  tax?: "ICMS" | null;
-  segment?: "auto_parts" | null;
+  tax?: FiscalTaxCode | null;
+  segment?: FiscalSegment | null;
   referenceDate?: string;
 };
 
@@ -55,6 +69,18 @@ type ProductClassification = {
   sourceCodes: string[];
 };
 
+export type NationalFiscalTopic = {
+  code: string;
+  tax: FiscalTaxCode;
+  title: string;
+  coverageLevel: "operational_reference" | "structured_triage";
+  requiredFacts: Array<keyof FiscalIntelligenceFacts>;
+  supportedOutputs: string[];
+  hardStops: string[];
+  sourceCodes: string[];
+  examples: string[];
+};
+
 export type FiscalIntelligenceDefinition = {
   schemaVersion: "manual-fiscal-intelligence.v1";
   engineVersion: string;
@@ -71,6 +97,7 @@ export type FiscalIntelligenceDefinition = {
   ontology: Record<string, string[]>;
   rules: ManualRule[];
   productClassifications: ProductClassification[];
+  nationalTopics: NationalFiscalTopic[];
   sources: FiscalKnowledgeSource[];
   limitations: string[];
 };
@@ -94,7 +121,7 @@ export type FiscalFinding = {
   value: string;
   detail: string;
   sourceCodes: string[];
-  nature: "own_rate" | "st_scope" | "table_parameter" | "additional_obligation";
+  nature: "own_rate" | "st_scope" | "table_parameter" | "additional_obligation" | "legal_range" | "regime_reference" | "compliance_gate";
 };
 
 export type FiscalDecisionTrace = {
@@ -133,16 +160,72 @@ export type FiscalIntelligenceResult = {
   sources: FiscalKnowledgeSource[];
   limitations: string[];
   disclaimer: string;
+  topicCode: string;
+  coverageLevel: "operational_reference" | "structured_triage";
+  calculationEligible: boolean;
 };
 
-const CHECKED_AT = "2026-07-15";
+const CHECKED_AT = "2026-07-16";
+
+const nationalSources: FiscalKnowledgeSource[] = [
+  { code: "LC-87-1996", title: "Lei Complementar nº 87/1996 · ICMS", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp87.htm", legalReference: "normas gerais do ICMS; local, contribuinte, base e créditos", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "LC-116-2003", title: "Lei Complementar nº 116/2003 · ISS", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp116.htm", legalReference: "arts. 1º a 8º-A e lista de serviços", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "LC-157-2016", title: "Lei Complementar nº 157/2016 · ISS", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp157.htm", legalReference: "alíquota mínima e alterações do local de incidência", sourceUpdatedAt: "2016-12-29", checkedAt: CHECKED_AT, primary: true },
+  { code: "D-11158-2022-TIPI", title: "Decreto nº 11.158/2022 · TIPI", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/_ato2019-2022/2022/decreto/d11158.htm", legalReference: "arts. 1º a 4º e anexos da TIPI, com alterações posteriores", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "RFB-CLASSIF", title: "Classificação Fiscal de Mercadorias · Sistema Classif", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/assuntos/aduana-e-comercio-exterior/classificacao-fiscal-de-mercadorias", legalReference: "consulta oficial da NCM, notas legais e orientações de classificação", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: false },
+  { code: "L-9718-1998", title: "Lei nº 9.718/1998 · Cofins cumulativa", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/l9718.htm", legalReference: "arts. 2º, 3º e 8º", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "MP-2158-35-2001", title: "MP nº 2.158-35/2001 · PIS/Pasep", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/mpv/2158-35.htm", legalReference: "regime cumulativo e regras especiais do PIS/Pasep e Cofins", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "L-10637-2002", title: "Lei nº 10.637/2002 · PIS/Pasep não cumulativo", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/2002/l10637compilado.htm", legalReference: "arts. 1º a 3º; incidência e créditos", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "L-10833-2003", title: "Lei nº 10.833/2003 · Cofins e retenções", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.833compilado.htm", legalReference: "arts. 1º a 3º e 30 a 32", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "RFB-PIS-COFINS", title: "PIS/Pasep e Cofins · orientação tributária", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/tributos/pis-pasep-cofins", legalReference: "hipóteses de incidência e regimes das contribuições", sourceUpdatedAt: "2023-08-21", checkedAt: CHECKED_AT, primary: false },
+  { code: "LC-123-2006", title: "Lei Complementar nº 123/2006 · Simples Nacional", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm", legalReference: "arts. 3º, 17, 18 e anexos", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "CGSN-140-2018", title: "Resolução CGSN nº 140/2018 · regulamento do Simples", publisher: "Comitê Gestor do Simples Nacional", url: "https://normas.receita.fazenda.gov.br/sijut2consulta/link.action?idAto=92278", legalReference: "receitas segregadas, PGDAS-D, anexos, vedações e fator R", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "RFB-IRPJ", title: "IRPJ · orientação tributária", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/tributos/IRPJ", legalReference: "alíquota geral e adicional do IRPJ", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: false },
+  { code: "RFB-CSLL", title: "CSLL · orientação tributária", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/tributos/CSLL", legalReference: "alíquotas e bases real, presumida e arbitrada", sourceUpdatedAt: "2023-08-21", checkedAt: CHECKED_AT, primary: false },
+  { code: "L-9249-1995", title: "Lei nº 9.249/1995 · IRPJ e CSLL", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/l9249.htm", legalReference: "arts. 3º, 15 e 20", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "RFB-BENEFITS-2026", title: "Redução de incentivos e benefícios tributários · perguntas e respostas 2026", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/perguntas-e-respostas/beneficios-fiscais/perguntas-e-respostas-reducao-dos-incentivos-e-beneficios-tributarios.pdf/@@download/file", legalReference: "efeitos de 2026 sobre percentuais de presunção e benefícios", sourceUpdatedAt: "2026-04-30", checkedAt: CHECKED_AT, primary: false },
+  { code: "LC-214-2025", title: "Lei Complementar nº 214/2025 · IBS, CBS e IS", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214compilado.htm", legalReference: "instituição, incidência, transição e regimes de IBS/CBS", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: true },
+  { code: "RFB-RTC-2026", title: "Orientações da Reforma Tributária para 2026", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/orientacoes-2026", legalReference: "destaque documental, obrigações acessórias e dispensa de recolhimento no ano-teste", sourceUpdatedAt: "2026-05-06", checkedAt: CHECKED_AT, primary: false },
+  { code: "RFB-REINF-2026", title: "EFD-Reinf · retenções na fonte de pessoa jurídica", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/perguntas-frequentes/sped/efd-reinf/efdr/1-geral/1-17-as-informacoes-sobre", legalReference: "eventos R-4020 e R-4080", sourceUpdatedAt: "2026-04-13", checkedAt: CHECKED_AT, primary: false },
+  { code: "RFB-INSS-PJ", title: "Contribuições previdenciárias das pessoas jurídicas", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/tributos/contribuicoes-previdenciarias-pj", legalReference: "retenção em cessão de mão de obra e empreitada", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: false },
+];
+
+const nationalRules: ManualRule[] = [
+  { code: "ICMS-INTERSTATE-NATIONAL-7-12", title: "Referência interestadual nacional", conclusion: "A rota, a origem da mercadoria e a existência de regra especial definem se a referência interestadual é 4%, 7% ou 12%.", sourceCodes: ["RSF-22-1989", "RSF-13-2012"] },
+  { code: "ICMS-INTRASTATE-STATE-LAW", title: "Operação interna depende da legislação estadual", conclusion: "A resolução interestadual não fornece a alíquota de uma operação interna.", sourceCodes: ["LC-87-1996"] },
+  { code: "ICMS-ST-ROUTE-PRODUCT-GATE", title: "ST exige produto, rota e acordo", conclusion: "NCM, CEST, descrição, finalidade, legislação do destino e acordo vigente precisam coincidir.", sourceCodes: ["LC-87-1996", "CONFAZ-CONVENIO-142-2018"] },
+  { code: "ISS-LEGAL-RANGE-2-5", title: "Faixa legal do ISS", conclusion: "A alíquota municipal precisa respeitar os limites legais, mas o percentual exato depende da lei do município competente e do serviço.", sourceCodes: ["LC-116-2003", "LC-157-2016"] },
+  { code: "ISS-PLACE-ARTICLE-3", title: "Município competente do ISS", conclusion: "A regra geral e as exceções do art. 3º precisam ser confrontadas com o item da lista de serviços.", sourceCodes: ["LC-116-2003"] },
+  { code: "IPI-TIPI-NCM-GATE", title: "IPI depende da TIPI vigente", conclusion: "A alíquota e o tratamento do IPI dependem do NCM completo, das notas da TIPI e da operação de industrialização ou importação.", sourceCodes: ["D-11158-2022-TIPI", "RFB-CLASSIF"] },
+  { code: "PIS-COFINS-CUMULATIVE", title: "Referência cumulativa", conclusion: "0,65% de PIS e 3% de Cofins são referências gerais do regime cumulativo, ressalvados regimes monofásicos, alíquota zero, suspensão e outras regras específicas.", sourceCodes: ["L-9718-1998", "MP-2158-35-2001", "RFB-PIS-COFINS"] },
+  { code: "PIS-COFINS-NON-CUMULATIVE", title: "Referência não cumulativa", conclusion: "1,65% de PIS e 7,6% de Cofins são referências gerais, e o crédito depende das hipóteses legais e da documentação.", sourceCodes: ["L-10637-2002", "L-10833-2003", "RFB-PIS-COFINS"] },
+  { code: "PIS-COFINS-SPECIAL-GATE", title: "Monofásico e tratamentos especiais", conclusion: "Produto, receita e regime especial afastam a aplicação automática das referências gerais.", sourceCodes: ["L-10637-2002", "L-10833-2003"] },
+  { code: "SIMPLES-DAS-INPUT-GATE", title: "DAS exige receita segregada", conclusion: "CNAE isolado não define DAS: são necessários RBT12, anexo, receita segregada, fator R quando aplicável e tratamentos fora do DAS.", sourceCodes: ["LC-123-2006", "CGSN-140-2018"] },
+  { code: "IRPJ-CSLL-NOMINAL-RATES", title: "Alíquotas nominais de IRPJ e CSLL", conclusion: "O IRPJ geral é 15% com adicional quando aplicável; a CSLL geral é 9%, mas ambos incidem sobre bases que dependem do regime e da atividade.", sourceCodes: ["L-9249-1995", "RFB-IRPJ", "RFB-CSLL"] },
+  { code: "IRPJ-CSLL-2026-GATE", title: "Alterações de benefícios em 2026", conclusion: "Benefícios e percentuais de presunção podem exigir ajustes específicos em 2026 antes de qualquer cálculo.", sourceCodes: ["RFB-BENEFITS-2026", "L-9249-1995"] },
+  { code: "RTC-2026-TEST-YEAR", title: "IBS e CBS no ano-teste de 2026", conclusion: "O documento deve destacar CBS e IBS conforme o leiaute; a dispensa de recolhimento depende do cumprimento das obrigações aplicáveis.", sourceCodes: ["LC-214-2025", "RFB-RTC-2026"] },
+  { code: "CSRF-SERVICES-4-65", title: "Retenção conjunta em serviços abrangidos", conclusion: "Serviços do art. 30 podem sofrer retenção conjunta de 4,65%, sujeita a natureza do serviço, partes e exceções.", sourceCodes: ["L-10833-2003"] },
+  { code: "WITHHOLDING-REINF-EVIDENCE", title: "Escrituração das retenções", conclusion: "Retenções de pessoa jurídica são informadas nos eventos aplicáveis da EFD-Reinf.", sourceCodes: ["RFB-REINF-2026"] },
+  { code: "INSS-RETENTION-GATE", title: "Retenção previdenciária em serviços", conclusion: "Cessão de mão de obra e empreitada abrem uma trilha previdenciária separada, com base, deduções e exceções próprias.", sourceCodes: ["RFB-INSS-PJ"] },
+];
+
+const nationalTopics: NationalFiscalTopic[] = [
+  { code: "ICMS-NATIONAL", tax: "ICMS", title: "ICMS nacional", coverageLevel: "operational_reference", requiredFacts: ["originState", "destinationState", "productOrigin", "issuerTaxRegime", "recipientTaxpayer", "purpose", "specialTreatment"], supportedOutputs: ["referência interestadual de 4%, 7% ou 12%", "trilhas de DIFAL e ST", "bloqueio de operação interna"], hardStops: ["benefício ou regime especial", "alíquota interna sem lei estadual", "ST sem NCM/CEST e acordo"], sourceCodes: ["RSF-22-1989", "RSF-13-2012", "LC-87-1996", "CONFAZ-CONVENIO-142-2018"], examples: ["Qual o ICMS de mercadoria nacional de SP para BA?", "Venda importada de SC para GO enquadrada na Resolução 13/2012"] },
+  { code: "ISS-NATIONAL", tax: "ISS", title: "ISS nacional", coverageLevel: "structured_triage", requiredFacts: ["productDescription", "serviceItem", "originMunicipality", "destinationMunicipality", "issuerTaxRegime", "specialTreatment"], supportedOutputs: ["faixa legal de 2% a 5%", "regra geral e exceções do local", "lista de fatos para lei municipal"], hardStops: ["alíquota exata sem lei municipal", "item de serviço ausente", "retenção municipal não confirmada"], sourceCodes: ["LC-116-2003", "LC-157-2016"], examples: ["Onde é devido o ISS de consultoria prestada de Campinas para Belo Horizonte?", "Qual a faixa de ISS do item 7.02 da LC 116?"] },
+  { code: "IPI-NATIONAL", tax: "IPI", title: "IPI e TIPI", coverageLevel: "structured_triage", requiredFacts: ["productDescription", "ncm", "operationType", "businessActivity", "specialTreatment"], supportedOutputs: ["incidência por industrialização/importação", "trilha de consulta TIPI", "controle de NCM e Ex"], hardStops: ["alíquota sem NCM completo", "TIPI desatualizada", "benefício, suspensão ou imunidade"], sourceCodes: ["D-11158-2022-TIPI", "RFB-CLASSIF"], examples: ["Qual o IPI do NCM 8708.99.90?", "Uma importação de máquina industrial tem IPI?"] },
+  { code: "PIS-COFINS", tax: "PIS_COFINS", title: "PIS e Cofins", coverageLevel: "operational_reference", requiredFacts: ["productDescription", "pisCofinsRegime", "issuerTaxRegime", "businessActivity", "specialTreatment"], supportedOutputs: ["referências cumulativa e não cumulativa", "bloqueio monofásico/alíquota zero", "separação de débito e crédito"], hardStops: ["produto monofásico sem lei específica", "crédito sem hipótese legal e documento", "receita com tratamento especial"], sourceCodes: ["L-9718-1998", "MP-2158-35-2001", "L-10637-2002", "L-10833-2003", "RFB-PIS-COFINS"], examples: ["Qual a alíquota de PIS e Cofins no regime cumulativo?", "Lucro real pode tomar crédito de PIS/Cofins sobre insumo?"] },
+  { code: "SIMPLES-NACIONAL", tax: "SIMPLES", title: "Simples Nacional", coverageLevel: "structured_triage", requiredFacts: ["cnae", "businessActivity", "productDescription", "specialTreatment"], supportedOutputs: ["trilha de anexo e fator R", "segregação de receitas", "tributos fora do DAS"], hardStops: ["DAS sem RBT12", "anexo apenas pelo CNAE", "ST, monofásico ou retenção não segregados"], sourceCodes: ["LC-123-2006", "CGSN-140-2018"], examples: ["Em qual anexo do Simples entra uma consultoria?", "Como o fator R muda a tributação de serviços?"] },
+  { code: "IRPJ-CSLL", tax: "IRPJ_CSLL", title: "IRPJ e CSLL", coverageLevel: "structured_triage", requiredFacts: ["incomeTaxRegime", "businessActivity", "productDescription", "specialTreatment"], supportedOutputs: ["alíquotas nominais", "base conforme regime e atividade", "adicional de IRPJ e alerta 2026"], hardStops: ["base presumida sem separar atividades", "benefício de 2026 não classificado", "instituição financeira não identificada"], sourceCodes: ["L-9249-1995", "RFB-IRPJ", "RFB-CSLL", "RFB-BENEFITS-2026"], examples: ["Quais as alíquotas de IRPJ e CSLL no lucro presumido?", "Prestação de serviços usa qual base presumida?"] },
+  { code: "IBS-CBS-2026", tax: "IBS_CBS", title: "IBS e CBS em 2026", coverageLevel: "operational_reference", requiredFacts: ["operationType", "businessActivity", "specialTreatment"], supportedOutputs: ["destaque teste de CBS 0,9% e IBS 0,1%", "dispensa condicionada de recolhimento", "obrigações documentais"], hardStops: ["tratar destaque como saldo a recolher", "ignorar nota técnica do documento", "regime específico não mapeado"], sourceCodes: ["LC-214-2025", "RFB-RTC-2026"], examples: ["Como destacar IBS e CBS em 2026?", "IBS e CBS geram valor a pagar no ano-teste?"] },
+  { code: "WITHHOLDINGS-SERVICES", tax: "WITHHOLDINGS", title: "Retenções sobre serviços", coverageLevel: "structured_triage", requiredFacts: ["productDescription", "payerType", "paymentRecipientType", "serviceNature", "issuerTaxRegime", "specialTreatment"], supportedOutputs: ["triagem de IRRF e CSRF", "trilha previdenciária", "evento EFD-Reinf"], hardStops: ["percentual sem natureza do serviço", "órgão público tratado como tomador privado", "dispensa do Simples sem declaração"], sourceCodes: ["L-10833-2003", "RFB-REINF-2026", "RFB-INSS-PJ"], examples: ["Consultoria entre duas empresas tem retenção de PIS, Cofins e CSLL?", "Cessão de mão de obra exige retenção previdenciária?"] },
+];
 
 export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
   schemaVersion: "manual-fiscal-intelligence.v1",
-  engineVersion: "mc-manual-fiscal-0.2.0",
-  baseCode: "ICMS-SP-MG-AUTOPECAS",
-  version: "0.2.0",
-  name: "ICMS · autopeças · São Paulo para Minas Gerais",
+  engineVersion: "mc-manual-fiscal-1.0.0",
+  baseCode: "FISCAL-MANUAL-BR",
+  version: "1.0.0",
+  name: "Inteligência Fiscal Manual Brasil · V24",
   assuranceLevel: "pilot_conditional",
   coverage: { tax: "ICMS", originState: "SP", destinationState: "MG", segment: "auto_parts" },
   ontology: {
@@ -152,8 +235,16 @@ export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
     industrialization: ["industrializacao", "industrializar", "insumo"],
     use_consumption: ["uso e consumo", "uso ou consumo", "consumo proprio"],
     fixed_asset: ["ativo imobilizado", "ativo fixo"],
+    iss: ["iss", "issqn", "imposto sobre servicos", "imposto municipal"],
+    ipi: ["ipi", "imposto sobre produtos industrializados", "tipi"],
+    pis_cofins: ["pis cofins", "pis/pasep", "cofins", "contribuicoes sobre receita"],
+    simples: ["simples nacional", "das", "pgdas", "fator r", "anexo iii", "anexo v"],
+    irpj_csll: ["irpj", "csll", "lucro presumido", "lucro real", "imposto de renda da empresa"],
+    ibs_cbs: ["ibs", "cbs", "ibs cbs", "ibs/cbs", "reforma tributaria", "ano teste", "lc 214"],
+    withholdings: ["retencao", "retencoes", "irrf", "csrf", "inss retido", "efd reinf"],
   },
   rules: [
+    ...nationalRules,
     {
       code: "ICMS-INTERSTATE-SP-MG-DOMESTIC-12",
       title: "Alíquota interestadual geral",
@@ -385,7 +476,9 @@ export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
       sourceCodes: ["MG-RICMS-ANNEX-VII"],
     },
   ],
+  nationalTopics,
   sources: [
+    ...nationalSources,
     {
       code: "RSF-22-1989",
       title: "Resolução do Senado Federal nº 22/1989",
@@ -478,8 +571,8 @@ export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
     },
   ],
   limitations: [
-    "A base inicial cobre somente ICMS de autopeças em operações de São Paulo para Minas Gerais.",
-    "A versão piloto cruza descrição, NCM e CEST em catálogo controlado; ela não substitui a classificação fiscal formal da mercadoria.",
+    "A cobertura nacional de ICMS, ISS, IPI, PIS/Cofins, Simples, IRPJ/CSLL, IBS/CBS e retenções é uma triagem estruturada; somente o módulo SP→MG de autopeças possui catálogo especializado NCM/CEST.",
+    "O módulo especializado cruza descrição, NCM e CEST em catálogo controlado; ele não substitui a classificação fiscal formal da mercadoria.",
     "MVA de tabela não é o valor do ICMS-ST a recolher; preço, frete, IPI, base, alíquota interna, MVA ajustada e deduções ainda precisam ser calculados e revisados.",
     "Cem por cento de completude significa que todos os fatos mínimos foram respondidos, não certeza jurídica de cem por cento.",
     "Benefícios, regimes especiais, particularidades do Simples Nacional, DIFAL e exceções podem exigir cálculo ou validação adicional.",
@@ -491,8 +584,8 @@ export const fiscalIntelligenceSeed = {
   code: spMgAutoPartsKnowledge.baseCode,
   version: spMgAutoPartsKnowledge.version,
   name: spMgAutoPartsKnowledge.name,
-  scope: "ICMS:SP>MG:AUTO_PARTS",
-  status: "pilot",
+  scope: "BR:MULTITAX:TRIAGE+ICMS:SP>MG:AUTO_PARTS",
+  status: "controlled_beta",
   contentJson: JSON.stringify(spMgAutoPartsKnowledge),
   sourceCount: spMgAutoPartsKnowledge.sources.length,
   checkedAt: CHECKED_AT,
@@ -517,6 +610,11 @@ const requiredOperationalFields: Array<keyof FiscalIntelligenceFacts> = [
   "purpose",
   "automotiveUse",
   "specialTreatment",
+];
+
+const legacyFactViewFields: Array<keyof FiscalIntelligenceFacts> = [
+  "tax", "originState", "destinationState", "segment", "productDescription", "ncm", "cest", "productOrigin",
+  "importRuleQualification", "issuerTaxRegime", "recipientTaxpayer", "purpose", "automotiveUse", "specialTreatment", "referenceDate",
 ];
 
 const clarificationCatalog: Partial<Record<keyof FiscalIntelligenceFacts, FiscalClarification>> = {
@@ -579,6 +677,26 @@ function extractCest(question: string) {
   return value && value.length === 7 ? normalizeCest(value) : null;
 }
 
+function extractServiceItem(question: string) {
+  const match = question.match(/(?:item|subitem)\s*([0-9]{1,2}(?:[.,][0-9]{1,2})?)/i);
+  return match?.[1]?.replace(",", ".") ?? null;
+}
+
+function extractCnae(question: string) {
+  const match = question.match(/\bcnae\s*[:#-]?\s*([0-9][0-9.\s/-]{4,12})/i);
+  const value = digits(match?.[1]);
+  return value && value.length === 7 ? value : null;
+}
+
+function detectTax(normalized: string, definition: FiscalIntelligenceDefinition): FiscalTaxCode | null {
+  const candidates: Array<[FiscalTaxCode, string]> = [
+    ["WITHHOLDINGS", "withholdings"], ["IBS_CBS", "ibs_cbs"], ["ISS", "iss"], ["IPI", "ipi"],
+    ["PIS_COFINS", "pis_cofins"], ["IRPJ_CSLL", "irpj_csll"], ["SIMPLES", "simples"], ["ICMS", "icms"],
+  ];
+  const padded = ` ${normalized} `;
+  return candidates.find(([, key]) => (definition.ontology[key] ?? []).some((term) => padded.includes(` ${normalizeText(term)} `)))?.[0] ?? null;
+}
+
 function extractProductDescription(question: string, normalized: string, definition: FiscalIntelligenceDefinition) {
   const known = definition.ontology.auto_parts.find((term) => normalized.includes(normalizeText(term)) && !["autopeca", "autopecas", "peca automotiva", "pecas automotivas"].includes(normalizeText(term)));
   if (known) return known;
@@ -589,6 +707,8 @@ function extractProductDescription(question: string, normalized: string, definit
 export function extractFiscalFacts(question: string, overrides: FiscalIntelligenceOverrides = {}, referenceDate = CHECKED_AT, definition = spMgAutoPartsKnowledge) {
   const normalized = normalizeText(question);
   const route = findStateRoute(normalized);
+  const tax = detectTax(normalized, definition);
+  const autoParts = includesAny(normalized, definition.ontology.auto_parts);
   const hasImported = /\bimportad[oa]s?\b/.test(normalized);
   const hasDomestic = /\b(nacional|nacionais|domestica|domestico)\b/.test(normalized);
   const importPercentage = Number(normalized.match(/(?:conteudo de importacao|conteudo importado)[^0-9]{0,15}(\d{1,3})(?:[.,]\d+)?\s*%/)?.[1]);
@@ -599,11 +719,22 @@ export function extractFiscalFacts(question: string, overrides: FiscalIntelligen
       : "unknown";
   const nonTaxpayer = includesAny(normalized, ["nao contribuinte", "não contribuinte"]);
   const taxpayer = !nonTaxpayer && /\bcontribuinte(?: do icms)?\b/.test(normalized);
+  const mentionsGoods = includesAny(normalized, ["mercadoria", "produto", "venda", "revenda", "comercio"]);
+  const mentionsService = includesAny(normalized, ["servico", "servicos", "consultoria", "prestacao"]);
+  const businessActivity = includesAny(normalized, ["atividade mista", "receitas mistas"])
+    ? "mixed"
+    : includesAny(normalized, ["industria", "industrializacao", "fabricacao"])
+      ? "industry"
+      : includesAny(normalized, ["comercio", "revenda", "lojista"])
+        ? "commerce"
+        : mentionsService
+          ? "service"
+          : "unknown";
   const facts: FiscalIntelligenceFacts = {
-    tax: includesAny(normalized, definition.ontology.icms) ? "ICMS" : null,
+    tax,
     originState: route.originState,
     destinationState: route.destinationState,
-    segment: includesAny(normalized, definition.ontology.auto_parts) ? "auto_parts" : null,
+    segment: autoParts ? "auto_parts" : tax === "ISS" || tax === "WITHHOLDINGS" ? "services" : tax === "IPI" ? "industry" : tax === "ICMS" ? "general_goods" : tax ? "general_business" : null,
     productDescription: extractProductDescription(question, normalized, definition),
     ncm: extractNcm(question),
     cest: extractCest(question),
@@ -614,6 +745,17 @@ export function extractFiscalFacts(question: string, overrides: FiscalIntelligen
     purpose: includesAny(normalized, definition.ontology.resale) ? "resale" : includesAny(normalized, definition.ontology.industrialization) ? "industrialization" : includesAny(normalized, definition.ontology.use_consumption) ? "use_consumption" : includesAny(normalized, definition.ontology.fixed_asset) ? "fixed_asset" : "unknown",
     automotiveUse: includesAny(normalized, ["uso automotivo", "uso especificamente automotivo"]) ? "yes" : "unknown",
     specialTreatment: includesAny(normalized, ["regime especial", "beneficio fiscal", "benefício fiscal"]) ? "exists" : includesAny(normalized, ["sem beneficio", "sem benefício", "sem regime especial"]) ? "none" : "unknown",
+    operationType: hasImported ? "import" : includesAny(normalized, ["exportacao", "exportar", "exportada"]) ? "export" : mentionsGoods && mentionsService ? "mixed" : mentionsService ? "service" : mentionsGoods ? "goods" : "unknown",
+    businessActivity,
+    incomeTaxRegime: includesAny(normalized, ["lucro presumido"]) ? "presumed" : includesAny(normalized, ["lucro real"]) ? "real" : includesAny(normalized, ["simples nacional", "optante do simples"]) ? "simples" : "unknown",
+    pisCofinsRegime: includesAny(normalized, ["nao cumulativo", "não cumulativo", "lucro real"]) ? "non_cumulative" : includesAny(normalized, ["regime cumulativo", "lucro presumido"]) ? "cumulative" : includesAny(normalized, ["monofasico", "monofásico"]) ? "monophase" : includesAny(normalized, ["aliquota zero", "alíquota zero"]) ? "zero_rate" : "unknown",
+    serviceItem: extractServiceItem(question),
+    cnae: extractCnae(question),
+    originMunicipality: null,
+    destinationMunicipality: null,
+    payerType: includesAny(normalized, ["orgao publico pagador", "órgão público pagador", "pagamento por orgao publico"]) ? "public_entity" : includesAny(normalized, ["tomador pessoa juridica", "tomador pj", "empresa tomadora"]) ? "private_legal_entity" : includesAny(normalized, ["tomador pessoa fisica", "tomador pf"]) ? "individual" : "unknown",
+    paymentRecipientType: includesAny(normalized, ["prestador pessoa juridica", "prestador pj", "pagamento a empresa"]) ? "legal_entity" : includesAny(normalized, ["prestador pessoa fisica", "prestador pf", "autonomo", "autônomo"]) ? "individual" : "unknown",
+    serviceNature: includesAny(normalized, ["consultoria", "assessoria", "servico profissional", "serviço profissional", "contabilidade", "advocacia"]) ? "professional" : includesAny(normalized, ["limpeza", "conservacao", "conservação", "manutencao", "manutenção", "vigilancia", "vigilância"]) ? "cleaning_maintenance" : includesAny(normalized, ["cessao de mao de obra", "cessão de mão de obra", "locacao de mao de obra", "locação de mão de obra"]) ? "labor_assignment" : includesAny(normalized, ["empreitada", "construcao civil", "construção civil"]) ? "construction" : mentionsService ? "general" : "unknown",
     referenceDate,
   };
   const merged = { ...facts, ...overrides };
@@ -622,12 +764,16 @@ export function extractFiscalFacts(question: string, overrides: FiscalIntelligen
     ncm: digits(merged.ncm),
     cest: normalizeCest(merged.cest),
     productDescription: merged.productDescription?.trim().slice(0, 120) || null,
+    serviceItem: merged.serviceItem?.trim().slice(0, 12) || null,
+    cnae: digits(merged.cnae),
+    originMunicipality: merged.originMunicipality?.trim().slice(0, 80) || null,
+    destinationMunicipality: merged.destinationMunicipality?.trim().slice(0, 80) || null,
     referenceDate: /^\d{4}-\d{2}-\d{2}$/.test(merged.referenceDate) ? merged.referenceDate : referenceDate,
   } satisfies FiscalIntelligenceFacts;
 }
 
 function knownFact(field: keyof FiscalIntelligenceFacts, value: FiscalIntelligenceFacts[keyof FiscalIntelligenceFacts]) {
-  if (field === "productDescription" || field === "ncm" || field === "cest") return typeof value === "string" && value.length > 0;
+  if (["productDescription", "ncm", "cest", "serviceItem", "cnae", "originMunicipality", "destinationMunicipality"].includes(field)) return typeof value === "string" && value.length > 0;
   return value !== null && value !== "unknown";
 }
 
@@ -635,7 +781,10 @@ function factLabel(field: keyof FiscalIntelligenceFacts) {
   const labels: Record<keyof FiscalIntelligenceFacts, string> = {
     tax: "Tributo", originState: "Origem", destinationState: "Destino", segment: "Segmento", productDescription: "Mercadoria",
     ncm: "NCM", cest: "CEST", productOrigin: "Origem da mercadoria", importRuleQualification: "Regra de importados", issuerTaxRegime: "Regime do remetente",
-    recipientTaxpayer: "Destinatário", purpose: "Finalidade", automotiveUse: "Uso automotivo", specialTreatment: "Tratamento especial", referenceDate: "Data de referência",
+    recipientTaxpayer: "Destinatário", purpose: "Finalidade", automotiveUse: "Uso automotivo", specialTreatment: "Tratamento especial",
+    operationType: "Tipo de operação", businessActivity: "Atividade", incomeTaxRegime: "Regime de renda", pisCofinsRegime: "Regime PIS/Cofins",
+    serviceItem: "Item da LC 116", cnae: "CNAE", originMunicipality: "Município do prestador", destinationMunicipality: "Município do tomador",
+    payerType: "Tipo de pagador", paymentRecipientType: "Tipo de beneficiário", serviceNature: "Natureza do serviço", referenceDate: "Data de referência",
   };
   return labels[field];
 }
@@ -645,6 +794,11 @@ function factValue(field: keyof FiscalIntelligenceFacts, value: FiscalIntelligen
     auto_parts: "Autopeças", domestic: "Nacional", imported: "Importada", unknown: "Não informado", qualifies: "Enquadra-se na Res. 13/2012",
     does_not_qualify: "Não se enquadra na Res. 13/2012", normal: "Regime normal", simples: "Simples Nacional", yes: "Sim", no: "Não", resale: "Revenda",
     industrialization: "Industrialização", use_consumption: "Uso/consumo", fixed_asset: "Ativo imobilizado", none: "Nenhum informado", exists: "Existe",
+    general_goods: "Mercadorias em geral", services: "Serviços", industry: "Indústria", general_business: "Atividade empresarial",
+    goods: "Mercadoria", service: "Serviço", import: "Importação", export: "Exportação", mixed: "Mista", commerce: "Comércio",
+    real: "Lucro real", presumed: "Lucro presumido", cumulative: "Cumulativo", non_cumulative: "Não cumulativo", monophase: "Monofásico", zero_rate: "Alíquota zero",
+    private_legal_entity: "Pessoa jurídica privada", public_entity: "Órgão/entidade pública", individual: "Pessoa física", legal_entity: "Pessoa jurídica",
+    professional: "Serviço profissional", cleaning_maintenance: "Limpeza/manutenção", labor_assignment: "Cessão de mão de obra", construction: "Construção/empreitada", general: "Serviço geral",
   };
   if (value === null) return "Não identificado";
   if (field === "recipientTaxpayer" && value === "yes") return "Contribuinte do ICMS";
@@ -740,7 +894,7 @@ export function evaluateFiscalQuestion(question: string, overrides: FiscalIntell
   assertFiscalIntelligenceDefinition(definition);
   const questionFacts = extractFiscalFacts(question, {}, referenceDate, definition);
   const facts = extractFiscalFacts(question, overrides, referenceDate, definition);
-  const factViews = (Object.keys(facts) as Array<keyof FiscalIntelligenceFacts>).map((field) => ({
+  const factViews = legacyFactViewFields.map((field) => ({
     key: field,
     label: factLabel(field),
     value: factValue(field, facts[field]),
@@ -935,6 +1089,9 @@ function buildResult(input: {
     sources,
     limitations: input.definition.limitations,
     disclaimer: "Pesquisa fiscal assistida e condicionada aos fatos informados. Não substitui a classificação fiscal da mercadoria, a leitura integral da legislação vigente nem a revisão do contador responsável.",
+    topicCode: "ICMS-SP-MG-AUTO-PARTS",
+    coverageLevel: "operational_reference",
+    calculationEligible: input.status === "conditional",
   };
 }
 
@@ -949,6 +1106,7 @@ function assertFiscalIntelligenceDefinition(definition: FiscalIntelligenceDefini
   const sourceCodes = new Set(definition?.sources?.map((source) => source.code));
   const validRules = Array.isArray(definition?.rules) && definition.rules.length > 0 && definition.rules.every((rule) => rule.code && rule.sourceCodes.length > 0 && rule.sourceCodes.every((code) => sourceCodes.has(code)));
   const validClassifications = Array.isArray(definition?.productClassifications) && definition.productClassifications.every((item) => /^\d{4,8}$/.test(item.ncmPrefix) && /^\d{2}\.\d{3}\.\d{2}$/.test(item.cest) && Array.isArray(item.descriptionTerms) && item.descriptionTerms.length > 0 && Number.isInteger(item.tableMvaBps) && item.tableMvaBps >= 0 && item.tableMvaBps <= 100_000 && item.sourceCodes.every((code) => sourceCodes.has(code)));
+  const validTopics = Array.isArray(definition?.nationalTopics) && definition.nationalTopics.length >= 8 && definition.nationalTopics.every((topic) => topic.code && topic.tax && topic.requiredFacts.length > 0 && topic.supportedOutputs.length > 0 && topic.hardStops.length > 0 && topic.examples.length > 0 && topic.sourceCodes.every((code) => sourceCodes.has(code)));
   if (
     definition?.schemaVersion !== "manual-fiscal-intelligence.v1"
     || definition.assuranceLevel !== "pilot_conditional"
@@ -960,6 +1118,7 @@ function assertFiscalIntelligenceDefinition(definition: FiscalIntelligenceDefini
     || !validSources
     || !validRules
     || !validClassifications
+    || !validTopics
     || !Array.isArray(definition.limitations)
     || definition.limitations.length < 3
   ) throw new Error("invalid_fiscal_intelligence_definition");
