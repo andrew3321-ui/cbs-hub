@@ -7,6 +7,37 @@ import { fiscalRuleApprovals } from "../db/schema";
 export const NATIONAL_RULE_CODE = "NATIONAL-COVERAGE-V27";
 export const RULE_APPROVAL_DECLARATION_VERSION = "fiscal-rule-approval.v1";
 
+let approvalSchemaReady: Promise<unknown> | undefined;
+
+export function ensureFiscalRuleApprovalSchema() {
+  approvalSchemaReady ??= env.DB.batch([
+    env.DB.prepare(`
+      CREATE TABLE IF NOT EXISTS fiscal_rule_approvals (
+        id TEXT PRIMARY KEY NOT NULL,
+        workspace_id INTEGER NOT NULL,
+        rule_code TEXT NOT NULL,
+        rule_version TEXT NOT NULL,
+        rule_hash TEXT NOT NULL,
+        approved_by_user_id INTEGER NOT NULL,
+        reviewer_name TEXT NOT NULL,
+        professional_role TEXT NOT NULL,
+        professional_registration TEXT NOT NULL,
+        decision TEXT DEFAULT 'approved' NOT NULL,
+        declaration_version TEXT NOT NULL,
+        decision_signature TEXT NOT NULL,
+        decided_at TEXT NOT NULL,
+        created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+      )
+    `),
+    env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_rule_approvals_workspace_rule_hash_idx ON fiscal_rule_approvals (workspace_id, rule_code, rule_version, rule_hash)"),
+    env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_rule_approvals_workspace_decided_idx ON fiscal_rule_approvals (workspace_id, decided_at, id)"),
+  ]);
+  return approvalSchemaReady.catch((error) => {
+    approvalSchemaReady = undefined;
+    throw error;
+  });
+}
+
 type ApprovalRecord = {
   workspaceId: number;
   ruleCode: string;
@@ -50,6 +81,7 @@ export async function currentNationalRuleIdentity() {
 }
 
 export async function getActiveNationalRuleApproval(workspaceId: number) {
+  await ensureFiscalRuleApprovalSchema();
   const identity = await currentNationalRuleIdentity();
   const [row] = await getDb().select().from(fiscalRuleApprovals).where(and(eq(fiscalRuleApprovals.workspaceId, workspaceId), eq(fiscalRuleApprovals.ruleCode, identity.ruleCode), eq(fiscalRuleApprovals.ruleVersion, identity.ruleVersion), eq(fiscalRuleApprovals.ruleHash, identity.ruleHash))).limit(1);
   if (!row) return { identity, approval: null, verified: false };

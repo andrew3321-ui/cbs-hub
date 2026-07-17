@@ -378,7 +378,7 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
 });
 
 test("versão 27 publica cobertura nacional, lote documental, monitor e aprovação obrigatória", async () => {
-  const [ui, domain, publicApi, calculatorApi, batchApi, monitorApi, governanceApi, schema, runtimeDb, landing, layout] = await Promise.all([
+  const [ui, domain, publicApi, calculatorApi, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
     readFile(new URL("domain/national-tax-coverage.ts", root), "utf8"),
     readFile(new URL("app/api/public/coverage/route.ts", root), "utf8"),
@@ -386,6 +386,7 @@ test("versão 27 publica cobertura nacional, lote documental, monitor e aprovaç
     readFile(new URL("app/api/fiscal-imports/route.ts", root), "utf8"),
     readFile(new URL("app/api/normative-monitor/route.ts", root), "utf8"),
     readFile(new URL("app/api/rule-governance/route.ts", root), "utf8"),
+    readFile(new URL("app/fiscal-rule-approval.ts", root), "utf8"),
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("db/index.ts", root), "utf8"),
     readFile(new URL("app/page.tsx", root), "utf8"),
@@ -401,7 +402,8 @@ test("versão 27 publica cobertura nacional, lote documental, monitor e aprovaç
   assert.match(monitorApi, /Nunca altera regra/);
   assert.match(governanceApi, /signRuleApproval/);
   assert.match(schema, /fiscalRuleApprovals/);
-  assert.match(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_rule_approvals/);
+  assert.doesNotMatch(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_rule_approvals/);
+  assert.match(approvalService, /ensureFiscalRuleApprovalSchema/);
   assert.match(landing, /landing-coverage-strip/);
   assert.match(layout, /national-coverage\.css/);
 });
