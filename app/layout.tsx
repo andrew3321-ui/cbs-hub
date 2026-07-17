@@ -4,6 +4,7 @@ import "./globals.css";
 import "./homologation.css";
 import "./federal-pme.css";
 import "./national-coverage.css";
+import "./fiscal-expansion.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

@@ -85,6 +85,7 @@ export const normativeMonitorSources = [
   coverageSources[3], coverageSources[4], coverageSources[5], coverageSources[6], coverageSources[7], coverageSources[8],
   { code: "RFB-NEWS", title: "Notícias da Receita Federal", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/assuntos/noticias", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   { code: "SIMPLES-NEWS", title: "Notícias do Simples Nacional", publisher: "Receita Federal", url: "https://www8.receita.fazenda.gov.br/SimplesNacional/Noticias/NoticiaCompleta.aspx", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
+  ...stateCoverage.map((item) => ({ code: `SEFAZ-${item.uf}`, title: `Portal oficial da SEFAZ — ${item.name}`, publisher: `Administração tributária de ${item.name}`, url: item.officialPortal, checkedAt: NATIONAL_COVERAGE_CHECKED_AT })),
 ];
 
 export function resolveInterstateIcms(origin: UfCode, destination: UfCode, importedQualified: boolean) {

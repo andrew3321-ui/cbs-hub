@@ -222,6 +222,38 @@ export const fiscalRuleApprovals = sqliteTable("fiscal_rule_approvals", {
   index("fiscal_rule_approvals_workspace_decided_idx").on(table.workspaceId, table.decidedAt, table.id),
 ]);
 
+export const fiscalExpansionProgress = sqliteTable("fiscal_expansion_progress", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  itemCode: text("item_code").notNull(),
+  stage: text("stage").notNull().default("catalogued"),
+  evidenceNote: text("evidence_note").notNull().default(""),
+  evidenceReference: text("evidence_reference"),
+  evidenceHash: text("evidence_hash"),
+  updatedByUserId: integer("updated_by_user_id").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_expansion_progress_workspace_item_idx").on(table.workspaceId, table.itemCode),
+  index("fiscal_expansion_progress_workspace_stage_idx").on(table.workspaceId, table.stage, table.updatedAt),
+]);
+
+export const fiscalExpansionEvents = sqliteTable("fiscal_expansion_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id").notNull(),
+  itemCode: text("item_code").notNull(),
+  actorUserId: integer("actor_user_id").notNull(),
+  fromStage: text("from_stage").notNull(),
+  toStage: text("to_stage").notNull(),
+  evidenceNote: text("evidence_note").notNull(),
+  evidenceReference: text("evidence_reference"),
+  evidenceHash: text("evidence_hash"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("fiscal_expansion_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+  index("fiscal_expansion_events_item_created_idx").on(table.itemCode, table.createdAt, table.id),
+  uniqueIndex("fiscal_expansion_events_workspace_item_hash_idx").on(table.workspaceId, table.itemCode, table.evidenceHash),
+]);
+
 export const fiscalReferenceCases = sqliteTable("fiscal_reference_cases", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ruleSetId: integer("rule_set_id").notNull(),

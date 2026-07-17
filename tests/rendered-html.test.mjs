@@ -407,3 +407,33 @@ test("versão 27 publica cobertura nacional, lote documental, monitor e aprovaç
   assert.match(landing, /landing-coverage-strip/);
   assert.match(layout, /national-coverage\.css/);
 });
+
+test("versão 29 cria esteira fiscal sem custo por consulta e sem homologação automática", async () => {
+  const [ui, api, service, domain, schema, runtimeDb, monitor, shell, layout] = await Promise.all([
+    readFile(new URL("app/app/FiscalExpansionCenter.tsx", root), "utf8"),
+    readFile(new URL("app/api/fiscal-expansion/route.ts", root), "utf8"),
+    readFile(new URL("app/fiscal-expansion-service.ts", root), "utf8"),
+    readFile(new URL("domain/fiscal-expansion.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("db/index.ts", root), "utf8"),
+    readFile(new URL("app/api/normative-monitor/route.ts", root), "utf8"),
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/layout.tsx", root), "utf8"),
+  ]);
+  assert.match(ui, /VERSÃO 29 · ESTEIRA DETERMINÍSTICA/);
+  assert.match(ui, /SEM IA/);
+  assert.match(ui, /nenhuma homologação automática/);
+  assert.match(api, /automaticHomologation: false/);
+  assert.match(api, /nextStage === "awaiting_professional"/);
+  assert.doesNotMatch(api, /toStage:\s*"homologated"/);
+  assert.match(service, /ensureFiscalExpansionSchema/);
+  assert.match(service, /expansionSchemaReady = undefined/);
+  assert.doesNotMatch(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_expansion_progress/);
+  assert.match(domain, /officialSources: 200/);
+  assert.match(domain, /professionalApprovals: 30/);
+  assert.match(schema, /fiscalExpansionProgress/);
+  assert.match(monitor, /DAILY_BATCH_SIZE = 8/);
+  assert.match(monitor, /limit\(14\)/);
+  assert.match(shell, /Expansão fiscal/);
+  assert.match(layout, /fiscal-expansion\.css/);
+});

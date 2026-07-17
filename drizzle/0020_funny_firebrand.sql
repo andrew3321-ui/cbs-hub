@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX `fiscal_expansion_events_workspace_item_hash_idx` ON `fiscal_expansion_events` (`workspace_id`,`item_code`,`evidence_hash`);

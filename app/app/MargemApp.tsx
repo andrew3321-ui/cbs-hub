@@ -7,9 +7,10 @@ import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type Rev
 import FiscalIntelligence from "./FiscalIntelligence";
 import FederalPmeCompliance from "./FederalPmeCompliance";
 import NationalCoverageCenter from "./NationalCoverageCenter";
+import FiscalExpansionCenter from "./FiscalExpansionCenter";
 import NfeAuditWorkbench from "./NfeAuditWorkbench";
 
-type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "coverage" | "rules" | "determination" | "academy";
+type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "coverage" | "expansion" | "rules" | "determination" | "academy";
 
 type ScenarioApproval = {
   id: number;
@@ -1196,6 +1197,9 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
           <button className={section === "coverage" ? "active" : ""} onClick={() => setSection("coverage")}>
             <span className="nav-icon">◇</span>Cobertura nacional
           </button>
+          <button className={section === "expansion" ? "active" : ""} onClick={() => setSection("expansion")}>
+            <span className="nav-icon">↟</span>Expansão fiscal
+          </button>
           <button className={section === "rules" ? "active" : ""} onClick={() => setSection("rules")}>
             <span className="nav-icon">§</span>Regras fiscais
           </button>
@@ -1661,6 +1665,8 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
         {section === "intelligence" && <FiscalIntelligence />}
 
         {section === "coverage" && <div className="page-content"><NationalCoverageCenter /></div>}
+
+        {section === "expansion" && <div className="page-content"><FiscalExpansionCenter /></div>}
 
         {section === "rules" && (
           <div className="page-content fiscal-rules-page">

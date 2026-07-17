@@ -134,6 +134,20 @@
       "when": 1784263096967,
       "tag": "0018_luxuriant_trish_tilby",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "6",
+      "when": 1784315086123,
+      "tag": "0019_special_rumiko_fujikawa",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "6",
+      "when": 1784315449188,
+      "tag": "0020_funny_firebrand",
+      "breakpoints": true
     }
   ]
 }
