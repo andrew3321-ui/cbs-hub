@@ -448,6 +448,7 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
   const [officeUpgradeName, setOfficeUpgradeName] = useState("");
   const [upgradingWorkspace, setUpgradingWorkspace] = useState(false);
   const pendingScenarioRequest = useRef<{ fingerprint: string; id: string } | null>(null);
+  const navigationRef = useRef<HTMLElement | null>(null);
 
   const activeCompany = useMemo(() => companies.find((company) => company.id === activeCompanyId) ?? null, [companies, activeCompanyId]);
   const activeDemo = productDemos[demoIndex];
@@ -464,6 +465,11 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
   const activeReviewValues = useMemo(() => activeReview?.scenario.integrityStatus === "verified" ? resolveStoredScenarioValues(activeReview.scenario) : null, [activeReview]);
 
   const figures = useMemo(() => calculateScenarioValues({ revenue, currentRate, newRate, costRate, fixedCosts, volumeLoss, priceAdjustment }), [revenue, currentRate, newRate, costRate, fixedCosts, volumeLoss, priceAdjustment]);
+
+  useEffect(() => {
+    if (!window.matchMedia("(max-width: 720px)").matches) return;
+    navigationRef.current?.querySelector("button.active")?.scrollIntoView({ behavior: "smooth", block: "nearest", inline: "center" });
+  }, [section]);
 
   const comparedScenarios = useMemo(() => comparisonIds.map((id) => {
     const scenario = savedScenarios.find((item) => item.id === id);
@@ -1172,41 +1178,41 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
           <span>margem<span>clara</span></span>
         </div>
 
-        <nav className="main-nav" aria-label="Navegação principal">
-          <button className={section === "overview" ? "active" : ""} onClick={() => setSection("overview")}>
+        <nav ref={navigationRef} className="main-nav" aria-label="Navegação principal">
+          <button title="Visão geral" className={section === "overview" ? "active" : ""} onClick={() => setSection("overview")}>
             <span className="nav-icon">⌂</span>Visão geral
           </button>
-          <button className={section === "companies" ? "active" : ""} onClick={() => setSection("companies")}>
+          <button title="Clientes" className={section === "companies" ? "active" : ""} onClick={() => setSection("companies")}>
             <span className="nav-icon">▦</span>Clientes
           </button>
-          <button className={section === "simulator" ? "active" : ""} onClick={() => setSection("simulator")}>
+          <button title="Análises" className={section === "simulator" ? "active" : ""} onClick={() => setSection("simulator")}>
             <span className="nav-icon">↗</span>Análises
           </button>
-          {workspace.type === "office" && <button className={section === "reviews" ? "active" : ""} onClick={() => setSection("reviews")}>
+          {workspace.type === "office" && <button title="Central de revisão" className={section === "reviews" ? "active" : ""} onClick={() => setSection("reviews")}>
             <span className="nav-icon">✓</span>Central de revisão
           </button>}
-          <button className={section === "documents" ? "active" : ""} onClick={() => setSection("documents")}>
+          <button title="Documentos" className={section === "documents" ? "active" : ""} onClick={() => setSection("documents")}>
             <span className="nav-icon">▤</span>Documentos
           </button>
-          <button className={section === "team" ? "active" : ""} onClick={() => setSection("team")}>
+          <button title={workspace.type === "office" ? "Equipe" : "Modo de trabalho"} className={section === "team" ? "active" : ""} onClick={() => setSection("team")}>
             <span className="nav-icon">◎</span>{workspace.type === "office" ? "Equipe" : "Modo de trabalho"}
           </button>
-          <button className={section === "intelligence" ? "active" : ""} onClick={() => setSection("intelligence")}>
+          <button title="Inteligência fiscal" className={section === "intelligence" ? "active" : ""} onClick={() => setSection("intelligence")}>
             <span className="nav-icon">⌕</span>Inteligência fiscal
           </button>
-          <button className={section === "coverage" ? "active" : ""} onClick={() => setSection("coverage")}>
+          <button title="Cobertura nacional" className={section === "coverage" ? "active" : ""} onClick={() => setSection("coverage")}>
             <span className="nav-icon">◇</span>Cobertura nacional
           </button>
-          <button className={section === "expansion" ? "active" : ""} onClick={() => setSection("expansion")}>
+          <button title="Expansão fiscal" className={section === "expansion" ? "active" : ""} onClick={() => setSection("expansion")}>
             <span className="nav-icon">↟</span>Expansão fiscal
           </button>
-          <button className={section === "rules" ? "active" : ""} onClick={() => setSection("rules")}>
+          <button title="Regras fiscais" className={section === "rules" ? "active" : ""} onClick={() => setSection("rules")}>
             <span className="nav-icon">§</span>Regras fiscais
           </button>
-          <button className={section === "determination" ? "active" : ""} onClick={() => setSection("determination")}>
+          <button title="Apuração fiscal" className={section === "determination" ? "active" : ""} onClick={() => setSection("determination")}>
             <span className="nav-icon">≋</span>Apuração fiscal
           </button>
-          <button className={section === "academy" ? "active" : ""} onClick={() => setSection("academy")}>
+          <button title="Demonstrações" className={section === "academy" ? "active" : ""} onClick={() => setSection("academy")}>
             <span className="nav-icon">▷</span>Demonstrações
           </button>
         </nav>

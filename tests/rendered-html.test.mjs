@@ -437,3 +437,22 @@ test("versão 29 cria esteira fiscal sem custo por consulta e sem homologação 
   assert.match(shell, /Expansão fiscal/);
   assert.match(layout, /fiscal-expansion\.css/);
 });
+
+test("versão 30 mantém toda a navegação acessível e amplia a leitura do aplicativo", async () => {
+  const [client, css] = await Promise.all([
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/globals.css", root), "utf8"),
+  ]);
+  assert.match(client, /navigationRef/);
+  assert.match(client, /scrollIntoView/);
+  assert.match(client, /title="Expansão fiscal"/);
+  assert.match(css, /height: 100dvh/);
+  assert.match(css, /overflow-y: auto/);
+  assert.match(css, /scrollbar-gutter: stable/);
+  assert.match(css, /scroll-snap-type: x proximity/);
+  assert.match(css, /\.main-nav::-webkit-scrollbar/);
+  assert.match(css, /Authenticated workspace readability floor/);
+  assert.match(css, /\.app-shell \.company-analysis span \{ font-size: 10px/);
+  assert.match(css, /\.app-shell \.portfolio-metrics small \{ font-size: 11px/);
+  assert.match(css, /\.page-content \{ padding: 24px 16px 108px/);
+});
