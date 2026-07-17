@@ -278,6 +278,58 @@ export const fiscalDossierEvents = sqliteTable("fiscal_dossier_events", {
   index("fiscal_dossier_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
 ]);
 
+export const fiscalDocuments = sqliteTable("fiscal_documents", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  companyId: integer("company_id"),
+  uploadedByUserId: integer("uploaded_by_user_id").notNull(),
+  dossierId: text("dossier_id"),
+  filename: text("filename").notNull(),
+  sourceHash: text("source_hash").notNull(),
+  accessKey: text("access_key"),
+  schemaVersion: text("schema_version"),
+  profileVersion: text("profile_version").notNull(),
+  status: text("status").notNull(),
+  authorizationCode: text("authorization_code"),
+  authorizationLabel: text("authorization_label"),
+  issuedAt: text("issued_at"),
+  emitterName: text("emitter_name"),
+  emitterTaxIdHash: text("emitter_tax_id_hash"),
+  emitterTaxIdMasked: text("emitter_tax_id_masked"),
+  emitterState: text("emitter_state"),
+  recipientName: text("recipient_name"),
+  recipientTaxIdHash: text("recipient_tax_id_hash"),
+  recipientTaxIdMasked: text("recipient_tax_id_masked"),
+  recipientState: text("recipient_state"),
+  itemCount: integer("item_count").notNull().default(0),
+  totalProductCents: integer("total_product_cents"),
+  totalInvoiceCents: integer("total_invoice_cents"),
+  auditJson: text("audit_json").notNull(),
+  comparisonJson: text("comparison_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_documents_workspace_hash_profile_idx").on(table.workspaceId, table.sourceHash, table.profileVersion),
+  index("fiscal_documents_workspace_status_created_idx").on(table.workspaceId, table.status, table.createdAt, table.id),
+  index("fiscal_documents_workspace_access_key_idx").on(table.workspaceId, table.accessKey, table.createdAt),
+  index("fiscal_documents_company_created_idx").on(table.companyId, table.createdAt, table.id),
+  index("fiscal_documents_dossier_created_idx").on(table.dossierId, table.createdAt, table.id),
+]);
+
+export const fiscalDocumentEvents = sqliteTable("fiscal_document_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  documentId: text("document_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  actorUserId: integer("actor_user_id").notNull(),
+  eventType: text("event_type").notNull(),
+  note: text("note").notNull().default(""),
+  eventData: text("event_data").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("fiscal_document_events_document_created_idx").on(table.documentId, table.createdAt, table.id),
+  index("fiscal_document_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+]);
+
 export const taxPeriods = sqliteTable("tax_periods", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ownerUserId: integer("owner_user_id").notNull(),

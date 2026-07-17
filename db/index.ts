@@ -308,6 +308,51 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_documents (
+          id TEXT PRIMARY KEY NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          company_id INTEGER,
+          uploaded_by_user_id INTEGER NOT NULL,
+          dossier_id TEXT,
+          filename TEXT NOT NULL,
+          source_hash TEXT NOT NULL,
+          access_key TEXT,
+          schema_version TEXT,
+          profile_version TEXT NOT NULL,
+          status TEXT NOT NULL,
+          authorization_code TEXT,
+          authorization_label TEXT,
+          issued_at TEXT,
+          emitter_name TEXT,
+          emitter_tax_id_hash TEXT,
+          emitter_tax_id_masked TEXT,
+          emitter_state TEXT,
+          recipient_name TEXT,
+          recipient_tax_id_hash TEXT,
+          recipient_tax_id_masked TEXT,
+          recipient_state TEXT,
+          item_count INTEGER DEFAULT 0 NOT NULL,
+          total_product_cents INTEGER,
+          total_invoice_cents INTEGER,
+          audit_json TEXT NOT NULL,
+          comparison_json TEXT DEFAULT '{}' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_document_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          document_id TEXT NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          actor_user_id INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          note TEXT DEFAULT '' NOT NULL,
+          event_data TEXT DEFAULT '{}' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS tax_periods (
           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
           owner_user_id INTEGER NOT NULL,
@@ -527,6 +572,13 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_dossiers_workspace_hash_idx ON fiscal_dossiers (workspace_id, input_hash)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossier_events_dossier_created_idx ON fiscal_dossier_events (dossier_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossier_events_workspace_created_idx ON fiscal_dossier_events (workspace_id, created_at, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_documents_workspace_hash_profile_idx ON fiscal_documents (workspace_id, source_hash, profile_version)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_documents_workspace_status_created_idx ON fiscal_documents (workspace_id, status, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_documents_workspace_access_key_idx ON fiscal_documents (workspace_id, access_key, created_at)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_documents_company_created_idx ON fiscal_documents (company_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_documents_dossier_created_idx ON fiscal_documents (dossier_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_document_events_document_created_idx ON fiscal_document_events (document_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_document_events_workspace_created_idx ON fiscal_document_events (workspace_id, created_at, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_periods_owner_company_period_idx ON tax_periods (owner_user_id, company_id, period_key)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_periods_owner_status_period_idx ON tax_periods (owner_user_id, status, period_key, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_ledger_entries_period_source_idx ON tax_ledger_entries (period_id, source_key)"),

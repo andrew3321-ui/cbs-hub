@@ -11,6 +11,7 @@ SaaS para contadores independentes e escritórios contábeis versionarem premiss
 - assinatura HMAC de registros críticos
 - catálogo fiscal versionado com hash e casos de referência
 - inteligência fiscal determinística com ontologia, regras manuais e fontes oficiais
+- auditoria estrutural de NF-e XML no servidor, com minimização de dados e confronto com dossiês
 - livro de apuração CBS/IBS com conciliação e fechamento imutável
 
 ## Desenvolvimento
@@ -49,6 +50,8 @@ Comandos principais:
 15. No escritório, toda revisão congelada tem um responsável designado, prazo e rodada; somente o responsável distinto do preparador pode decidir.
 16. Comentários e decisões são append-only. Uma solicitação de correção nunca reabre a versão: cria outro cenário ligado por `supersedes_scenario_id`.
 17. A pesquisa fiscal não inventa fatos: qualquer condição ausente, fora da cobertura ou ainda não modelada bloqueia a conclusão operacional.
+18. XML fiscal é processado apenas em memória: o arquivo bruto e a chave de acesso completa não são persistidos; ficam hash, chave mascarada e evidências estruturadas.
+19. Totais de produtos, ICMS, ICMS-ST e FCP-ST precisam fechar exatamente em centavos; qualquer divergência bloqueia o documento.
 
 ## Modos de trabalho
 
@@ -66,6 +69,8 @@ Comandos principais:
 `GET /api/tax-determination` exige sessão e expõe o blueprint do livro fiscal, casos adversos e portões de fechamento. Nesta fase, `writesEnabled` e `netPayableEnabled` permanecem falsos.
 
 `GET /api/fiscal-intelligence` expõe o escopo e a integridade da base manual ativa. `POST /api/fiscal-intelligence` extrai fatos da pergunta, aplica apenas regras estruturadas e devolve pendências, achados, trilha de decisão e fontes usadas. A versão inicial cobre ICMS de autopeças em operações SP→MG e nunca rotula a resposta como definitiva.
+
+`GET /api/fiscal-documents` lista auditorias e evidências no espaço contábil. `POST /api/fiscal-documents` aceita uma NF-e XML UTF-8 de até 5 MB, recusa estruturas inseguras, valida chave/protocolo/itens/totais e pode confrontar o documento com um dossiê V22 do mesmo cliente. O perfil é estrutural: ainda não executa XSD integral, validação criptográfica da cadeia do certificado nem consulta automática de eventos posteriores.
 
 `GET /api/reviews` lista a fila do escritório, métricas de prazo, revisores elegíveis e a conversa de cada rodada. `POST /api/reviews` adiciona comentários, reatribui itens ou registra devolução/rejeição; a aprovação assinada continua em `POST /api/scenarios/approve`.
 

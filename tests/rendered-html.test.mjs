@@ -262,3 +262,32 @@ test("versão 22 congela memória fiscal e exige homologação segregada", async
   assert.match(schema, /fiscalDossierEvents/);
   assert.match(migration, /CREATE UNIQUE INDEX `fiscal_dossiers_workspace_hash_idx`/);
 });
+
+test("versão 23 audita NF-e no servidor, minimiza dados e reconcilia com o dossiê", async () => {
+  const [workbench, documentsApi, auditCore, client, schema, migration] = await Promise.all([
+    readFile(new URL("app/app/NfeAuditWorkbench.tsx", root), "utf8"),
+    readFile(new URL("app/api/fiscal-documents/route.ts", root), "utf8"),
+    readFile(new URL("domain/nfe-audit.ts", root), "utf8"),
+    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("drizzle/0016_flat_ink.sql", root), "utf8"),
+  ]);
+
+  assert.match(workbench, /VERSÃO 23 · EVIDÊNCIA DOCUMENTAL/);
+  assert.match(workbench, /XML bruto é processado em memória e descartado/);
+  assert.match(workbench, /Não substitui validação XSD integral/);
+  assert.match(auditCore, /DOCTYPE.*ENTITY.*xml-stylesheet/i);
+  assert.match(auditCore, /processEntities: false/);
+  assert.match(auditCore, /nfeAccessKeyIsValid/);
+  assert.match(auditCore, /maskNfeAccessKey/);
+  assert.match(auditCore, /compareNfeToDossier/);
+  assert.match(documentsApi, /rawXmlPersisted: false/);
+  assert.match(documentsApi, /publicAudit\.header\.accessKey/);
+  assert.match(documentsApi, /pertence a outro cliente do escritório/);
+  assert.match(documentsApi, /getCurrentUser/);
+  assert.match(documentsApi, /workspaceId/);
+  assert.doesNotMatch(client, /DOMParser/);
+  assert.match(schema, /fiscalDocuments/);
+  assert.match(schema, /fiscalDocumentEvents/);
+  assert.match(migration, /CREATE UNIQUE INDEX `fiscal_documents_workspace_hash_profile_idx`/);
+});

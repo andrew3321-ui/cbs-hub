@@ -1,10 +1,11 @@
 "use client";
 
-import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { normalizeProfessionalRegistration, professionalRegistrationError, professionalRegistrationIsValid } from "../professional-registration";
 import { calculateScenarioValues } from "../scenario-calculations";
 import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 import FiscalIntelligence from "./FiscalIntelligence";
+import NfeAuditWorkbench from "./NfeAuditWorkbench";
 
 type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "rules" | "determination" | "academy";
 
@@ -147,14 +148,6 @@ type TeamInvitation = {
   expiresAt: string;
   createdAt?: string;
   url?: string;
-};
-
-type ImportedDocument = {
-  name: string;
-  issuer: string;
-  date: string;
-  value: number;
-  status: "Lido" | "Sem total" | "Inválido";
 };
 
 type DemoStep = {
@@ -375,34 +368,6 @@ const productDemos: ProductDemo[] = [
   },
 ];
 
-const documentRows = [
-  { name: "NFS-e · Prefeitura de São Paulo", date: "08 jul 2026", count: "42 notas", status: "Conciliado" },
-  { name: "NF-e de entradas · XML", date: "05 jul 2026", count: "117 notas", status: "Conciliado" },
-  { name: "Serviços tomados · Junho", date: "30 jun 2026", count: "28 notas", status: "Revisar 3" },
-];
-
-function findXmlText(document: XMLDocument, names: string[]) {
-  const elements = Array.from(document.getElementsByTagName("*"));
-  for (const name of names) {
-    const match = elements.find((element) => element.localName === name);
-    const value = match?.textContent?.trim();
-    if (value) return value;
-  }
-  return "";
-}
-
-function parseXmlNumber(value: string) {
-  if (!value) return 0;
-  const normalized = value.includes(",") ? value.replace(/\./g, "").replace(",", ".") : value;
-  const parsed = Number(normalized);
-  return Number.isFinite(parsed) ? parsed : 0;
-}
-
-function formatXmlDate(value: string) {
-  const match = value.match(/^(\d{4})-(\d{2})-(\d{2})/);
-  return match ? `${match[3]}/${match[2]}/${match[1]}` : "Data não informada";
-}
-
 function formatCnpj(value: string | null) {
   if (!value || value.length !== 14) return "CNPJ não informado";
   return value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
@@ -446,7 +411,6 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
   const [comparisonIds, setComparisonIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState("");
-  const [importedDocuments, setImportedDocuments] = useState<ImportedDocument[]>([]);
   const [demoIndex, setDemoIndex] = useState(0);
   const [demoStep, setDemoStep] = useState(0);
   const [demoPlaying, setDemoPlaying] = useState(false);
@@ -504,12 +468,6 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
     const values = resolveStoredScenarioValues(scenario);
     return { scenario, values };
   }).filter((item): item is NonNullable<typeof item> => item !== null), [comparisonIds, savedScenarios]);
-
-  const importSummary = useMemo(() => ({
-    total: importedDocuments.reduce((sum, item) => sum + item.value, 0),
-    valid: importedDocuments.filter((item) => item.status === "Lido").length,
-    issues: importedDocuments.filter((item) => item.status !== "Lido").length,
-  }), [importedDocuments]);
 
   const portfolioInsights = useMemo(() => {
     const analyses = companies.map((company) => {
@@ -640,7 +598,6 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
 
   function changeActiveCompany(companyId: number | null) {
     setComparisonIds([]);
-    setImportedDocuments([]);
     setActiveCompanyId(companyId);
   }
 
@@ -947,39 +904,6 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
     }
   }
 
-  async function handleFileImport(event: ChangeEvent<HTMLInputElement>) {
-    const files = Array.from(event.target.files ?? []);
-    if (!files.length) return;
-    const xmlFiles = files
-      .filter((file) => file.name.toLowerCase().endsWith(".xml") && file.size <= 8 * 1024 * 1024)
-      .slice(0, 100);
-
-    const parsedDocuments = await Promise.all(xmlFiles.map(async (file): Promise<ImportedDocument> => {
-      try {
-        const xml = new DOMParser().parseFromString(await file.text(), "application/xml");
-        if (xml.getElementsByTagName("parsererror").length) throw new Error("invalid xml");
-        const value = parseXmlNumber(findXmlText(xml, ["vNF", "vServ", "ValorServicos", "ValorLiquidoNfse", "vProd", "vRec"]));
-        return {
-          name: file.name,
-          issuer: findXmlText(xml, ["xNome", "RazaoSocial", "CNPJ", "CPF"]) || "Emitente não identificado",
-          date: formatXmlDate(findXmlText(xml, ["dhEmi", "dEmi", "DataEmissao", "dCompet", "Competencia"])),
-          value,
-          status: value > 0 ? "Lido" : "Sem total",
-        };
-      } catch {
-        return { name: file.name, issuer: "Documento não reconhecido", date: "—", value: 0, status: "Inválido" };
-      }
-    }));
-
-    setImportedDocuments(parsedDocuments);
-    setMessage(
-      parsedDocuments.length
-        ? `${parsedDocuments.length} XML analisado${parsedDocuments.length > 1 ? "s" : ""} localmente. Nenhum arquivo foi enviado.`
-        : "Selecione XMLs válidos de até 8 MB."
-    );
-    event.target.value = "";
-  }
-
   function loadScenario(item: SavedScenario, notify = true) {
     if (item.integrityStatus === "invalid") {
       setMessage("Este registro foi bloqueado porque a assinatura criptográfica não confere.");
@@ -1176,13 +1100,13 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
     setMessage("Relatório exportado em CSV.");
   }
 
-  function useImportedRevenue() {
-    if (importSummary.total <= 0) return;
-    setRevenue(Math.round(importSummary.total * 100) / 100);
-    setScenarioName("Cenário a partir dos XMLs");
+  function useAuditedInvoiceTotal(totalCents: number) {
+    if (!Number.isSafeInteger(totalCents) || totalCents <= 0) return;
+    setRevenue(totalCents / 100);
+    setScenarioName("Cenário a partir de NF-e auditada");
     setPriceAdjustment(0);
     setSection("simulator");
-    setMessage("Receita dos XMLs aplicada ao simulador.");
+    setMessage("Total da NF-e auditada aplicado ao simulador. Confirme se o documento representa toda a receita do cenário.");
   }
 
   function toggleComparison(id: number) {
@@ -1921,40 +1845,8 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
 
         {section === "documents" && (
           <div className="page-content documents-page">
-            <div className="page-heading">
-              <div><p className="kicker">BASE DE CÁLCULO · {activeCompany?.name?.toUpperCase() ?? "EMPRESA"}</p><h1>Documentos fiscais</h1><p>Leia os XMLs localmente e leve a receita identificada ao cenário desta empresa.</p></div>
-              <label className="primary-button file-button">Importar XML<input type="file" accept=".xml,text/xml,application/xml" multiple onChange={handleFileImport} /></label>
-            </div>
-
             {message && <div className="toast" role="status">{message}</div>}
-
-            <section className="upload-zone">
-              <div className="upload-symbol">⇧</div>
-              <h2>Traga suas notas fiscais</h2>
-              <p>Selecione arquivos XML. Nesta versão, a leitura acontece no seu navegador e nenhum documento é enviado.</p>
-              <label className="secondary-button">Selecionar arquivos<input type="file" accept=".xml,text/xml,application/xml" multiple onChange={handleFileImport} /></label>
-              <small>XML · múltiplos arquivos permitidos</small>
-            </section>
-
-            {importedDocuments.length > 0 && <>
-              <section className="document-metrics">
-                <article><span>Documentos lidos</span><strong>{importedDocuments.length}</strong><small>{importSummary.issues ? `${importSummary.issues} exigem revisão` : "Todos reconhecidos"}</small></article>
-                <article><span>Valor identificado</span><strong>{currency.format(importSummary.total)}</strong><small>Somatório dos XMLs válidos</small></article>
-                <article className="metric-action"><span>Levar para o cenário</span><strong>{importSummary.valid} notas válidas</strong><button onClick={useImportedRevenue} disabled={!importSummary.total}>Usar como receita →</button></article>
-              </section>
-
-              <section className="panel imported-panel">
-                <div className="panel-heading"><div><span className="eyebrow">LEITURA LOCAL</span><h3>Documentos analisados</h3></div><button className="text-button" onClick={() => setImportedDocuments([])}>Limpar análise</button></div>
-                <div className="table-wrap"><table className="import-table"><thead><tr><th>Arquivo</th><th>Emitente</th><th>Emissão</th><th>Valor</th><th>Status</th></tr></thead><tbody>{importedDocuments.map((item) => <tr key={item.name}><td><b>{item.name}</b></td><td>{item.issuer}</td><td>{item.date}</td><td>{item.value ? currency.format(item.value) : "—"}</td><td><span className={item.status === "Lido" ? "ok-status" : "review-status"}>{item.status}</span></td></tr>)}</tbody></table></div>
-              </section>
-            </>}
-
-            <section className="panel docs-panel">
-              <div className="panel-heading"><div><span className="eyebrow">ÚLTIMAS IMPORTAÇÕES</span><h3>Conciliação fiscal</h3></div><span className="health-chip"><i /> 96% conciliado</span></div>
-              <div className="docs-list">{documentRows.map((doc) => (
-                <div className="doc-row" key={doc.name}><span className="doc-icon">XML</span><span><b>{doc.name}</b><small>{doc.date}</small></span><span>{doc.count}</span><span className={doc.status.startsWith("Revisar") ? "review-status" : "ok-status"}>{doc.status}</span><button aria-label={`Mais opções para ${doc.name}`}>•••</button></div>
-              ))}</div>
-            </section>
+            <NfeAuditWorkbench companyId={activeCompanyId} companyName={activeCompany?.name ?? null} onUseTotal={useAuditedInvoiceTotal} />
           </div>
         )}
       </section>
