@@ -6,6 +6,7 @@ import "./federal-pme.css";
 import "./national-coverage.css";
 import "./fiscal-expansion.css";
 import "./deterministic-tax-lab.css";
+import "./legal-reference-center.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

@@ -6,6 +6,7 @@ import { calculateScenarioValues } from "../scenario-calculations";
 import { rateSourceLabel, resolveStoredScenarioValues, type RateSource, type ReviewStatus } from "../scenario-reliability";
 import FiscalIntelligence from "./FiscalIntelligence";
 import FederalPmeCompliance from "./FederalPmeCompliance";
+import LegalReferenceCenter from "./LegalReferenceCenter";
 import NationalCoverageCenter from "./NationalCoverageCenter";
 import FiscalExpansionCenter from "./FiscalExpansionCenter";
 import NfeAuditWorkbench from "./NfeAuditWorkbench";
@@ -1686,6 +1687,8 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
               <div><p className="kicker">GOVERNANÇA DO MOTOR FISCAL</p><h1>Regras federais e Catálogo fiscal versionado</h1><p>Mapeie as obrigações essenciais da PME e audite as regras que podem entrar nos cálculos.</p></div>
               <a className="secondary-button" href="/metodologia">Ver metodologia</a>
             </div>
+
+            <LegalReferenceCenter />
 
             <FederalPmeCompliance />
 

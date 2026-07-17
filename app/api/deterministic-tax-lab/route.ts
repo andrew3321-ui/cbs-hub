@@ -38,7 +38,7 @@ async function calculate(request: Request) {
   } catch (error) {
     const reason = error instanceof Error ? error.message : "invalid_input";
     const messages: Record<string, string> = {
-      rbt12_out_of_annex_i: "O RBT12 está fora do limite do Anexo I suportado pelo laboratório.",
+      rbt12_out_of_supported_annex: "O RBT12 está fora do limite do anexo suportado pelo laboratório.",
       unsupported_module: "Este módulo de cálculo ainda não é suportado.",
     };
     return Response.json({ error: messages[reason] ?? "Revise os valores e fatos obrigatórios do cálculo.", code: reason }, { status: 400, headers: { "Cache-Control": "no-store" } });

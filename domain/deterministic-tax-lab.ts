@@ -1,9 +1,9 @@
 import { resolveInterstateIcms, type UfCode } from "./national-tax-coverage.ts";
 
-export const DETERMINISTIC_TAX_LAB_VERSION = "2026.07.17-v31";
+export const DETERMINISTIC_TAX_LAB_VERSION = "2026.07.17-v32";
 export const DETERMINISTIC_TAX_LAB_CHECKED_AT = "2026-07-17";
 
-export type LabModule = "simples_annex_i" | "pis_cofins" | "iss" | "icms_difal" | "rtc_2026";
+export type LabModule = "simples_annex_i" | "simples_services" | "pis_cofins" | "presumed_profit_2026" | "iss" | "icms_difal" | "rtc_2026";
 export type LabIssue = { code: string; severity: "blocker" | "warning"; message: string };
 export type LabLine = { code: string; label: string; formula: string; amountCents: number | null; rateBps?: number | null };
 export type LabSource = { code: string; title: string; publisher: string; url: string; checkedAt: string };
@@ -22,11 +22,17 @@ export type LabResult = {
 
 const checkedAt = DETERMINISTIC_TAX_LAB_CHECKED_AT;
 export const labSources = {
-  simples: { code: "LC-123-2006", title: "Lei Complementar nº 123/2006 — Anexo I", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm", checkedAt },
-  pgdas: { code: "CGSN-140-2018", title: "Resolução CGSN nº 140/2018", publisher: "Receita Federal", url: "https://normas.receita.fazenda.gov.br/sijut2consulta/link.action?idAto=92278&naoPublicado=&visao=original", checkedAt },
+  simples: { code: "LC-123-2006", title: "Lei Complementar nº 123/2006 — Anexos I, III e V", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp123.htm", checkedAt },
+  pgdas: { code: "CGSN-140-2018", title: "Resolução CGSN nº 140/2018 — versão anotada", publisher: "Receita Federal", url: "https://normas.receita.fazenda.gov.br/sijut2consulta/link.action?idAto=92278&visao=anotado", checkedAt },
+  irpj: { code: "RFB-IRPJ", title: "IRPJ — alíquotas e adicional", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/tributos/IRPJ", checkedAt },
+  csll: { code: "RFB-CSLL", title: "CSLL — resultado presumido", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/tributos/CSLL", checkedAt },
+  lc224: { code: "LC-224-2025", title: "Lei Complementar nº 224/2025", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp224.htm", checkedAt },
+  decree12808: { code: "D-12808-2025", title: "Decreto nº 12.808/2025", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/_ato2023-2026/2025/decreto/d12808.htm", checkedAt },
+  presumedFaq2026: { code: "RFB-BENEFITS-FAQ-V4", title: "Perguntas e respostas — redução de incentivos e benefícios V4", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/perguntas-e-respostas/beneficios-fiscais/perguntas-e-respostas-reducao-dos-incentivos-e-beneficios-tributarios.pdf/@@download/file", checkedAt },
   pisCofins: { code: "RFB-PIS-COFINS", title: "Orientações sobre PIS/Pasep e Cofins", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/tributos/pis-pasep-cofins", checkedAt },
-  pisLaw: { code: "LEI-10637-2002", title: "Lei nº 10.637/2002", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/2002/l10637compilado.htm", checkedAt },
-  cofinsLaw: { code: "LEI-9718-1998", title: "Lei nº 9.718/1998", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/l9718compilada.htm", checkedAt },
+  cumulativePisCofinsLaw: { code: "LEI-9718-1998", title: "Lei nº 9.718/1998 — regime cumulativo", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/l9718compilada.htm", checkedAt },
+  pisNonCumulativeLaw: { code: "LEI-10637-2002", title: "Lei nº 10.637/2002 — PIS não cumulativo", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/2002/l10637compilado.htm", checkedAt },
+  cofinsNonCumulativeLaw: { code: "LEI-10833-2003", title: "Lei nº 10.833/2003 — Cofins não cumulativa", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.833.htm", checkedAt },
   iss: { code: "LC-116-2003", title: "Lei Complementar nº 116/2003", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp116.htm", checkedAt },
   difal: { code: "LC-190-2022", title: "Lei Complementar nº 190/2022", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp190.htm", checkedAt },
   rtc: { code: "RFB-RTC-2026", title: "Entenda a Reforma Tributária do Consumo", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/entenda", checkedAt },
@@ -66,19 +72,42 @@ const annexI = [
   { from: 360_000_001, to: 480_000_000, nominalBps: 1900, deductionCents: 37_800_000 },
 ] as const;
 
+const annexIII = [
+  { from: 0, to: 18_000_000, nominalBps: 600, deductionCents: 0 },
+  { from: 18_000_001, to: 36_000_000, nominalBps: 1120, deductionCents: 936_000 },
+  { from: 36_000_001, to: 72_000_000, nominalBps: 1350, deductionCents: 1_764_000 },
+  { from: 72_000_001, to: 180_000_000, nominalBps: 1600, deductionCents: 3_564_000 },
+  { from: 180_000_001, to: 360_000_000, nominalBps: 2100, deductionCents: 12_564_000 },
+  { from: 360_000_001, to: 480_000_000, nominalBps: 3300, deductionCents: 64_800_000 },
+] as const;
+
+const annexV = [
+  { from: 0, to: 18_000_000, nominalBps: 1550, deductionCents: 0 },
+  { from: 18_000_001, to: 36_000_000, nominalBps: 1800, deductionCents: 450_000 },
+  { from: 36_000_001, to: 72_000_000, nominalBps: 1950, deductionCents: 990_000 },
+  { from: 72_000_001, to: 180_000_000, nominalBps: 2050, deductionCents: 1_710_000 },
+  { from: 180_000_001, to: 360_000_000, nominalBps: 2300, deductionCents: 6_210_000 },
+  { from: 360_000_001, to: 480_000_000, nominalBps: 3050, deductionCents: 54_000_000 },
+] as const;
+
+type AnnexTable = ReadonlyArray<{ from: number; to: number; nominalBps: number; deductionCents: number }>;
+function annexCalculation(rbt12: number, revenue: number, table: AnnexTable) {
+  const bracketIndex = table.findIndex((item) => rbt12 >= item.from && rbt12 <= item.to);
+  const bracket = table[bracketIndex];
+  if (!bracket) throw new Error("rbt12_out_of_supported_annex");
+  const numerator = BigInt(rbt12) * BigInt(bracket.nominalBps) - BigInt(bracket.deductionCents) * BigInt(10000);
+  const effectiveRatePpm = Number((numerator * BigInt(100) + BigInt(rbt12) / BigInt(2)) / BigInt(rbt12));
+  const estimatedCents = Number((BigInt(revenue) * BigInt(effectiveRatePpm) + BigInt(500_000)) / BigInt(1_000_000));
+  return { bracketIndex, bracket, effectiveRatePpm, effectiveRateBps: Math.round(effectiveRatePpm / 100), estimatedCents };
+}
+
 export type SimplesAnnexIInput = { rbt12Cents: number; monthlySegregatedRevenueCents: number; annexConfirmed: boolean; revenueSegregated: boolean; periodClosed: boolean; noSpecialTreatment: boolean };
 export function calculateSimplesAnnexI(input: SimplesAnnexIInput): LabResult {
   const rbt12 = safeInteger(input.rbt12Cents, "rbt12", 1, 480_000_000);
   const revenue = safeInteger(input.monthlySegregatedRevenueCents, "revenue");
-  const bracketIndex = annexI.findIndex((item) => rbt12 >= item.from && rbt12 <= item.to);
-  const bracket = annexI[bracketIndex];
-  if (!bracket) throw new Error("rbt12_out_of_annex_i");
-  const numerator = BigInt(rbt12) * BigInt(bracket.nominalBps) - BigInt(bracket.deductionCents) * BigInt(10000);
-  const effectiveRatePpm = Number((numerator * BigInt(100) + BigInt(rbt12) / BigInt(2)) / BigInt(rbt12));
-  const estimatedCents = Number((BigInt(revenue) * BigInt(effectiveRatePpm) + BigInt(500_000)) / BigInt(1_000_000));
+  const { bracketIndex, bracket, effectiveRatePpm, effectiveRateBps, estimatedCents } = annexCalculation(rbt12, revenue, annexI);
   const verifiedFacts = facts([["atividade de comércio enquadrada no Anexo I", input.annexConfirmed], ["receita do mês segregada por tratamento tributário", input.revenueSegregated], ["RBT12 e período conferidos", input.periodClosed], ["ST, monofásico, antecipação, exportação e demais tratamentos especiais excluídos", input.noSpecialTreatment]]);
   const issues: LabIssue[] = [...missingFacts(verifiedFacts), { code: "pgdas_required", severity: "warning", message: "O valor exibido é uma referência do Anexo I e deve ser reconciliado com o PGDAS-D e a segregação efetiva da receita." }];
-  const effectiveRateBps = Math.round(effectiveRatePpm / 100);
   return result("simples_annex_i", "Simples Nacional — Anexo I", [
     { code: "rbt12", label: "Receita bruta acumulada em 12 meses", formula: "RBT12 informada", amountCents: rbt12 },
     { code: "nominal", label: `Alíquota nominal — faixa ${bracketIndex + 1}`, formula: "Tabela oficial do Anexo I", amountCents: null, rateBps: bracket.nominalBps },
@@ -86,6 +115,28 @@ export function calculateSimplesAnnexI(input: SimplesAnnexIInput): LabResult {
     { code: "effective", label: "Alíquota efetiva de referência", formula: "(RBT12 × alíquota nominal − parcela a deduzir) ÷ RBT12", amountCents: null, rateBps: effectiveRateBps },
     { code: "das_reference", label: "DAS estimado sobre a receita segregada", formula: "Receita segregada × alíquota efetiva", amountCents: estimatedCents, rateBps: effectiveRateBps },
   ], issues, [labSources.simples, labSources.pgdas], verifiedFacts, `Faixa ${bracketIndex + 1}; alíquota efetiva aproximada de ${(effectiveRatePpm / 10000).toFixed(4)}%.`);
+}
+
+export type SimplesServicesInput = { rbt12Cents: number; fs12Cents: number; monthlySegregatedRevenueCents: number; activitySubjectToFactorR: boolean; payrollReconciled: boolean; revenueSegregated: boolean; noSpecialTreatment: boolean };
+export function calculateSimplesServices(input: SimplesServicesInput): LabResult {
+  const rbt12 = safeInteger(input.rbt12Cents, "rbt12", 1, 480_000_000);
+  const fs12 = safeInteger(input.fs12Cents, "fs12");
+  const revenue = safeInteger(input.monthlySegregatedRevenueCents, "revenue");
+  const usesAnnexIII = BigInt(fs12) * BigInt(100) >= BigInt(rbt12) * BigInt(28);
+  const annexName = usesAnnexIII ? "III" : "V";
+  const { bracketIndex, bracket, effectiveRatePpm, effectiveRateBps, estimatedCents } = annexCalculation(rbt12, revenue, usesAnnexIII ? annexIII : annexV);
+  const factorRPpm = Number((BigInt(fs12) * BigInt(1_000_000) + BigInt(rbt12) / BigInt(2)) / BigInt(rbt12));
+  const verifiedFacts = facts([["atividade está sujeita ao fator R", input.activitySubjectToFactorR], ["FS12 inclui salários, pró-labore, contribuição patronal e FGTS aplicáveis", input.payrollReconciled], ["receita do serviço foi segregada", input.revenueSegregated], ["retenção, exportação, ISS fixo e demais tratamentos especiais foram excluídos", input.noSpecialTreatment]]);
+  const issues: LabIssue[] = [...missingFacts(verifiedFacts), { code: "pgdas_required", severity: "warning", message: "O enquadramento e o valor devem ser reconciliados no PGDAS-D. Nem todo serviço usa fator R, e escritórios contábeis possuem tratamento próprio para atividades típicas." }];
+  return result("simples_services", `Simples — serviços pelo Anexo ${annexName}`, [
+    { code: "fs12", label: "Folha e encargos em 12 meses", formula: "FS12 informada e reconciliada", amountCents: fs12 },
+    { code: "rbt12", label: "Receita bruta em 12 meses", formula: "RBT12 dos mercados interno e externo", amountCents: rbt12 },
+    { code: "factor_r", label: "Fator R", formula: "FS12 ÷ RBT12; Anexo III se ≥ 28%", amountCents: null, rateBps: Math.round(factorRPpm / 100) },
+    { code: "nominal", label: `Alíquota nominal — Anexo ${annexName}, faixa ${bracketIndex + 1}`, formula: `Tabela oficial do Anexo ${annexName}`, amountCents: null, rateBps: bracket.nominalBps },
+    { code: "deduction", label: "Parcela a deduzir", formula: `Tabela oficial do Anexo ${annexName}`, amountCents: bracket.deductionCents },
+    { code: "effective", label: "Alíquota efetiva de referência", formula: "(RBT12 × alíquota nominal − parcela a deduzir) ÷ RBT12", amountCents: null, rateBps: effectiveRateBps },
+    { code: "das_reference", label: "DAS estimado sobre o serviço segregado", formula: "Receita segregada × alíquota efetiva", amountCents: estimatedCents, rateBps: effectiveRateBps },
+  ], issues, [labSources.simples, labSources.pgdas], verifiedFacts, `Fator R de ${(factorRPpm / 10000).toFixed(4)}%; enquadramento matemático no Anexo ${annexName}.`);
 }
 
 export type PisCofinsInput = { regime: "cumulative" | "non_cumulative"; taxableRevenueCents: number; eligibleCreditBaseCents: number; regimeConfirmed: boolean; revenueClassified: boolean; specialTreatmentsExcluded: boolean; creditsDocumented: boolean };
@@ -109,7 +160,45 @@ export function calculatePisCofins(input: PisCofinsInput): LabResult {
     { code: "pis_credit", label: "Crédito de PIS/Pasep informado", formula: nonCumulative ? "Base elegível confirmada × 1,65%" : "Não aplicável ao cumulativo", amountCents: pisCredit, rateBps: nonCumulative ? pisRate : 0 },
     { code: "cofins_credit", label: "Crédito de Cofins informado", formula: nonCumulative ? "Base elegível confirmada × 7,60%" : "Não aplicável ao cumulativo", amountCents: cofinsCredit, rateBps: nonCumulative ? cofinsRate : 0 },
     { code: "balance", label: "Saldo matemático de referência", formula: "Débitos − créditos informados", amountCents: Math.max(0, pisDebit + cofinsDebit - pisCredit - cofinsCredit), rateBps: null },
-  ], issues, [labSources.pisCofins, labSources.pisLaw, labSources.cofinsLaw], verifiedFacts, `${nonCumulative ? "Regime não cumulativo" : "Regime cumulativo"}; separação auditável entre débitos e créditos.`);
+  ], issues, nonCumulative ? [labSources.pisCofins, labSources.pisNonCumulativeLaw, labSources.cofinsNonCumulativeLaw] : [labSources.pisCofins, labSources.cumulativePisCofinsLaw], verifiedFacts, `${nonCumulative ? "Regime não cumulativo" : "Regime cumulativo"}; separação auditável entre débitos e créditos.`);
+}
+
+export type PresumedProfit2026Input = { quarter: 1 | 2 | 3 | 4; commerceRevenueCents: number; serviceRevenueCents: number; fullyTaxableAdditionsCents: number; regimeConfirmed: boolean; activitiesSeparated: boolean; revenueReconciled: boolean; specialActivitiesExcluded: boolean };
+export function calculatePresumedProfit2026(input: PresumedProfit2026Input): LabResult {
+  const quarter = safeInteger(input.quarter, "quarter", 1, 4) as 1 | 2 | 3 | 4;
+  const commerce = safeInteger(input.commerceRevenueCents, "commerce_revenue");
+  const services = safeInteger(input.serviceRevenueCents, "service_revenue");
+  const additions = safeInteger(input.fullyTaxableAdditionsCents, "fully_taxable_additions");
+  const totalRevenue = commerce + services;
+  safeInteger(totalRevenue, "total_revenue", 1);
+  const quarterlyLimit = 125_000_000;
+  const normalTotal = Math.min(totalRevenue, quarterlyLimit);
+  const normalCommerce = totalRevenue <= quarterlyLimit ? commerce : Number((BigInt(normalTotal) * BigInt(commerce) + BigInt(totalRevenue) / BigInt(2)) / BigInt(totalRevenue));
+  const normalServices = Math.min(services, normalTotal - normalCommerce);
+  const excessCommerce = commerce - normalCommerce;
+  const excessServices = services - normalServices;
+  const csllUpliftApplies = quarter >= 2;
+
+  const irpjPresumedBase = multiplyCentsByBps(normalCommerce, 800) + multiplyCentsByBps(excessCommerce, 880) + multiplyCentsByBps(normalServices, 3200) + multiplyCentsByBps(excessServices, 3520) + additions;
+  const csllPresumedBase = multiplyCentsByBps(normalCommerce, 1200) + multiplyCentsByBps(excessCommerce, csllUpliftApplies ? 1320 : 1200) + multiplyCentsByBps(normalServices, 3200) + multiplyCentsByBps(excessServices, csllUpliftApplies ? 3520 : 3200) + additions;
+  const irpjBaseTax = multiplyCentsByBps(irpjPresumedBase, 1500);
+  const irpjAdditionalBase = Math.max(0, irpjPresumedBase - 6_000_000);
+  const irpjAdditional = multiplyCentsByBps(irpjAdditionalBase, 1000);
+  const csll = multiplyCentsByBps(csllPresumedBase, 900);
+  const verifiedFacts = facts([["opção válida pelo Lucro Presumido em 2026", input.regimeConfirmed], ["receitas de comércio e serviços foram separadas", input.activitiesSeparated], ["receita trimestral e acréscimos foram conciliados", input.revenueReconciled], ["combustíveis, transporte, hospitalares, instituições financeiras, exterior e regimes especiais foram excluídos", input.specialActivitiesExcluded]]);
+  const issues: LabIssue[] = [...missingFacts(verifiedFacts), { code: "limited_scope", severity: "warning", message: "Motor limitado às atividades gerais de comércio (IRPJ 8% / CSLL 12%) e serviços em geral (32% / 32%). Ganhos e receitas integralmente tributáveis devem ser informados separadamente." }, { code: "2026_uplift", severity: "warning", message: `Em 2026, o acréscimo dos coeficientes vale para o IRPJ desde o 1º trimestre e para a CSLL desde o 2º trimestre; cálculo atual: ${quarter}º trimestre.` }];
+  return result("presumed_profit_2026", `Lucro Presumido — ${quarter}º trimestre de 2026`, [
+    { code: "revenue", label: "Receita sujeita aos coeficientes", formula: "Comércio + serviços informados", amountCents: totalRevenue },
+    { code: "normal_limit", label: "Parcela no limite trimestral normal", formula: "Até R$ 1.250.000, rateado entre as atividades", amountCents: normalTotal },
+    { code: "excess", label: "Parcela com coeficientes acrescidos", formula: "Receita sujeita aos coeficientes − limite proporcional", amountCents: Math.max(0, totalRevenue - normalTotal) },
+    { code: "irpj_base", label: "Base presumida do IRPJ", formula: "Comércio 8%/8,8% + serviços 32%/35,2% + acréscimos integrais", amountCents: irpjPresumedBase },
+    { code: "irpj_15", label: "IRPJ à alíquota geral", formula: "Base presumida do IRPJ × 15%", amountCents: irpjBaseTax, rateBps: 1500 },
+    { code: "irpj_additional", label: "Adicional do IRPJ", formula: "10% sobre a base trimestral que exceder R$ 60.000", amountCents: irpjAdditional, rateBps: 1000 },
+    { code: "irpj_total", label: "IRPJ trimestral de referência", formula: "IRPJ 15% + adicional", amountCents: irpjBaseTax + irpjAdditional },
+    { code: "csll_base", label: "Base presumida da CSLL", formula: `Comércio 12%/${csllUpliftApplies ? "13,2%" : "12%"} + serviços 32%/${csllUpliftApplies ? "35,2%" : "32%"} + acréscimos integrais`, amountCents: csllPresumedBase },
+    { code: "csll", label: "CSLL trimestral de referência", formula: "Base presumida da CSLL × 9%", amountCents: csll, rateBps: 900 },
+    { code: "combined", label: "IRPJ + CSLL de referência", formula: "Soma dos tributos calculados; não inclui PIS/Cofins", amountCents: irpjBaseTax + irpjAdditional + csll },
+  ], issues, [labSources.irpj, labSources.csll, labSources.lc224, labSources.decree12808, labSources.presumedFaq2026], verifiedFacts, `Limite trimestral de R$ 1,25 milhão aplicado proporcionalmente; acréscimos de 2026 tratados por tributo e trimestre.`);
 }
 
 export type IssInput = { serviceBaseCents: number; deductionsCents: number; municipalRateBps: number; withheld: boolean; serviceItemConfirmed: boolean; placeConfirmed: boolean; municipalRateConfirmed: boolean; municipalLawReference: string };
@@ -172,7 +261,9 @@ export function calculateRtc2026(input: Rtc2026Input): LabResult {
 
 export type LabInput =
   | ({ module: "simples_annex_i" } & SimplesAnnexIInput)
+  | ({ module: "simples_services" } & SimplesServicesInput)
   | ({ module: "pis_cofins" } & PisCofinsInput)
+  | ({ module: "presumed_profit_2026" } & PresumedProfit2026Input)
   | ({ module: "iss" } & IssInput)
   | ({ module: "icms_difal" } & IcmsDifalInput)
   | ({ module: "rtc_2026" } & Rtc2026Input);
@@ -180,7 +271,9 @@ export type LabInput =
 export function calculateTaxLab(input: LabInput): LabResult {
   switch (input.module) {
     case "simples_annex_i": return calculateSimplesAnnexI(input);
+    case "simples_services": return calculateSimplesServices(input);
     case "pis_cofins": return calculatePisCofins(input);
+    case "presumed_profit_2026": return calculatePresumedProfit2026(input);
     case "iss": return calculateIss(input);
     case "icms_difal": return calculateIcmsDifal(input);
     case "rtc_2026": return calculateRtc2026(input);

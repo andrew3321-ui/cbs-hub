@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-type Module = "simples_annex_i" | "pis_cofins" | "iss" | "icms_difal" | "rtc_2026";
+type Module = "simples_annex_i" | "simples_services" | "pis_cofins" | "presumed_profit_2026" | "iss" | "icms_difal" | "rtc_2026";
 type Calculation = {
   result: {
     title: string; status: "calculated_reference" | "blocked"; summary: string; engineVersion: string; disclaimer: string;
@@ -17,7 +17,9 @@ type Calculation = {
 
 const modules: Array<{ id: Module; short: string; title: string; description: string }> = [
   { id: "simples_annex_i", short: "SN", title: "Simples · Anexo I", description: "Faixa, alíquota efetiva e DAS de referência." },
+  { id: "simples_services", short: "FATOR R", title: "Simples · III/V", description: "Fator R, folha e anexo de serviços." },
   { id: "pis_cofins", short: "P/C", title: "PIS e Cofins", description: "Débitos, créditos e saldo por regime." },
+  { id: "presumed_profit_2026", short: "LP", title: "Presumido 2026", description: "IRPJ, adicional, CSLL e nova presunção." },
   { id: "iss", short: "ISS", title: "ISS municipal", description: "Base, deduções, retenção e taxa confirmada." },
   { id: "icms_difal", short: "ICMS", title: "DIFAL + FCP", description: "Comparativo interestadual parametrizado." },
   { id: "rtc_2026", short: "RTC", title: "IBS/CBS 2026", description: "Destaque de teste e limite comparável." },
@@ -31,7 +33,9 @@ export default function DeterministicTaxLab() {
   const [module, setModule] = useState<Module>("simples_annex_i");
   const [values, setValues] = useState<Record<string, string | boolean>>({
     rbt12: "1500000", monthlyRevenue: "120000", annexConfirmed: false, revenueSegregated: false, periodClosed: false, noSpecialTreatment: false,
+    serviceRbt12: "1500000", fs12: "450000", serviceMonthlyRevenue: "120000", activitySubjectToFactorR: false, payrollReconciled: false, serviceRevenueSegregated: false, serviceNoSpecialTreatment: false,
     regime: "cumulative", taxableRevenue: "100000", creditBase: "0", regimeConfirmed: false, revenueClassified: false, specialTreatmentsExcluded: false, creditsDocumented: false,
+    presumedQuarter: "2", commerceQuarterRevenue: "1440000", serviceQuarterRevenue: "360000", fullyTaxableAdditions: "0", presumedRegimeConfirmed: false, presumedActivitiesSeparated: false, presumedRevenueReconciled: false, presumedSpecialActivitiesExcluded: false,
     serviceBase: "100000", deductions: "0", municipalRate: "3", withheld: false, serviceItemConfirmed: false, placeConfirmed: false, municipalRateConfirmed: false, municipalLawReference: "",
     icmsBase: "100000", origin: "SP", destination: "MG", importedQualified: false, destinationInternalRate: "18", fcpRate: "2", finalConsumer: false, recipientNonTaxpayer: false, destinationLawReference: "", ratesConfirmed: false,
     rtcBase: "100000", pisCofinsPayable: "3650", yearConfirmed: false, accessoryObligationsConfirmed: false, operationClassified: false,
@@ -47,7 +51,9 @@ export default function DeterministicTaxLab() {
 
   const payload = useMemo(() => {
     if (module === "simples_annex_i") return { module, rbt12Cents: asCents(text("rbt12")), monthlySegregatedRevenueCents: asCents(text("monthlyRevenue")), annexConfirmed: yes("annexConfirmed"), revenueSegregated: yes("revenueSegregated"), periodClosed: yes("periodClosed"), noSpecialTreatment: yes("noSpecialTreatment") };
+    if (module === "simples_services") return { module, rbt12Cents: asCents(text("serviceRbt12")), fs12Cents: asCents(text("fs12")), monthlySegregatedRevenueCents: asCents(text("serviceMonthlyRevenue")), activitySubjectToFactorR: yes("activitySubjectToFactorR"), payrollReconciled: yes("payrollReconciled"), revenueSegregated: yes("serviceRevenueSegregated"), noSpecialTreatment: yes("serviceNoSpecialTreatment") };
     if (module === "pis_cofins") return { module, regime: text("regime"), taxableRevenueCents: asCents(text("taxableRevenue")), eligibleCreditBaseCents: asCents(text("creditBase")), regimeConfirmed: yes("regimeConfirmed"), revenueClassified: yes("revenueClassified"), specialTreatmentsExcluded: yes("specialTreatmentsExcluded"), creditsDocumented: yes("creditsDocumented") };
+    if (module === "presumed_profit_2026") return { module, quarter: Number(text("presumedQuarter")), commerceRevenueCents: asCents(text("commerceQuarterRevenue")), serviceRevenueCents: asCents(text("serviceQuarterRevenue")), fullyTaxableAdditionsCents: asCents(text("fullyTaxableAdditions")), regimeConfirmed: yes("presumedRegimeConfirmed"), activitiesSeparated: yes("presumedActivitiesSeparated"), revenueReconciled: yes("presumedRevenueReconciled"), specialActivitiesExcluded: yes("presumedSpecialActivitiesExcluded") };
     if (module === "iss") return { module, serviceBaseCents: asCents(text("serviceBase")), deductionsCents: asCents(text("deductions")), municipalRateBps: rateBps(text("municipalRate")), withheld: yes("withheld"), serviceItemConfirmed: yes("serviceItemConfirmed"), placeConfirmed: yes("placeConfirmed"), municipalRateConfirmed: yes("municipalRateConfirmed"), municipalLawReference: text("municipalLawReference") };
     if (module === "icms_difal") return { module, baseCents: asCents(text("icmsBase")), origin: text("origin"), destination: text("destination"), importedQualified: yes("importedQualified"), destinationInternalRateBps: rateBps(text("destinationInternalRate")), fcpRateBps: rateBps(text("fcpRate")), finalConsumer: yes("finalConsumer"), recipientNonTaxpayer: yes("recipientNonTaxpayer"), destinationLawReference: text("destinationLawReference"), ratesConfirmed: yes("ratesConfirmed") };
     return { module, taxableOperationCents: asCents(text("rtcBase")), pisCofinsPayableCents: asCents(text("pisCofinsPayable")), yearConfirmed: yes("yearConfirmed"), accessoryObligationsConfirmed: yes("accessoryObligationsConfirmed"), operationClassified: yes("operationClassified") };
@@ -71,7 +77,7 @@ export default function DeterministicTaxLab() {
     <div className="tax-lab page-content">
       <header className="tax-lab-hero">
         <div><span className="eyebrow">MOTOR DETERMINÍSTICO · SEM IA</span><h1>Laboratório Fiscal</h1><p>Transforme fatos confirmados em cálculos reproduzíveis, com fórmula, fonte oficial e trilha de bloqueios.</p></div>
-        <div className="tax-lab-assurance"><strong>5</strong><span>módulos auditáveis</span><small>nenhum custo por consulta</small></div>
+        <div className="tax-lab-assurance"><strong>7</strong><span>módulos auditáveis</span><small>nenhum custo por consulta</small></div>
       </header>
 
       <section className="tax-lab-modules" aria-label="Módulos de cálculo">
@@ -85,10 +91,22 @@ export default function DeterministicTaxLab() {
             <div className="field-pair"><Field label="RBT12" value={text("rbt12")} onChange={(v) => set("rbt12", v)} prefix="R$" /><Field label="Receita segregada no mês" value={text("monthlyRevenue")} onChange={(v) => set("monthlyRevenue", v)} prefix="R$" /></div>
             <Checks items={[["annexConfirmed", "Atividade de comércio confirmada no Anexo I"], ["revenueSegregated", "Receita segregada por tratamento"], ["periodClosed", "RBT12 e período conferidos"], ["noSpecialTreatment", "Tratamentos especiais excluídos"]]} values={values} set={set} />
           </>}
+          {module === "simples_services" && <>
+            <div className="field-pair"><Field label="RBT12 total" value={text("serviceRbt12")} onChange={(v) => set("serviceRbt12", v)} prefix="R$" /><Field label="FS12 · folha e encargos" value={text("fs12")} onChange={(v) => set("fs12", v)} prefix="R$" /></div>
+            <Field label="Receita segregada do serviço no mês" value={text("serviceMonthlyRevenue")} onChange={(v) => set("serviceMonthlyRevenue", v)} prefix="R$" />
+            <Checks items={[["activitySubjectToFactorR", "Atividade legalmente sujeita ao fator R"], ["payrollReconciled", "Folha, pró-labore e encargos conciliados"], ["serviceRevenueSegregated", "Receita do serviço segregada"], ["serviceNoSpecialTreatment", "Tratamentos especiais excluídos"]]} values={values} set={set} />
+          </>}
           {module === "pis_cofins" && <>
             <label className="tax-lab-field"><span>Regime</span><select value={text("regime")} onChange={(e) => set("regime", e.target.value)}><option value="cumulative">Cumulativo</option><option value="non_cumulative">Não cumulativo</option></select></label>
             <div className="field-pair"><Field label="Receita tributável" value={text("taxableRevenue")} onChange={(v) => set("taxableRevenue", v)} prefix="R$" /><Field label="Base de créditos elegíveis" value={text("creditBase")} onChange={(v) => set("creditBase", v)} prefix="R$" /></div>
             <Checks items={[["regimeConfirmed", "Regime tributário confirmado"], ["revenueClassified", "Receitas classificadas"], ["specialTreatmentsExcluded", "Monofásico, zero, suspensão e exportação excluídos"], ["creditsDocumented", "Créditos documentados, quando aplicável"]]} values={values} set={set} />
+          </>}
+          {module === "presumed_profit_2026" && <>
+            <label className="tax-lab-field"><span>Trimestre de 2026</span><select value={text("presumedQuarter")} onChange={(e) => set("presumedQuarter", e.target.value)}><option value="1">1º trimestre</option><option value="2">2º trimestre</option><option value="3">3º trimestre</option><option value="4">4º trimestre</option></select></label>
+            <div className="field-pair"><Field label="Receita de comércio no trimestre" value={text("commerceQuarterRevenue")} onChange={(v) => set("commerceQuarterRevenue", v)} prefix="R$" /><Field label="Receita de serviços em geral" value={text("serviceQuarterRevenue")} onChange={(v) => set("serviceQuarterRevenue", v)} prefix="R$" /></div>
+            <Field label="Ganhos e receitas integralmente tributáveis" value={text("fullyTaxableAdditions")} onChange={(v) => set("fullyTaxableAdditions", v)} prefix="R$" />
+            <div className="tax-lab-law-alert"><span>2026</span><p><strong>Coeficientes acima do limite mudaram.</strong> O motor rateia R$ 1,25 milhão entre as atividades e aplica o acréscimo legal apenas à parcela excedente, respeitando o início distinto do IRPJ e da CSLL.</p></div>
+            <Checks items={[["presumedRegimeConfirmed", "Opção válida pelo Lucro Presumido"], ["presumedActivitiesSeparated", "Atividades separadas por receita"], ["presumedRevenueReconciled", "Receitas e acréscimos conciliados"], ["presumedSpecialActivitiesExcluded", "Atividades e regimes especiais excluídos"]]} values={values} set={set} />
           </>}
           {module === "iss" && <>
             <div className="field-pair"><Field label="Preço do serviço" value={text("serviceBase")} onChange={(v) => set("serviceBase", v)} prefix="R$" /><Field label="Deduções documentadas" value={text("deductions")} onChange={(v) => set("deductions", v)} prefix="R$" /></div>
