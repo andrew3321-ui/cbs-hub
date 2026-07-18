@@ -26,7 +26,7 @@ export default async function PricingPage() {
         <article><strong>Quais meios serão aceitos?</strong><p>A primeira versão usa assinatura recorrente do Mercado Pago. O checkout mostra os meios disponíveis para cada cliente.</p></article>
         <article><strong>Posso cancelar?</strong><p>Sim. A central de planos acompanha o status e permite solicitar o cancelamento da renovação.</p></article>
       </section>
-      <footer className="pricing-footer"><span>Margem Clara · CNPJ {platformIdentity.formattedCnpj}</span><div><Link href="/responsavel">Responsável</Link><Link href="/">Voltar ao início</Link></div></footer>
+      <footer className="pricing-footer"><span>Margem Clara · Beta gratuito · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/responsavel">Responsável</Link><Link href="/">Voltar ao início</Link></div></footer>
     </main>
   );
 }
