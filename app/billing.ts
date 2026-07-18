@@ -31,6 +31,13 @@ export class MercadoPagoApiError extends Error {
   }
 }
 
+export function mercadoPagoApiErrorDetails(error: unknown) {
+  if (!error || typeof error !== "object") return null;
+  const candidate = error as { name?: unknown; status?: unknown; providerCode?: unknown };
+  if (candidate.name !== "MercadoPagoApiError" || !Number.isInteger(candidate.status) || typeof candidate.providerCode !== "string") return null;
+  return { status: Number(candidate.status), providerCode: candidate.providerCode };
+}
+
 export type MercadoPagoSubscription = {
   id: string;
   external_reference?: string | number | null;

@@ -36,7 +36,10 @@ test("subscriptions omit unsupported callback fields and reconcile provider trut
   assert.match(checkout, /billingIdempotencyKey\(reference\)/);
   assert.match(checkout, /supportCode/);
   assert.match(billing, /MercadoPagoApiError/);
+  assert.match(billing, /mercadoPagoApiErrorDetails/);
   assert.match(billing, /margem-clara:billing:/);
+  assert.match(checkout, /PROVIDER_REQUEST/);
+  assert.match(checkout, /ACCOUNT_PERSISTENCE/);
   assert.match(webhook, /validateMercadoPagoWebhook/);
   assert.match(webhook, /provider\.webhookSecret/);
   assert.match(billingRoute, /syncBillingAccountFromProvider/);

@@ -2,18 +2,21 @@ import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
-import { billingIdempotencyKey, billingPlans, isPaidPlanKey, MercadoPagoApiError, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus, randomBillingReference } from "../../../billing";
+import { billingIdempotencyKey, billingPlans, isPaidPlanKey, mercadoPagoApiErrorDetails, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus, randomBillingReference } from "../../../billing";
 import { getPlatformOperationState } from "../../../platform-controls";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para escolher um plano." }, { status: 401 });
+  let checkoutStage = "SCHEMA";
   try {
     await ensureScenarioSchema();
+    checkoutStage = "INPUT";
     const payload = await request.json() as Record<string, unknown>;
     if (!isPaidPlanKey(payload.planKey)) return Response.json({ error: "Plano inválido." }, { status: 400 });
     const plan = billingPlans[payload.planKey];
     const db = getDb();
+    checkoutStage = "ACCOUNT_LOOKUP";
     const [existing] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
     if (existing?.status === "active") return Response.json({ error: "Sua assinatura já está ativa." }, { status: 409 });
     if (existing?.status === "pending" && existing.planKey !== plan.key) return Response.json({ error: "Conclua ou cancele o pagamento pendente antes de trocar de plano." }, { status: 409 });
@@ -21,6 +24,7 @@ export async function POST(request: Request) {
       ? existing.externalReference
       : randomBillingReference(user.id);
     const now = new Date().toISOString();
+    checkoutStage = "PLATFORM_STATE";
     const operation = await getPlatformOperationState();
     if (!operation.paymentsEnabled) {
       await db.insert(billingAccounts).values({ userId: user.id, planKey: plan.key, externalReference: reference, status: "interest", updatedAt: now }).onConflictDoUpdate({
@@ -33,6 +37,7 @@ export async function POST(request: Request) {
     if (existing?.checkoutUrl && existing.planKey === plan.key && existing.status === "pending") return Response.json({ mode: "checkout", checkoutUrl: existing.checkoutUrl });
 
     const origin = new URL(request.url).origin;
+    checkoutStage = "PROVIDER_REQUEST";
     const subscription = await mercadoPagoRequest<MercadoPagoSubscription>("/preapproval", {
       method: "POST",
       headers: { "X-Idempotency-Key": await billingIdempotencyKey(reference) },
@@ -45,7 +50,10 @@ export async function POST(request: Request) {
         status: "pending",
       }),
     });
-    if (!subscription.id || !subscription.init_point) throw new Error("checkout_unavailable");
+    checkoutStage = "PROVIDER_RESPONSE";
+    if (!subscription.id) throw new Error("provider_subscription_id_missing");
+    if (!subscription.init_point) throw new Error("provider_checkout_url_missing");
+    checkoutStage = "ACCOUNT_PERSISTENCE";
     await db.insert(billingAccounts).values({
       userId: user.id,
       planKey: plan.key,
@@ -62,9 +70,15 @@ export async function POST(request: Request) {
     });
     return Response.json({ mode: "checkout", checkoutUrl: subscription.init_point });
   } catch (error) {
-    if (error instanceof MercadoPagoApiError) console.error(JSON.stringify({ event: "billing.checkout_provider_error", status: error.status, providerCode: error.providerCode }));
+    const providerError = mercadoPagoApiErrorDetails(error);
+    const knownInternalCode = error instanceof Error && ["provider_subscription_id_missing", "provider_checkout_url_missing"].includes(error.message) ? error.message : null;
+    console.error(JSON.stringify({ event: "billing.checkout_error", stage: checkoutStage, status: providerError?.status ?? null, providerCode: providerError?.providerCode ?? knownInternalCode ?? "unclassified" }));
     const message = String(error).includes("billing_not_configured") ? "A cobrança ainda não foi ativada." : "Não foi possível abrir o pagamento agora.";
-    const supportCode = error instanceof MercadoPagoApiError ? `MP-${error.status}-${error.providerCode}` : "MC-CHECKOUT-UNAVAILABLE";
+    const supportCode = providerError
+      ? `MP-${providerError.status}-${providerError.providerCode}`
+      : knownInternalCode
+        ? `MP-200-${knownInternalCode}`
+        : `MC-${checkoutStage}`;
     return Response.json({ error: message, supportCode }, { status: 500 });
   }
 }
