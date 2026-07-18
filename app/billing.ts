@@ -22,6 +22,17 @@ export function mercadoPagoApiErrorDetails(error: unknown) {
   return { status: Number(candidate.status), providerCode: candidate.providerCode };
 }
 
+export function mercadoPagoTransportErrorCode(error: unknown) {
+  if (!(error instanceof Error)) return "transport_unclassified";
+  const message = error.message.toLowerCase();
+  if (error.name === "AbortError" || error.name === "TimeoutError") return "provider_timeout";
+  if (message.includes("abortsignal.timeout")) return "runtime_timeout_unsupported";
+  if (message.includes("redirect")) return "provider_redirect_blocked";
+  if (message.includes("header")) return "request_header_invalid";
+  if (message.includes("fetch") || message.includes("network") || message.includes("connection")) return "provider_network_failure";
+  return "transport_unclassified";
+}
+
 export type MercadoPagoSubscription = {
   id: string;
   external_reference?: string | number | null;
@@ -100,17 +111,24 @@ export function normalizeBillingStatus(status: string | null | undefined) {
 export async function mercadoPagoRequest<T>(path: string, init: RequestInit = {}) {
   const { accessToken } = getMercadoPagoEnvironment();
   if (!accessToken) throw new Error("billing_not_configured");
-  const response = await fetch(`https://api.mercadopago.com${path}`, {
-    ...init,
-    signal: init.signal ?? AbortSignal.timeout(10_000),
-    redirect: "error",
-    headers: {
-      Accept: "application/json",
-      Authorization: `Bearer ${accessToken}`,
-      "Content-Type": "application/json",
-      ...(init.headers ?? {}),
-    },
-  });
+  const timeoutController = init.signal ? null : new AbortController();
+  const timeout = timeoutController ? setTimeout(() => timeoutController.abort(), 10_000) : null;
+  let response: Response;
+  try {
+    response = await fetch(`https://api.mercadopago.com${path}`, {
+      ...init,
+      signal: init.signal ?? timeoutController?.signal,
+      redirect: "manual",
+      headers: {
+        Accept: "application/json",
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+        ...(init.headers ?? {}),
+      },
+    });
+  } finally {
+    if (timeout != null) clearTimeout(timeout);
+  }
   const data = await response.json().catch(() => ({})) as T & { error?: string; message?: string; cause?: Array<{ code?: string | number }> };
   if (!response.ok) {
     const providerMessage = String(data.message ?? "").toLowerCase();

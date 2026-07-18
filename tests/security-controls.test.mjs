@@ -37,6 +37,10 @@ test("subscriptions omit unsupported callback fields and reconcile provider trut
   assert.match(checkout, /supportCode/);
   assert.match(billing, /MercadoPagoApiError/);
   assert.match(billing, /mercadoPagoApiErrorDetails/);
+  assert.match(billing, /mercadoPagoTransportErrorCode/);
+  assert.match(billing, /new AbortController\(\)/);
+  assert.match(billing, /redirect: "manual"/);
+  assert.doesNotMatch(billing, /AbortSignal\.timeout/);
   assert.match(billing, /margem-clara:billing:/);
   assert.match(checkout, /PROVIDER_REQUEST/);
   assert.match(checkout, /ACCOUNT_PERSISTENCE/);

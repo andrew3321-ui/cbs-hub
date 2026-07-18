@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
-import { billingIdempotencyKey, billingPlans, isPaidPlanKey, mercadoPagoApiErrorDetails, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus, randomBillingReference } from "../../../billing";
+import { billingIdempotencyKey, billingPlans, isPaidPlanKey, mercadoPagoApiErrorDetails, mercadoPagoRequest, MercadoPagoSubscription, mercadoPagoTransportErrorCode, normalizeBillingStatus, randomBillingReference } from "../../../billing";
 import { getPlatformOperationState } from "../../../platform-controls";
 
 export async function POST(request: Request) {
@@ -71,11 +71,14 @@ export async function POST(request: Request) {
     return Response.json({ mode: "checkout", checkoutUrl: subscription.init_point });
   } catch (error) {
     const providerError = mercadoPagoApiErrorDetails(error);
+    const transportError = checkoutStage === "PROVIDER_REQUEST" && !providerError ? mercadoPagoTransportErrorCode(error) : null;
     const knownInternalCode = error instanceof Error && ["provider_subscription_id_missing", "provider_checkout_url_missing"].includes(error.message) ? error.message : null;
-    console.error(JSON.stringify({ event: "billing.checkout_error", stage: checkoutStage, status: providerError?.status ?? null, providerCode: providerError?.providerCode ?? knownInternalCode ?? "unclassified" }));
+    console.error(JSON.stringify({ event: "billing.checkout_error", stage: checkoutStage, status: providerError?.status ?? null, providerCode: providerError?.providerCode ?? transportError ?? knownInternalCode ?? "unclassified" }));
     const message = String(error).includes("billing_not_configured") ? "A cobrança ainda não foi ativada." : "Não foi possível abrir o pagamento agora.";
     const supportCode = providerError
       ? `MP-${providerError.status}-${providerError.providerCode}`
+      : transportError
+        ? `MP-TRANSPORT-${transportError}`
       : knownInternalCode
         ? `MP-200-${knownInternalCode}`
         : `MC-${checkoutStage}`;
