@@ -12,6 +12,7 @@ import FiscalExpansionCenter from "./FiscalExpansionCenter";
 import NfeAuditWorkbench from "./NfeAuditWorkbench";
 import DeterministicTaxLab from "./DeterministicTaxLab";
 import BillingCenter from "./BillingCenter";
+import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
 
 type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "billing" | "academy";
 
@@ -458,6 +459,7 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
   const activeDemo = productDemos[demoIndex];
   const activeDemoStep = activeDemo.steps[demoStep];
   const userInitials = user.displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "MC";
+  const accountRoleLabel = workspaceAccountRoleLabel(workspace.type, workspace.role, isPlatformAdmin);
   const canManageTeam = workspace.role === "owner" || workspace.role === "admin";
   const canPrepare = workspace.role !== "reviewer";
   const filteredReviews = useMemo(() => reviewQueue.filter((review) => {
@@ -1253,7 +1255,7 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
             <button className="notification" aria-label="Notificações" onClick={() => workspace.type === "office" && setSection("reviews")}>{workspace.type === "office" && reviewMetrics.mine ? reviewMetrics.mine : "•"}</button>
             <div className="account-summary">
               <div className="avatar" aria-label={`Perfil de ${user.displayName}`}>{userInitials}</div>
-              <span><b>{user.displayName.split(" ")[0]}</b><small>{workspace.role === "owner" ? "Proprietário" : workspace.role === "admin" ? "Administrador" : workspace.role === "reviewer" ? "Revisor" : "Preparador"} · <a href="/planos">Plano</a> · <a href={signOutPath}>Sair</a></small></span>
+              <span><b>{user.displayName.split(" ")[0]}</b><small>{accountRoleLabel} · <a href="/planos">Plano</a> · <a href={signOutPath}>Sair</a></small></span>
             </div>
           </div>
         </header>
