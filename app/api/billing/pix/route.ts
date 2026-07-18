@@ -9,6 +9,7 @@ import {
   mercadoPagoApiErrorDetails,
   mercadoPagoRequest,
   mercadoPagoTransportErrorCode,
+  normalizeBillingStatus,
   randomBillingReference,
   type MercadoPagoOrder,
   type MercadoPagoSubscription,
@@ -63,7 +64,33 @@ export async function POST(request: Request) {
 
     if (account?.providerSubscriptionId && ["pending", "paused"].includes(account.status)) {
       stage = "CARD_CHECKOUT_CANCELLATION";
-      await mercadoPagoRequest<MercadoPagoSubscription>(`/preapproval/${encodeURIComponent(account.providerSubscriptionId)}`, { method: "PUT", body: JSON.stringify({ status: "canceled" }) });
+      try {
+        await mercadoPagoRequest<MercadoPagoSubscription>(`/preapproval/${encodeURIComponent(account.providerSubscriptionId)}`, { method: "PUT", body: JSON.stringify({ status: "canceled" }) });
+      } catch (cancellationError) {
+        const cancellationDetails = mercadoPagoApiErrorDetails(cancellationError);
+        if (!cancellationDetails || ![400, 404].includes(cancellationDetails.status)) throw cancellationError;
+
+        stage = "CARD_CHECKOUT_STATUS";
+        let remoteStatus = "canceled";
+        try {
+          const remote = await mercadoPagoRequest<MercadoPagoSubscription>(`/preapproval/${encodeURIComponent(account.providerSubscriptionId)}`);
+          remoteStatus = normalizeBillingStatus(remote.status);
+        } catch (statusError) {
+          const statusDetails = mercadoPagoApiErrorDetails(statusError);
+          if (statusDetails?.status !== 404) throw statusError;
+        }
+
+        if (remoteStatus === "active") {
+          const checkedAt = new Date().toISOString();
+          await db.update(billingAccounts).set({ status: "active", lastSyncedAt: checkedAt, updatedAt: checkedAt }).where(eq(billingAccounts.id, account.id));
+          return Response.json({ error: "A assinatura do cartão foi autorizada no Mercado Pago. Cancele a renovação antes de mudar para Pix." }, { status: 409 });
+        }
+        if (remoteStatus === "paused") {
+          return Response.json({ error: "A assinatura do cartão está pausada, mas ainda existe no Mercado Pago. Cancele-a antes de mudar para Pix." }, { status: 409 });
+        }
+        if (!["pending", "canceled", "cancelled"].includes(remoteStatus)) throw cancellationError;
+        console.warn(JSON.stringify({ event: "billing.card_checkout_abandoned_for_pix", providerStatus: remoteStatus }));
+      }
     }
 
     const renewal = Boolean(account && !account.providerSubscriptionId && pixAccessIsValid(account));

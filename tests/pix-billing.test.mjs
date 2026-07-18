@@ -18,6 +18,9 @@ test("Pix uses the Orders API with server-side price and idempotency", async () 
   assert.match(route, /payer: \{ email: user\.email \}/);
   assert.match(route, /external_reference: reference/);
   assert.match(route, /billingIdempotencyKey\(`\$\{reference\}:pix:\$\{plan\.key\}:\$\{plan\.priceCents\}`\)/);
+  assert.match(route, /CARD_CHECKOUT_STATUS/);
+  assert.match(route, /remoteStatus === "active"/);
+  assert.match(route, /billing\.card_checkout_abandoned_for_pix/);
   assert.doesNotMatch(route, /payload\.(amount|email|payer|pixKey)/);
   assert.match(billing, /type MercadoPagoOrder/);
   assert.match(billing, /data\.errors\?\.\[0\]\?\.code/);
