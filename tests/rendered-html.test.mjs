@@ -15,7 +15,7 @@ test("a experiência publicada contém identidade e rotas comerciais", async () 
   assert.match(landing, /href="\/planos"/);
   assert.match(layout, /Inteligência tributária/);
   assert.match(layout, /og-accountants\.png/);
-  assert.match(pricing, /Beta gratuito ativo/);
+  assert.match(pricing, /Beta integral ativo/);
   assert.match(pricing, /PricingClient/);
   assert.doesNotMatch(`${landing}\n${layout}`, /codex-preview|_sites-preview|Your site is taking shape/i);
 });

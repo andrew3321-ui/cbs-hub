@@ -4,6 +4,7 @@ import { ensureScenarioSchema } from "../../../db";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { canPrepareScenarios, getWorkspaceContext } from "../../workspace";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 
 function safeFilename(value: string) {
   return (value.split(/[\\/]/).pop() ?? "documento").replace(/[^0-9A-Za-zÀ-ÿ._() -]/g, "_").slice(0, 120);
@@ -47,4 +48,4 @@ async function importBatch(request: Request) {
   }
 }
 
-export const POST = withApiTelemetry("POST /api/fiscal-imports", importBatch);
+export const POST = withApiTelemetry("POST /api/fiscal-imports", withWorkspaceFeature("batchImportEnabled", importBatch));

@@ -5,6 +5,7 @@ import { ensureScenarioSchema, getDb } from "../../../db";
 import { fiscalKnowledgeBases } from "../../../db/schema";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 import { sha256Hex } from "../../workspace";
 
 const MONITOR_CODE = "NORMATIVE-MONITOR-ROTATING-V29";
@@ -80,4 +81,4 @@ async function monitor() {
   }, { headers: { "Cache-Control": "no-store" } });
 }
 
-export const GET = withApiTelemetry("GET /api/normative-monitor", monitor);
+export const GET = withApiTelemetry("GET /api/normative-monitor", withWorkspaceFeature("fiscalExpansionEnabled", monitor));

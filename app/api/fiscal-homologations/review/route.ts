@@ -14,6 +14,7 @@ import { homologationDecisionRecord } from "../../../fiscal-homologation-service
 import { signFiscalHomologationDecision } from "../../../fiscal-homologation-signing";
 import { loadFiscalKnowledgeBase } from "../../../fiscal-intelligence-service";
 import { normalizeProfessionalRegistration, professionalRegistrationError } from "../../../professional-registration";
+import { withWorkspaceFeature } from "../../../plan-entitlements";
 import { canPrepareScenarios, canReviewScenarios, getWorkspaceContext } from "../../../workspace";
 
 const MAX_REVIEW_WINDOW_MS = 90 * 86_400_000;
@@ -136,4 +137,4 @@ async function reviewFiscalHomologation(request: Request) {
   }
 }
 
-export const POST = withApiTelemetry("POST /api/fiscal-homologations/review", reviewFiscalHomologation);
+export const POST = withApiTelemetry("POST /api/fiscal-homologations/review", withWorkspaceFeature("professionalGovernanceEnabled", reviewFiscalHomologation));

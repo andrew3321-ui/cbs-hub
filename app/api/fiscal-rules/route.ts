@@ -9,6 +9,7 @@ import { ensureScenarioSchema, getDb } from "../../../db";
 import { fiscalReferenceCases, fiscalRuleSets } from "../../../db/schema";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 
 async function getFiscalRules() {
   const user = await getCurrentUser();
@@ -100,4 +101,4 @@ async function getFiscalRules() {
   }
 }
 
-export const GET = withApiTelemetry("GET /api/fiscal-rules", getFiscalRules);
+export const GET = withApiTelemetry("GET /api/fiscal-rules", withWorkspaceFeature("fiscalRulesEnabled", getFiscalRules));

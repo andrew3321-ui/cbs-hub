@@ -11,6 +11,7 @@ import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { fiscalHomologationResponseRows } from "../../fiscal-homologation-service";
 import { loadFiscalKnowledgeBase, parseFiscalOverrides } from "../../fiscal-intelligence-service";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 import { canPrepareScenarios, canReviewScenarios, getWorkspaceContext } from "../../workspace";
 
 async function responsePayload(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
@@ -123,5 +124,5 @@ async function createFiscalHomologation(request: Request) {
   }
 }
 
-export const GET = withApiTelemetry("GET /api/fiscal-homologations", getFiscalHomologations);
-export const POST = withApiTelemetry("POST /api/fiscal-homologations", createFiscalHomologation);
+export const GET = withApiTelemetry("GET /api/fiscal-homologations", withWorkspaceFeature("professionalGovernanceEnabled", getFiscalHomologations));
+export const POST = withApiTelemetry("POST /api/fiscal-homologations", withWorkspaceFeature("professionalGovernanceEnabled", createFiscalHomologation));

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { billingPlans, billingPricingMode } from "../../domain/billing-plans";
+import type { WorkspaceEntitlements } from "../../domain/plan-entitlements";
 
 type PixCheckout = {
   paymentId: string;
@@ -17,6 +18,7 @@ type BillingState = {
   configured: boolean;
   betaEnabled: boolean;
   paymentsEnabled: boolean;
+  entitlements: WorkspaceEntitlements | null;
   billing: {
     planKey: string;
     status: string;
@@ -168,11 +170,12 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
         <p>Pro e Escritório custam R$ 1 por mês durante a validação. Cancele a assinatura após o teste quando usar cartão; o Pix não possui renovação automática.</p>
       </section>}
       {signedIn && billing && <section className={`payment-mode-notice ${billing.paymentsEnabled ? "live" : "beta"}`}>
-        <span>{billing.paymentsEnabled ? "CARTÃO E PIX ATIVOS" : "BETA PROTEGIDO"}</span>
-        <p>{billing.paymentsEnabled ? "Escolha assinatura automática no cartão ou pagamento mensal por Pix confirmado pelo Mercado Pago." : "Novas cobranças estão bloqueadas no servidor. Você pode registrar interesse sem fornecer dados de pagamento."}</p>
+        <span>{billing.paymentsEnabled ? "CARTÃO E PIX ATIVOS" : "BETA INTEGRAL ATIVO"}</span>
+        <p>{billing.paymentsEnabled ? "Cada conta segue os limites e recursos do pacote contratado. Escolha cartão automático ou Pix mensal." : "Todos os recursos e empresas estão temporariamente liberados para todas as contas; novas cobranças estão bloqueadas no servidor."}</p>
       </section>}
       {signedIn && billing && <section className={`billing-status-card ${billing.billing.status}`}>
-        <div><span>SEU ACESSO</span><strong>{statusLabels[billing.billing.status] ?? billing.billing.status}</strong><small>{billing.billing.status === "beta" ? "Plano gratuito · até 1 empresa monitorada." : `Plano ${billing.billing.planKey} · ${billing.billing.paymentFlow === "pix_monthly" ? "Pix mensal" : billing.billing.paymentFlow === "card_subscription" ? "cartão automático" : "pagamento não escolhido"}`}</small></div>
+        <div><span>SEU ACESSO EFETIVO</span><strong>Plano {billing.entitlements?.name ?? statusLabels[billing.billing.status] ?? billing.billing.status}</strong><small>{billing.entitlements?.companyLimit === null ? "Empresas e recursos sem restrições enquanto este acesso estiver vigente." : `Até ${billing.entitlements?.companyLimit ?? 1} empresa(s) · recursos aplicados pelo servidor.`}</small></div>
+        {billing.betaEnabled && billing.billing.status === "active" && <div><span>ASSINATURA REGISTRADA</span><strong>Plano {billing.billing.planKey}</strong><small>A ativação do beta não cancela a renovação automática existente.</small></div>}
         {billing.billing.nextPaymentAt && <div><span>{billing.billing.paymentFlow === "pix_monthly" ? "ACESSO PAGO ATÉ" : "PRÓXIMA COBRANÇA"}</span><strong>{new Date(billing.billing.nextPaymentAt).toLocaleDateString("pt-BR")}</strong><small>{billing.billing.paymentFlow === "pix_monthly" ? "Renove por Pix quando faltar até 7 dias" : "Data informada pelo Mercado Pago"}</small></div>}
         {billing.billing.status === "pending" && billing.billing.paymentFlow === "card_subscription" && billing.billing.checkoutUrl && <a href={billing.billing.checkoutUrl}>Continuar no cartão →</a>}
         {billing.billing.status === "active" && billing.billing.paymentFlow === "card_subscription" && <button onClick={cancelPayment}>Cancelar renovação</button>}
@@ -211,10 +214,10 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
 
       <div className="pricing-grid">
         <article className="pricing-card beta">
-          <span className="pricing-label">BETA ATUAL</span>
+          <span className="pricing-label">GRATUITO</span>
           <h2>Gratuito</h2>
           <div className="pricing-value"><strong>R$ 0</strong><small>/mês</small></div>
-          <p>Para validar o produto com empresas reais durante o desenvolvimento.</p>
+          <p>Entrada permanente para testar o fluxo essencial quando o beta integral estiver desligado.</p>
           <ul><li>Até 1 empresa monitorada</li><li>Simulador completo</li><li>Cenários e comparações</li><li>Relatórios compartilháveis</li><li>Importação local de XML</li></ul>
           <a className="pricing-button secondary" href={signedIn ? "/app" : "/cadastro"}>{signedIn ? "Continuar no beta" : "Começar gratuitamente"}</a>
         </article>
@@ -225,7 +228,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
           <h2>Operação consultiva</h2>
           <div className="pricing-value"><strong>R$ {billingPlans.pro.priceCents / 100}</strong><small>/mês · teste</small></div>
           <p>Sugerido para o contador independente que prepara e assume a própria revisão.</p>
-          <ul><li>Até 10 empresas monitoradas</li><li>Espaço profissional individual</li><li>Revisão responsável explicitamente identificada</li><li>Histórico e suporte prioritário</li></ul>
+          <ul><li>Até 10 empresas monitoradas</li><li>Simulador, cenários, relatórios e XML</li><li>Inteligência e laboratório fiscal</li><li>Cobertura nacional e expansão fiscal</li><li>Regras, governança e apuração assistida</li></ul>
           {paidPlanActions("pro")}
         </article>
 
@@ -234,7 +237,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
           <h2>Carteira em escala</h2>
           <div className="pricing-value"><strong>R$ {billingPlans.escritorio.priceCents / 100}</strong><small>/mês · teste</small></div>
           <p>Sugerido para escritórios que dividem preparação, revisão e entrega.</p>
-          <ul><li>Até 50 empresas monitoradas</li><li>Preparadores, revisores e administradores</li><li>Bloqueio de autoaprovação por quem preparou</li><li>Relatórios com autoria e revisão separadas</li></ul>
+          <ul><li>Até 50 empresas monitoradas</li><li>Todos os módulos fiscais do Pro</li><li>Preparadores, revisores e administradores</li><li>Bloqueio de autoaprovação por quem preparou</li><li>Autoria, revisão e entrega separadas</li></ul>
           {paidPlanActions("escritorio", true)}
         </article>
       </div>

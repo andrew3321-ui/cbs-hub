@@ -141,7 +141,7 @@ export default function BillingCenter() {
     const betaEnabled = !data.operation.betaEnabled;
     const confirmation = betaEnabled ? "ATIVAR BETA" : "ATIVAR PAGAMENTOS";
     const warning = betaEnabled
-      ? "Ativar o beta bloqueará novas assinaturas. Esta ação só será aceita se não houver assinaturas em andamento."
+      ? `Ativar o beta liberará todos os recursos para todas as contas e bloqueará novas cobranças. ${data.operation.activeSubscriptions ? `Atenção: ${data.operation.activeSubscriptions} assinatura(s) já existente(s) continuará(ão) apta(s) a renovar no Mercado Pago até o cancelamento.` : "Não há assinaturas em andamento."}`
       : "Desativar o beta liberará cobranças reais assim que todas as proteções obrigatórias estiverem prontas.";
     if (!window.confirm(`${warning}\n\nConfirma: ${confirmation}?`)) return;
     setBusy("set_beta_mode");
@@ -151,7 +151,7 @@ export default function BillingCenter() {
       const payload = await response.json() as BillingPayload & { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Não foi possível alterar o modo operacional.");
       installPayload(payload);
-      setMessage(betaEnabled ? "Modo beta ativado. Novas cobranças estão bloqueadas." : "Modo beta desativado. Pagamentos liberados com as proteções confirmadas.");
+      setMessage(betaEnabled ? "Modo beta integral ativado: todos os recursos estão liberados e novas cobranças estão bloqueadas." : "Modo beta desativado. Pagamentos e limites dos planos foram ativados.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível alterar o modo operacional.");
     } finally {
@@ -181,14 +181,14 @@ export default function BillingCenter() {
 
     <section className={`panel platform-mode-card ${data.operation.betaEnabled ? "beta" : "live"}`}>
       <div className="platform-mode-summary">
-        <div><span className="eyebrow">CONTROLE OPERACIONAL · REVISÃO {data.operation.revision}</span><h3>{data.operation.betaEnabled ? "Modo beta ativado" : "Operação comercial ativada"}</h3><p>{data.operation.betaEnabled ? "O servidor registra interesse, mas não cria novas cobranças nem encaminha clientes ao pagamento." : "Novos pagamentos com cartão ou Pix podem ser criados porque todos os pré-requisitos técnicos e legais foram confirmados."}</p></div>
-        <div className="platform-mode-switch"><span>{data.operation.paymentsEnabled ? "Pagamentos ativos" : "Pagamentos bloqueados"}</span><button type="button" aria-pressed={data.operation.betaEnabled} disabled={Boolean(busy) || (data.operation.betaEnabled && !data.operation.readiness.ready) || (!data.operation.betaEnabled && data.operation.activeSubscriptions > 0)} onClick={() => void toggleBetaMode()}><i />{busy === "set_beta_mode" ? "Alterando…" : data.operation.betaEnabled ? "Desativar beta" : "Ativar beta"}</button></div>
+        <div><span className="eyebrow">CONTROLE OPERACIONAL · REVISÃO {data.operation.revision}</span><h3>{data.operation.betaEnabled ? "Modo beta integral ativado" : "Operação comercial ativada"}</h3><p>{data.operation.betaEnabled ? "Todos os recursos e empresas estão liberados para todas as contas. O servidor bloqueia novas cobranças e mantém as assinaturas já existentes registradas." : "Cada conta segue os recursos e limites do próprio plano; novos pagamentos com cartão ou Pix podem ser criados."}</p></div>
+        <div className="platform-mode-switch"><span>{data.operation.paymentsEnabled ? "Pagamentos ativos" : "Pagamentos bloqueados"}</span><button type="button" aria-pressed={data.operation.betaEnabled} disabled={Boolean(busy) || (data.operation.betaEnabled && !data.operation.readiness.ready)} onClick={() => void toggleBetaMode()}><i />{busy === "set_beta_mode" ? "Alterando…" : data.operation.betaEnabled ? "Desativar beta" : "Ativar beta"}</button></div>
       </div>
       <div className="payment-readiness-grid">
         {data.operation.readiness.gates.map((gate) => <article className={gate.ready ? "ready" : "blocked"} key={gate.key}><span>{gate.ready ? "✓" : "!"}</span><p><b>{gate.label}</b><small>{gate.detail}</small></p></article>)}
       </div>
       {!data.operation.readiness.ready && <div className="platform-mode-warning"><b>Pagamento não pode ser ativado ainda.</b><p>O botão permanecerá protegido no servidor até todos os itens acima estarem prontos.</p></div>}
-      {data.operation.activeSubscriptions > 0 && <div className="platform-mode-warning"><b>{data.operation.activeSubscriptions} assinatura(s) em andamento.</b><p>O beta não pode ser reativado enquanto houver cobranças que possam renovar.</p></div>}
+      {data.operation.activeSubscriptions > 0 && <div className="platform-mode-warning"><b>{data.operation.activeSubscriptions} assinatura(s) em andamento.</b><p>{data.operation.betaEnabled ? "O beta está liberado, mas essas assinaturas podem continuar renovando no Mercado Pago até serem canceladas. A ativação do beta não cancela contratos existentes." : "Você pode ativar o beta a qualquer momento; novas vendas serão bloqueadas, mas as renovações existentes não serão canceladas automaticamente."}</p></div>}
     </section>
 
     <section className="panel billing-integration-card">

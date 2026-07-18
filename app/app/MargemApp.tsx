@@ -13,9 +13,19 @@ import NfeAuditWorkbench from "./NfeAuditWorkbench";
 import DeterministicTaxLab from "./DeterministicTaxLab";
 import BillingCenter from "./BillingCenter";
 import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
-import type { WorkspaceEntitlements } from "../../domain/plan-entitlements";
+import type { PlanFeatureKey, WorkspaceEntitlements } from "../../domain/plan-entitlements";
 
 type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "billing" | "academy";
+
+const sectionPlanFeatures: Partial<Record<Section, PlanFeatureKey>> = {
+  reviews: "officeCollaborationEnabled",
+  intelligence: "fiscalIntelligenceEnabled",
+  taxlab: "taxLabEnabled",
+  coverage: "nationalCoverageEnabled",
+  expansion: "fiscalExpansionEnabled",
+  rules: "fiscalRulesEnabled",
+  determination: "taxDeterminationEnabled",
+};
 
 type ScenarioApproval = {
   id: number;
@@ -463,6 +473,10 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
   const activeDemoStep = activeDemo.steps[demoStep];
   const userInitials = user.displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "MC";
   const accountRoleLabel = workspaceAccountRoleLabel(workspace.type, workspace.role, isPlatformAdmin);
+  const activeSectionFeature = sectionPlanFeatures[section];
+  const sectionIsLocked = Boolean(activeSectionFeature && !entitlements[activeSectionFeature]);
+  const lockedPlanName = activeSectionFeature === "officeCollaborationEnabled" ? "Escritório" : "Pro ou Escritório";
+  const companyCapacityLabel = entitlements.companyLimit === null ? "Ilimitado" : `${entitlements.companyCount}/${entitlements.companyLimit} empresas`;
   const canManageTeam = entitlements.officeCollaborationEnabled && (workspace.role === "owner" || workspace.role === "admin");
   const canPrepare = workspace.role !== "reviewer";
   const canAddCompany = canPrepare && entitlements.canCreateCompany;
@@ -522,7 +536,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
   }, [section, demoPlaying, demoStep, activeDemo.steps.length]);
 
   useEffect(() => {
-    if (section !== "rules" || fiscalCatalog || rulesError) return;
+    if (section !== "rules" || !entitlements.fiscalRulesEnabled || fiscalCatalog || rulesError) return;
     fetch("/api/fiscal-rules")
       .then(async (response) => {
         if (!response.ok) throw new Error("catalog unavailable");
@@ -530,10 +544,10 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
       })
       .then(setFiscalCatalog)
       .catch(() => setRulesError("Não foi possível verificar o catálogo fiscal agora."));
-  }, [section, fiscalCatalog, rulesError]);
+  }, [section, entitlements.fiscalRulesEnabled, fiscalCatalog, rulesError]);
 
   useEffect(() => {
-    if (section !== "determination" || taxDetermination || determinationError) return;
+    if (section !== "determination" || !entitlements.taxDeterminationEnabled || taxDetermination || determinationError) return;
     fetch("/api/tax-determination")
       .then(async (response) => {
         if (!response.ok) throw new Error("determination unavailable");
@@ -541,19 +555,19 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
       })
       .then(setTaxDetermination)
       .catch(() => setDeterminationError("Não foi possível verificar o modelo de apuração agora."));
-  }, [section, taxDetermination, determinationError]);
+  }, [section, entitlements.taxDeterminationEnabled, taxDetermination, determinationError]);
 
   useEffect(() => {
-    if (section !== "team" || workspace.type !== "office") return;
+    if (section !== "team" || workspace.type !== "office" || !entitlements.officeCollaborationEnabled) return;
     void refreshTeam();
-  }, [section, workspace.type]);
+  }, [section, workspace.type, entitlements.officeCollaborationEnabled]);
 
   useEffect(() => {
-    if (section !== "reviews" || workspace.type !== "office") return;
+    if (section !== "reviews" || workspace.type !== "office" || !entitlements.officeCollaborationEnabled) return;
     void refreshReviews();
     // The refresh function intentionally reads the current UI selection.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [section, workspace.type]);
+  }, [section, workspace.type, entitlements.officeCollaborationEnabled]);
 
   useEffect(() => {
     fetch("/api/companies")
@@ -1161,9 +1175,10 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
         if (data.entitlements) setEntitlements(data.entitlements);
         throw new Error(data.error || "Não foi possível cadastrar a empresa.");
       }
-      setCompanies((current) => [...current, data.company].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      const createdCompany = data.company;
+      setCompanies((current) => [...current, createdCompany].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
       if (data.entitlements) setEntitlements(data.entitlements);
-      changeActiveCompany(data.company.id);
+      changeActiveCompany(createdCompany.id);
       setCompanyForm({ name: "", cnpj: "", taxRegime: "Simples Nacional", sector: "Serviços B2B" });
       setShowCompanyForm(false);
       setSection("simulator");
@@ -1210,8 +1225,8 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
           <button title="Análises" className={section === "simulator" ? "active" : ""} onClick={() => setSection("simulator")}>
             <span className="nav-icon">↗</span>Análises
           </button>
-          {workspace.type === "office" && <button title="Central de revisão" className={section === "reviews" ? "active" : ""} onClick={() => setSection("reviews")}>
-            <span className="nav-icon">✓</span>Central de revisão
+          {workspace.type === "office" && <button title={entitlements.officeCollaborationEnabled ? "Central de revisão" : "Exclusivo do plano Escritório"} className={`${section === "reviews" ? "active" : ""} ${!entitlements.officeCollaborationEnabled ? "plan-locked" : ""}`} onClick={() => setSection("reviews")}>
+            <span className="nav-icon">✓</span>Central de revisão{!entitlements.officeCollaborationEnabled && <small>ESCRITÓRIO</small>}
           </button>}
           <button title="Documentos" className={section === "documents" ? "active" : ""} onClick={() => setSection("documents")}>
             <span className="nav-icon">▤</span>Documentos
@@ -1219,23 +1234,23 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
           <button title={workspace.type === "office" ? "Equipe" : "Modo de trabalho"} className={section === "team" ? "active" : ""} onClick={() => setSection("team")}>
             <span className="nav-icon">◎</span>{workspace.type === "office" ? "Equipe" : "Modo de trabalho"}
           </button>
-          <button title="Inteligência fiscal" className={section === "intelligence" ? "active" : ""} onClick={() => setSection("intelligence")}>
-            <span className="nav-icon">⌕</span>Inteligência fiscal
+          <button title={entitlements.fiscalIntelligenceEnabled ? "Inteligência fiscal" : "Disponível nos planos Pro e Escritório"} className={`${section === "intelligence" ? "active" : ""} ${!entitlements.fiscalIntelligenceEnabled ? "plan-locked" : ""}`} onClick={() => setSection("intelligence")}>
+            <span className="nav-icon">⌕</span>Inteligência fiscal{!entitlements.fiscalIntelligenceEnabled && <small>PRO</small>}
           </button>
-          <button title="Laboratório fiscal" className={section === "taxlab" ? "active" : ""} onClick={() => setSection("taxlab")}>
-            <span className="nav-icon">∑</span>Laboratório fiscal
+          <button title={entitlements.taxLabEnabled ? "Laboratório fiscal" : "Disponível nos planos Pro e Escritório"} className={`${section === "taxlab" ? "active" : ""} ${!entitlements.taxLabEnabled ? "plan-locked" : ""}`} onClick={() => setSection("taxlab")}>
+            <span className="nav-icon">∑</span>Laboratório fiscal{!entitlements.taxLabEnabled && <small>PRO</small>}
           </button>
-          <button title="Cobertura nacional" className={section === "coverage" ? "active" : ""} onClick={() => setSection("coverage")}>
-            <span className="nav-icon">◇</span>Cobertura nacional
+          <button title={entitlements.nationalCoverageEnabled ? "Cobertura nacional" : "Disponível nos planos Pro e Escritório"} className={`${section === "coverage" ? "active" : ""} ${!entitlements.nationalCoverageEnabled ? "plan-locked" : ""}`} onClick={() => setSection("coverage")}>
+            <span className="nav-icon">◇</span>Cobertura nacional{!entitlements.nationalCoverageEnabled && <small>PRO</small>}
           </button>
-          <button title="Expansão fiscal" className={section === "expansion" ? "active" : ""} onClick={() => setSection("expansion")}>
-            <span className="nav-icon">↟</span>Expansão fiscal
+          <button title="Expansão fiscal" aria-label={entitlements.fiscalExpansionEnabled ? "Expansão fiscal" : "Expansão fiscal, disponível nos planos Pro e Escritório"} className={`${section === "expansion" ? "active" : ""} ${!entitlements.fiscalExpansionEnabled ? "plan-locked" : ""}`} onClick={() => setSection("expansion")}>
+            <span className="nav-icon">↟</span>Expansão fiscal{!entitlements.fiscalExpansionEnabled && <small>PRO</small>}
           </button>
-          <button title="Regras fiscais" className={section === "rules" ? "active" : ""} onClick={() => setSection("rules")}>
-            <span className="nav-icon">§</span>Regras fiscais
+          <button title={entitlements.fiscalRulesEnabled ? "Regras fiscais" : "Disponível nos planos Pro e Escritório"} className={`${section === "rules" ? "active" : ""} ${!entitlements.fiscalRulesEnabled ? "plan-locked" : ""}`} onClick={() => setSection("rules")}>
+            <span className="nav-icon">§</span>Regras fiscais{!entitlements.fiscalRulesEnabled && <small>PRO</small>}
           </button>
-          <button title="Apuração fiscal" className={section === "determination" ? "active" : ""} onClick={() => setSection("determination")}>
-            <span className="nav-icon">≋</span>Apuração fiscal
+          <button title={entitlements.taxDeterminationEnabled ? "Apuração fiscal" : "Disponível nos planos Pro e Escritório"} className={`${section === "determination" ? "active" : ""} ${!entitlements.taxDeterminationEnabled ? "plan-locked" : ""}`} onClick={() => setSection("determination")}>
+            <span className="nav-icon">≋</span>Apuração fiscal{!entitlements.taxDeterminationEnabled && <small>PRO</small>}
           </button>
           {isPlatformAdmin && <button title="Central de faturamento" className={section === "billing" ? "active" : ""} onClick={() => setSection("billing")}>
             <span className="nav-icon">$</span>Faturamento
@@ -1271,10 +1286,21 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
             <button className="notification" aria-label="Notificações" onClick={() => workspace.type === "office" && setSection("reviews")}>{workspace.type === "office" && reviewMetrics.mine ? reviewMetrics.mine : "•"}</button>
             <div className="account-summary">
               <div className="avatar" aria-label={`Perfil de ${user.displayName}`}>{userInitials}</div>
-              <span><b>{user.displayName.split(" ")[0]}</b><small>{accountRoleLabel} · <a href="/planos" title={`${entitlements.companyCount} de ${entitlements.companyLimit} empresas`}>Plano {entitlements.name}</a> · <a href={signOutPath}>Sair</a></small></span>
+              <span><b>{user.displayName.split(" ")[0]}</b><small>{accountRoleLabel} · <a href="/planos" title={entitlements.companyLimit === null ? "Carteira sem limite" : `${entitlements.companyCount} de ${entitlements.companyLimit} empresas`}>Plano {entitlements.name}</a> · <a href={signOutPath}>Sair</a></small></span>
             </div>
           </div>
         </header>
+
+        {sectionIsLocked && <div className="page-content plan-feature-locked-page">
+          <section className="panel plan-feature-locked-card">
+            <span className="plan-lock-symbol">◇</span>
+            <p className="kicker">RECURSO EXCLUSIVO · PLANO {lockedPlanName.toUpperCase()}</p>
+            <h1>Este módulo não faz parte do plano {entitlements.name}.</h1>
+            <p>Seu acesso básico continua ativo. Para usar este recurso, escolha um pacote que inclua os módulos fiscais avançados{activeSectionFeature === "officeCollaborationEnabled" ? " e a colaboração entre preparador e revisor" : ""}.</p>
+            <div className="plan-feature-access-summary"><span>PLANO ATUAL</span><strong>{entitlements.name}</strong><small>{companyCapacityLabel}</small></div>
+            <a className="primary-button" href="/planos">Comparar planos <span>→</span></a>
+          </section>
+        </div>}
 
         {section === "companies" && (
           <div className="page-content companies-page">
@@ -1286,8 +1312,8 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
             {message && <div className="toast" role="status">{message}</div>}
 
             <section className={`plan-usage-banner ${entitlements.companyLimitExceeded ? "over-limit" : entitlements.companyLimitReached ? "limit-reached" : "within-limit"}`} aria-label="Uso do plano">
-              <div><span>PLANO ATIVO</span><strong>{entitlements.name}</strong><small>{entitlements.companyLimitExceeded ? "Carteira acima do limite contratado" : entitlements.companyLimitReached ? "Limite de empresas atingido" : `${entitlements.companyRemaining} ${entitlements.companyRemaining === 1 ? "vaga disponível" : "vagas disponíveis"}`}</small></div>
-              <div className="plan-usage-meter"><span><b>{entitlements.companyCount}</b> de {entitlements.companyLimit} empresas</span><progress max={entitlements.companyLimit} value={Math.min(entitlements.companyCount, entitlements.companyLimit)} /></div>
+              <div><span>PLANO ATIVO</span><strong>{entitlements.name}</strong><small>{entitlements.companyLimit === null ? entitlements.accessMode === "platform_owner" ? "Acesso administrativo sem restrições" : "Beta integral: todos os recursos liberados" : entitlements.companyLimitExceeded ? "Carteira acima do limite contratado" : entitlements.companyLimitReached ? "Limite de empresas atingido" : `${entitlements.companyRemaining} ${entitlements.companyRemaining === 1 ? "vaga disponível" : "vagas disponíveis"}`}</small></div>
+              <div className="plan-usage-meter"><span><b>{entitlements.companyCount}</b> {entitlements.companyLimit === null ? "empresas · sem limite" : `de ${entitlements.companyLimit} empresas`}</span>{entitlements.companyLimit === null ? <div className="unlimited-plan-meter"><i /></div> : <progress max={entitlements.companyLimit} value={Math.min(entitlements.companyCount, entitlements.companyLimit)} />}</div>
               <a href="/planos">Ver planos →</a>
             </section>
 
@@ -1568,7 +1594,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
           </div>
         )}
 
-        {section === "reviews" && workspace.type === "office" && (
+        {section === "reviews" && workspace.type === "office" && !sectionIsLocked && (
           <div className="page-content review-center-page">
             <div className="page-heading review-center-heading">
               <div><p className="kicker">CONTROLE DE QUALIDADE DO ESCRITÓRIO</p><h1>Central de Revisão</h1><p>Acompanhe responsáveis, prazos, comentários e decisões sem alterar versões já congeladas.</p></div>
@@ -1648,7 +1674,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
 
         {section === "team" && workspace.type === "individual" && (
           <div className="page-content team-page individual-mode-page">
-            <div className="page-heading"><div><p className="kicker">MODO CONTADOR INDEPENDENTE</p><h1>Seu espaço profissional individual</h1><p>Você prepara, revisa e assume a responsabilidade pelas próprias versões, com esse limite declarado em cada relatório.</p></div><span className="office-plan-badge individual"><small>PLANO ATIVO</small><b>{entitlements.name}</b><em>{entitlements.companyCount}/{entitlements.companyLimit} empresas</em></span></div>
+            <div className="page-heading"><div><p className="kicker">MODO CONTADOR INDEPENDENTE</p><h1>Seu espaço profissional individual</h1><p>Você prepara, revisa e assume a responsabilidade pelas próprias versões, com esse limite declarado em cada relatório.</p></div><span className="office-plan-badge individual"><small>PLANO ATIVO</small><b>{entitlements.name}</b><em>{companyCapacityLabel}</em></span></div>
             {message && <div className="toast" role="status">{message}</div>}
             <section className="mode-comparison-grid">
               <article className="current"><span>MODO ATUAL</span><h2>Contador independente</h2><p>Uma conta concentra preparação e revisão responsável. O relatório não chama isso de revisão independente.</p><ul><li>Carteira e versões privadas</li><li>Assinatura do responsável</li><li>Plano Profissional sugerido</li></ul></article>
@@ -1702,15 +1728,15 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
           </div>
         )}
 
-        {section === "intelligence" && <FiscalIntelligence />}
+        {section === "intelligence" && !sectionIsLocked && <FiscalIntelligence />}
 
-        {section === "taxlab" && <DeterministicTaxLab />}
+        {section === "taxlab" && !sectionIsLocked && <DeterministicTaxLab />}
 
-        {section === "coverage" && <div className="page-content"><NationalCoverageCenter /></div>}
+        {section === "coverage" && !sectionIsLocked && <div className="page-content"><NationalCoverageCenter /></div>}
 
-        {section === "expansion" && <div className="page-content"><FiscalExpansionCenter /></div>}
+        {section === "expansion" && !sectionIsLocked && <div className="page-content"><FiscalExpansionCenter /></div>}
 
-        {section === "rules" && (
+        {section === "rules" && !sectionIsLocked && (
           <div className="page-content fiscal-rules-page">
             <div className="page-heading">
               <div><p className="kicker">GOVERNANÇA DO MOTOR FISCAL</p><h1>Regras federais e Catálogo fiscal versionado</h1><p>Mapeie as obrigações essenciais da PME e audite as regras que podem entrar nos cálculos.</p></div>
@@ -1767,7 +1793,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
           </div>
         )}
 
-        {section === "determination" && (
+        {section === "determination" && !sectionIsLocked && (
           <div className="page-content determination-page">
             <div className="page-heading determination-heading">
               <div><p className="kicker">APURAÇÃO ASSISTIDA · MODELO EM HOMOLOGAÇÃO</p><h1>Apuração líquida sob controle</h1><p>Do documento ao fechamento: cada débito, crédito, ajuste e pagamento precisa ser explicado antes de formar um valor a recolher.</p></div>

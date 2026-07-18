@@ -7,6 +7,7 @@ import { companies, fiscalDossierEvents, fiscalDossiers, users, workspaceMembers
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { loadFiscalKnowledgeBase, parseFiscalOverrides } from "../../fiscal-intelligence-service";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 import { canPrepareScenarios, canReviewScenarios, getWorkspaceContext } from "../../workspace";
 
 function safeJson<T>(value: string, fallback: T): T {
@@ -118,5 +119,5 @@ async function createFiscalDossier(request: Request) {
   }
 }
 
-export const GET = withApiTelemetry("GET /api/fiscal-dossiers", getFiscalDossiers);
-export const POST = withApiTelemetry("POST /api/fiscal-dossiers", createFiscalDossier);
+export const GET = withApiTelemetry("GET /api/fiscal-dossiers", withWorkspaceFeature("professionalGovernanceEnabled", getFiscalDossiers));
+export const POST = withApiTelemetry("POST /api/fiscal-dossiers", withWorkspaceFeature("professionalGovernanceEnabled", createFiscalDossier));

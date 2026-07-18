@@ -5,6 +5,7 @@ import { ensureScenarioSchema } from "../../../db";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { canReviewScenarios, getWorkspaceContext } from "../../workspace";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 
 async function status() {
   const user = await getCurrentUser();
@@ -44,5 +45,5 @@ async function approve(request: Request) {
   }
 }
 
-export const GET = withApiTelemetry("GET /api/rule-governance", status);
-export const POST = withApiTelemetry("POST /api/rule-governance", approve);
+export const GET = withApiTelemetry("GET /api/rule-governance", withWorkspaceFeature("professionalGovernanceEnabled", status));
+export const POST = withApiTelemetry("POST /api/rule-governance", withWorkspaceFeature("professionalGovernanceEnabled", approve));

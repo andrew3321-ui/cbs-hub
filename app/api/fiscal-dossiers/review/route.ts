@@ -6,6 +6,7 @@ import { fiscalDossiers, users, workspaceMembers } from "../../../../db/schema";
 import { withApiTelemetry } from "../../../api-infrastructure";
 import { getCurrentUser } from "../../../auth";
 import { normalizeProfessionalRegistration, professionalRegistrationError } from "../../../professional-registration";
+import { withWorkspaceFeature } from "../../../plan-entitlements";
 import { canPrepareScenarios, canReviewScenarios, getWorkspaceContext, sha256Hex } from "../../../workspace";
 
 const MAX_REVIEW_WINDOW_MS = 90 * 86_400_000;
@@ -93,4 +94,4 @@ async function reviewFiscalDossier(request: Request) {
   }
 }
 
-export const POST = withApiTelemetry("POST /api/fiscal-dossiers/review", reviewFiscalDossier);
+export const POST = withApiTelemetry("POST /api/fiscal-dossiers/review", withWorkspaceFeature("professionalGovernanceEnabled", reviewFiscalDossier));

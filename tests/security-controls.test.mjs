@@ -4,16 +4,20 @@ import test from "node:test";
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("V37 keeps beta and paid checkout mutually exclusive on the server", () => {
+test("beta and paid checkout remain mutually exclusive while existing renewals are disclosed", () => {
   const controls = read("../app/platform-controls.ts");
   const checkout = read("../app/api/billing/checkout/route.ts");
   const admin = read("../app/api/admin/billing/route.ts");
   assert.match(controls, /paymentsEnabled:\s*!betaEnabled && readinessReady/);
   assert.match(controls, /PAYMENT_PREREQUISITES_MISSING/);
-  assert.match(controls, /ACTIVE_SUBSCRIPTIONS_BLOCK_BETA/);
+  assert.doesNotMatch(controls, /ACTIVE_SUBSCRIPTIONS_BLOCK_BETA/);
+  assert.match(controls, /existingSubscriptionsPreserved/);
   assert.match(checkout, /if \(!operation\.paymentsEnabled\)/);
   assert.match(admin, /ATIVAR PAGAMENTOS/);
   assert.match(admin, /setBetaMode\(admin, body\.betaEnabled\)/);
+  const center = read("../app/app/BillingCenter.tsx");
+  assert.match(center, /A ativação do beta não cancela contratos existentes/);
+  assert.doesNotMatch(center, /activeSubscriptions > 0\)\} onClick/);
 });
 
 test("payment activation requires production, reconciliation, legal, privacy and antifraud gates", () => {

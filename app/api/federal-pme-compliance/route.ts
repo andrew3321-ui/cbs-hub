@@ -1,6 +1,7 @@
 import { assessFederalPme, federalPmeRules, federalPmeSources, FEDERAL_PME_CHECKED_AT, FEDERAL_PME_RULESET_VERSION, hashFederalPmeCatalog, parseFederalPmeProfile } from "../../../domain/federal-pme-compliance";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 
 async function catalog() {
   const user = await getCurrentUser();
@@ -22,5 +23,5 @@ async function evaluate(request: Request) {
   }
 }
 
-export const GET = withApiTelemetry("GET /api/federal-pme-compliance", catalog);
-export const POST = withApiTelemetry("POST /api/federal-pme-compliance", evaluate);
+export const GET = withApiTelemetry("GET /api/federal-pme-compliance", withWorkspaceFeature("fiscalRulesEnabled", catalog));
+export const POST = withApiTelemetry("POST /api/federal-pme-compliance", withWorkspaceFeature("fiscalRulesEnabled", evaluate));

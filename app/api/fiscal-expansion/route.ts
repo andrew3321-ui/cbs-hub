@@ -13,6 +13,7 @@ import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { listExpansionEvents, listExpansionProgress, saveExpansionTransition } from "../../fiscal-expansion-service";
 import { canPrepareScenarios, canReviewScenarios, getWorkspaceContext, sha256Hex } from "../../workspace";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 
 async function payload(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
   const workspace = await getWorkspaceContext(user.id);
@@ -102,5 +103,5 @@ async function advanceExpansion(request: Request) {
   }
 }
 
-export const GET = withApiTelemetry("GET /api/fiscal-expansion", getExpansion);
-export const POST = withApiTelemetry("POST /api/fiscal-expansion", advanceExpansion);
+export const GET = withApiTelemetry("GET /api/fiscal-expansion", withWorkspaceFeature("fiscalExpansionEnabled", getExpansion));
+export const POST = withApiTelemetry("POST /api/fiscal-expansion", withWorkspaceFeature("fiscalExpansionEnabled", advanceExpansion));

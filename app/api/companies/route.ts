@@ -63,9 +63,9 @@ async function createCompany(request: Request) {
     const company = await env.DB.prepare(`
       INSERT INTO companies (name, cnpj, tax_regime, sector, owner_user_id, workspace_id)
       SELECT ?, ?, ?, ?, ?, ?
-      WHERE (SELECT COUNT(*) FROM companies WHERE workspace_id = ?) < ?
+      WHERE ? IS NULL OR (SELECT COUNT(*) FROM companies WHERE workspace_id = ?) < ?
       RETURNING id, name, cnpj, tax_regime AS taxRegime, sector, owner_user_id AS ownerUserId, workspace_id AS workspaceId, created_at AS createdAt
-    `).bind(name, cnpj || null, taxRegime, sector, workspace.ownerUserId, workspace.id, workspace.id, entitlements.companyLimit).first<{
+    `).bind(name, cnpj || null, taxRegime, sector, workspace.ownerUserId, workspace.id, entitlements.companyLimit, workspace.id, entitlements.companyLimit).first<{
       id: number;
       name: string;
       cnpj: string | null;

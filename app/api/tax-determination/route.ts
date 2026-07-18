@@ -12,6 +12,7 @@ import { taxPeriods } from "../../../db/schema";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { getWorkspaceContext } from "../../workspace";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 
 async function getTaxDeterminationModel() {
   const user = await getCurrentUser();
@@ -80,4 +81,4 @@ async function getTaxDeterminationModel() {
   }
 }
 
-export const GET = withApiTelemetry("GET /api/tax-determination", getTaxDeterminationModel);
+export const GET = withApiTelemetry("GET /api/tax-determination", withWorkspaceFeature("taxDeterminationEnabled", getTaxDeterminationModel));

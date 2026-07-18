@@ -1,17 +1,40 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { applyPlanUsage, planDefinitions, resolveEffectivePlan } from "../domain/plan-entitlements.ts";
+import { applyPlanUsage, planDefinitions, resolveEffectivePlan, resolveWorkspacePlan } from "../domain/plan-entitlements.ts";
 
 const now = Date.parse("2026-07-18T12:00:00.000Z");
 
 test("the free, Pro and Office plans expose distinct enforceable benefits", () => {
   assert.equal(planDefinitions.beta.companyLimit, 1);
+  assert.equal(planDefinitions.beta.fiscalIntelligenceEnabled, false);
+  assert.equal(planDefinitions.beta.taxDeterminationEnabled, false);
   assert.equal(planDefinitions.beta.officeCollaborationEnabled, false);
   assert.equal(planDefinitions.pro.companyLimit, 10);
+  assert.equal(planDefinitions.pro.fiscalIntelligenceEnabled, true);
+  assert.equal(planDefinitions.pro.taxDeterminationEnabled, true);
   assert.equal(planDefinitions.pro.officeCollaborationEnabled, false);
   assert.equal(planDefinitions.escritorio.companyLimit, 50);
   assert.equal(planDefinitions.escritorio.officeCollaborationEnabled, true);
+});
+
+test("the platform owner and global beta bypass every package restriction", () => {
+  const inactiveBilling = { planKey: "beta", status: "beta", providerSubscriptionId: null, nextPaymentAt: null };
+  const owner = resolveWorkspacePlan({ platformOwner: true, betaEnabled: false, billing: inactiveBilling }, now);
+  const globalBeta = resolveWorkspacePlan({ platformOwner: false, betaEnabled: true, billing: inactiveBilling }, now);
+  assert.equal(owner.key, "owner");
+  assert.equal(owner.companyLimit, null);
+  assert.equal(owner.officeCollaborationEnabled, true);
+  assert.equal(owner.taxDeterminationEnabled, true);
+  assert.equal(globalBeta.key, "global_beta");
+  assert.equal(globalBeta.companyLimit, null);
+  assert.equal(globalBeta.fiscalIntelligenceEnabled, true);
+  assert.equal(globalBeta.officeCollaborationEnabled, true);
+
+  const unlimited = applyPlanUsage(owner, inactiveBilling, 999);
+  assert.equal(unlimited.companyRemaining, null);
+  assert.equal(unlimited.companyLimitReached, false);
+  assert.equal(unlimited.canCreateCompany, true);
 });
 
 test("only a reconciled active subscription grants a paid plan", () => {
@@ -40,11 +63,28 @@ test("company creation and office collaboration are protected on the server", ()
   const membersRoute = fs.readFileSync(new URL("../app/api/office/members/route.ts", import.meta.url), "utf8");
   const reviewRoute = fs.readFileSync(new URL("../app/api/scenarios/review/route.ts", import.meta.url), "utf8");
   const registrationRoute = fs.readFileSync(new URL("../app/api/auth/register/route.ts", import.meta.url), "utf8");
-  assert.match(companiesRoute, /WHERE \(SELECT COUNT\(\*\) FROM companies WHERE workspace_id = \?\) < \?/);
+  assert.match(companiesRoute, /WHERE \? IS NULL OR \(SELECT COUNT\(\*\) FROM companies WHERE workspace_id = \?\) < \?/);
   assert.match(companiesRoute, /PLAN_COMPANY_LIMIT|companyLimitResponse/);
   assert.match(membersRoute, /officePlanRequiredResponse/);
   assert.match(reviewRoute, /officePlanRequiredResponse/);
   assert.match(registrationRoute, /officePlanRequiredResponse/);
+});
+
+test("advanced fiscal modules are protected by the same server-side entitlement matrix", () => {
+  const routes = [
+    ["fiscal-intelligence", "fiscalIntelligenceEnabled"],
+    ["deterministic-tax-lab", "taxLabEnabled"],
+    ["national-coverage", "nationalCoverageEnabled"],
+    ["fiscal-expansion", "fiscalExpansionEnabled"],
+    ["fiscal-rules", "fiscalRulesEnabled"],
+    ["tax-determination", "taxDeterminationEnabled"],
+    ["fiscal-imports", "batchImportEnabled"],
+    ["rule-governance", "professionalGovernanceEnabled"],
+  ];
+  for (const [route, feature] of routes) {
+    const source = fs.readFileSync(new URL(`../app/api/${route}/route.ts`, import.meta.url), "utf8");
+    assert.match(source, new RegExp(`withWorkspaceFeature\\(\"${feature}\"`), route);
+  }
 });
 
 test("the application displays the active plan, usage and limit state", () => {
@@ -53,5 +93,8 @@ test("the application displays the active plan, usage and limit state", () => {
   assert.match(app, /plan-usage-banner/);
   assert.match(app, /Plano \{entitlements\.name\}/);
   assert.match(app, /Limite do plano atingido/);
+  assert.match(app, /plan-feature-locked-card/);
+  assert.match(app, /sectionPlanFeatures/);
   assert.match(pricing, /Até 1 empresa monitorada/);
+  assert.match(pricing, /Inteligência e laboratório fiscal/);
 });

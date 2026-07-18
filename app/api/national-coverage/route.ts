@@ -3,6 +3,7 @@ import { getActiveNationalRuleApproval } from "../../fiscal-rule-approval";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { getWorkspaceContext } from "../../workspace";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 
 async function calculate(request: Request) {
   const user = await getCurrentUser();
@@ -22,4 +23,4 @@ async function calculate(request: Request) {
   }
 }
 
-export const POST = withApiTelemetry("POST /api/national-coverage", calculate);
+export const POST = withApiTelemetry("POST /api/national-coverage", withWorkspaceFeature("nationalCoverageEnabled", calculate));

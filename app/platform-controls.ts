@@ -98,10 +98,6 @@ export async function setBetaMode(admin: AppUser, betaEnabled: boolean) {
     const missing = current.readiness.gates.filter((gate) => !gate.ready).map((gate) => gate.label).join(", ");
     throw new PlatformModeError("PAYMENT_PREREQUISITES_MISSING", `Ainda faltam proteções obrigatórias: ${missing}.`);
   }
-  if (betaEnabled && current.activeSubscriptions > 0) {
-    throw new PlatformModeError("ACTIVE_SUBSCRIPTIONS_BLOCK_BETA", "Existem assinaturas em andamento. Cancele ou encerre todas antes de anunciar que o beta não possui cobranças.");
-  }
-
   const now = new Date().toISOString();
   const nextRevision = current.revision + 1;
   await getDb().batch([
@@ -109,7 +105,7 @@ export async function setBetaMode(admin: AppUser, betaEnabled: boolean) {
     getDb().insert(auditEvents).values({
       ownerUserId: admin.id,
       eventType: betaEnabled ? "platform.beta_enabled" : "platform.beta_disabled",
-      eventData: JSON.stringify({ actorUserId: admin.id, previousRevision: current.revision, revision: nextRevision, newPaymentsAccepted: !betaEnabled }),
+      eventData: JSON.stringify({ actorUserId: admin.id, previousRevision: current.revision, revision: nextRevision, newPaymentsAccepted: !betaEnabled, existingSubscriptionsPreserved: betaEnabled && current.activeSubscriptions > 0, activeSubscriptions: current.activeSubscriptions }),
       createdAt: now,
     }),
   ]);

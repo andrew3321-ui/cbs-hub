@@ -6,6 +6,8 @@ import { getMercadoPagoEnvironment } from "../../billing";
 import { syncBillingAccountFromProvider } from "../../billing-reconciliation";
 import { latestPixTransaction, pixRenewalIsEligible, syncPixBillingAccount, type PixCheckout } from "../../billing-pix";
 import { getPlatformOperationState } from "../../platform-controls";
+import { getWorkspaceEntitlements } from "../../plan-entitlements";
+import { getWorkspaceContext } from "../../workspace";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -15,6 +17,8 @@ export async function GET() {
   let [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
   const configured = Boolean(getMercadoPagoEnvironment().accessToken);
   const operation = await getPlatformOperationState();
+  const workspace = await getWorkspaceContext(user.id);
+  const entitlements = workspace ? await getWorkspaceEntitlements(workspace) : null;
   let pix: PixCheckout | null = null;
 
   if (configured && account?.providerSubscriptionId && !["canceled", "cancelled"].includes(account.status)) {
@@ -60,6 +64,7 @@ export async function GET() {
     configured,
     betaEnabled: operation.betaEnabled,
     paymentsEnabled: operation.paymentsEnabled,
+    entitlements,
     billing: account ? {
       planKey: account.planKey,
       status: account.status,

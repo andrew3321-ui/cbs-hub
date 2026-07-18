@@ -5,6 +5,7 @@ import { evaluateExpandedFiscalQuestion, fiscalTopicCatalog } from "../../../dom
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { loadFiscalKnowledgeBase, parseFiscalOverrides } from "../../fiscal-intelligence-service";
+import { withWorkspaceFeature } from "../../plan-entitlements";
 
 async function getFiscalIntelligence() {
   const user = await getCurrentUser();
@@ -76,5 +77,5 @@ async function searchFiscalIntelligence(request: Request) {
   }
 }
 
-export const GET = withApiTelemetry("GET /api/fiscal-intelligence", getFiscalIntelligence);
-export const POST = withApiTelemetry("POST /api/fiscal-intelligence", searchFiscalIntelligence);
+export const GET = withApiTelemetry("GET /api/fiscal-intelligence", withWorkspaceFeature("fiscalIntelligenceEnabled", getFiscalIntelligence));
+export const POST = withApiTelemetry("POST /api/fiscal-intelligence", withWorkspaceFeature("fiscalIntelligenceEnabled", searchFiscalIntelligence));
