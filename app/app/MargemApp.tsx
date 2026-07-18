@@ -13,6 +13,7 @@ import NfeAuditWorkbench from "./NfeAuditWorkbench";
 import DeterministicTaxLab from "./DeterministicTaxLab";
 import BillingCenter from "./BillingCenter";
 import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
+import type { WorkspaceEntitlements } from "../../domain/plan-entitlements";
 
 type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "billing" | "academy";
 
@@ -383,13 +384,15 @@ function formatCnpj(value: string | null) {
 type MargemAppProps = {
   user: { id: number; displayName: string; email: string };
   workspace: { id: number; name: string; type: "individual" | "office"; ownerUserId: number; suggestedPlanKey: "pro" | "escritorio"; role: "owner" | "admin" | "preparer" | "reviewer" };
+  initialEntitlements: WorkspaceEntitlements;
   signOutPath: string;
   isPlatformAdmin: boolean;
 };
 
-export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmin }: MargemAppProps) {
+export default function MargemApp({ user, workspace, initialEntitlements, signOutPath, isPlatformAdmin }: MargemAppProps) {
   const [section, setSection] = useState<Section>("overview");
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [entitlements, setEntitlements] = useState(initialEntitlements);
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
   const [showCompanyForm, setShowCompanyForm] = useState(false);
   const [creatingCompany, setCreatingCompany] = useState(false);
@@ -460,8 +463,9 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
   const activeDemoStep = activeDemo.steps[demoStep];
   const userInitials = user.displayName.split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase() || "MC";
   const accountRoleLabel = workspaceAccountRoleLabel(workspace.type, workspace.role, isPlatformAdmin);
-  const canManageTeam = workspace.role === "owner" || workspace.role === "admin";
+  const canManageTeam = entitlements.officeCollaborationEnabled && (workspace.role === "owner" || workspace.role === "admin");
   const canPrepare = workspace.role !== "reviewer";
+  const canAddCompany = canPrepare && entitlements.canCreateCompany;
   const filteredReviews = useMemo(() => reviewQueue.filter((review) => {
     if (reviewFilter === "all") return true;
     if (reviewFilter === "mine") return review.status === "pending" && review.assignedReviewerUserId === user.id;
@@ -554,19 +558,20 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
   useEffect(() => {
     fetch("/api/companies")
       .then((response) => (response.ok ? response.json() : Promise.reject()))
-      .then((data: { companies?: Company[] }) => {
+      .then((data: { companies?: Company[]; entitlements?: WorkspaceEntitlements }) => {
         const rows = data.companies ?? [];
         setCompanies(rows);
+        if (data.entitlements) setEntitlements(data.entitlements);
         if (!rows.length) {
           setSection("companies");
-          setShowCompanyForm(true);
+          setShowCompanyForm(data.entitlements?.canCreateCompany ?? initialEntitlements.canCreateCompany);
         }
         const storedId = Number(window.localStorage.getItem("margem-clara-company"));
         const selected = rows.find((company) => company.id === storedId)?.id ?? rows[0]?.id ?? null;
         changeActiveCompany(selected);
       })
       .catch(() => setCompanies([]));
-  }, []);
+  }, [initialEntitlements.canCreateCompany]);
 
   useEffect(() => {
     if (!activeCompanyId) return;
@@ -593,8 +598,9 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
     try {
       const response = await fetch("/api/companies");
       if (!response.ok) return;
-      const data = (await response.json()) as { companies?: Company[] };
+      const data = (await response.json()) as { companies?: Company[]; entitlements?: WorkspaceEntitlements };
       setCompanies(data.companies ?? []);
+      if (data.entitlements) setEntitlements(data.entitlements);
     } catch {
       // The active workflow remains usable if the portfolio refresh fails.
     }
@@ -642,10 +648,11 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
     setTeamLoading(true);
     try {
       const response = await fetch("/api/office/members");
-      const data = (await response.json()) as { members?: TeamMember[]; invitations?: TeamInvitation[]; error?: string };
+      const data = (await response.json()) as { members?: TeamMember[]; invitations?: TeamInvitation[]; entitlements?: WorkspaceEntitlements; error?: string };
       if (!response.ok) throw new Error(data.error || "Equipe indisponível.");
       setTeamMembers(data.members ?? []);
       setTeamInvitations(data.invitations ?? []);
+      if (data.entitlements) setEntitlements(data.entitlements);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível carregar a equipe.");
     } finally {
@@ -658,7 +665,7 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
     setReviewLoading(true);
     try {
       const response = await fetch("/api/reviews");
-      const data = (await response.json()) as { reviews?: ReviewQueueItem[]; eligibleReviewers?: EligibleReviewer[]; metrics?: ReviewMetrics; permissions?: { canManage: boolean; canReview: boolean }; error?: string };
+      const data = (await response.json()) as { reviews?: ReviewQueueItem[]; eligibleReviewers?: EligibleReviewer[]; metrics?: ReviewMetrics; permissions?: { canManage: boolean; canReview: boolean }; entitlements?: WorkspaceEntitlements; error?: string };
       if (!response.ok) throw new Error(data.error || "Central de revisão indisponível.");
       const rows = data.reviews ?? [];
       const reviewers = data.eligibleReviewers ?? [];
@@ -667,6 +674,7 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
       setEligibleReviewers(reviewers);
       if (data.metrics) setReviewMetrics(data.metrics);
       if (data.permissions) setReviewPermissions(data.permissions);
+      if (data.entitlements) setEntitlements(data.entitlements);
       setActiveReviewId(selected?.id ?? null);
       setAssignmentReviewerId(selected?.assignedReviewerUserId ?? null);
       setAssignmentDueDate(selected?.dueAt ? selected.dueAt.slice(0, 10) : dateInputValue());
@@ -1136,6 +1144,10 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
   }
 
   async function createCompany() {
+    if (!entitlements.canCreateCompany) {
+      setMessage(`Limite do plano ${entitlements.name} atingido: ${entitlements.companyCount} de ${entitlements.companyLimit} empresas.`);
+      return;
+    }
     setCreatingCompany(true);
     setMessage("");
     try {
@@ -1144,16 +1156,20 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(companyForm),
       });
-      if (!response.ok) throw new Error("create failed");
-      const data = (await response.json()) as { company: Company };
+      const data = (await response.json()) as { company?: Company; entitlements?: WorkspaceEntitlements; error?: string };
+      if (!response.ok || !data.company) {
+        if (data.entitlements) setEntitlements(data.entitlements);
+        throw new Error(data.error || "Não foi possível cadastrar a empresa.");
+      }
       setCompanies((current) => [...current, data.company].sort((a, b) => a.name.localeCompare(b.name, "pt-BR")));
+      if (data.entitlements) setEntitlements(data.entitlements);
       changeActiveCompany(data.company.id);
       setCompanyForm({ name: "", cnpj: "", taxRegime: "Simples Nacional", sector: "Serviços B2B" });
       setShowCompanyForm(false);
       setSection("simulator");
       setMessage("Cliente cadastrado. Crie a primeira análise para iniciar o trabalho técnico.");
-    } catch {
-      setMessage("Revise os dados. O CNPJ deve conter 14 dígitos quando informado.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível cadastrar a empresa.");
     } finally {
       setCreatingCompany(false);
     }
@@ -1255,7 +1271,7 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
             <button className="notification" aria-label="Notificações" onClick={() => workspace.type === "office" && setSection("reviews")}>{workspace.type === "office" && reviewMetrics.mine ? reviewMetrics.mine : "•"}</button>
             <div className="account-summary">
               <div className="avatar" aria-label={`Perfil de ${user.displayName}`}>{userInitials}</div>
-              <span><b>{user.displayName.split(" ")[0]}</b><small>{accountRoleLabel} · <a href="/planos">Plano</a> · <a href={signOutPath}>Sair</a></small></span>
+              <span><b>{user.displayName.split(" ")[0]}</b><small>{accountRoleLabel} · <a href="/planos" title={`${entitlements.companyCount} de ${entitlements.companyLimit} empresas`}>Plano {entitlements.name}</a> · <a href={signOutPath}>Sair</a></small></span>
             </div>
           </div>
         </header>
@@ -1264,12 +1280,18 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
           <div className="page-content companies-page">
             <div className="page-heading">
               <div><p className="kicker">CARTEIRA DO ESCRITÓRIO</p><h1>Clientes monitorados</h1><p>Organize cada empresa atendida, priorize riscos e preserve a responsabilidade por versão.</p></div>
-              <button className="primary-button" onClick={() => setShowCompanyForm((current) => !current)} disabled={!canPrepare}>{canPrepare ? showCompanyForm ? "Fechar cadastro" : "Adicionar cliente" : "Acesso somente para revisão"}</button>
+              <button className="primary-button" onClick={() => setShowCompanyForm((current) => !current)} disabled={!canAddCompany}>{!canPrepare ? "Acesso somente para revisão" : !entitlements.canCreateCompany ? "Limite do plano atingido" : showCompanyForm ? "Fechar cadastro" : "Adicionar cliente"}</button>
             </div>
 
             {message && <div className="toast" role="status">{message}</div>}
 
-            {showCompanyForm && canPrepare && <form className="panel company-form" onSubmit={(event) => { event.preventDefault(); void createCompany(); }}>
+            <section className={`plan-usage-banner ${entitlements.companyLimitExceeded ? "over-limit" : entitlements.companyLimitReached ? "limit-reached" : "within-limit"}`} aria-label="Uso do plano">
+              <div><span>PLANO ATIVO</span><strong>{entitlements.name}</strong><small>{entitlements.companyLimitExceeded ? "Carteira acima do limite contratado" : entitlements.companyLimitReached ? "Limite de empresas atingido" : `${entitlements.companyRemaining} ${entitlements.companyRemaining === 1 ? "vaga disponível" : "vagas disponíveis"}`}</small></div>
+              <div className="plan-usage-meter"><span><b>{entitlements.companyCount}</b> de {entitlements.companyLimit} empresas</span><progress max={entitlements.companyLimit} value={Math.min(entitlements.companyCount, entitlements.companyLimit)} /></div>
+              <a href="/planos">Ver planos →</a>
+            </section>
+
+            {showCompanyForm && canAddCompany && <form className="panel company-form" onSubmit={(event) => { event.preventDefault(); void createCompany(); }}>
               <div className="panel-heading"><div><span className="eyebrow">NOVO CLIENTE</span><h3>Dados essenciais da empresa</h3></div><span className="editable-chip">Carteira privada</span></div>
               <div className="company-form-grid">
                 <label>Razão social<input required value={companyForm.name} onChange={(event) => setCompanyForm((current) => ({ ...current, name: event.target.value }))} placeholder="Ex.: Horizonte Serviços Ltda." /></label>
@@ -1626,11 +1648,11 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
 
         {section === "team" && workspace.type === "individual" && (
           <div className="page-content team-page individual-mode-page">
-            <div className="page-heading"><div><p className="kicker">MODO CONTADOR INDEPENDENTE</p><h1>Seu espaço profissional individual</h1><p>Você prepara, revisa e assume a responsabilidade pelas próprias versões, com esse limite declarado em cada relatório.</p></div><span className="office-plan-badge individual"><small>PLANO SUGERIDO</small><b>Profissional</b><em>beta gratuito</em></span></div>
+            <div className="page-heading"><div><p className="kicker">MODO CONTADOR INDEPENDENTE</p><h1>Seu espaço profissional individual</h1><p>Você prepara, revisa e assume a responsabilidade pelas próprias versões, com esse limite declarado em cada relatório.</p></div><span className="office-plan-badge individual"><small>PLANO ATIVO</small><b>{entitlements.name}</b><em>{entitlements.companyCount}/{entitlements.companyLimit} empresas</em></span></div>
             {message && <div className="toast" role="status">{message}</div>}
             <section className="mode-comparison-grid">
               <article className="current"><span>MODO ATUAL</span><h2>Contador independente</h2><p>Uma conta concentra preparação e revisão responsável. O relatório não chama isso de revisão independente.</p><ul><li>Carteira e versões privadas</li><li>Assinatura do responsável</li><li>Plano Profissional sugerido</li></ul></article>
-              <article><span>EVOLUIR PARA</span><h2>Escritório contábil</h2><p>Ative equipe, convide profissionais e passe a exigir outra pessoa na aprovação.</p><form onSubmit={(event) => { event.preventDefault(); void upgradeToOffice(); }}><label>Nome do escritório<input required minLength={2} maxLength={120} value={officeUpgradeName} onChange={(event) => setOfficeUpgradeName(event.target.value)} placeholder="Ex.: Horizonte Contabilidade" /></label><button className="primary-button" disabled={upgradingWorkspace || officeUpgradeName.trim().length < 2}>{upgradingWorkspace ? "Ativando…" : "Ativar modo escritório"}</button></form><small>A carteira e o histórico atuais serão preservados. Depois de convidar revisores, versões novas exigirão segregação.</small></article>
+              <article><span>EVOLUIR PARA</span><h2>Escritório contábil</h2><p>Ative equipe, convide profissionais e passe a exigir outra pessoa na aprovação.</p>{entitlements.officeCollaborationEnabled ? <form onSubmit={(event) => { event.preventDefault(); void upgradeToOffice(); }}><label>Nome do escritório<input required minLength={2} maxLength={120} value={officeUpgradeName} onChange={(event) => setOfficeUpgradeName(event.target.value)} placeholder="Ex.: Horizonte Contabilidade" /></label><button className="primary-button" disabled={upgradingWorkspace || officeUpgradeName.trim().length < 2}>{upgradingWorkspace ? "Ativando…" : "Ativar modo escritório"}</button></form> : <a className="plan-upgrade-link" href="/planos">Assinar plano Escritório →</a>}<small>A carteira e o histórico atuais serão preservados. O modo colaborativo só é liberado pelo plano Escritório ativo.</small></article>
             </section>
           </div>
         )}
@@ -1639,7 +1661,7 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
           <div className="page-content team-page">
             <div className="page-heading">
               <div><p className="kicker">MODO ESCRITÓRIO CONTÁBIL</p><h1>Equipe e segregação de revisão</h1><p>Defina quem prepara, quem revisa e preserve a autoria de cada versão entregue.</p></div>
-              <span className="office-plan-badge"><small>PLANO SUGERIDO</small><b>Escritório</b><em>beta gratuito</em></span>
+              <span className="office-plan-badge"><small>PLANO ATIVO</small><b>{entitlements.name}</b><em>{entitlements.officeCollaborationEnabled ? "colaboração liberada" : "colaboração bloqueada"}</em></span>
             </div>
 
             {message && <div className="toast" role="status">{message}</div>}
@@ -1673,7 +1695,7 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
                   <div className="role-explainer"><b>{inviteRole === "reviewer" ? "Revisor" : inviteRole === "preparer" ? "Preparador" : "Administrador"}</b><span>{inviteRole === "reviewer" ? "Confere e aprova versões preparadas por outras pessoas." : inviteRole === "preparer" ? "Cadastra clientes e cria versões, mas não aprova a própria versão." : "Gerencia equipe, prepara e revisa versões de outras pessoas."}</span></div>
                   <button className="primary-button" disabled={teamLoading || !inviteEmail.trim()}>{teamLoading ? "Criando convite…" : "Gerar convite de 7 dias"}</button>
                   {createdInviteUrl && <div className="created-invite"><span>LINK CRIADO E COPIADO</span><input readOnly value={createdInviteUrl} onFocus={(event) => event.currentTarget.select()} /></div>}
-                </form> : <div className="team-readonly"><span>i</span><p><b>Gestão somente para administradores</b><small>Seu papel permite trabalhar na carteira, mas não convidar novos membros.</small></p></div>}
+                </form> : <div className="team-readonly"><span>i</span><p><b>{entitlements.officeCollaborationEnabled ? "Gestão somente para administradores" : "Plano Escritório necessário"}</b><small>{entitlements.officeCollaborationEnabled ? "Seu papel permite trabalhar na carteira, mas não convidar novos membros." : "Convites, papéis e revisão por outra pessoa ficam bloqueados até a ativação do plano Escritório."}</small>{!entitlements.officeCollaborationEnabled && <a href="/planos">Ver plano Escritório →</a>}</p></div>}
                 {teamInvitations.length > 0 && <div className="pending-invites"><span>CONVITES PENDENTES</span>{teamInvitations.map((invitation) => <article key={invitation.id}><p><b>{invitation.email}</b><small>{invitation.role} · expira {new Date(invitation.expiresAt).toLocaleDateString("pt-BR")}</small></p>{canManageTeam && <button type="button" onClick={() => void revokeTeamInvitation(invitation)}>Revogar</button>}</article>)}</div>}
               </aside>
             </div>
@@ -1877,7 +1899,7 @@ export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmi
 
             <section className="academy-next-grid">
               <article><span>01</span><div><small>PRATIQUE AGORA</small><h3>Crie um cenário de teste</h3><p>Use uma empresa fictícia e acompanhe a recomendação aparecer em tempo real.</p></div><button type="button" onClick={() => setSection("simulator")}>Abrir simulador →</button></article>
-              <article><span>02</span><div><small>APLIQUE NA CARTEIRA</small><h3>Cadastre a próxima empresa</h3><p>Organize o cliente e mantenha todos os cenários no contexto correto.</p></div><button type="button" onClick={() => { setSection("companies"); setShowCompanyForm(true); }}>Adicionar empresa →</button></article>
+              <article><span>02</span><div><small>APLIQUE NA CARTEIRA</small><h3>Cadastre a próxima empresa</h3><p>Organize o cliente e mantenha todos os cenários no contexto correto.</p></div><button type="button" onClick={() => { setSection("companies"); if (entitlements.canCreateCompany) setShowCompanyForm(true); else setMessage(`Limite do plano ${entitlements.name} atingido.`); }}>{entitlements.canCreateCompany ? "Adicionar empresa →" : "Ver limite do plano →"}</button></article>
             </section>
           </div>
         )}

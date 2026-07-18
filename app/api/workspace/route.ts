@@ -4,6 +4,7 @@ import { accountingWorkspaces, users } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
 import { getWorkspaceContext } from "../../workspace";
 import { withApiTelemetry } from "../../api-infrastructure";
+import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../plan-entitlements";
 
 async function upgradeWorkspace(request: Request) {
   const user = await getCurrentUser();
@@ -13,6 +14,8 @@ async function upgradeWorkspace(request: Request) {
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace || workspace.role !== "owner") return Response.json({ error: "Somente o proprietário pode alterar o modo de trabalho." }, { status: 403 });
     if (workspace.type === "office") return Response.json({ workspace });
+    const entitlements = await getWorkspaceEntitlements(workspace);
+    if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
     const payload = (await request.json()) as Record<string, unknown>;
     const name = typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ").slice(0, 120) : "";
     if (name.length < 2) return Response.json({ error: "Informe o nome do escritório contábil." }, { status: 400 });

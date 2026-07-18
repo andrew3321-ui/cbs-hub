@@ -14,6 +14,7 @@ import { signScenarioApprovalRecord, signedRecordFromScenario, verifyScenarioApp
 import { withApiTelemetry } from "../../../api-infrastructure";
 import { normalizeProfessionalRegistration, professionalRegistrationError } from "../../../professional-registration";
 import { canReviewScenarios, getWorkspaceContext } from "../../../workspace";
+import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../plan-entitlements";
 
 function publicApproval(approval: typeof scenarioApprovals.$inferSelect) {
   return {
@@ -38,6 +39,10 @@ async function approveAsResponsible(request: Request) {
     await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace) return Response.json({ error: "Espaço profissional não encontrado." }, { status: 403 });
+    if (workspace.type === "office") {
+      const entitlements = await getWorkspaceEntitlements(workspace);
+      if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
+    }
     const payload = (await request.json()) as Record<string, unknown>;
     const scenarioId = Number(payload.scenarioId);
     const acknowledged = payload.acknowledged === true;

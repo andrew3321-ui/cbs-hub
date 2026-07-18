@@ -4,6 +4,7 @@ import { createRecoveryKey, createSession, hashPassword, hashRecoveryKey, normal
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { accountingWorkspaces, companies, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
 import { sha256Hex } from "../../../workspace";
+import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../plan-entitlements";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -29,7 +30,7 @@ export async function POST(request: Request) {
     }
 
     const db = getDb();
-    let invitation: { id: number; workspaceId: number; email: string; role: string; workspaceName: string } | null = null;
+    let invitation: { id: number; workspaceId: number; email: string; role: string; workspaceName: string; ownerUserId: number; suggestedPlanKey: string } | null = null;
     if (inviteToken) {
       if (!/^[0-9a-f]{48}$/.test(inviteToken)) return Response.json({ error: "Este convite é inválido." }, { status: 400 });
       const [row] = await db.select({
@@ -38,6 +39,8 @@ export async function POST(request: Request) {
         email: workspaceInvitations.email,
         role: workspaceInvitations.role,
         workspaceName: accountingWorkspaces.name,
+        ownerUserId: accountingWorkspaces.ownerUserId,
+        suggestedPlanKey: accountingWorkspaces.suggestedPlanKey,
       }).from(workspaceInvitations)
         .innerJoin(accountingWorkspaces, eq(workspaceInvitations.workspaceId, accountingWorkspaces.id))
         .where(and(
@@ -47,6 +50,8 @@ export async function POST(request: Request) {
         )).limit(1);
       if (!row) return Response.json({ error: "Este convite expirou ou já foi utilizado." }, { status: 410 });
       if (normalizeEmail(row.email) !== email) return Response.json({ error: `Use o e-mail convidado: ${row.email}.` }, { status: 400 });
+      const entitlements = await getWorkspaceEntitlements({ id: row.workspaceId, name: row.workspaceName, type: "office", ownerUserId: row.ownerUserId, suggestedPlanKey: row.suggestedPlanKey === "escritorio" ? "escritorio" : "pro", role: "owner" });
+      if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
       invitation = row;
     }
     const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);

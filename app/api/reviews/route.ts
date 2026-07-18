@@ -7,6 +7,7 @@ import { withApiTelemetry } from "../../api-infrastructure";
 import { scenarioApprovalSummary } from "../../scenario-approval";
 import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
 import { canManageWorkspace, canReviewScenarios, getWorkspaceContext } from "../../workspace";
+import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../plan-entitlements";
 
 const scenarioSelection = {
   id: scenarios.id,
@@ -42,6 +43,7 @@ async function listReviews() {
     await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace || workspace.type !== "office") return Response.json({ error: "A central de revisão está disponível no modo escritório." }, { status: 403 });
+    const entitlements = await getWorkspaceEntitlements(workspace);
     const db = getDb();
     const rounds = await db.select().from(scenarioReviewRounds).where(eq(scenarioReviewRounds.workspaceId, workspace.id)).orderBy(desc(scenarioReviewRounds.createdAt), desc(scenarioReviewRounds.id)).limit(120);
     const scenarioIds = rounds.map((round) => round.scenarioId);
@@ -101,7 +103,8 @@ async function listReviews() {
         approved: visible.filter((review) => review.status === "approved").length,
         averageHours: approvedDurations.length ? Math.round(approvedDurations.reduce((sum, value) => sum + value, 0) / approvedDurations.length) : null,
       },
-      permissions: { canManage: canManageWorkspace(workspace.role), canReview: canReviewScenarios(workspace.role) },
+      permissions: { canManage: entitlements.officeCollaborationEnabled && canManageWorkspace(workspace.role), canReview: entitlements.officeCollaborationEnabled && canReviewScenarios(workspace.role) },
+      entitlements,
     });
   } catch {
     return Response.json({ error: "Não foi possível carregar a central de revisão." }, { status: 500 });
@@ -115,6 +118,8 @@ async function mutateReview(request: Request) {
     await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace || workspace.type !== "office") return Response.json({ error: "Ação disponível apenas no modo escritório." }, { status: 403 });
+    const entitlements = await getWorkspaceEntitlements(workspace);
+    if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
     const payload = (await request.json()) as Record<string, unknown>;
     const action = typeof payload.action === "string" ? payload.action : "";
     const reviewRoundId = Number(payload.reviewRoundId);

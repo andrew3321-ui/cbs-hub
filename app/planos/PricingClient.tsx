@@ -172,7 +172,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
         <p>{billing.paymentsEnabled ? "Escolha assinatura automática no cartão ou pagamento mensal por Pix confirmado pelo Mercado Pago." : "Novas cobranças estão bloqueadas no servidor. Você pode registrar interesse sem fornecer dados de pagamento."}</p>
       </section>}
       {signedIn && billing && <section className={`billing-status-card ${billing.billing.status}`}>
-        <div><span>SEU ACESSO</span><strong>{statusLabels[billing.billing.status] ?? billing.billing.status}</strong><small>{billing.billing.status === "beta" ? "Todos os recursos atuais seguem liberados sem cobrança." : `Plano ${billing.billing.planKey} · ${billing.billing.paymentFlow === "pix_monthly" ? "Pix mensal" : billing.billing.paymentFlow === "card_subscription" ? "cartão automático" : "pagamento não escolhido"}`}</small></div>
+        <div><span>SEU ACESSO</span><strong>{statusLabels[billing.billing.status] ?? billing.billing.status}</strong><small>{billing.billing.status === "beta" ? "Plano gratuito · até 1 empresa monitorada." : `Plano ${billing.billing.planKey} · ${billing.billing.paymentFlow === "pix_monthly" ? "Pix mensal" : billing.billing.paymentFlow === "card_subscription" ? "cartão automático" : "pagamento não escolhido"}`}</small></div>
         {billing.billing.nextPaymentAt && <div><span>{billing.billing.paymentFlow === "pix_monthly" ? "ACESSO PAGO ATÉ" : "PRÓXIMA COBRANÇA"}</span><strong>{new Date(billing.billing.nextPaymentAt).toLocaleDateString("pt-BR")}</strong><small>{billing.billing.paymentFlow === "pix_monthly" ? "Renove por Pix quando faltar até 7 dias" : "Data informada pelo Mercado Pago"}</small></div>}
         {billing.billing.status === "pending" && billing.billing.paymentFlow === "card_subscription" && billing.billing.checkoutUrl && <a href={billing.billing.checkoutUrl}>Continuar no cartão →</a>}
         {billing.billing.status === "active" && billing.billing.paymentFlow === "card_subscription" && <button onClick={cancelPayment}>Cancelar renovação</button>}
@@ -215,7 +215,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
           <h2>Gratuito</h2>
           <div className="pricing-value"><strong>R$ 0</strong><small>/mês</small></div>
           <p>Para validar o produto com empresas reais durante o desenvolvimento.</p>
-          <ul><li>Simulador completo</li><li>Cenários e comparações</li><li>Relatórios compartilháveis</li><li>Importação local de XML</li></ul>
+          <ul><li>Até 1 empresa monitorada</li><li>Simulador completo</li><li>Cenários e comparações</li><li>Relatórios compartilháveis</li><li>Importação local de XML</li></ul>
           <a className="pricing-button secondary" href={signedIn ? "/app" : "/cadastro"}>{signedIn ? "Continuar no beta" : "Começar gratuitamente"}</a>
         </article>
 

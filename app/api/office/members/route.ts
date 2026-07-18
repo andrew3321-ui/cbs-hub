@@ -4,6 +4,7 @@ import { accountingWorkspaces, auditEvents, scenarioReviewRounds, users, workspa
 import { getCurrentUser, normalizeEmail } from "../../../auth";
 import { canManageWorkspace, createWorkspaceInvitationToken, getWorkspaceContext, sha256Hex } from "../../../workspace";
 import { withApiTelemetry } from "../../../api-infrastructure";
+import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../plan-entitlements";
 
 const allowedRoles = new Set(["admin", "preparer", "reviewer"]);
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -15,6 +16,7 @@ async function listMembers() {
     await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace || workspace.type !== "office") return Response.json({ error: "A gestão de equipe está disponível no modo escritório." }, { status: 403 });
+    const entitlements = await getWorkspaceEntitlements(workspace);
     const db = getDb();
     const members = await db.select({
       id: workspaceMembers.id,
@@ -28,7 +30,8 @@ async function listMembers() {
       .innerJoin(users, eq(workspaceMembers.userId, users.id))
       .where(eq(workspaceMembers.workspaceId, workspace.id))
       .orderBy(asc(users.name));
-    const invitations = canManageWorkspace(workspace.role) ? await db.select({
+    const canManage = canManageWorkspace(workspace.role) && entitlements.officeCollaborationEnabled;
+    const invitations = canManage ? await db.select({
       id: workspaceInvitations.id,
       email: workspaceInvitations.email,
       role: workspaceInvitations.role,
@@ -40,7 +43,7 @@ async function listMembers() {
       eq(workspaceInvitations.status, "pending"),
       gt(workspaceInvitations.expiresAt, new Date().toISOString()),
     )).orderBy(desc(workspaceInvitations.createdAt)) : [];
-    return Response.json({ workspace, members, invitations, canManage: canManageWorkspace(workspace.role) });
+    return Response.json({ workspace, members, invitations, canManage, entitlements });
   } catch {
     return Response.json({ error: "Não foi possível carregar a equipe." }, { status: 500 });
   }
@@ -53,6 +56,8 @@ async function inviteMember(request: Request) {
     await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace || workspace.type !== "office" || !canManageWorkspace(workspace.role)) return Response.json({ error: "Somente proprietários e administradores podem convidar membros." }, { status: 403 });
+    const entitlements = await getWorkspaceEntitlements(workspace);
+    if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
     const payload = (await request.json()) as Record<string, unknown>;
     const email = normalizeEmail(typeof payload.email === "string" ? payload.email : "");
     const role = typeof payload.role === "string" && allowedRoles.has(payload.role) ? payload.role : "reviewer";
@@ -130,6 +135,8 @@ async function updateMemberRole(request: Request) {
     await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace || workspace.type !== "office" || !canManageWorkspace(workspace.role)) return Response.json({ error: "Somente proprietários e administradores podem alterar papéis." }, { status: 403 });
+    const entitlements = await getWorkspaceEntitlements(workspace);
+    if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
     const payload = (await request.json()) as Record<string, unknown>;
     const memberId = Number(payload.memberId);
     const role = typeof payload.role === "string" && allowedRoles.has(payload.role) ? payload.role : "";

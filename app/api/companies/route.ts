@@ -1,4 +1,5 @@
 import { asc, eq, inArray, max } from "drizzle-orm";
+import { env } from "cloudflare:workers";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { companies, scenarioApprovals, scenarios } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
@@ -6,6 +7,7 @@ import { scenarioApprovalSummary } from "../../scenario-approval";
 import { signedRecordFromScenario, verifyScenarioRecord } from "../../scenario-signing";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { canPrepareScenarios, getWorkspaceContext } from "../../workspace";
+import { companyLimitResponse, getWorkspaceEntitlements } from "../../plan-entitlements";
 
 const allowedRegimes = new Set(["Simples Nacional", "Lucro Presumido", "Lucro Real", "MEI"]);
 
@@ -31,7 +33,8 @@ async function getCompanies() {
       const integrityStatus = signedRecord && await verifyScenarioRecord(signedRecord, recordSignature, latestScenario.signatureVersion) ? "verified" : "invalid";
       return { ...company, latestScenario: { ...publicScenario, integrityStatus, approval } };
     }));
-    return Response.json({ companies: enriched });
+    const entitlements = await getWorkspaceEntitlements(workspace);
+    return Response.json({ companies: enriched, entitlements });
   } catch {
     return Response.json({ error: "Não foi possível carregar a carteira." }, { status: 500 });
   }
@@ -54,8 +57,26 @@ async function createCompany(request: Request) {
       return Response.json({ error: "Revise os dados da empresa." }, { status: 400 });
     }
 
-    const [company] = await getDb().insert(companies).values({ name, cnpj: cnpj || null, taxRegime, sector, ownerUserId: workspace.ownerUserId, workspaceId: workspace.id }).returning();
-    return Response.json({ company: { ...company, latestScenario: null } }, { status: 201 });
+    const entitlements = await getWorkspaceEntitlements(workspace);
+    if (!entitlements.canCreateCompany) return companyLimitResponse(entitlements);
+
+    const company = await env.DB.prepare(`
+      INSERT INTO companies (name, cnpj, tax_regime, sector, owner_user_id, workspace_id)
+      SELECT ?, ?, ?, ?, ?, ?
+      WHERE (SELECT COUNT(*) FROM companies WHERE workspace_id = ?) < ?
+      RETURNING id, name, cnpj, tax_regime AS taxRegime, sector, owner_user_id AS ownerUserId, workspace_id AS workspaceId, created_at AS createdAt
+    `).bind(name, cnpj || null, taxRegime, sector, workspace.ownerUserId, workspace.id, workspace.id, entitlements.companyLimit).first<{
+      id: number;
+      name: string;
+      cnpj: string | null;
+      taxRegime: string;
+      sector: string;
+      ownerUserId: number;
+      workspaceId: number;
+      createdAt: string;
+    }>();
+    if (!company) return companyLimitResponse(await getWorkspaceEntitlements(workspace));
+    return Response.json({ company: { ...company, latestScenario: null }, entitlements: await getWorkspaceEntitlements(workspace) }, { status: 201 });
   } catch {
     return Response.json({ error: "Não foi possível cadastrar a empresa." }, { status: 500 });
   }

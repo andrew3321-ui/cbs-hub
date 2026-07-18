@@ -6,6 +6,7 @@ import { getCurrentUser } from "../../../auth";
 import { signedRecordFromScenario, verifyScenarioRecord } from "../../../scenario-signing";
 import { withApiTelemetry } from "../../../api-infrastructure";
 import { canPrepareScenarios, getWorkspaceContext } from "../../../workspace";
+import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../plan-entitlements";
 
 const MAX_REVIEW_WINDOW_MS = 90 * 86_400_000;
 
@@ -16,6 +17,10 @@ async function requestScenarioReview(request: Request) {
     await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace || !canPrepareScenarios(workspace.role)) return Response.json({ error: "Seu papel não permite enviar cenários para revisão." }, { status: 403 });
+    if (workspace.type === "office") {
+      const entitlements = await getWorkspaceEntitlements(workspace);
+      if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
+    }
     const payload = (await request.json()) as Record<string, unknown>;
     const scenarioId = Number(payload.scenarioId);
     if (!Number.isInteger(scenarioId) || scenarioId <= 0) return Response.json({ error: "Cenário inválido." }, { status: 400 });
