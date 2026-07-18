@@ -40,7 +40,7 @@ export async function POST(request: Request) {
     checkoutStage = "PROVIDER_REQUEST";
     const subscription = await mercadoPagoRequest<MercadoPagoSubscription>("/preapproval", {
       method: "POST",
-      headers: { "X-Idempotency-Key": await billingIdempotencyKey(reference) },
+      headers: { "X-Idempotency-Key": await billingIdempotencyKey(`${reference}:${plan.key}:${plan.priceCents}`) },
       body: JSON.stringify({
         reason: plan.reason,
         external_reference: reference,

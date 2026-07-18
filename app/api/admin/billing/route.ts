@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts, billingTransactions, fiscalIssuances, users } from "../../../../db/schema";
-import { billingPlans, mercadoPagoConfigurationStatus } from "../../../billing";
+import { billingPlans, billingPricingMode, mercadoPagoConfigurationStatus } from "../../../billing";
 import { getPlatformAdminUser, platformAdminIsConfigured } from "../../../platform-admin";
 import { getPlatformOperationState, PlatformModeError, setBetaMode } from "../../../platform-controls";
 
@@ -79,6 +79,8 @@ async function payloadFor(request: Request) {
   return {
     configuration: {
       ...provider,
+      reconciliationEnabled: provider.accessToken,
+      pricingMode: billingPricingMode,
       adminAccess: platformAdminIsConfigured(),
       webhookUrl: `${new URL(request.url).origin}/api/billing/webhook`,
       requiredEvents: ["subscription_preapproval", "subscription_authorized_payment"],

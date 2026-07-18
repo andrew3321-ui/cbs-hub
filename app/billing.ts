@@ -1,23 +1,7 @@
 import { env } from "cloudflare:workers";
+import { billingPlans, type PaidPlanKey } from "../domain/billing-plans";
 
-export const billingPlans = {
-  pro: {
-    key: "pro",
-    name: "Pro",
-    priceCents: 5900,
-    reason: "Margem Clara Pro — assinatura mensal",
-    companyLimit: 10,
-  },
-  escritorio: {
-    key: "escritorio",
-    name: "Escritório",
-    priceCents: 14900,
-    reason: "Margem Clara Escritório — assinatura mensal",
-    companyLimit: 50,
-  },
-} as const;
-
-export type PaidPlanKey = keyof typeof billingPlans;
+export { billingPlans, billingPricingMode, type PaidPlanKey } from "../domain/billing-plans";
 
 type MercadoPagoEnvironment = {
   MERCADO_PAGO_ACCESS_TOKEN?: string;

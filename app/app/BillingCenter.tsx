@@ -32,7 +32,7 @@ type BillingTransaction = {
 };
 
 type BillingPayload = {
-  configuration: { accessToken: boolean; webhookSecret: boolean; callbackSigningKey: boolean; adminAccess: boolean; mode: "test" | "production" | "disabled"; webhookUrl: string; requiredEvents: string[] };
+  configuration: { accessToken: boolean; webhookSecret: boolean; reconciliationEnabled: boolean; pricingMode: "checkout_test"; adminAccess: boolean; mode: "test" | "production" | "disabled"; webhookUrl: string; requiredEvents: string[] };
   operation: {
     betaEnabled: boolean;
     paymentsEnabled: boolean;
@@ -195,10 +195,10 @@ export default function BillingCenter() {
       <div className="panel-heading"><div><span className="eyebrow">INTEGRAÇÃO PREPARADA</span><h3>Mercado Pago</h3></div><span className={`billing-mode ${data.configuration.mode}`}>{data.configuration.mode === "production" ? "Produção" : data.configuration.mode === "test" ? "Teste" : "Desativada"}</span></div>
       <div className="billing-config-grid">
         <div className={data.configuration.accessToken ? "ready" : "pending"}><span>{data.configuration.accessToken ? "✓" : "1"}</span><p><b>MERCADO_PAGO_ACCESS_TOKEN</b><small>{data.configuration.accessToken ? "Credencial reconhecida no servidor." : "Adicionar como segredo da hospedagem."}</small></p></div>
-        <div className={data.configuration.callbackSigningKey ? "ready" : "pending"}><span>{data.configuration.callbackSigningKey ? "✓" : "2"}</span><p><b>CALLBACK DE ASSINATURAS</b><small>{data.configuration.webhookSecret ? "URL interna e HMAC oficial ativos." : data.configuration.callbackSigningKey ? "URL assinada e reconciliação via API ativas." : "Chave interna de assinatura ausente."}</small></p></div>
+        <div className={data.configuration.reconciliationEnabled ? "ready" : "pending"}><span>{data.configuration.reconciliationEnabled ? "✓" : "2"}</span><p><b>CONCILIAÇÃO DE ASSINATURAS</b><small>{data.configuration.webhookSecret ? "Consulta oficial e webhook HMAC ativos." : data.configuration.reconciliationEnabled ? "Retorno confirmado pela API oficial; webhook HMAC opcional." : "Consulta ao provedor ainda não configurada."}</small></p></div>
         <div className={data.configuration.adminAccess ? "ready" : "pending"}><span>{data.configuration.adminAccess ? "✓" : "3"}</span><p><b>PLATFORM_ADMIN_EMAILS</b><small>Acesso restrito ao responsável da plataforma.</small></p></div>
       </div>
-      <div className="billing-webhook-box"><span>DESTINO DAS NOTIFICAÇÕES</span><code>{data.configuration.webhookUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(data.configuration.webhookUrl)}>Copiar</button><small>A URL protegida é enviada automaticamente em cada assinatura para os eventos {data.configuration.requiredEvents.join(" e ")}.</small></div>
+      <div className="billing-webhook-box"><span>WEBHOOK OPCIONAL</span><code>{data.configuration.webhookUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(data.configuration.webhookUrl)}>Copiar</button><small>{data.configuration.webhookSecret ? `HMAC oficial preparado para os eventos ${data.configuration.requiredEvents.join(" e ")}.` : "Ainda não configurado no painel do Mercado Pago. Isso não bloqueia o teste: o retorno do checkout consulta a API oficial diretamente."}</small></div>
     </section>
 
     <section className="billing-fiscal-layout">
@@ -211,7 +211,7 @@ export default function BillingCenter() {
             <strong>{money.format(item.grossAmountCents / 100)}</strong>
             <em>{statusLabels[item.fiscalStatus ?? ""] ?? item.fiscalStatus}</em>
           </button>)}
-          {!fiscalQueue.length && <div className="billing-empty"><span>✓</span><b>Nenhum pagamento confirmado na fila</b><p>Quando o webhook receber a primeira cobrança aprovada, a pendência aparecerá aqui.</p></div>}
+          {!fiscalQueue.length && <div className="billing-empty"><span>✓</span><b>Nenhum pagamento confirmado na fila</b><p>Quando a conciliação confirmar a primeira cobrança aprovada, a pendência aparecerá aqui.</p></div>}
         </div>
       </article>
 

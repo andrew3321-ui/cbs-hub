@@ -33,6 +33,20 @@ test("credenciais de cobrança permanecem somente no servidor", async () => {
   assert.doesNotMatch(hosting, /MERCADO_PAGO|ACCESS_TOKEN|WEBHOOK_SECRET/);
 });
 
+test("preço temporário do checkout usa fonte única e fica claramente identificado", async () => {
+  const [plans, pricing, center] = await Promise.all([
+    readFile(new URL("domain/billing-plans.ts", root), "utf8"),
+    readFile(new URL("app/planos/PricingClient.tsx", root), "utf8"),
+    readFile(new URL("app/app/BillingCenter.tsx", root), "utf8"),
+  ]);
+  assert.match(plans, /billingPricingMode = "checkout_test"/);
+  assert.equal((plans.match(/priceCents: 100/g) ?? []).length, 2);
+  assert.match(pricing, /PREÇO TEMPORÁRIO DE TESTE/);
+  assert.match(pricing, /Cancele a assinatura após o teste/);
+  assert.match(center, /CONCILIAÇÃO DE ASSINATURAS/);
+  assert.doesNotMatch(center, /Chave interna de assinatura ausente/);
+});
+
 test("versão 35 concilia cobranças recorrentes e cria fila fiscal restrita", async () => {
   const [center, adminApi, webhook, reconciliation, adminGuard, schema, runtimeDb, environment] = await Promise.all([
     readFile(new URL("app/app/BillingCenter.tsx", root), "utf8"),

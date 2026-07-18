@@ -33,7 +33,7 @@ test("subscriptions omit unsupported callback fields and reconcile provider trut
   const billingRoute = read("../app/api/billing/route.ts");
   assert.doesNotMatch(checkout, /notification_url/);
   assert.match(checkout, /back_url/);
-  assert.match(checkout, /billingIdempotencyKey\(reference\)/);
+  assert.match(checkout, /billingIdempotencyKey\(`\$\{reference\}:\$\{plan\.key\}:\$\{plan\.priceCents\}`\)/);
   assert.match(checkout, /supportCode/);
   assert.match(billing, /MercadoPagoApiError/);
   assert.match(billing, /mercadoPagoApiErrorDetails/);

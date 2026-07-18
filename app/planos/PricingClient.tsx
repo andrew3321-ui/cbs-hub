@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { billingPlans, billingPricingMode } from "../../domain/billing-plans";
 
 type BillingState = {
   configured: boolean;
@@ -79,6 +80,10 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
 
   return (
     <>
+      {billingPricingMode === "checkout_test" && <section className="payment-mode-notice beta">
+        <span>PREÇO TEMPORÁRIO DE TESTE</span>
+        <p>Pro e Escritório custam R$ 1 por mês durante a validação do checkout. Cancele a assinatura após o teste; o preço comercial futuro será contratado separadamente.</p>
+      </section>}
       {signedIn && billing && <section className={`payment-mode-notice ${billing.paymentsEnabled ? "live" : "beta"}`}>
         <span>{billing.paymentsEnabled ? "PAGAMENTOS ATIVOS" : "BETA PROTEGIDO"}</span>
         <p>{billing.paymentsEnabled ? "Novas assinaturas são encaminhadas ao checkout seguro do Mercado Pago." : "Novas cobranças estão bloqueadas no servidor. Você pode registrar interesse sem fornecer cartão."}</p>
@@ -106,7 +111,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
           <span className="pricing-popular">MAIS INDICADO</span>
           <span className="pricing-label">PRO</span>
           <h2>Operação consultiva</h2>
-          <div className="pricing-value"><strong>R$ 59</strong><small>/mês</small></div>
+          <div className="pricing-value"><strong>R$ {billingPlans.pro.priceCents / 100}</strong><small>/mês · teste</small></div>
           <p>Sugerido para o contador independente que prepara e assume a própria revisão.</p>
           <ul><li>Até 10 empresas monitoradas</li><li>Espaço profissional individual</li><li>Revisão responsável explicitamente identificada</li><li>Histórico e suporte prioritário</li></ul>
           <button className="pricing-button" onClick={() => void choosePlan("pro")} disabled={loadingPlan === "pro"}>{loadingPlan === "pro" ? "Preparando…" : billing?.paymentsEnabled ? "Assinar Pro" : "Registrar interesse"}</button>
@@ -115,7 +120,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
         <article className="pricing-card">
           <span className="pricing-label">ESCRITÓRIO</span>
           <h2>Carteira em escala</h2>
-          <div className="pricing-value"><strong>R$ 149</strong><small>/mês</small></div>
+          <div className="pricing-value"><strong>R$ {billingPlans.escritorio.priceCents / 100}</strong><small>/mês · teste</small></div>
           <p>Sugerido para escritórios que dividem preparação, revisão e entrega.</p>
           <ul><li>Até 50 empresas monitoradas</li><li>Preparadores, revisores e administradores</li><li>Bloqueio de autoaprovação por quem preparou</li><li>Relatórios com autoria e revisão separadas</li></ul>
           <button className="pricing-button dark" onClick={() => void choosePlan("escritorio")} disabled={loadingPlan === "escritorio"}>{loadingPlan === "escritorio" ? "Preparando…" : billing?.paymentsEnabled ? "Assinar Escritório" : "Registrar interesse"}</button>
