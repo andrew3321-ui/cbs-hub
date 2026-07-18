@@ -60,7 +60,8 @@ function maximumBodyBytes(pathname: string) {
 }
 
 function rateLimitRule(pathname: string, method: string): RateLimitRule | null {
-  if (!stateChangingMethods.has(method) || pathname === "/api/billing/webhook") return null;
+  if (method === "POST" && pathname === "/api/billing/webhook") return { scope: "billing-webhook", limit: 600, windowSeconds: 60 };
+  if (!stateChangingMethods.has(method)) return null;
   if (pathname === "/api/auth/login") return { scope: "auth-login", limit: 10, windowSeconds: 15 * 60 };
   if (pathname === "/api/auth/register") return { scope: "auth-register", limit: 6, windowSeconds: 60 * 60 };
   if (pathname === "/api/auth/reset-password") return { scope: "auth-reset", limit: 6, windowSeconds: 60 * 60 };

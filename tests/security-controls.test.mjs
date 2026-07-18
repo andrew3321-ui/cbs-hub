@@ -22,6 +22,20 @@ test("payment activation requires production, legal, privacy and antifraud gates
   assert.match(controls, /provider\.mode === "production"/);
   assert.match(controls, /cpfIsValid/);
   assert.match(controls, /securityHashKey\.length >= 32/);
+  assert.match(controls, /provider\.callbackSigningKey/);
+});
+
+test("subscription callbacks are individually signed and reconciled with provider truth", () => {
+  const billing = read("../app/billing.ts");
+  const checkout = read("../app/api/billing/checkout/route.ts");
+  const webhook = read("../app/api/billing/webhook/route.ts");
+  assert.match(billing, /mercadoPagoSubscriptionNotificationUrl/);
+  assert.match(billing, /mercado-pago:subscription:/);
+  assert.match(checkout, /notification_url: notificationUrl/);
+  assert.match(webhook, /validateMercadoPagoCallbackReference/);
+  assert.match(webhook, /account\.externalReference !== expectedReference/);
+  assert.match(webhook, /grossAmountCents !== plan\.priceCents/);
+  assert.match(webhook, /currency_id.*BRL/);
 });
 
 test("worker applies layered request and response defenses", () => {
@@ -30,6 +44,7 @@ test("worker applies layered request and response defenses", () => {
   assert.match(worker, /security_rate_limits/);
   assert.match(worker, /pseudonymousClientKey/);
   assert.match(worker, /pathname !== "\/api\/billing\/webhook"/);
+  assert.match(worker, /billing-webhook/);
 });
 
 test("authentication uses the runtime-supported password derivation cost and short sessions", () => {

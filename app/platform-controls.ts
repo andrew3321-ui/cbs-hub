@@ -64,7 +64,7 @@ function paymentReadinessGates(): ReadinessGate[] {
   const runtime = runtimeConfiguration();
   return [
     { key: "provider_token", label: "Credencial de produção do Mercado Pago", ready: provider.mode === "production", detail: provider.mode === "production" ? "Token de produção reconhecido." : "Configure um Access Token de produção." },
-    { key: "webhook_signature", label: "Assinatura secreta do webhook", ready: provider.webhookSecret, detail: provider.webhookSecret ? "Validação HMAC ativa." : "Configure a assinatura secreta do webhook." },
+    { key: "webhook_signature", label: "Notificação autenticada de assinaturas", ready: provider.callbackSigningKey, detail: provider.webhookSecret ? "URL assinada e HMAC oficial ativos." : provider.callbackSigningKey ? "URL individual assinada; cada evento será reconfirmado na API do Mercado Pago." : "Configure a chave interna para assinar as URLs de notificação." },
     { key: "owner_tax_id", label: "CPF do fornecedor", ready: cpfIsValid(runtime.ownerTaxId), detail: cpfIsValid(runtime.ownerTaxId) ? "CPF válido armazenado como segredo." : "Configure um CPF válido antes de cobrar." },
     { key: "legal_address", label: "Endereço legal do fornecedor", ready: runtime.legalAddress.length >= 12, detail: runtime.legalAddress.length >= 12 ? "Endereço comercial configurado." : "Informe o endereço exigido para a contratação eletrônica." },
     { key: "privacy_contact", label: "Canal de privacidade", ready: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(runtime.privacyEmail), detail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(runtime.privacyEmail) ? "Canal dos titulares configurado." : "Configure o e-mail de privacidade e atendimento." },

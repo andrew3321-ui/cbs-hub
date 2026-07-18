@@ -80,7 +80,7 @@ O modo beta é persistido em D1 e somente o administrador da plataforma pode alt
 
 `PLATFORM_OWNER_TAX_ID`, `PLATFORM_OWNER_LEGAL_ADDRESS` e `PLATFORM_PRIVACY_CONTACT_EMAIL` alimentam a identificação comercial publicada apenas quando pagamentos estiverem ativos. `SECURITY_HASH_KEY` pseudonimiza os marcadores temporários usados na limitação de abuso.
 
-A cobrança recorrente usa `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` como segredos do ambiente publicado. O webhook `/api/billing/webhook` deve receber os eventos `subscription_preapproval` e `subscription_authorized_payment`.
+A cobrança recorrente usa `MERCADO_PAGO_ACCESS_TOKEN` no servidor. Como o painel de Assinaturas não oferece a configuração tradicional de Webhooks, cada `/preapproval` recebe uma `notification_url` individual assinada por `SECURITY_HASH_KEY`; o servidor reconfirma referência, plano, valor, moeda e estado diretamente na API antes de persistir. `MERCADO_PAGO_WEBHOOK_SECRET` permanece opcional para uma camada HMAC oficial quando o provedor a disponibilizar. O endpoint `/api/billing/webhook` trata somente `subscription_preapproval` e `subscription_authorized_payment`.
 
 A chave `SCENARIO_SIGNING_KEY_V1` vive apenas no ambiente publicado. Nunca deve ser gravada no repositório ou enviada ao navegador.
 

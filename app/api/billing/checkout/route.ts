@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
-import { billingPlans, isPaidPlanKey, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus, randomBillingReference } from "../../../billing";
+import { billingPlans, isPaidPlanKey, mercadoPagoRequest, mercadoPagoSubscriptionNotificationUrl, MercadoPagoSubscription, normalizeBillingStatus, randomBillingReference } from "../../../billing";
 import { getPlatformOperationState } from "../../../platform-controls";
 
 export async function POST(request: Request) {
@@ -30,6 +30,7 @@ export async function POST(request: Request) {
     if (existing?.checkoutUrl && existing.planKey === plan.key && existing.status === "pending") return Response.json({ mode: "checkout", checkoutUrl: existing.checkoutUrl });
 
     const origin = new URL(request.url).origin;
+    const notificationUrl = await mercadoPagoSubscriptionNotificationUrl(origin, reference);
     const subscription = await mercadoPagoRequest<MercadoPagoSubscription>("/preapproval", {
       method: "POST",
       headers: { "X-Idempotency-Key": reference },
@@ -39,6 +40,7 @@ export async function POST(request: Request) {
         payer_email: user.email,
         auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: plan.priceCents / 100, currency_id: "BRL" },
         back_url: `${origin}/planos?retorno=mercado-pago`,
+        notification_url: notificationUrl,
         status: "pending",
       }),
     });

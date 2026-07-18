@@ -22,6 +22,7 @@ export type PaidPlanKey = keyof typeof billingPlans;
 type MercadoPagoEnvironment = {
   MERCADO_PAGO_ACCESS_TOKEN?: string;
   MERCADO_PAGO_WEBHOOK_SECRET?: string;
+  SECURITY_HASH_KEY?: string;
 };
 
 export type MercadoPagoSubscription = {
@@ -30,6 +31,7 @@ export type MercadoPagoSubscription = {
   init_point?: string | null;
   status?: string | null;
   next_payment_date?: string | null;
+  auto_recurring?: { transaction_amount?: string | number | null; currency_id?: string | null } | null;
 };
 
 export type MercadoPagoAuthorizedPayment = {
@@ -65,14 +67,16 @@ export function getMercadoPagoEnvironment() {
   return {
     accessToken: String(runtime.MERCADO_PAGO_ACCESS_TOKEN ?? "").trim(),
     webhookSecret: String(runtime.MERCADO_PAGO_WEBHOOK_SECRET ?? "").trim(),
+    callbackSigningKey: String(runtime.SECURITY_HASH_KEY ?? "").trim(),
   };
 }
 
 export function mercadoPagoConfigurationStatus() {
-  const { accessToken, webhookSecret } = getMercadoPagoEnvironment();
+  const { accessToken, webhookSecret, callbackSigningKey } = getMercadoPagoEnvironment();
   return {
     accessToken: Boolean(accessToken),
     webhookSecret: Boolean(webhookSecret),
+    callbackSigningKey: callbackSigningKey.length >= 32,
     mode: accessToken.startsWith("TEST-") ? "test" : accessToken ? "production" : "disabled",
   } as const;
 }
@@ -133,6 +137,28 @@ function constantTimeEqual(left: string, right: string) {
   let difference = 0;
   for (let index = 0; index < left.length; index += 1) difference |= left.charCodeAt(index) ^ right.charCodeAt(index);
   return difference === 0;
+}
+
+async function hmacHex(secret: string, value: string) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(value));
+  return bytesToHex(new Uint8Array(digest));
+}
+
+export async function mercadoPagoSubscriptionNotificationUrl(origin: string, externalReference: string) {
+  const { callbackSigningKey } = getMercadoPagoEnvironment();
+  if (callbackSigningKey.length < 32) throw new Error("billing_callback_not_configured");
+  const url = new URL("/api/billing/webhook", origin);
+  url.searchParams.set("mc_ref", externalReference);
+  url.searchParams.set("mc_sig", await hmacHex(callbackSigningKey, `mercado-pago:subscription:${externalReference}`));
+  return url.toString();
+}
+
+export async function validateMercadoPagoCallbackReference(externalReference: string, receivedSignature: string) {
+  const { callbackSigningKey } = getMercadoPagoEnvironment();
+  if (callbackSigningKey.length < 32 || !/^mc_\d+_[0-9a-f]{24}$/.test(externalReference) || !/^[0-9a-f]{64}$/i.test(receivedSignature)) return false;
+  const expected = await hmacHex(callbackSigningKey, `mercado-pago:subscription:${externalReference}`);
+  return constantTimeEqual(expected, receivedSignature.toLowerCase());
 }
 
 export async function validateMercadoPagoWebhook(request: Request, dataId: string) {
