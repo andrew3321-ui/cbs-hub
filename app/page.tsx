@@ -143,7 +143,7 @@ export default async function LandingPage() {
 
       <footer className="landing-footer">
         <Link className="landing-brand" href="/"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link>
-        <p>Responsável declarado: <Link href="/responsavel">CNPJ {platformIdentity.formattedCnpj}</Link></p>
+        <p>Responsável cadastral: <Link href="/responsavel">CNPJ {platformIdentity.formattedCnpj}</Link></p>
         <span><Link href="/responsavel">Responsável</Link> · <Link href="/metodologia">Metodologia</Link> · <Link href="/planos">Planos</Link> · © 2026 Margem Clara</span>
       </footer>
     </main>

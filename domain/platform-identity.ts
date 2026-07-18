@@ -1,4 +1,4 @@
-export const PLATFORM_IDENTITY_VERSION = "2026.07.18-v33";
+export const PLATFORM_IDENTITY_VERSION = "2026.07.17-v34";
 export const RECEITA_CNPJ_LOOKUP_URL = "https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp";
 
 export function normalizeNumericCnpj(value: string) {
@@ -33,11 +33,18 @@ export const platformIdentity = Object.freeze({
   holderType: "legal_entity" as const,
   cnpj,
   formattedCnpj: formatNumericCnpj(cnpj),
-  declarationStatus: "self_declared" as const,
+  declarationStatus: "documented" as const,
   checkDigitStatus: "valid" as const,
-  registryVerification: "not_verified" as const,
-  legalName: null,
-  declaredAt: "2026-07-18",
+  registryVerification: "verified_from_receita_certificate" as const,
+  registrationStatus: "active" as const,
+  legalName: "64.297.777 ANDRE HUGO SANTOS COELHO",
+  declaredAt: "2026-07-17",
+  officialDocument: Object.freeze({
+    type: "cnpj_registration_and_status_certificate" as const,
+    issuer: "Receita Federal do Brasil",
+    issuedAt: "2026-07-17T21:42:07-03:00",
+    registrationStatusSince: "2026-01-06",
+  }),
   version: PLATFORM_IDENTITY_VERSION,
 });
 
@@ -50,10 +57,12 @@ export function publicPlatformOwnership() {
     declarationStatus: platformIdentity.declarationStatus,
     checkDigitStatus: platformIdentity.checkDigitStatus,
     registryVerification: platformIdentity.registryVerification,
+    registrationStatus: platformIdentity.registrationStatus,
     legalName: platformIdentity.legalName,
     declaredAt: platformIdentity.declaredAt,
+    officialDocument: platformIdentity.officialDocument,
     version: platformIdentity.version,
     officialRegistryLookup: RECEITA_CNPJ_LOOKUP_URL,
-    notice: "Identificação declarada pelo titular da plataforma. Dígitos verificadores válidos; razão social e situação cadastral não verificadas automaticamente.",
+    notice: "CNPJ, razão social e situação ativa conferidos em comprovante oficial da Receita Federal apresentado pelo responsável. Este registro cadastral não comprova, isoladamente, a titularidade jurídica da marca, do domínio ou do software.",
   };
 }

@@ -3,14 +3,16 @@ import { platformIdentity, RECEITA_CNPJ_LOOKUP_URL } from "../../domain/platform
 
 export const metadata = {
   title: "Responsável pela plataforma | Margem Clara",
-  description: "Identificação cadastral declarada pelo responsável pela plataforma Margem Clara.",
+  description: "Identificação cadastral verificada do responsável pela plataforma Margem Clara.",
 };
 
 export default function PlatformOwnerPage() {
   const structuredData = {
     "@context": "https://schema.org",
     "@type": "Organization",
-    name: platformIdentity.brand,
+    name: platformIdentity.legalName,
+    alternateName: platformIdentity.brand,
+    taxID: platformIdentity.formattedCnpj,
     identifier: { "@type": "PropertyValue", propertyID: "CNPJ", value: platformIdentity.cnpj },
   };
 
@@ -23,17 +25,18 @@ export default function PlatformOwnerPage() {
       </header>
 
       <section className="ownership-card">
-        <div className="ownership-heading"><span>IDENTIFICAÇÃO INSTITUCIONAL · {platformIdentity.version}</span><h1>Responsável declarado pela plataforma</h1><p>Este registro identifica o CNPJ informado pelo titular do Margem Clara, sem transformar uma autodeclaração em validação cadastral oficial.</p></div>
+        <div className="ownership-heading"><span>IDENTIFICAÇÃO INSTITUCIONAL · {platformIdentity.version}</span><h1>Responsável cadastral da plataforma</h1><p>O CNPJ, a razão social e a situação ativa foram conferidos em comprovante oficial da Receita Federal apresentado pelo responsável.</p></div>
         <div className="ownership-registration">
-          <span>TITULAR CADASTRAL DECLARADO</span>
-          <strong>{platformIdentity.formattedCnpj}</strong>
-          <small>CNPJ numérico · declarado em 18/07/2026</small>
+          <span>IDENTIDADE EMPRESARIAL DOCUMENTADA</span>
+          <strong>{platformIdentity.legalName}</strong>
+          <b>CNPJ {platformIdentity.formattedCnpj}</b>
+          <small>Comprovante emitido pela Receita Federal em 17/07/2026 às 21:42:07</small>
         </div>
         <div className="ownership-checks">
-          <article className="valid"><span>✓</span><p><b>Dígitos verificadores válidos</b><small>Estrutura numérica conferida pelo sistema.</small></p></article>
-          <article className="pending"><span>!</span><p><b>Cadastro oficial não verificado</b><small>Razão social e situação cadastral ainda não foram importadas da Receita Federal.</small></p></article>
+          <article className="valid"><span>✓</span><p><b>Situação cadastral ativa</b><small>Status constante no comprovante oficial apresentado.</small></p></article>
+          <article className="valid"><span>✓</span><p><b>Razão social conferida</b><small>Identidade empresarial vinculada ao CNPJ completo.</small></p></article>
         </div>
-        <div className="ownership-boundary"><b>O que este registro significa</b><p>O CNPJ está anexado à identidade pública do produto como informação fornecida pelo titular. Este registro não substitui contrato social, comprovante de inscrição, registro de marca ou outro documento capaz de provar propriedade jurídica.</p></div>
+        <div className="ownership-boundary"><b>Limite jurídico desta verificação</b><p>O documento comprova a existência, a razão social e a situação cadastral ativa na data de emissão. Ele não comprova isoladamente a titularidade jurídica da marca Margem Clara, do domínio ou do código-fonte, que dependem de registros e instrumentos próprios.</p></div>
         <div className="ownership-actions"><a href={RECEITA_CNPJ_LOOKUP_URL} target="_blank" rel="noreferrer">Consultar comprovante na Receita Federal <span>↗</span></a><a href="/api/public/ownership" target="_blank" rel="noreferrer">Ver registro público estruturado <span>↗</span></a></div>
       </section>
 
