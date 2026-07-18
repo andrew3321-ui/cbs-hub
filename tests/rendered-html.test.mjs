@@ -34,10 +34,11 @@ test("credenciais de cobrança permanecem somente no servidor", async () => {
 });
 
 test("versão 35 concilia cobranças recorrentes e cria fila fiscal restrita", async () => {
-  const [center, adminApi, webhook, adminGuard, schema, runtimeDb, environment] = await Promise.all([
+  const [center, adminApi, webhook, reconciliation, adminGuard, schema, runtimeDb, environment] = await Promise.all([
     readFile(new URL("app/app/BillingCenter.tsx", root), "utf8"),
     readFile(new URL("app/api/admin/billing/route.ts", root), "utf8"),
     readFile(new URL("app/api/billing/webhook/route.ts", root), "utf8"),
+    readFile(new URL("app/billing-reconciliation.ts", root), "utf8"),
     readFile(new URL("app/platform-admin.ts", root), "utf8"),
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("db/index.ts", root), "utf8"),
@@ -49,8 +50,8 @@ test("versão 35 concilia cobranças recorrentes e cria fila fiscal restrita", a
   assert.match(adminApi, /getPlatformAdminUser/);
   assert.match(adminApi, /mark_issued/);
   assert.match(webhook, /subscription_authorized_payment/);
-  assert.match(webhook, /\/authorized_payments\//);
-  assert.match(webhook, /providerSummaryJson/);
+  assert.match(webhook, /recordAuthorizedPaymentFromProvider/);
+  assert.match(reconciliation, /providerSummaryJson/);
   assert.match(adminGuard, /PLATFORM_ADMIN_EMAILS/);
   assert.match(schema, /billingTransactions/);
   assert.match(schema, /fiscalIssuances/);

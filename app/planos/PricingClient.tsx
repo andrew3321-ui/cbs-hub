@@ -25,9 +25,18 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
 
   useEffect(() => {
     if (!signedIn) return;
+    const returnedFromProvider = new URLSearchParams(window.location.search).get("retorno") === "mercado-pago";
     fetch("/api/billing")
       .then((response) => response.ok ? response.json() : Promise.reject())
-      .then((data: BillingState) => setBilling(data))
+      .then((data: BillingState) => {
+        setBilling(data);
+        if (returnedFromProvider) {
+          setMessage(data.billing.status === "active"
+            ? "Pagamento confirmado pelo Mercado Pago. Sua assinatura está ativa."
+            : "Retorno recebido. A confirmação do pagamento ainda está sendo conciliada com o Mercado Pago.");
+          window.history.replaceState({}, "", "/planos");
+        }
+      })
       .catch(() => setBilling(null));
   }, [signedIn]);
 

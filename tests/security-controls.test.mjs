@@ -16,26 +16,32 @@ test("V37 keeps beta and paid checkout mutually exclusive on the server", () => 
   assert.match(admin, /setBetaMode\(admin, body\.betaEnabled\)/);
 });
 
-test("payment activation requires production, legal, privacy and antifraud gates", () => {
+test("payment activation requires production, reconciliation, legal, privacy and antifraud gates", () => {
   const controls = read("../app/platform-controls.ts");
-  for (const key of ["provider_token", "webhook_signature", "owner_tax_id", "legal_address", "privacy_contact", "security_hash", "legal_pages"]) assert.match(controls, new RegExp(key));
+  for (const key of ["provider_token", "provider_reconciliation", "owner_tax_id", "legal_address", "privacy_contact", "security_hash", "legal_pages"]) assert.match(controls, new RegExp(key));
   assert.match(controls, /provider\.mode === "production"/);
   assert.match(controls, /cpfIsValid/);
   assert.match(controls, /securityHashKey\.length >= 32/);
-  assert.match(controls, /provider\.callbackSigningKey/);
+  assert.match(controls, /ready: provider\.accessToken/);
 });
 
-test("subscription callbacks are individually signed and reconciled with provider truth", () => {
+test("subscriptions omit unsupported callback fields and reconcile provider truth", () => {
   const billing = read("../app/billing.ts");
   const checkout = read("../app/api/billing/checkout/route.ts");
   const webhook = read("../app/api/billing/webhook/route.ts");
-  assert.match(billing, /mercadoPagoSubscriptionNotificationUrl/);
-  assert.match(billing, /mercado-pago:subscription:/);
-  assert.match(checkout, /notification_url: notificationUrl/);
-  assert.match(webhook, /validateMercadoPagoCallbackReference/);
-  assert.match(webhook, /account\.externalReference !== expectedReference/);
-  assert.match(webhook, /grossAmountCents !== plan\.priceCents/);
-  assert.match(webhook, /currency_id.*BRL/);
+  const reconciliation = read("../app/billing-reconciliation.ts");
+  const billingRoute = read("../app/api/billing/route.ts");
+  assert.doesNotMatch(checkout, /notification_url/);
+  assert.match(checkout, /back_url/);
+  assert.match(billing, /MercadoPagoApiError/);
+  assert.match(webhook, /validateMercadoPagoWebhook/);
+  assert.match(webhook, /provider\.webhookSecret/);
+  assert.match(billingRoute, /syncBillingAccountFromProvider/);
+  assert.match(reconciliation, /authorized_payments\/search/);
+  assert.match(reconciliation, /account\.externalReference !== externalReference/);
+  assert.match(reconciliation, /grossAmountCents !== plan\.priceCents/);
+  assert.match(reconciliation, /currency !== "BRL"/);
+  assert.match(reconciliation, /status: "active"/);
 });
 
 test("worker applies layered request and response defenses", () => {

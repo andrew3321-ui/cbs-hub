@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { billingAccounts } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
-import { getMercadoPagoEnvironment, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus } from "../../billing";
+import { getMercadoPagoEnvironment } from "../../billing";
+import { syncBillingAccountFromProvider } from "../../billing-reconciliation";
 import { getPlatformOperationState } from "../../platform-controls";
 
 export async function GET() {
@@ -16,15 +17,7 @@ export async function GET() {
 
   if (configured && account?.providerSubscriptionId && !["canceled", "cancelled"].includes(account.status)) {
     try {
-      const subscription = await mercadoPagoRequest<MercadoPagoSubscription>(`/preapproval/${encodeURIComponent(account.providerSubscriptionId)}`);
-      const [updated] = await db.update(billingAccounts).set({
-        status: normalizeBillingStatus(subscription.status),
-        checkoutUrl: subscription.init_point ?? account.checkoutUrl,
-        nextPaymentAt: subscription.next_payment_date ?? null,
-        lastSyncedAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      }).where(eq(billingAccounts.id, account.id)).returning();
-      account = updated;
+      account = await syncBillingAccountFromProvider(account);
     } catch {
       // Keep the last known state when the payment provider is temporarily unavailable.
     }
