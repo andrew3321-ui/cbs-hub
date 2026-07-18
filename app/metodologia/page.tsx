@@ -12,7 +12,7 @@ export default function MethodologyPage() {
     <main className="methodology-shell">
       <header className="methodology-nav">
         <Link className="landing-brand" href="/"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link>
-        <div><Link href="/">Início</Link><Link className="methodology-cta" href="/app">Abrir plataforma →</Link></div>
+        <div><Link href="/responsavel">Responsável</Link><Link href="/">Início</Link><Link className="methodology-cta" href="/app">Abrir plataforma →</Link></div>
       </header>
 
       <section className="methodology-hero">
