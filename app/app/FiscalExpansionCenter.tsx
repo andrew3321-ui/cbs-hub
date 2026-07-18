@@ -107,7 +107,7 @@ export default function FiscalExpansionCenter() {
 
   return <div className="fiscal-expansion-center">
     <section className="expansion-hero">
-      <div><span>VERSÃO 52 · 15 ISS PROFUNDOS</span><h1>Cobertura cresce com prova, não com promessa</h1><p>Fila mensal para conectar fontes oficiais, estruturar tratamentos, executar casos de referência e encaminhar cada pacote à revisão profissional.</p></div>
+      <div><span>VERSÃO 53 · REVISÃO TÉCNICA DOS 15 ISS</span><h1>Cobertura cresce com prova, não com promessa</h1><p>Fila mensal para conectar fontes oficiais, estruturar tratamentos, executar casos de referência e encaminhar cada pacote à revisão profissional.</p></div>
       <div className="expansion-guard"><b>SEM IA</b><span>sem API paga</span><small>nenhuma homologação automática</small></div>
     </section>
 

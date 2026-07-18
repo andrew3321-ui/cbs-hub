@@ -434,7 +434,9 @@ test("versão 27 publica cobertura nacional, lote documental, monitor e aprovaç
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 52 · ISS MUNICIPAL PROFUNDO/);
+  assert.match(ui, /VERSÃO 53 · REVISÃO TÉCNICA RASTREÁVEL/);
+  assert.match(ui, /RODADA TÉCNICA CONCLUÍDA/);
+  assert.match(ui, /Evidência #/);
   assert.match(ui, /Calculadora oficial integrada/);
   assert.match(domain, /state\("TO"/);
   assert.match(domain, /cityRows/);
@@ -462,7 +464,7 @@ test("versão 29 cria esteira fiscal sem custo por consulta e sem homologação 
     readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 52 · 15 ISS PROFUNDOS/);
+  assert.match(ui, /VERSÃO 53 · REVISÃO TÉCNICA DOS 15 ISS/);
   assert.match(ui, /SEM IA/);
   assert.match(ui, /nenhuma homologação automática/);
   assert.match(api, /automaticHomologation: false/);

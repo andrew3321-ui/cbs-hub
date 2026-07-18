@@ -8,7 +8,7 @@ import {
 } from "./national-tax-coverage.ts";
 import { issDeepProfileByIbge, sourcesForIssDeepProfile } from "./iss-deep-coverage.ts";
 
-export const FISCAL_EXPANSION_VERSION = "2026.07.18-v52";
+export const FISCAL_EXPANSION_VERSION = "2026.07.18-v53";
 export const FISCAL_EXPANSION_MONTH = "2026-07";
 
 export type ExpansionScope = "icms" | "iss" | "st" | "federal" | "sources";

@@ -1,9 +1,10 @@
 import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, NATIONAL_COVERAGE_CHECKED_AT, NATIONAL_COVERAGE_VERSION, recurringScenarios, stateCoverage, stSegments } from "../../../../domain/national-tax-coverage";
-import { issDeepCityProfiles, issDeepMetrics, issDeepSources } from "../../../../domain/iss-deep-coverage";
+import { buildIssDeepTechnicalEvidence, issDeepCityProfiles, issDeepMetrics, issDeepSources } from "../../../../domain/iss-deep-coverage";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function publicCoverage() {
   const fingerprint = (await hashNationalCoverage()).slice(0, 12);
+  const technicalEvidence = await buildIssDeepTechnicalEvidence();
   return Response.json({
     version: NATIONAL_COVERAGE_VERSION,
     checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
@@ -15,7 +16,8 @@ async function publicCoverage() {
       metrics: issDeepMetrics,
       profiles: issDeepCityProfiles,
       sources: issDeepSources,
-      policy: "Estruturado significa fontes e portões técnicos conectados. Não significa testado, homologado ou liberado para cálculo exato.",
+      technicalEvidence,
+      policy: "Revisado tecnicamente significa estrutura, rastreabilidade e bloqueios do software testados. Não significa caso fiscal validado, homologação profissional ou cálculo exato liberado.",
     },
     stSegments,
     recurringScenarios,

@@ -9,7 +9,7 @@ import {
   nextExpansionStage,
 } from "../domain/fiscal-expansion.ts";
 
-test("V52 creates a deterministic national backlog without overstating coverage", () => {
+test("V53 preserves a deterministic national backlog without overstating coverage", () => {
   const byScope = (scope) => fiscalExpansionBacklog.filter((item) => item.scope === scope);
   assert.equal(byScope("icms").length, 27);
   assert.equal(byScope("iss").length, 50);

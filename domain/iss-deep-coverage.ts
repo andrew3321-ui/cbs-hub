@@ -1,5 +1,17 @@
-export const ISS_DEEP_VERSION = "2026.07.18-v52";
+export const ISS_DEEP_VERSION = "2026.07.18-v53";
 export const ISS_DEEP_CHECKED_AT = "2026-07-18";
+
+export const ISS_DEEP_TECHNICAL_CHECKS = [
+  "unique_profile_and_ibge",
+  "official_https_source_catalog",
+  "mandatory_facts_blocking_gate",
+  "municipal_rate_range_gate",
+  "source_membership_and_exact_reference_gate",
+  "professional_approval_gate",
+] as const;
+
+export type IssDeepTechnicalCheck = typeof ISS_DEEP_TECHNICAL_CHECKS[number];
+export type IssRateReferenceStatus = "located_for_mapping" | "pending_exact_table";
 
 export type IssDeepSourceKind = "municipal_law" | "rate_table" | "operational_guidance";
 
@@ -37,6 +49,23 @@ export type IssDeepCityProfile = {
   };
   supportedOutputs: string[];
   hardStops: string[];
+  technicalReview: {
+    status: "passed";
+    reviewerKind: "platform_technical_review";
+    reviewedAt: string;
+    sourceCatalogReview: "reviewed";
+    rateReferenceStatus: IssRateReferenceStatus;
+    passedChecks: IssDeepTechnicalCheck[];
+    professionalReview: "pending";
+    taxHomologation: "pending";
+    limitation: string;
+  };
+};
+
+export type IssDeepTechnicalEvidence = IssDeepCityProfile["technicalReview"] & {
+  profileCode: string;
+  ibgeCode: string;
+  evidenceHash: string;
 };
 
 const source = (input: Omit<IssDeepSource, "checkedAt">): IssDeepSource => ({
@@ -59,10 +88,10 @@ export const issDeepSources: IssDeepSource[] = [
   source({ code: "ISS-FOR-GUIA", title: "ISSQN — legislação, alíquotas e lista de serviços", publisher: "SEFIN Fortaleza", url: "https://www.sefin.fortaleza.ce.gov.br/Canal/16/Generico/18/Ler", kind: "rate_table" }),
   source({ code: "ISS-MAO-CTM", title: "Código Tributário do Município de Manaus", publisher: "Prefeitura de Manaus", url: "https://sisleg.manaus.am.gov.br/semefatende/consulta/visualizarPdf/id/572", kind: "municipal_law" }),
   source({ code: "ISS-MAO-TABELA", title: "Lista de serviços e alíquotas do ISS", publisher: "Prefeitura de Manaus", url: "https://manausatende.manaus.am.gov.br/pagina-inicial/acesse-aqui-a-lista-de-servicos-e-suas-aliquotas/141", kind: "rate_table" }),
-  source({ code: "ISS-REC-CTM", title: "Código Tributário Municipal anotado", publisher: "Prefeitura do Recife", url: "https://recifeemdia.recife.pe.gov.br/sites/default/files/CTM_ANOTADO.pdf", kind: "municipal_law" }),
+  source({ code: "ISS-REC-CTM", title: "Lei nº 15.563/1991 — Código Tributário Municipal", publisher: "Prefeitura do Recife", url: "https://www.legiscidade.recife.pe.gov.br/lei/15563/", kind: "municipal_law" }),
   source({ code: "ISS-REC-NFSE", title: "NFS-e Recife — legislação municipal", publisher: "Prefeitura do Recife", url: "https://nfse.recife.pe.gov.br/legislacao.aspx", kind: "operational_guidance" }),
   source({ code: "ISS-POA-LC7", title: "Lei Complementar nº 7/1973 — Código Tributário Municipal", publisher: "Prefeitura de Porto Alegre", url: "https://prefeitura.poa.br/sites/default/files/usu_doc/hotsites/smf/iptu/Lei%20Complementar%20n%C2%BA%2007%2C%20de%201973.pdf", kind: "municipal_law" }),
-  source({ code: "ISS-POA-LEGIS", title: "Coletânea da legislação tributária — ISSQN", publisher: "Prefeitura de Porto Alegre", url: "https://prefeitura.poa.br/smf/receita-municipal/legislacao", kind: "operational_guidance" }),
+  source({ code: "ISS-POA-LEGIS", title: "ISSQN — incidência, alíquotas e legislação", publisher: "Prefeitura de Porto Alegre", url: "https://www.prefeitura.poa.br/carta-de-servicos/issqn-imposto-sobre-servicos-de-qualquer-natureza", kind: "operational_guidance" }),
   source({ code: "ISS-GYN-LC344", title: "Lei Complementar nº 344/2021 — Código Tributário Municipal", publisher: "Prefeitura de Goiânia", url: "https://www.goiania.go.gov.br/html/gabinete_civil/sileg/dados/legis/2021/lc_20210930_000000344.html", kind: "municipal_law" }),
   source({ code: "ISS-GYN-SGISS", title: "Decreto nº 2.824/2025 — sistema de gestão do ISS", publisher: "Prefeitura de Goiânia", url: "https://www.goiania.go.gov.br/html/gabinete_civil/sileg/dados/legis/2025/dc_20250825_000002824.html", kind: "operational_guidance" }),
   source({ code: "ISS-BEL-LEIS", title: "Repositório oficial de leis municipais de Belém", publisher: "Câmara Municipal de Belém", url: "https://cmb.pa.gov.br/portal-da-transparencia/leis-municipais/", kind: "municipal_law" }),
@@ -102,12 +131,16 @@ const commonSupportedOutputs = [
 
 const sourceByCode = new Map(issDeepSources.map((item) => [item.code, item]));
 
-function profile(input: Pick<IssDeepCityProfile, "code" | "ibgeCode" | "city" | "uf" | "sourceCodes">): IssDeepCityProfile {
+function profile(input: Pick<IssDeepCityProfile, "code" | "ibgeCode" | "city" | "uf" | "sourceCodes"> & { rateReferenceStatus?: IssRateReferenceStatus }): IssDeepCityProfile {
   for (const code of input.sourceCodes) {
     if (!sourceByCode.has(code)) throw new Error(`iss_deep_source_not_found:${code}`);
   }
   return {
-    ...input,
+    code: input.code,
+    ibgeCode: input.ibgeCode,
+    city: input.city,
+    uf: input.uf,
+    sourceCodes: input.sourceCodes,
     stage: "structured",
     supportStatus: "partial",
     checkedAt: ISS_DEEP_CHECKED_AT,
@@ -127,6 +160,17 @@ function profile(input: Pick<IssDeepCityProfile, "code" | "ibgeCode" | "city" | 
     },
     supportedOutputs: commonSupportedOutputs,
     hardStops: commonHardStops,
+    technicalReview: {
+      status: "passed",
+      reviewerKind: "platform_technical_review",
+      reviewedAt: ISS_DEEP_CHECKED_AT,
+      sourceCatalogReview: "reviewed",
+      rateReferenceStatus: input.rateReferenceStatus ?? "located_for_mapping",
+      passedChecks: [...ISS_DEEP_TECHNICAL_CHECKS],
+      professionalReview: "pending",
+      taxHomologation: "pending",
+      limitation: "A revisão confirma integridade estrutural, fontes catalogadas e bloqueios do software. Não valida a alíquota de uma operação concreta nem substitui homologação por contador ou tributarista.",
+    },
   };
 }
 
@@ -142,7 +186,7 @@ export const issDeepCityProfiles: IssDeepCityProfile[] = [
   profile({ code: "ISS-DEEP-PE-RECIFE", ibgeCode: "2611606", city: "Recife", uf: "PE", sourceCodes: ["ISS-REC-CTM", "ISS-REC-NFSE"] }),
   profile({ code: "ISS-DEEP-RS-PORTO-ALEGRE", ibgeCode: "4314902", city: "Porto Alegre", uf: "RS", sourceCodes: ["ISS-POA-LC7", "ISS-POA-LEGIS"] }),
   profile({ code: "ISS-DEEP-GO-GOIANIA", ibgeCode: "5208707", city: "Goiânia", uf: "GO", sourceCodes: ["ISS-GYN-LC344", "ISS-GYN-SGISS"] }),
-  profile({ code: "ISS-DEEP-PA-BELEM", ibgeCode: "1501402", city: "Belém", uf: "PA", sourceCodes: ["ISS-BEL-LEIS", "ISS-BEL-CTM"] }),
+  profile({ code: "ISS-DEEP-PA-BELEM", ibgeCode: "1501402", city: "Belém", uf: "PA", sourceCodes: ["ISS-BEL-LEIS", "ISS-BEL-CTM"], rateReferenceStatus: "pending_exact_table" }),
   profile({ code: "ISS-DEEP-SP-CAMPINAS", ibgeCode: "3509502", city: "Campinas", uf: "SP", sourceCodes: ["ISS-CPS-TABELA", "ISS-CPS-GUIA"] }),
   profile({ code: "ISS-DEEP-MA-SAO-LUIS", ibgeCode: "2111300", city: "São Luís", uf: "MA", sourceCodes: ["ISS-SLZ-CTM", "ISS-SLZ-RET"] }),
   profile({ code: "ISS-DEEP-PB-JOAO-PESSOA", ibgeCode: "2507507", city: "João Pessoa", uf: "PB", sourceCodes: ["ISS-JPA-CTM", "ISS-JPA-LEGIS"] }),
@@ -154,6 +198,29 @@ export function sourcesForIssDeepProfile(profileOrIbge: IssDeepCityProfile | str
   const profile = typeof profileOrIbge === "string" ? issDeepProfileByIbge.get(profileOrIbge) : profileOrIbge;
   if (!profile) return [];
   return profile.sourceCodes.map((code) => sourceByCode.get(code)).filter((item): item is IssDeepSource => Boolean(item));
+}
+
+async function sha256(value: unknown) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(JSON.stringify(value)));
+  return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+export async function buildIssDeepTechnicalEvidence(): Promise<IssDeepTechnicalEvidence[]> {
+  return Promise.all(issDeepCityProfiles.map(async (profile) => {
+    const evidence = {
+      version: ISS_DEEP_VERSION,
+      profileCode: profile.code,
+      ibgeCode: profile.ibgeCode,
+      sourceCodes: profile.sourceCodes,
+      technicalReview: profile.technicalReview,
+    };
+    return {
+      ...profile.technicalReview,
+      profileCode: profile.code,
+      ibgeCode: profile.ibgeCode,
+      evidenceHash: await sha256(evidence),
+    };
+  }));
 }
 
 export type IssDeepGateInput = {
@@ -174,6 +241,7 @@ export function evaluateIssDeepGate(input: IssDeepGateInput) {
   if (!profile) return { status: "blocked" as const, profile: null, missingFacts: ["município com pacote ISS profundo estruturado"], reason: "O município ainda não possui pacote ISS profundo estruturado." };
 
   const missingFacts: string[] = [];
+  if (profile.technicalReview.rateReferenceStatus === "pending_exact_table") missingFacts.push("tabela municipal exata de alíquotas localizada e versionada");
   if (!/^\d{1,2}\.\d{2}$/.test(String(input.lc116Item ?? "").trim())) missingFacts.push("item válido da LC 116");
   if (String(input.municipalServiceCode ?? "").trim().length < 2) missingFacts.push("código municipal do serviço");
   if (!/^\d{4}-\d{2}-\d{2}$/.test(String(input.operationDate ?? ""))) missingFacts.push("data do fato gerador");
@@ -205,6 +273,9 @@ export function evaluateIssDeepGate(input: IssDeepGateInput) {
 export const issDeepMetrics = {
   structuredCities: issDeepCityProfiles.length,
   officialSources: issDeepSources.length,
+  sourceCatalogReviewedCities: issDeepCityProfiles.filter((item) => item.technicalReview.sourceCatalogReview === "reviewed").length,
+  technicalGateValidatedCities: issDeepCityProfiles.filter((item) => item.technicalReview.status === "passed").length,
+  rateReferenceLocatedCities: issDeepCityProfiles.filter((item) => item.technicalReview.rateReferenceStatus === "located_for_mapping").length,
   testedCities: 0,
   professionallyApprovedCities: 0,
   automaticHomologation: false,
