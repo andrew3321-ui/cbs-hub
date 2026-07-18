@@ -49,8 +49,8 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
     setMessage("");
     try {
       const response = await fetch("/api/billing/checkout", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ planKey }) });
-      const data = await response.json() as { checkoutUrl?: string; message?: string; error?: string; mode?: string };
-      if (!response.ok && response.status !== 202) throw new Error(data.error || "checkout_failed");
+      const data = await response.json() as { checkoutUrl?: string; message?: string; error?: string; mode?: string; supportCode?: string };
+      if (!response.ok && response.status !== 202) throw new Error(`${data.error || "checkout_failed"}${data.supportCode ? ` · Código ${data.supportCode}` : ""}`);
       if (data.checkoutUrl) {
         window.location.assign(data.checkoutUrl);
         return;

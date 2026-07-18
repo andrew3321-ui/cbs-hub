@@ -2,7 +2,7 @@ import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
-import { billingPlans, isPaidPlanKey, MercadoPagoApiError, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus, randomBillingReference } from "../../../billing";
+import { billingIdempotencyKey, billingPlans, isPaidPlanKey, MercadoPagoApiError, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus, randomBillingReference } from "../../../billing";
 import { getPlatformOperationState } from "../../../platform-controls";
 
 export async function POST(request: Request) {
@@ -35,7 +35,7 @@ export async function POST(request: Request) {
     const origin = new URL(request.url).origin;
     const subscription = await mercadoPagoRequest<MercadoPagoSubscription>("/preapproval", {
       method: "POST",
-      headers: { "X-Idempotency-Key": reference },
+      headers: { "X-Idempotency-Key": await billingIdempotencyKey(reference) },
       body: JSON.stringify({
         reason: plan.reason,
         external_reference: reference,
@@ -64,6 +64,7 @@ export async function POST(request: Request) {
   } catch (error) {
     if (error instanceof MercadoPagoApiError) console.error(JSON.stringify({ event: "billing.checkout_provider_error", status: error.status, providerCode: error.providerCode }));
     const message = String(error).includes("billing_not_configured") ? "A cobrança ainda não foi ativada." : "Não foi possível abrir o pagamento agora.";
-    return Response.json({ error: message }, { status: 500 });
+    const supportCode = error instanceof MercadoPagoApiError ? `MP-${error.status}-${error.providerCode}` : "MC-CHECKOUT-UNAVAILABLE";
+    return Response.json({ error: message, supportCode }, { status: 500 });
   }
 }

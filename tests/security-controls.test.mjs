@@ -33,7 +33,10 @@ test("subscriptions omit unsupported callback fields and reconcile provider trut
   const billingRoute = read("../app/api/billing/route.ts");
   assert.doesNotMatch(checkout, /notification_url/);
   assert.match(checkout, /back_url/);
+  assert.match(checkout, /billingIdempotencyKey\(reference\)/);
+  assert.match(checkout, /supportCode/);
   assert.match(billing, /MercadoPagoApiError/);
+  assert.match(billing, /margem-clara:billing:/);
   assert.match(webhook, /validateMercadoPagoWebhook/);
   assert.match(webhook, /provider\.webhookSecret/);
   assert.match(billingRoute, /syncBillingAccountFromProvider/);

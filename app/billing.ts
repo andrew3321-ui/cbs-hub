@@ -122,7 +122,19 @@ export async function mercadoPagoRequest<T>(path: string, init: RequestInit = {}
   });
   const data = await response.json().catch(() => ({})) as T & { error?: string; message?: string; cause?: Array<{ code?: string | number }> };
   if (!response.ok) {
-    const rawCode = String(data.cause?.[0]?.code ?? data.error ?? "request_failed");
+    const providerMessage = String(data.message ?? "").toLowerCase();
+    const messageCode = providerMessage.includes("idempotency")
+      ? "idempotency_key_invalid"
+      : providerMessage.includes("payer") && providerMessage.includes("collector")
+        ? "payer_collector_conflict"
+        : providerMessage.includes("email")
+          ? "payer_email_invalid"
+          : response.status === 401 || response.status === 403
+            ? "credential_not_authorized"
+            : response.status >= 500
+              ? "provider_internal_error"
+              : "request_rejected";
+    const rawCode = String(data.cause?.[0]?.code ?? data.error ?? messageCode);
     const providerCode = rawCode.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 80) || "request_failed";
     throw new MercadoPagoApiError(response.status, providerCode);
   }
@@ -134,6 +146,15 @@ export function randomBillingReference(userId: number) {
   crypto.getRandomValues(bytes);
   const suffix = Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
   return `mc_${userId}_${suffix}`;
+}
+
+export async function billingIdempotencyKey(externalReference: string) {
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`margem-clara:billing:${externalReference}`)));
+  const bytes = digest.slice(0, 16);
+  bytes[6] = (bytes[6] & 0x0f) | 0x50;
+  bytes[8] = (bytes[8] & 0x3f) | 0x80;
+  const hex = bytesToHex(bytes);
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
 function bytesToHex(bytes: Uint8Array) {
