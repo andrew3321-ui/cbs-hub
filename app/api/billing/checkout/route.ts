@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
-import { billingAccounts } from "../../../../db/schema";
+import { billingAccounts, billingTransactions } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
-import { billingIdempotencyKey, billingPlans, isPaidPlanKey, mercadoPagoApiErrorDetails, mercadoPagoRequest, MercadoPagoSubscription, mercadoPagoTransportErrorCode, normalizeBillingStatus, randomBillingReference } from "../../../billing";
+import { billingIdempotencyKey, billingPlans, isPaidPlanKey, mercadoPagoApiErrorDetails, mercadoPagoRequest, type MercadoPagoPayment, MercadoPagoSubscription, mercadoPagoTransportErrorCode, normalizeBillingStatus, randomBillingReference } from "../../../billing";
+import { latestPixTransaction } from "../../../billing-pix";
 import { getPlatformOperationState } from "../../../platform-controls";
 
 export async function POST(request: Request) {
@@ -19,8 +20,17 @@ export async function POST(request: Request) {
     checkoutStage = "ACCOUNT_LOOKUP";
     const [existing] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
     if (existing?.status === "active") return Response.json({ error: "Sua assinatura já está ativa." }, { status: 409 });
-    if (existing?.status === "pending" && existing.planKey !== plan.key) return Response.json({ error: "Conclua ou cancele o pagamento pendente antes de trocar de plano." }, { status: 409 });
-    const reference = existing && ["interest", "pending"].includes(existing.status)
+    if (existing?.providerSubscriptionId && existing.status === "pending" && existing.planKey !== plan.key) return Response.json({ error: "Conclua ou cancele o pagamento pendente antes de trocar de plano." }, { status: 409 });
+    if (existing && !existing.providerSubscriptionId && ["pending", "renewal_pending"].includes(existing.status)) {
+      const pixTransaction = await latestPixTransaction(existing.id, existing.externalReference);
+      if (pixTransaction?.providerPaymentId && ["pending", "in_process", "in_mediation"].includes(pixTransaction.status)) {
+        checkoutStage = "PIX_CHECKOUT_CANCELLATION";
+        await mercadoPagoRequest<MercadoPagoPayment>(`/v1/payments/${encodeURIComponent(pixTransaction.providerPaymentId)}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
+        const canceledAt = new Date().toISOString();
+        await db.update(billingTransactions).set({ status: "cancelled", statusDetail: "replaced_by_card", lastSyncedAt: canceledAt, updatedAt: canceledAt }).where(eq(billingTransactions.id, pixTransaction.id));
+      }
+    }
+    const reference = existing && (existing.status === "interest" || (existing.providerSubscriptionId && existing.status === "pending"))
       ? existing.externalReference
       : randomBillingReference(user.id);
     const now = new Date().toISOString();
@@ -34,7 +44,7 @@ export async function POST(request: Request) {
       return Response.json({ mode: "interest", betaEnabled: operation.betaEnabled, message: operation.betaEnabled ? "Interesse registrado. O beta continua gratuito e nenhuma cobrança será iniciada." : "Interesse registrado. As cobranças permanecem bloqueadas até todas as proteções obrigatórias estarem ativas." }, { status: 202 });
     }
 
-    if (existing?.checkoutUrl && existing.planKey === plan.key && existing.status === "pending") return Response.json({ mode: "checkout", checkoutUrl: existing.checkoutUrl });
+    if (existing?.providerSubscriptionId && existing.checkoutUrl && existing.planKey === plan.key && existing.status === "pending") return Response.json({ mode: "checkout", checkoutUrl: existing.checkoutUrl });
 
     const origin = new URL(request.url).origin;
     checkoutStage = "PROVIDER_REQUEST";

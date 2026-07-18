@@ -4,6 +4,7 @@ import { billingAccounts } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
 import { getMercadoPagoEnvironment } from "../../billing";
 import { syncBillingAccountFromProvider } from "../../billing-reconciliation";
+import { latestPixTransaction, pixRenewalIsEligible, syncPixBillingAccount, type PixCheckout } from "../../billing-pix";
 import { getPlatformOperationState } from "../../platform-controls";
 
 export async function GET() {
@@ -14,6 +15,7 @@ export async function GET() {
   let [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
   const configured = Boolean(getMercadoPagoEnvironment().accessToken);
   const operation = await getPlatformOperationState();
+  let pix: PixCheckout | null = null;
 
   if (configured && account?.providerSubscriptionId && !["canceled", "cancelled"].includes(account.status)) {
     try {
@@ -21,7 +23,38 @@ export async function GET() {
     } catch {
       // Keep the last known state when the payment provider is temporarily unavailable.
     }
+  } else if (configured && account && !account.providerSubscriptionId) {
+    try {
+      const synchronized = await syncPixBillingAccount(account);
+      account = synchronized.account;
+      pix = synchronized.checkout;
+    } catch {
+      // Keep the stored ticket URL while the provider is temporarily unavailable.
+    }
+    if (account.status === "active" && account.nextPaymentAt && Date.parse(account.nextPaymentAt) <= Date.now()) {
+      const now = new Date().toISOString();
+      await db.update(billingAccounts).set({ status: "overdue", checkoutUrl: null, lastSyncedAt: now, updatedAt: now }).where(eq(billingAccounts.id, account.id));
+      account = { ...account, status: "overdue", checkoutUrl: null, lastSyncedAt: now, updatedAt: now };
+    }
   }
+
+  const latestPix = account && !account.providerSubscriptionId ? await latestPixTransaction(account.id, account.externalReference) : null;
+  if (!pix && account?.checkoutUrl && latestPix && ["pending", "in_process", "in_mediation"].includes(latestPix.status)) {
+    pix = {
+      paymentId: latestPix.providerPaymentId ?? "",
+      status: latestPix.status,
+      statusDetail: latestPix.statusDetail,
+      qrCode: null,
+      qrCodeBase64: null,
+      ticketUrl: account.checkoutUrl,
+      expiresAt: null,
+    };
+  }
+  const paymentFlow = account?.providerSubscriptionId
+    ? "card_subscription"
+    : latestPix || account?.status === "pix_creating"
+      ? "pix_monthly"
+      : null;
 
   return Response.json({
     configured,
@@ -32,7 +65,10 @@ export async function GET() {
       status: account.status,
       checkoutUrl: account.checkoutUrl,
       nextPaymentAt: account.nextPaymentAt,
+      paymentFlow,
+      renewalEligible: paymentFlow === "pix_monthly" ? pixRenewalIsEligible(account) : false,
+      pix,
       updatedAt: account.updatedAt,
-    } : { planKey: "beta", status: "beta", checkoutUrl: null, nextPaymentAt: null, updatedAt: null },
+    } : { planKey: "beta", status: "beta", checkoutUrl: null, nextPaymentAt: null, paymentFlow: null, renewalEligible: false, pix: null, updatedAt: null },
   });
 }

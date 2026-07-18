@@ -23,8 +23,8 @@ export default async function PricingPage() {
       <section className="pricing-faq">
         <div><span className="landing-eyebrow">DÚVIDAS DIRETAS</span><h2>Sem surpresa na cobrança.</h2></div>
         <article><strong>Vou pagar agora?</strong><p>Não. Enquanto a conta de recebimento não estiver conectada, o botão apenas registra interesse e o acesso permanece gratuito.</p></article>
-        <article><strong>Quais meios serão aceitos?</strong><p>A primeira versão usa assinatura recorrente do Mercado Pago. O checkout mostra os meios disponíveis para cada cliente.</p></article>
-        <article><strong>Posso cancelar?</strong><p>Sim. A central de planos acompanha o status e permite solicitar o cancelamento da renovação.</p></article>
+        <article><strong>Quais meios são aceitos?</strong><p>Cartão de crédito com renovação automática ou Pix mensal com QR Code e Copia e Cola gerados pelo Mercado Pago.</p></article>
+        <article><strong>Como funciona o Pix?</strong><p>O Pix não renova sozinho. O acesso só é ativado ou prorrogado depois da confirmação oficial, e um novo código é gerado a cada mês.</p></article>
       </section>
       <footer className="pricing-footer"><span>Margem Clara · Beta gratuito · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/responsavel">Responsável</Link><Link href="/">Voltar ao início</Link></div></footer>
     </main>

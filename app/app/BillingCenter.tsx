@@ -167,13 +167,13 @@ export default function BillingCenter() {
 
   return <div className="page-content billing-admin-page">
     <div className="page-heading billing-admin-heading">
-      <div><p className="kicker">GESTÃO FINANCEIRA · ACESSO DO RESPONSÁVEL</p><h1>Central de Faturamento</h1><p>Concilie assinaturas, pagamentos do Mercado Pago e a fila manual de NFS-e sem guardar credenciais no navegador.</p></div>
+      <div><p className="kicker">GESTÃO FINANCEIRA · ACESSO DO RESPONSÁVEL</p><h1>Central de Faturamento</h1><p>Concilie assinaturas no cartão, mensalidades por Pix e a fila manual de NFS-e sem guardar credenciais no navegador.</p></div>
       <a className="primary-button" href="https://www.nfse.gov.br/EmissorNacional" target="_blank" rel="noreferrer">Abrir Emissor Nacional ↗</a>
     </div>
     {message && <div className="toast" role="status">{message}</div>}
 
     <section className="billing-admin-metrics" aria-label="Indicadores de faturamento">
-      <article><span>ASSINATURAS ATIVAS</span><strong>{data.metrics.activeSubscriptions}</strong><small>autorizações recorrentes</small></article>
+      <article><span>ACESSOS PAGOS ATIVOS</span><strong>{data.metrics.activeSubscriptions}</strong><small>cartão recorrente e Pix vigente</small></article>
       <article><span>MRR CONTRATADO</span><strong>{money.format(data.metrics.estimatedMrrCents / 100)}</strong><small>estimativa pelos planos ativos</small></article>
       <article><span>RECEBIDO NO MÊS</span><strong>{money.format(data.metrics.grossThisMonthCents / 100)}</strong><small>bruto confirmado pelo provedor</small></article>
       <article className={data.metrics.pendingFiscal ? "attention" : "good"}><span>PENDÊNCIAS FISCAIS</span><strong>{data.metrics.pendingFiscal}</strong><small>dados ou emissão aguardando</small></article>
@@ -181,7 +181,7 @@ export default function BillingCenter() {
 
     <section className={`panel platform-mode-card ${data.operation.betaEnabled ? "beta" : "live"}`}>
       <div className="platform-mode-summary">
-        <div><span className="eyebrow">CONTROLE OPERACIONAL · REVISÃO {data.operation.revision}</span><h3>{data.operation.betaEnabled ? "Modo beta ativado" : "Operação comercial ativada"}</h3><p>{data.operation.betaEnabled ? "O servidor registra interesse, mas não cria novas assinaturas nem encaminha clientes ao pagamento." : "Novas assinaturas podem ser criadas porque todos os pré-requisitos técnicos e legais foram confirmados."}</p></div>
+        <div><span className="eyebrow">CONTROLE OPERACIONAL · REVISÃO {data.operation.revision}</span><h3>{data.operation.betaEnabled ? "Modo beta ativado" : "Operação comercial ativada"}</h3><p>{data.operation.betaEnabled ? "O servidor registra interesse, mas não cria novas cobranças nem encaminha clientes ao pagamento." : "Novos pagamentos com cartão ou Pix podem ser criados porque todos os pré-requisitos técnicos e legais foram confirmados."}</p></div>
         <div className="platform-mode-switch"><span>{data.operation.paymentsEnabled ? "Pagamentos ativos" : "Pagamentos bloqueados"}</span><button type="button" aria-pressed={data.operation.betaEnabled} disabled={Boolean(busy) || (data.operation.betaEnabled && !data.operation.readiness.ready) || (!data.operation.betaEnabled && data.operation.activeSubscriptions > 0)} onClick={() => void toggleBetaMode()}><i />{busy === "set_beta_mode" ? "Alterando…" : data.operation.betaEnabled ? "Desativar beta" : "Ativar beta"}</button></div>
       </div>
       <div className="payment-readiness-grid">
@@ -195,7 +195,7 @@ export default function BillingCenter() {
       <div className="panel-heading"><div><span className="eyebrow">INTEGRAÇÃO PREPARADA</span><h3>Mercado Pago</h3></div><span className={`billing-mode ${data.configuration.mode}`}>{data.configuration.mode === "production" ? "Produção" : data.configuration.mode === "test" ? "Teste" : "Desativada"}</span></div>
       <div className="billing-config-grid">
         <div className={data.configuration.accessToken ? "ready" : "pending"}><span>{data.configuration.accessToken ? "✓" : "1"}</span><p><b>MERCADO_PAGO_ACCESS_TOKEN</b><small>{data.configuration.accessToken ? "Credencial reconhecida no servidor." : "Adicionar como segredo da hospedagem."}</small></p></div>
-        <div className={data.configuration.reconciliationEnabled ? "ready" : "pending"}><span>{data.configuration.reconciliationEnabled ? "✓" : "2"}</span><p><b>CONCILIAÇÃO DE ASSINATURAS</b><small>{data.configuration.webhookSecret ? "Consulta oficial e webhook HMAC ativos." : data.configuration.reconciliationEnabled ? "Retorno confirmado pela API oficial; webhook HMAC opcional." : "Consulta ao provedor ainda não configurada."}</small></p></div>
+        <div className={data.configuration.reconciliationEnabled ? "ready" : "pending"}><span>{data.configuration.reconciliationEnabled ? "✓" : "2"}</span><p><b>CONCILIAÇÃO DE ASSINATURAS E PIX</b><small>{data.configuration.webhookSecret ? "Cartão, Pix e webhook HMAC ativos." : data.configuration.reconciliationEnabled ? "Cartão e Pix confirmados pela API oficial; webhook HMAC opcional." : "Consulta ao provedor ainda não configurada."}</small></p></div>
         <div className={data.configuration.adminAccess ? "ready" : "pending"}><span>{data.configuration.adminAccess ? "✓" : "3"}</span><p><b>PLATFORM_ADMIN_EMAILS</b><small>Acesso restrito ao responsável da plataforma.</small></p></div>
       </div>
       <div className="billing-webhook-box"><span>WEBHOOK OPCIONAL</span><code>{data.configuration.webhookUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(data.configuration.webhookUrl)}>Copiar</button><small>{data.configuration.webhookSecret ? `HMAC oficial preparado para os eventos ${data.configuration.requiredEvents.join(" e ")}.` : "Ainda não configurado no painel do Mercado Pago. Isso não bloqueia o teste: o retorno do checkout consulta a API oficial diretamente."}</small></div>

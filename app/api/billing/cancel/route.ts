@@ -1,8 +1,9 @@
 import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
-import { billingAccounts } from "../../../../db/schema";
+import { billingAccounts, billingTransactions } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
-import { mercadoPagoRequest, MercadoPagoSubscription } from "../../../billing";
+import { mercadoPagoRequest, MercadoPagoSubscription, randomBillingReference, type MercadoPagoPayment } from "../../../billing";
+import { latestPixTransaction, pixAccessIsValid } from "../../../billing-pix";
 
 export async function POST() {
   const user = await getCurrentUser();
@@ -11,7 +12,20 @@ export async function POST() {
     await ensureScenarioSchema();
     const db = getDb();
     const [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
-    if (!account?.providerSubscriptionId) return Response.json({ error: "Nenhuma assinatura ativa foi encontrada." }, { status: 404 });
+    if (!account) return Response.json({ error: "Nenhum pagamento foi encontrado." }, { status: 404 });
+    if (!account.providerSubscriptionId) {
+      const transaction = await latestPixTransaction(account.id, account.externalReference);
+      if (!transaction?.providerPaymentId || !["pending", "in_process", "in_mediation"].includes(transaction.status)) {
+        return Response.json({ error: "O Pix mensal não possui renovação automática para cancelar." }, { status: 409 });
+      }
+      await mercadoPagoRequest<MercadoPagoPayment>(`/v1/payments/${encodeURIComponent(transaction.providerPaymentId)}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
+      const now = new Date().toISOString();
+      await db.batch([
+        db.update(billingTransactions).set({ status: "cancelled", statusDetail: "canceled_by_user", lastSyncedAt: now, updatedAt: now }).where(eq(billingTransactions.id, transaction.id)),
+        db.update(billingAccounts).set({ externalReference: randomBillingReference(user.id), status: pixAccessIsValid(account) ? "active" : "canceled", checkoutUrl: null, lastSyncedAt: now, updatedAt: now }).where(eq(billingAccounts.id, account.id)),
+      ]);
+      return Response.json({ canceled: true, paymentFlow: "pix_monthly" });
+    }
     await mercadoPagoRequest<MercadoPagoSubscription>(`/preapproval/${encodeURIComponent(account.providerSubscriptionId)}`, { method: "PUT", body: JSON.stringify({ status: "canceled" }) });
     await db.update(billingAccounts).set({ status: "canceled", checkoutUrl: null, nextPaymentAt: null, lastSyncedAt: new Date().toISOString(), updatedAt: new Date().toISOString() }).where(eq(billingAccounts.id, account.id));
     return Response.json({ canceled: true });

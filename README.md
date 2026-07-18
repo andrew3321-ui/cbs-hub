@@ -76,11 +76,11 @@ Comandos principais:
 
 `GET/POST /api/admin/billing` exige que o e-mail autenticado conste em `PLATFORM_ADMIN_EMAILS` (ou no legado `LEGACY_OWNER_EMAIL`). A central concilia assinaturas, pagamentos e pendências de NFS-e. Ela nunca recebe tokens pelo navegador e não emite nota automaticamente.
 
-O modo beta é persistido em D1 e somente o administrador da plataforma pode alterá-lo. Com o beta ativo, o servidor registra interesse, mas não cria assinaturas. A ativação comercial exige credencial de produção, assinatura do webhook, CPF válido do fornecedor, endereço legal, canal de privacidade e `SECURITY_HASH_KEY` com pelo menos 32 caracteres.
+O modo beta é persistido em D1 e somente o administrador da plataforma pode alterá-lo. Com o beta ativo, o servidor registra interesse, mas não cria cobranças. A ativação comercial exige credencial de produção, conciliação oficial, CPF válido do fornecedor, endereço legal, canal de privacidade e `SECURITY_HASH_KEY` com pelo menos 32 caracteres. O webhook HMAC é uma camada opcional; a confirmação pela API oficial continua obrigatória.
 
 `PLATFORM_OWNER_TAX_ID`, `PLATFORM_OWNER_LEGAL_ADDRESS` e `PLATFORM_PRIVACY_CONTACT_EMAIL` alimentam a identificação comercial publicada apenas quando pagamentos estiverem ativos. `SECURITY_HASH_KEY` pseudonimiza os marcadores temporários usados na limitação de abuso.
 
-A cobrança recorrente usa `MERCADO_PAGO_ACCESS_TOKEN` no servidor. Como o painel de Assinaturas não oferece a configuração tradicional de Webhooks, cada `/preapproval` recebe uma `notification_url` individual assinada por `SECURITY_HASH_KEY`; o servidor reconfirma referência, plano, valor, moeda e estado diretamente na API antes de persistir. `MERCADO_PAGO_WEBHOOK_SECRET` permanece opcional para uma camada HMAC oficial quando o provedor a disponibilizar. O endpoint `/api/billing/webhook` trata somente `subscription_preapproval` e `subscription_authorized_payment`.
+A cobrança usa `MERCADO_PAGO_ACCESS_TOKEN` somente no servidor e oferece dois fluxos separados: cartão recorrente por `/preapproval` e Pix mensal por `/v1/payments`. O Pix é idempotente, expira em 24 horas e só ativa ou prorroga o acesso quando a consulta oficial confirma referência, plano, valor, BRL, método `pix` e estado `approved`. QR Code, Copia e Cola e link de pagamento vêm do Mercado Pago; a chave Pix do fornecedor não é armazenada nem publicada. `MERCADO_PAGO_WEBHOOK_SECRET` permanece opcional para HMAC, e `/api/billing/webhook` aceita `payment`, `subscription_preapproval` e `subscription_authorized_payment` quando a assinatura oficial estiver configurada.
 
 A chave `SCENARIO_SIGNING_KEY_V1` vive apenas no ambiente publicado. Nunca deve ser gravada no repositório ou enviada ao navegador.
 

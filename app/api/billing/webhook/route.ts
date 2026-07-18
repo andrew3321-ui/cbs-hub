@@ -1,6 +1,7 @@
 import { ensureScenarioSchema } from "../../../../db";
 import { mercadoPagoConfigurationStatus, validateMercadoPagoWebhook } from "../../../billing";
 import { recordAuthorizedPaymentFromProvider, updateSubscriptionFromProvider } from "../../../billing-reconciliation";
+import { reconcilePixPaymentFromProvider } from "../../../billing-pix";
 
 export async function POST(request: Request) {
   try {
@@ -13,12 +14,14 @@ export async function POST(request: Request) {
       ? await validateMercadoPagoWebhook(request, dataId)
       : false;
     if (!dataId || !providerAuthenticated) return Response.json({ error: "Assinatura inválida." }, { status: 401 });
-    if (!["subscription_preapproval", "subscription_authorized_payment"].includes(eventType)) return Response.json({ received: true, ignored: true });
+    if (!["payment", "subscription_preapproval", "subscription_authorized_payment"].includes(eventType)) return Response.json({ received: true, ignored: true });
 
     await ensureScenarioSchema();
-    const result = eventType === "subscription_preapproval"
-      ? await updateSubscriptionFromProvider(dataId)
-      : await recordAuthorizedPaymentFromProvider(dataId);
+    const result = eventType === "payment"
+      ? (await reconcilePixPaymentFromProvider(dataId)).outcome
+      : eventType === "subscription_preapproval"
+        ? await updateSubscriptionFromProvider(dataId)
+        : await recordAuthorizedPaymentFromProvider(dataId);
     if (result === "retry") return Response.json({ received: false, retry: true }, { status: 503, headers: { "Retry-After": "5" } });
     return Response.json({ received: true, linked: result === "linked", rejected: result === "rejected" });
   } catch {

@@ -1,0 +1,138 @@
+import { eq } from "drizzle-orm";
+import { ensureScenarioSchema, getDb } from "../../../../db";
+import { billingAccounts } from "../../../../db/schema";
+import { getCurrentUser } from "../../../auth";
+import {
+  billingIdempotencyKey,
+  billingPlans,
+  isPaidPlanKey,
+  mercadoPagoApiErrorDetails,
+  mercadoPagoRequest,
+  mercadoPagoTransportErrorCode,
+  randomBillingReference,
+  type MercadoPagoPayment,
+  type MercadoPagoSubscription,
+} from "../../../billing";
+import {
+  latestPixTransaction,
+  pixAccessIsValid,
+  pixRenewalIsEligible,
+  reconcilePixPaymentFromProvider,
+  reconcilePixPaymentSnapshot,
+} from "../../../billing-pix";
+import { getPlatformOperationState } from "../../../platform-controls";
+
+export async function POST(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return Response.json({ error: "Faça login para pagar com Pix." }, { status: 401 });
+  let stage = "SCHEMA";
+  try {
+    await ensureScenarioSchema();
+    stage = "INPUT";
+    const payload = await request.json() as Record<string, unknown>;
+    if (!isPaidPlanKey(payload.planKey)) return Response.json({ error: "Plano inválido." }, { status: 400 });
+    const plan = billingPlans[payload.planKey];
+    const db = getDb();
+    stage = "ACCOUNT_LOOKUP";
+    let [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
+    const operation = await getPlatformOperationState();
+    if (!operation.paymentsEnabled) {
+      const reference = account?.externalReference ?? randomBillingReference(user.id);
+      await db.insert(billingAccounts).values({ userId: user.id, planKey: plan.key, externalReference: reference, status: "interest", updatedAt: new Date().toISOString() }).onConflictDoUpdate({
+        target: billingAccounts.userId,
+        set: { planKey: plan.key, status: "interest", updatedAt: new Date().toISOString() },
+      });
+      return Response.json({ mode: "interest", message: operation.betaEnabled ? "Interesse em pagar por Pix registrado. O beta continua gratuito." : "Interesse registrado. As cobranças permanecem bloqueadas." }, { status: 202 });
+    }
+
+    if (account?.status === "active" && account.providerSubscriptionId) {
+      return Response.json({ error: "Sua assinatura automática no cartão já está ativa. Cancele-a antes de mudar para Pix mensal." }, { status: 409 });
+    }
+    if (account?.status === "active" && !account.providerSubscriptionId && pixAccessIsValid(account) && !pixRenewalIsEligible(account)) {
+      return Response.json({ error: `Seu acesso já está pago até ${new Date(account.nextPaymentAt!).toLocaleDateString("pt-BR")}. A renovação por Pix abre sete dias antes.` }, { status: 409 });
+    }
+
+    const currentPix = account ? await latestPixTransaction(account.id, account.externalReference) : null;
+    if (account && currentPix?.providerPaymentId && ["pending", "in_process", "in_mediation"].includes(currentPix.status)) {
+      stage = "PROVIDER_RECONCILIATION";
+      const current = await reconcilePixPaymentFromProvider(currentPix.providerPaymentId, account.externalReference);
+      [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.id, account.id)).limit(1);
+      if (current.checkout) return Response.json({ mode: "pix", status: account.status, pix: current.checkout });
+      if (account?.status === "active") return Response.json({ mode: "pix", status: "active", pix: null, message: "Pix confirmado. Seu acesso está ativo." });
+    }
+
+    if (account?.providerSubscriptionId && ["pending", "paused"].includes(account.status)) {
+      stage = "CARD_CHECKOUT_CANCELLATION";
+      await mercadoPagoRequest<MercadoPagoSubscription>(`/preapproval/${encodeURIComponent(account.providerSubscriptionId)}`, { method: "PUT", body: JSON.stringify({ status: "canceled" }) });
+    }
+
+    const renewal = Boolean(account && !account.providerSubscriptionId && pixAccessIsValid(account));
+    const reusableReference = account
+      && account.planKey === plan.key
+      && !account.providerSubscriptionId
+      && account.status === "pix_creating"
+      ? account.externalReference
+      : null;
+    const reference = reusableReference ?? randomBillingReference(user.id);
+    const now = new Date().toISOString();
+    stage = "ACCOUNT_RESERVATION";
+    await db.insert(billingAccounts).values({
+      userId: user.id,
+      planKey: plan.key,
+      externalReference: reference,
+      providerSubscriptionId: null,
+      status: renewal ? "renewal_pending" : "pix_creating",
+      checkoutUrl: null,
+      nextPaymentAt: renewal ? account?.nextPaymentAt ?? null : null,
+      lastSyncedAt: now,
+      updatedAt: now,
+    }).onConflictDoUpdate({
+      target: billingAccounts.userId,
+      set: {
+        planKey: plan.key,
+        externalReference: reference,
+        providerSubscriptionId: null,
+        status: renewal ? "renewal_pending" : "pix_creating",
+        checkoutUrl: null,
+        nextPaymentAt: renewal ? account?.nextPaymentAt ?? null : null,
+        lastSyncedAt: now,
+        updatedAt: now,
+      },
+    });
+
+    stage = "PROVIDER_REQUEST";
+    const payment = await mercadoPagoRequest<MercadoPagoPayment>("/v1/payments", {
+      method: "POST",
+      headers: { "X-Idempotency-Key": await billingIdempotencyKey(`${reference}:pix:${plan.key}:${plan.priceCents}`) },
+      body: JSON.stringify({
+        transaction_amount: plan.priceCents / 100,
+        description: plan.reason,
+        payment_method_id: "pix",
+        payer: { email: user.email },
+        external_reference: reference,
+        date_of_expiration: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+      }),
+    });
+    stage = "PROVIDER_RESPONSE";
+    const linked = await reconcilePixPaymentSnapshot(payment, reference);
+    if (linked.outcome !== "linked") throw new Error(`pix_payment_${linked.outcome}`);
+    const [updated] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
+    if (updated?.status !== "active" && !linked.checkout?.ticketUrl && !linked.checkout?.qrCode) throw new Error("pix_payment_instructions_missing");
+    return Response.json({
+      mode: "pix",
+      status: updated?.status ?? "pending",
+      pix: linked.checkout,
+      message: updated?.status === "active" ? "Pix confirmado. Seu acesso está ativo." : "Pix gerado com segurança pelo Mercado Pago.",
+    });
+  } catch (error) {
+    const providerError = mercadoPagoApiErrorDetails(error);
+    const transportError = stage === "PROVIDER_REQUEST" && !providerError ? mercadoPagoTransportErrorCode(error) : null;
+    console.error(JSON.stringify({ event: "billing.pix_error", stage, status: providerError?.status ?? null, providerCode: providerError?.providerCode ?? transportError ?? "unclassified" }));
+    const supportCode = providerError
+      ? `MP-PIX-${providerError.status}-${providerError.providerCode}`
+      : transportError
+        ? `MP-PIX-TRANSPORT-${transportError}`
+        : `MC-PIX-${stage}`;
+    return Response.json({ error: "Não foi possível gerar o Pix agora.", supportCode }, { status: 500 });
+  }
+}

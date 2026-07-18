@@ -607,6 +607,48 @@ tbody tr:last-child td { border-bottom: 0; }
   .academy-badge { display: none; }.academy-page-heading { display: block; }.demo-player-panel { padding: 10px; }.demo-player-screen { min-height: 345px; aspect-ratio: auto; }.demo-screen-body { grid-template-columns: 60px 1fr; }.demo-screen-body > aside { padding: 13px 7px; }.demo-screen-body > aside span { padding: 6px; justify-content: center; }.demo-screen-body > aside b { display: none; }.demo-scene { padding: 20px; }.demo-scene h3 { font-size: 22px; }.demo-scene > p { font-size: 8px; }.demo-playlist { grid-template-columns: 1fr; }.playlist-heading,.playlist-tip { grid-column: auto; }.academy-next-grid article { grid-template-columns: 36px 1fr; }.academy-next-grid article > button { grid-column: 2; width: fit-content; }
 }
 
+/* Hybrid billing: recurring card or provider-confirmed monthly Pix. */
+.pricing-payment-actions { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pricing-payment-actions .pricing-button { margin-top: 0; padding: 0 12px; }
+.pricing-payment-actions .pricing-button.pix { border: 1px solid #9bc75e; background: #eff9df; color: #456d25; }
+.pricing-payment-actions > small { grid-column: 1/-1; color: #7b8c88; font-size: 8px; line-height: 1.45; text-align: center; }
+.pricing-card:has(.pricing-payment-actions) { min-height: 550px; }
+.pix-checkout-panel { margin: 0 0 28px; overflow: hidden; border: 1px solid #b9d58e; border-radius: 18px; background: #fff; box-shadow: 0 20px 55px rgba(18,58,59,.09); }
+.pix-checkout-heading { padding: 24px 28px; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 1px solid #e1e9dd; background: linear-gradient(135deg,#f3fae8,#fff); }
+.pix-checkout-heading span { color: #4e7829; font-size: 8px; font-weight: 900; letter-spacing: 1px; }
+.pix-checkout-heading h2 { margin: 7px 0 5px; font-size: 27px; letter-spacing: -1px; }
+.pix-checkout-heading p { margin: 0; color: #667a76; font-size: 10px; }
+.pix-pending-chip { padding: 8px 11px; display: flex; align-items: center; gap: 7px; border: 1px solid #d7e6c0; border-radius: 999px; background: #fff; color: #587632; font-size: 8px; font-weight: 850; white-space: nowrap; }
+.pix-pending-chip i { width: 7px; height: 7px; border-radius: 50%; background: #87b844; box-shadow: 0 0 0 4px rgba(135,184,68,.14); }
+.pix-checkout-body { padding: 28px; display: grid; grid-template-columns: 230px 1fr; gap: 30px; }
+.pix-qr-box { width: 230px; min-height: 230px; padding: 12px; display: grid; place-items: center; border: 1px solid #dbe5df; border-radius: 14px; background: #f8faf8; }
+.pix-qr-box img { width: 100%; height: auto; display: block; }
+.pix-qr-placeholder { padding: 22px; color: #788985; font-size: 10px; line-height: 1.55; text-align: center; }
+.pix-instructions { min-width: 0; display: flex; flex-direction: column; justify-content: center; }
+.pix-instructions > strong { font-size: 14px; }
+.pix-instructions > p { margin: 7px 0 12px; color: #6c7e7a; font-size: 10px; line-height: 1.5; }
+.pix-instructions textarea { width: 100%; height: 76px; padding: 11px; resize: none; border: 1px solid #cddbd4; border-radius: 9px; background: #f5f8f6; color: #29423e; font: 8px/1.5 ui-monospace,SFMono-Regular,Consolas,monospace; word-break: break-all; }
+.pix-actions { margin-top: 11px; display: flex; flex-wrap: wrap; gap: 8px; }
+.pix-actions button,.pix-actions a { min-height: 38px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; border: 0; border-radius: 8px; background: var(--deep); color: #fff; font-size: 8px; font-weight: 850; text-decoration: none; cursor: pointer; }
+.pix-actions a { background: var(--teal); }
+.pix-actions button.secondary { border: 1px solid #d3ded9; background: #fff; color: var(--teal); }
+.pix-instructions > small { margin-top: 12px; color: #7c8c89; font-size: 8px; }
+.pix-safety-note { margin: 0 28px 24px; padding: 12px 14px; display: flex; align-items: flex-start; gap: 10px; border-left: 3px solid #d49734; background: #fff8eb; }
+.pix-safety-note > span { width: 20px; height: 20px; display: grid; place-items: center; border-radius: 6px; background: #f6dfb4; color: #795017; font-size: 9px; font-weight: 900; }
+.pix-safety-note p { margin: 0; color: #765f3e; font-size: 9px; line-height: 1.5; }
+.billing-status-card.renewal_pending,.billing-status-card.pending { border-color: #d8e4bf; background: #fbfdf7; }
+.billing-status-card.overdue,.billing-status-card.payment_failed { border-color: #ebc2b5; background: #fff7f4; }
+@media (max-width: 720px) {
+  .pricing-payment-actions { grid-template-columns: 1fr; }
+  .pricing-payment-actions > small { grid-column: auto; }
+  .pix-checkout-heading { padding: 20px; align-items: flex-start; flex-direction: column; }
+  .pix-checkout-body { padding: 20px; grid-template-columns: 1fr; }
+  .pix-qr-box { width: min(260px,100%); min-height: 0; margin: 0 auto; }
+  .pix-safety-note { margin: 0 20px 20px; }
+  .pix-actions { display: grid; }
+  .pix-actions button,.pix-actions a { width: 100%; }
+}
+
 /* Platform mode, payment gates and public privacy center */
 .platform-mode-card{margin-bottom:16px;padding:0;overflow:hidden;border-color:#cfddd7}.platform-mode-card.beta{border-top:4px solid #d79b38}.platform-mode-card.live{border-top:4px solid #79ad36}.platform-mode-summary{padding:20px 22px;display:flex;align-items:center;justify-content:space-between;gap:24px;background:#f8faf8}.platform-mode-summary h3{margin:6px 0;font-size:19px}.platform-mode-summary p{max-width:700px;margin:0;color:#71817d;font-size:9px;line-height:1.55}.platform-mode-switch{min-width:190px;display:grid;justify-items:end;gap:8px}.platform-mode-switch>span{color:#61746f;font-size:7px;font-weight:900;letter-spacing:.5px;text-transform:uppercase}.platform-mode-switch button{min-width:178px;height:40px;padding:0 14px;display:flex;align-items:center;justify-content:center;gap:8px;border:0;border-radius:9px;background:var(--deep);color:#fff;font-size:8px;font-weight:900;cursor:pointer}.platform-mode-switch button i{width:9px;height:9px;border-radius:50%;background:#d99a36;box-shadow:0 0 0 4px rgba(217,154,54,.15)}.platform-mode-card.live .platform-mode-switch button i{background:var(--lime)}.platform-mode-switch button:disabled{opacity:.42;cursor:not-allowed}.payment-readiness-grid{padding:14px 18px;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:8px}.payment-readiness-grid article{min-height:72px;padding:11px;display:grid;grid-template-columns:25px 1fr;gap:8px;border:1px solid #dfe8e4;border-radius:8px;background:#fff}.payment-readiness-grid article>span{width:23px;height:23px;display:grid;place-items:center;border-radius:7px;font-size:8px;font-weight:900}.payment-readiness-grid article.ready>span{background:#e9f5d9;color:#5c8132}.payment-readiness-grid article.blocked>span{background:#fff0e7;color:#a45542}.payment-readiness-grid b,.payment-readiness-grid small{display:block}.payment-readiness-grid b{font-size:7px;line-height:1.35}.payment-readiness-grid small{margin-top:4px;color:#82908d;font-size:6px;line-height:1.4}.platform-mode-warning{margin:0 18px 16px;padding:10px 12px;border-left:3px solid #ca8b2b;background:#fff7e8}.platform-mode-warning b{font-size:8px}.platform-mode-warning p{margin:3px 0 0;color:#7e6847;font-size:7px}.payment-mode-notice{margin-bottom:18px;padding:13px 16px;display:flex;align-items:center;justify-content:space-between;gap:20px;border:1px solid #dae4df;border-radius:10px}.payment-mode-notice span{font-size:8px;font-weight:900;letter-spacing:.6px}.payment-mode-notice p{margin:0;color:#70817d;font-size:9px}.payment-mode-notice.beta{background:#fff9ed}.payment-mode-notice.beta span{color:#95691e}.payment-mode-notice.live{background:#f2f9e8}.payment-mode-notice.live span{color:#577c2f}
 @media(max-width:1050px){.payment-readiness-grid{grid-template-columns:repeat(2,minmax(0,1fr))}}@media(max-width:720px){.platform-mode-summary{align-items:stretch;flex-direction:column}.platform-mode-switch{justify-items:stretch}.platform-mode-switch button{width:100%}.payment-readiness-grid{grid-template-columns:1fr}.payment-mode-notice{align-items:flex-start;flex-direction:column;gap:6px}}

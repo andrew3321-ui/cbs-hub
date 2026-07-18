@@ -64,7 +64,7 @@ function paymentReadinessGates(): ReadinessGate[] {
   const runtime = runtimeConfiguration();
   return [
     { key: "provider_token", label: "Credencial de produção do Mercado Pago", ready: provider.mode === "production", detail: provider.mode === "production" ? "Token de produção reconhecido." : "Configure um Access Token de produção." },
-    { key: "provider_reconciliation", label: "Conciliação oficial de assinaturas", ready: provider.accessToken, detail: provider.webhookSecret ? "Conciliação ativa e notificações HMAC oficiais habilitadas." : provider.accessToken ? "Retornos são reconfirmados pela API oficial; o webhook HMAC pode ser adicionado depois." : "Configure a credencial para consultar assinaturas e faturas no provedor." },
+    { key: "provider_reconciliation", label: "Conciliação oficial de pagamentos", ready: provider.accessToken, detail: provider.webhookSecret ? "Cartão, Pix e notificações HMAC oficiais habilitados." : provider.accessToken ? "Assinaturas e Pix são reconfirmados pela API oficial; o webhook HMAC pode ser adicionado depois." : "Configure a credencial para consultar pagamentos no provedor." },
     { key: "owner_tax_id", label: "CPF do fornecedor", ready: cpfIsValid(runtime.ownerTaxId), detail: cpfIsValid(runtime.ownerTaxId) ? "CPF válido armazenado como segredo." : "Configure um CPF válido antes de cobrar." },
     { key: "legal_address", label: "Endereço legal do fornecedor", ready: runtime.legalAddress.length >= 12, detail: runtime.legalAddress.length >= 12 ? "Endereço comercial configurado." : "Informe o endereço exigido para a contratação eletrônica." },
     { key: "privacy_contact", label: "Canal de privacidade", ready: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(runtime.privacyEmail), detail: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(runtime.privacyEmail) ? "Canal dos titulares configurado." : "Configure o e-mail de privacidade e atendimento." },
@@ -80,7 +80,7 @@ export async function getPlatformOperationState() {
   const betaEnabled = setting?.value !== "false";
   const gates = paymentReadinessGates();
   const readinessReady = gates.every((gate) => gate.ready);
-  const [{ total: activeSubscriptions }] = await db.select({ total: count() }).from(billingAccounts).where(inArray(billingAccounts.status, ["active", "authorized", "pending", "paused"]));
+  const [{ total: activeSubscriptions }] = await db.select({ total: count() }).from(billingAccounts).where(inArray(billingAccounts.status, ["active", "authorized", "pending", "paused", "pix_creating", "renewal_pending"]));
   return {
     betaEnabled,
     paymentsEnabled: !betaEnabled && readinessReady,

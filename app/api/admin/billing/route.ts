@@ -83,7 +83,7 @@ async function payloadFor(request: Request) {
       pricingMode: billingPricingMode,
       adminAccess: platformAdminIsConfigured(),
       webhookUrl: `${new URL(request.url).origin}/api/billing/webhook`,
-      requiredEvents: ["subscription_preapproval", "subscription_authorized_payment"],
+      requiredEvents: ["payment", "subscription_preapproval", "subscription_authorized_payment"],
     },
     operation,
     metrics: { activeSubscriptions: activeSubscriptions.length, estimatedMrrCents, grossThisMonthCents, netThisMonthCents, pendingFiscal },

@@ -66,8 +66,16 @@ export type MercadoPagoPayment = {
   payment_type_id?: string | null;
   date_created?: string | null;
   date_approved?: string | null;
+  date_of_expiration?: string | null;
   fee_details?: Array<{ amount?: string | number | null; type?: string | null }>;
   transaction_details?: { net_received_amount?: string | number | null } | null;
+  point_of_interaction?: {
+    transaction_data?: {
+      qr_code?: string | null;
+      qr_code_base64?: string | null;
+      ticket_url?: string | null;
+    } | null;
+  } | null;
 };
 
 export function getMercadoPagoEnvironment() {
