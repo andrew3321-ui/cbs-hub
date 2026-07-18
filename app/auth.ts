@@ -5,8 +5,9 @@ import { ensureScenarioSchema, getDb } from "../db";
 import { sessions, users } from "../db/schema";
 
 const SESSION_COOKIE = "mc_session";
-const SESSION_SECONDS = 60 * 60 * 24 * 30;
-const PASSWORD_ITERATIONS = 100_000;
+const SESSION_SECONDS = 60 * 60 * 24 * 7;
+export const CURRENT_PASSWORD_ITERATIONS = 600_000;
+const LEGACY_PASSWORD_ITERATIONS = 100_000;
 
 export type AppUser = {
   id: number;
@@ -39,17 +40,17 @@ export function normalizeEmail(value: string) {
 }
 
 export function passwordIsStrong(value: string) {
-  return value.length >= 8 && value.length <= 128 && /[a-zA-ZÀ-ÿ]/.test(value) && /\d/.test(value);
+  return value.length >= 12 && value.length <= 128 && /[a-zA-ZÀ-ÿ]/.test(value) && /\d/.test(value);
 }
 
-export async function hashPassword(password: string, salt = randomHex(16)) {
+export async function hashPassword(password: string, salt = randomHex(16), iterations = CURRENT_PASSWORD_ITERATIONS) {
   const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(password), "PBKDF2", false, ["deriveBits"]);
-  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: hexToBytes(salt), iterations: PASSWORD_ITERATIONS }, key, 256);
-  return { hash: bytesToHex(new Uint8Array(bits)), salt };
+  const bits = await crypto.subtle.deriveBits({ name: "PBKDF2", hash: "SHA-256", salt: hexToBytes(salt), iterations }, key, 256);
+  return { hash: bytesToHex(new Uint8Array(bits)), salt, iterations };
 }
 
-export async function verifyPassword(password: string, salt: string, expectedHash: string) {
-  const { hash } = await hashPassword(password, salt);
+export async function verifyPassword(password: string, salt: string, expectedHash: string, iterations = LEGACY_PASSWORD_ITERATIONS) {
+  const { hash } = await hashPassword(password, salt, iterations);
   return constantTimeEqual(hash, expectedHash);
 }
 
@@ -75,13 +76,14 @@ export async function createSession(userId: number) {
   const expiresAt = new Date(Date.now() + SESSION_SECONDS * 1000).toISOString();
   const db = getDb();
   await db.delete(sessions).where(lt(sessions.expiresAt, new Date().toISOString()));
+  await db.delete(sessions).where(eq(sessions.userId, userId));
   await db.insert(sessions).values({ id, userId, expiresAt });
   return { token, expiresAt };
 }
 
 export function sessionCookieHeader(token: string, request: Request, maxAge = SESSION_SECONDS) {
   const secure = new URL(request.url).protocol === "https:" ? "; Secure" : "";
-  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+  return `${SESSION_COOKIE}=${token}; Path=/; HttpOnly; SameSite=Lax; Priority=High; Max-Age=${maxAge}${secure}`;
 }
 
 export function clearSessionCookieHeader(request: Request) {
@@ -98,7 +100,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
     .select({ id: users.id, name: users.name, email: users.email })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
-    .where(and(eq(sessions.id, sessionId), gt(sessions.expiresAt, new Date().toISOString())))
+    .where(and(eq(sessions.id, sessionId), gt(sessions.expiresAt, new Date().toISOString()), gt(sessions.createdAt, new Date(Date.now() - SESSION_SECONDS * 1000).toISOString())))
     .limit(1);
   return row ?? null;
 }

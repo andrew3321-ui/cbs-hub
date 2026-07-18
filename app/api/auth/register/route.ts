@@ -22,7 +22,7 @@ export async function POST(request: Request) {
     const inviteToken = typeof payload.inviteToken === "string" ? payload.inviteToken.trim().toLowerCase() : "";
 
     if (name.length < 2 || !emailPattern.test(email) || !passwordIsStrong(password)) {
-      return Response.json({ error: "Informe nome, e-mail válido e uma senha com 8 caracteres, letra e número." }, { status: 400 });
+      return Response.json({ error: "Informe nome, e-mail válido e uma senha com pelo menos 12 caracteres, letra e número." }, { status: 400 });
     }
     if (!inviteToken && requestedAccountType === "office" && requestedOfficeName.length < 2) {
       return Response.json({ error: "Informe o nome do escritório contábil." }, { status: 400 });
@@ -58,7 +58,7 @@ export async function POST(request: Request) {
     const recoveryKeyHash = await hashRecoveryKey(recoveryKey);
     const accountType = invitation ? "office" : requestedAccountType;
     const suggestedPlanKey = accountType === "office" ? "escritorio" : "pro";
-    const [user] = await db.insert(users).values({ name, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, recoveryKeyHash, accountType, suggestedPlanKey }).returning({ id: users.id, name: users.name, email: users.email });
+    const [user] = await db.insert(users).values({ name, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, passwordIterations: passwordData.iterations, recoveryKeyHash, accountType, suggestedPlanKey }).returning({ id: users.id, name: users.name, email: users.email });
     createdUserId = user.id;
 
     let workspaceId: number;

@@ -33,6 +33,14 @@ type BillingTransaction = {
 
 type BillingPayload = {
   configuration: { accessToken: boolean; webhookSecret: boolean; adminAccess: boolean; mode: "test" | "production" | "disabled"; webhookUrl: string; requiredEvents: string[] };
+  operation: {
+    betaEnabled: boolean;
+    paymentsEnabled: boolean;
+    revision: number;
+    updatedAt: string | null;
+    activeSubscriptions: number;
+    readiness: { ready: boolean; gates: Array<{ key: string; label: string; ready: boolean; detail: string }> };
+  };
   metrics: { activeSubscriptions: number; estimatedMrrCents: number; grossThisMonthCents: number; netThisMonthCents: number; pendingFiscal: number };
   subscriptions: Array<{ id: number; customerName: string; customerEmail: string; planKey: string; status: string; nextPaymentAt: string | null; updatedAt: string }>;
   transactions: BillingTransaction[];
@@ -128,6 +136,29 @@ export default function BillingCenter() {
     }
   }
 
+  async function toggleBetaMode() {
+    if (!data) return;
+    const betaEnabled = !data.operation.betaEnabled;
+    const confirmation = betaEnabled ? "ATIVAR BETA" : "ATIVAR PAGAMENTOS";
+    const warning = betaEnabled
+      ? "Ativar o beta bloqueará novas assinaturas. Esta ação só será aceita se não houver assinaturas em andamento."
+      : "Desativar o beta liberará cobranças reais assim que todas as proteções obrigatórias estiverem prontas.";
+    if (!window.confirm(`${warning}\n\nConfirma: ${confirmation}?`)) return;
+    setBusy("set_beta_mode");
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/billing", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "set_beta_mode", betaEnabled, confirmation }) });
+      const payload = await response.json() as BillingPayload & { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Não foi possível alterar o modo operacional.");
+      installPayload(payload);
+      setMessage(betaEnabled ? "Modo beta ativado. Novas cobranças estão bloqueadas." : "Modo beta desativado. Pagamentos liberados com as proteções confirmadas.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível alterar o modo operacional.");
+    } finally {
+      setBusy("");
+    }
+  }
+
   function update<K extends keyof FiscalDraft>(key: K, value: FiscalDraft[K]) {
     setDraft((current) => ({ ...current, [key]: value }));
   }
@@ -146,6 +177,18 @@ export default function BillingCenter() {
       <article><span>MRR CONTRATADO</span><strong>{money.format(data.metrics.estimatedMrrCents / 100)}</strong><small>estimativa pelos planos ativos</small></article>
       <article><span>RECEBIDO NO MÊS</span><strong>{money.format(data.metrics.grossThisMonthCents / 100)}</strong><small>bruto confirmado pelo provedor</small></article>
       <article className={data.metrics.pendingFiscal ? "attention" : "good"}><span>PENDÊNCIAS FISCAIS</span><strong>{data.metrics.pendingFiscal}</strong><small>dados ou emissão aguardando</small></article>
+    </section>
+
+    <section className={`panel platform-mode-card ${data.operation.betaEnabled ? "beta" : "live"}`}>
+      <div className="platform-mode-summary">
+        <div><span className="eyebrow">CONTROLE OPERACIONAL · REVISÃO {data.operation.revision}</span><h3>{data.operation.betaEnabled ? "Modo beta ativado" : "Operação comercial ativada"}</h3><p>{data.operation.betaEnabled ? "O servidor registra interesse, mas não cria novas assinaturas nem encaminha clientes ao pagamento." : "Novas assinaturas podem ser criadas porque todos os pré-requisitos técnicos e legais foram confirmados."}</p></div>
+        <div className="platform-mode-switch"><span>{data.operation.paymentsEnabled ? "Pagamentos ativos" : "Pagamentos bloqueados"}</span><button type="button" aria-pressed={data.operation.betaEnabled} disabled={Boolean(busy) || (data.operation.betaEnabled && !data.operation.readiness.ready) || (!data.operation.betaEnabled && data.operation.activeSubscriptions > 0)} onClick={() => void toggleBetaMode()}><i />{busy === "set_beta_mode" ? "Alterando…" : data.operation.betaEnabled ? "Desativar beta" : "Ativar beta"}</button></div>
+      </div>
+      <div className="payment-readiness-grid">
+        {data.operation.readiness.gates.map((gate) => <article className={gate.ready ? "ready" : "blocked"} key={gate.key}><span>{gate.ready ? "✓" : "!"}</span><p><b>{gate.label}</b><small>{gate.detail}</small></p></article>)}
+      </div>
+      {!data.operation.readiness.ready && <div className="platform-mode-warning"><b>Pagamento não pode ser ativado ainda.</b><p>O botão permanecerá protegido no servidor até todos os itens acima estarem prontos.</p></div>}
+      {data.operation.activeSubscriptions > 0 && <div className="platform-mode-warning"><b>{data.operation.activeSubscriptions} assinatura(s) em andamento.</b><p>O beta não pode ser reativado enquanto houver cobranças que possam renovar.</p></div>}
     </section>
 
     <section className="panel billing-integration-card">

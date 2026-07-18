@@ -192,12 +192,31 @@ export function ensureScenarioSchema() {
           email TEXT NOT NULL UNIQUE,
           password_hash TEXT NOT NULL,
           password_salt TEXT NOT NULL,
+          password_iterations INTEGER DEFAULT 100000 NOT NULL,
           recovery_key_hash TEXT NOT NULL,
           failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
           locked_until TEXT,
           account_type TEXT DEFAULT 'individual' NOT NULL,
           suggested_plan_key TEXT DEFAULT 'pro' NOT NULL,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS platform_settings (
+          key TEXT PRIMARY KEY NOT NULL,
+          value TEXT NOT NULL,
+          revision INTEGER DEFAULT 1 NOT NULL,
+          updated_by_user_id INTEGER,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS security_rate_limits (
+          bucket_key TEXT PRIMARY KEY NOT NULL,
+          window_started_at INTEGER NOT NULL,
+          request_count INTEGER DEFAULT 0 NOT NULL,
+          blocked_until INTEGER,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
       env.DB.prepare(`
@@ -579,6 +598,17 @@ export function ensureScenarioSchema() {
       }
     }
 
+    try {
+      await env.DB.prepare("ALTER TABLE users ADD COLUMN password_iterations INTEGER DEFAULT 100000 NOT NULL").run();
+    } catch (error) {
+      if (!String(error).toLowerCase().includes("duplicate column")) throw error;
+    }
+
+    await env.DB.prepare(`
+      INSERT OR IGNORE INTO platform_settings (key, value, revision)
+      VALUES ('beta_enabled', 'true', 1)
+    `).run();
+
     await env.DB.prepare(`
       INSERT INTO accounting_workspaces (name, workspace_type, owner_user_id, suggested_plan_key)
       SELECT
@@ -635,6 +665,7 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_owner_name_idx ON companies (owner_user_id, name)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_workspace_name_idx ON companies (workspace_id, name)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_user_expires_idx ON sessions (user_id, expires_at)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS security_rate_limits_updated_idx ON security_rate_limits (updated_at)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenarios_request_key_idx ON scenarios (request_key) WHERE request_key IS NOT NULL"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_company_created_idx ON scenarios (company_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_prepared_by_idx ON scenarios (prepared_by_user_id, created_at, id)"),

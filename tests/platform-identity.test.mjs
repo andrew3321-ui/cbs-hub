@@ -3,13 +3,13 @@ import fs from "node:fs";
 import test from "node:test";
 import { platformIdentity, publicPlatformOwnership } from "../domain/platform-identity.ts";
 
-test("V36 identifies a natural-person responsible without publishing a tax identifier", () => {
+test("V37 identifies a natural-person responsible without publishing a tax identifier", () => {
   assert.equal(platformIdentity.holderType, "natural_person");
   assert.equal(platformIdentity.responsibleName, "ANDRÉ HUGO SANTOS COELHO");
   assert.equal(platformIdentity.declarationStatus, "declared_by_responsible");
   assert.equal(platformIdentity.publicTaxIdDisclosure, "not_published");
   assert.equal(platformIdentity.commercialStatus, "free_beta_without_automatic_billing");
-  assert.equal(platformIdentity.version, "2026.07.18-v36");
+  assert.equal(platformIdentity.version, "2026.07.18-v37");
 });
 
 test("public ownership record contains no CPF, CNPJ or private contact data", () => {

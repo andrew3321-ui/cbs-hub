@@ -1,5 +1,5 @@
 import { eq } from "drizzle-orm";
-import { createSession, normalizeEmail, sessionCookieHeader, verifyPassword } from "../../../auth";
+import { createSession, CURRENT_PASSWORD_ITERATIONS, hashPassword, normalizeEmail, sessionCookieHeader, verifyPassword } from "../../../auth";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { users } from "../../../../db/schema";
 
@@ -18,7 +18,7 @@ export async function POST(request: Request) {
       return Response.json({ error: "Muitas tentativas. Aguarde 15 minutos e tente novamente." }, { status: 429 });
     }
 
-    const valid = await verifyPassword(password, user.passwordSalt, user.passwordHash);
+    const valid = await verifyPassword(password, user.passwordSalt, user.passwordHash, user.passwordIterations);
     if (!valid) {
       const attempts = user.lockedUntil ? 1 : user.failedLoginAttempts + 1;
       const lockedUntil = attempts >= 5 ? new Date(now + 15 * 60 * 1000).toISOString() : null;
@@ -26,7 +26,8 @@ export async function POST(request: Request) {
       return Response.json({ error: "E-mail ou senha incorretos." }, { status: 401 });
     }
 
-    await getDb().update(users).set({ failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id));
+    const passwordUpgrade = user.passwordIterations < CURRENT_PASSWORD_ITERATIONS ? await hashPassword(password) : null;
+    await getDb().update(users).set({ failedLoginAttempts: 0, lockedUntil: null, ...(passwordUpgrade ? { passwordHash: passwordUpgrade.hash, passwordSalt: passwordUpgrade.salt, passwordIterations: passwordUpgrade.iterations } : {}) }).where(eq(users.id, user.id));
     const session = await createSession(user.id);
     return Response.json({ user: { id: user.id, name: user.name, email: user.email } }, { headers: { "Set-Cookie": sessionCookieHeader(session.token, request) } });
   } catch {

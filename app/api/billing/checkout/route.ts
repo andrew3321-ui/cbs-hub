@@ -2,7 +2,8 @@ import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
-import { billingPlans, getMercadoPagoEnvironment, isPaidPlanKey, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus, randomBillingReference } from "../../../billing";
+import { billingPlans, isPaidPlanKey, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus, randomBillingReference } from "../../../billing";
+import { getPlatformOperationState } from "../../../platform-controls";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -15,17 +16,18 @@ export async function POST(request: Request) {
     const db = getDb();
     const [existing] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
     if (existing?.status === "active") return Response.json({ error: "Sua assinatura já está ativa." }, { status: 409 });
-    if (existing?.checkoutUrl && existing.planKey === plan.key && existing.status === "pending") return Response.json({ mode: "checkout", checkoutUrl: existing.checkoutUrl });
-
     const reference = existing?.externalReference ?? randomBillingReference(user.id);
     const now = new Date().toISOString();
-    if (!getMercadoPagoEnvironment().accessToken) {
+    const operation = await getPlatformOperationState();
+    if (!operation.paymentsEnabled) {
       await db.insert(billingAccounts).values({ userId: user.id, planKey: plan.key, externalReference: reference, status: "interest", updatedAt: now }).onConflictDoUpdate({
         target: billingAccounts.userId,
         set: { planKey: plan.key, status: "interest", updatedAt: now },
       });
-      return Response.json({ mode: "interest", message: "Interesse registrado. O beta continua gratuito e avisaremos antes de qualquer cobrança." }, { status: 202 });
+      return Response.json({ mode: "interest", betaEnabled: operation.betaEnabled, message: operation.betaEnabled ? "Interesse registrado. O beta continua gratuito e nenhuma cobrança será iniciada." : "Interesse registrado. As cobranças permanecem bloqueadas até todas as proteções obrigatórias estarem ativas." }, { status: 202 });
     }
+
+    if (existing?.checkoutUrl && existing.planKey === plan.key && existing.status === "pending") return Response.json({ mode: "checkout", checkoutUrl: existing.checkoutUrl });
 
     const origin = new URL(request.url).origin;
     const subscription = await mercadoPagoRequest<MercadoPagoSubscription>("/preapproval", {

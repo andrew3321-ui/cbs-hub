@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 
 type BillingState = {
   configured: boolean;
+  betaEnabled: boolean;
+  paymentsEnabled: boolean;
   billing: { planKey: string; status: string; checkoutUrl: string | null; nextPaymentAt: string | null };
 };
 
@@ -68,6 +70,10 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
 
   return (
     <>
+      {signedIn && billing && <section className={`payment-mode-notice ${billing.paymentsEnabled ? "live" : "beta"}`}>
+        <span>{billing.paymentsEnabled ? "PAGAMENTOS ATIVOS" : "BETA PROTEGIDO"}</span>
+        <p>{billing.paymentsEnabled ? "Novas assinaturas são encaminhadas ao checkout seguro do Mercado Pago." : "Novas cobranças estão bloqueadas no servidor. Você pode registrar interesse sem fornecer cartão."}</p>
+      </section>}
       {signedIn && billing && <section className={`billing-status-card ${billing.billing.status}`}>
         <div><span>SEU ACESSO</span><strong>{statusLabels[billing.billing.status] ?? billing.billing.status}</strong><small>{billing.billing.status === "beta" ? "Todos os recursos atuais seguem liberados sem cobrança." : `Plano ${billing.billing.planKey}`}</small></div>
         {billing.billing.nextPaymentAt && <div><span>PRÓXIMA COBRANÇA</span><strong>{new Date(billing.billing.nextPaymentAt).toLocaleDateString("pt-BR")}</strong><small>Data informada pelo Mercado Pago</small></div>}
@@ -94,7 +100,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
           <div className="pricing-value"><strong>R$ 59</strong><small>/mês</small></div>
           <p>Sugerido para o contador independente que prepara e assume a própria revisão.</p>
           <ul><li>Até 10 empresas monitoradas</li><li>Espaço profissional individual</li><li>Revisão responsável explicitamente identificada</li><li>Histórico e suporte prioritário</li></ul>
-          <button className="pricing-button" onClick={() => void choosePlan("pro")} disabled={loadingPlan === "pro"}>{loadingPlan === "pro" ? "Preparando…" : billing?.configured ? "Assinar Pro" : "Registrar interesse"}</button>
+          <button className="pricing-button" onClick={() => void choosePlan("pro")} disabled={loadingPlan === "pro"}>{loadingPlan === "pro" ? "Preparando…" : billing?.paymentsEnabled ? "Assinar Pro" : "Registrar interesse"}</button>
         </article>
 
         <article className="pricing-card">
@@ -103,7 +109,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
           <div className="pricing-value"><strong>R$ 149</strong><small>/mês</small></div>
           <p>Sugerido para escritórios que dividem preparação, revisão e entrega.</p>
           <ul><li>Até 50 empresas monitoradas</li><li>Preparadores, revisores e administradores</li><li>Bloqueio de autoaprovação por quem preparou</li><li>Relatórios com autoria e revisão separadas</li></ul>
-          <button className="pricing-button dark" onClick={() => void choosePlan("escritorio")} disabled={loadingPlan === "escritorio"}>{loadingPlan === "escritorio" ? "Preparando…" : billing?.configured ? "Assinar Escritório" : "Registrar interesse"}</button>
+          <button className="pricing-button dark" onClick={() => void choosePlan("escritorio")} disabled={loadingPlan === "escritorio"}>{loadingPlan === "escritorio" ? "Preparando…" : billing?.paymentsEnabled ? "Assinar Escritório" : "Registrar interesse"}</button>
         </article>
       </div>
 

@@ -21,6 +21,7 @@ export const users = sqliteTable("users", {
   email: text("email").notNull().unique(),
   passwordHash: text("password_hash").notNull(),
   passwordSalt: text("password_salt").notNull(),
+  passwordIterations: integer("password_iterations").notNull().default(100000),
   recoveryKeyHash: text("recovery_key_hash").notNull(),
   failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
   lockedUntil: text("locked_until"),
@@ -28,6 +29,24 @@ export const users = sqliteTable("users", {
   suggestedPlanKey: text("suggested_plan_key").notNull().default("pro"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
+
+export const platformSettings = sqliteTable("platform_settings", {
+  key: text("key").primaryKey(),
+  value: text("value").notNull(),
+  revision: integer("revision").notNull().default(1),
+  updatedByUserId: integer("updated_by_user_id"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const securityRateLimits = sqliteTable("security_rate_limits", {
+  bucketKey: text("bucket_key").primaryKey(),
+  windowStartedAt: integer("window_started_at").notNull(),
+  requestCount: integer("request_count").notNull().default(0),
+  blockedUntil: integer("blocked_until"),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("security_rate_limits_updated_idx").on(table.updatedAt),
+]);
 
 export const accountingWorkspaces = sqliteTable("accounting_workspaces", {
   id: integer("id").primaryKey({ autoIncrement: true }),

@@ -76,6 +76,10 @@ Comandos principais:
 
 `GET/POST /api/admin/billing` exige que o e-mail autenticado conste em `PLATFORM_ADMIN_EMAILS` (ou no legado `LEGACY_OWNER_EMAIL`). A central concilia assinaturas, pagamentos e pendências de NFS-e. Ela nunca recebe tokens pelo navegador e não emite nota automaticamente.
 
+O modo beta é persistido em D1 e somente o administrador da plataforma pode alterá-lo. Com o beta ativo, o servidor registra interesse, mas não cria assinaturas. A ativação comercial exige credencial de produção, assinatura do webhook, CPF válido do fornecedor, endereço legal, canal de privacidade e `SECURITY_HASH_KEY` com pelo menos 32 caracteres.
+
+`PLATFORM_OWNER_TAX_ID`, `PLATFORM_OWNER_LEGAL_ADDRESS` e `PLATFORM_PRIVACY_CONTACT_EMAIL` alimentam a identificação comercial publicada apenas quando pagamentos estiverem ativos. `SECURITY_HASH_KEY` pseudonimiza os marcadores temporários usados na limitação de abuso.
+
 A cobrança recorrente usa `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` como segredos do ambiente publicado. O webhook `/api/billing/webhook` deve receber os eventos `subscription_preapproval` e `subscription_authorized_payment`.
 
 A chave `SCENARIO_SIGNING_KEY_V1` vive apenas no ambiente publicado. Nunca deve ser gravada no repositório ou enviada ao navegador.

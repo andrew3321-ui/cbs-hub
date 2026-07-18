@@ -17,7 +17,7 @@ export async function POST(request: Request) {
     if (!user || !constantTimeEqual(suppliedHash, user.recoveryKeyHash)) return Response.json({ error: "E-mail ou chave de recuperação inválidos." }, { status: 400 });
 
     const passwordData = await hashPassword(password);
-    await getDb().update(users).set({ passwordHash: passwordData.hash, passwordSalt: passwordData.salt, failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id));
+    await getDb().update(users).set({ passwordHash: passwordData.hash, passwordSalt: passwordData.salt, passwordIterations: passwordData.iterations, failedLoginAttempts: 0, lockedUntil: null }).where(eq(users.id, user.id));
     await getDb().delete(sessions).where(eq(sessions.userId, user.id));
     return Response.json({ reset: true });
   } catch {

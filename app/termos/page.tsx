@@ -1,0 +1,18 @@
+import Link from "next/link";
+import { getPlatformOperationState, publicLegalSupplierIdentity } from "../platform-controls";
+
+export const dynamic = "force-dynamic";
+export const metadata = { title: "Termos de uso | Margem Clara", description: "Condições do beta gratuito e requisitos para a futura operação comercial da Margem Clara." };
+
+export default async function TermsPage() {
+  const operation = await getPlatformOperationState();
+  const supplier = await publicLegalSupplierIdentity();
+  return <main className="legal-shell">
+    <header className="legal-nav"><Link className="landing-brand" href="/"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link><div><Link href="/privacidade">Privacidade</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div></header>
+    <section className="legal-hero"><span>TERMOS DE USO · V1</span><h1>{operation.betaEnabled ? "Beta gratuito, sem cobrança automática." : "Operação comercial com identificação do fornecedor."}</h1><p>Estes termos registram os limites do produto, a responsabilidade profissional e o estado operacional que o servidor aplica neste momento.</p></section>
+    <section className={`terms-mode ${operation.paymentsEnabled ? "live" : "beta"}`}><span>{operation.paymentsEnabled ? "PAGAMENTOS ATIVOS" : "PAGAMENTOS BLOQUEADOS"}</span><strong>{operation.paymentsEnabled ? "O checkout pode criar assinaturas no Mercado Pago." : "Nenhuma nova assinatura paga pode ser criada pelo servidor."}</strong></section>
+    {supplier ? <section className="supplier-identity"><span>IDENTIFICAÇÃO DO FORNECEDOR</span><h2>{supplier.name}</h2><p>CPF {supplier.cpf}</p><p>{supplier.address}</p><a href={`mailto:${supplier.email}`}>{supplier.email}</a></section> : <section className="supplier-identity pending"><span>IDENTIFICAÇÃO COMERCIAL</span><h2>Ainda não publicada</h2><p>O produto está em beta gratuito. A operação paga só poderá ser ativada depois que CPF, endereço, canal de atendimento e credenciais de produção forem configurados.</p></section>}
+    <section className="legal-list"><article><h2>1. Finalidade</h2><p>A plataforma auxilia contadores a organizar informações e produzir análises rastreáveis. Ela não substitui julgamento profissional, legislação vigente, documentos oficiais ou revisão do responsável técnico.</p></article><article><h2>2. Conta e segurança</h2><p>O usuário deve proteger sua senha, manter dados corretos e comunicar suspeitas. Ações relevantes são vinculadas à conta e podem gerar trilha de auditoria.</p></article><article><h2>3. Beta</h2><p>Durante o beta, recursos podem evoluir e a disponibilidade pode variar. O modo beta bloqueia novas cobranças no servidor e os planos pagos funcionam somente como registro de interesse.</p></article><article><h2>4. Pagamentos futuros</h2><p>Quando ativados, valores, periodicidade, cancelamento e meio de pagamento serão apresentados antes da confirmação. O checkout ocorrerá no provedor indicado e o usuário poderá cancelar a renovação.</p></article><article><h2>5. Dados e documentos</h2><p>O usuário deve ter autorização para inserir dados de clientes. Informações fiscais devem ser limitadas ao necessário e tratadas conforme a política de privacidade.</p></article><article><h2>6. Responsabilidade fiscal</h2><p>Resultados parciais, não homologados ou dependentes de premissas não devem ser usados como conclusão definitiva. A entrega ao cliente exige revisão e responsabilidade profissional identificada.</p></article></section>
+    <footer className="legal-footer"><span>Margem Clara · Termos de uso</span><div><Link href="/privacidade">Privacidade</Link><Link href="/responsavel">Responsável</Link><Link href="/">Início</Link></div></footer>
+  </main>;
+}

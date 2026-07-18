@@ -3,6 +3,7 @@ import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts, billingTransactions, fiscalIssuances, users } from "../../../../db/schema";
 import { billingPlans, mercadoPagoConfigurationStatus } from "../../../billing";
 import { getPlatformAdminUser, platformAdminIsConfigured } from "../../../platform-admin";
+import { getPlatformOperationState, PlatformModeError, setBetaMode } from "../../../platform-controls";
 
 function cleanText(value: unknown, maximum: number) {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, maximum) : "";
@@ -73,6 +74,7 @@ async function payloadFor(request: Request) {
   const grossThisMonthCents = approvedThisMonth.reduce((sum, item) => sum + item.grossAmountCents, 0);
   const netThisMonthCents = approvedThisMonth.reduce((sum, item) => sum + (item.netAmountCents ?? item.grossAmountCents - (item.feeAmountCents ?? 0)), 0);
   const provider = mercadoPagoConfigurationStatus();
+  const operation = await getPlatformOperationState();
 
   return {
     configuration: {
@@ -81,6 +83,7 @@ async function payloadFor(request: Request) {
       webhookUrl: `${new URL(request.url).origin}/api/billing/webhook`,
       requiredEvents: ["subscription_preapproval", "subscription_authorized_payment"],
     },
+    operation,
     metrics: { activeSubscriptions: activeSubscriptions.length, estimatedMrrCents, grossThisMonthCents, netThisMonthCents, pendingFiscal },
     subscriptions,
     transactions,
@@ -100,8 +103,16 @@ export async function POST(request: Request) {
   try {
     await ensureScenarioSchema();
     const body = await request.json() as Record<string, unknown>;
-    const id = Number(body.id);
     const action = cleanText(body.action, 40);
+    if (action === "set_beta_mode") {
+      if (typeof body.betaEnabled !== "boolean") return Response.json({ error: "Estado do beta inválido." }, { status: 400 });
+      const expectedConfirmation = body.betaEnabled ? "ATIVAR BETA" : "ATIVAR PAGAMENTOS";
+      if (cleanText(body.confirmation, 40).toUpperCase() !== expectedConfirmation) return Response.json({ error: `Confirme a operação com: ${expectedConfirmation}.` }, { status: 400 });
+      await setBetaMode(admin, body.betaEnabled);
+      return Response.json(await payloadFor(request), { headers: { "Cache-Control": "no-store" } });
+    }
+
+    const id = Number(body.id);
     if (!Number.isInteger(id) || id <= 0) return Response.json({ error: "Pendência fiscal inválida." }, { status: 400 });
     const db = getDb();
     const [issuance] = await db.select().from(fiscalIssuances).where(eq(fiscalIssuances.id, id)).limit(1);
@@ -138,7 +149,8 @@ export async function POST(request: Request) {
     }
 
     return Response.json(await payloadFor(request), { headers: { "Cache-Control": "no-store" } });
-  } catch {
+  } catch (error) {
+    if (error instanceof PlatformModeError) return Response.json({ error: error.message, code: error.code }, { status: error.status });
     return Response.json({ error: "Não foi possível atualizar a fila fiscal." }, { status: 500 });
   }
 }

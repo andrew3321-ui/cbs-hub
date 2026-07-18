@@ -3,6 +3,7 @@ import { ensureScenarioSchema, getDb } from "../../../db";
 import { billingAccounts } from "../../../db/schema";
 import { getCurrentUser } from "../../auth";
 import { getMercadoPagoEnvironment, mercadoPagoRequest, MercadoPagoSubscription, normalizeBillingStatus } from "../../billing";
+import { getPlatformOperationState } from "../../platform-controls";
 
 export async function GET() {
   const user = await getCurrentUser();
@@ -11,6 +12,7 @@ export async function GET() {
   const db = getDb();
   let [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
   const configured = Boolean(getMercadoPagoEnvironment().accessToken);
+  const operation = await getPlatformOperationState();
 
   if (configured && account?.providerSubscriptionId && !["canceled", "cancelled"].includes(account.status)) {
     try {
@@ -30,6 +32,8 @@ export async function GET() {
 
   return Response.json({
     configured,
+    betaEnabled: operation.betaEnabled,
+    paymentsEnabled: operation.paymentsEnabled,
     billing: account ? {
       planKey: account.planKey,
       status: account.status,

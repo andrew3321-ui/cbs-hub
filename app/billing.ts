@@ -103,6 +103,8 @@ export async function mercadoPagoRequest<T>(path: string, init: RequestInit = {}
   if (!accessToken) throw new Error("billing_not_configured");
   const response = await fetch(`https://api.mercadopago.com${path}`, {
     ...init,
+    signal: init.signal ?? AbortSignal.timeout(10_000),
+    redirect: "error",
     headers: {
       Accept: "application/json",
       Authorization: `Bearer ${accessToken}`,

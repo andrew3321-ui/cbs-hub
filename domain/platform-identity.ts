@@ -1,4 +1,4 @@
-export const PLATFORM_IDENTITY_VERSION = "2026.07.18-v36";
+export const PLATFORM_IDENTITY_VERSION = "2026.07.18-v37";
 
 export const platformIdentity = Object.freeze({
   brand: "Margem Clara",

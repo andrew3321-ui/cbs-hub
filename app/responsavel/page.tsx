@@ -45,7 +45,7 @@ export default function PlatformOwnerPage() {
         <div className="ownership-actions"><a href="/api/public/ownership" target="_blank" rel="noreferrer">Ver registro público estruturado <span>↗</span></a><Link href="/metodologia">Conhecer os controles da plataforma <span>→</span></Link></div>
       </section>
 
-      <footer className="ownership-footer"><span>Margem Clara · Responsável: {platformIdentity.responsibleName}</span><Link href="/">Voltar ao início</Link></footer>
+      <footer className="ownership-footer"><span>Margem Clara · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/privacidade">Privacidade</Link> · <Link href="/termos">Termos</Link> · <Link href="/">Voltar ao início</Link></div></footer>
     </main>
   );
 }
