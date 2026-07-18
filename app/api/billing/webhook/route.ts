@@ -1,7 +1,7 @@
 import { ensureScenarioSchema } from "../../../../db";
 import { mercadoPagoConfigurationStatus, validateMercadoPagoWebhook } from "../../../billing";
 import { recordAuthorizedPaymentFromProvider, updateSubscriptionFromProvider } from "../../../billing-reconciliation";
-import { reconcilePixPaymentFromProvider } from "../../../billing-pix";
+import { reconcilePixOrderFromProvider, reconcilePixPaymentFromProvider } from "../../../billing-pix";
 
 export async function POST(request: Request) {
   try {
@@ -14,10 +14,12 @@ export async function POST(request: Request) {
       ? await validateMercadoPagoWebhook(request, dataId)
       : false;
     if (!dataId || !providerAuthenticated) return Response.json({ error: "Assinatura inválida." }, { status: 401 });
-    if (!["payment", "subscription_preapproval", "subscription_authorized_payment"].includes(eventType)) return Response.json({ received: true, ignored: true });
+    if (!["order", "payment", "subscription_preapproval", "subscription_authorized_payment"].includes(eventType)) return Response.json({ received: true, ignored: true });
 
     await ensureScenarioSchema();
-    const result = eventType === "payment"
+    const result = eventType === "order"
+      ? (await reconcilePixOrderFromProvider(dataId)).outcome
+      : eventType === "payment"
       ? (await reconcilePixPaymentFromProvider(dataId)).outcome
       : eventType === "subscription_preapproval"
         ? await updateSubscriptionFromProvider(dataId)

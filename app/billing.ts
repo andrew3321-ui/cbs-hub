@@ -78,6 +78,35 @@ export type MercadoPagoPayment = {
   } | null;
 };
 
+export type MercadoPagoOrderPayment = {
+  id?: string | number | null;
+  amount?: string | number | null;
+  paid_amount?: string | number | null;
+  status?: string | null;
+  status_detail?: string | null;
+  date_of_expiration?: string | null;
+  payment_method?: {
+    id?: string | null;
+    type?: string | null;
+    qr_code?: string | null;
+    qr_code_base64?: string | null;
+    ticket_url?: string | null;
+  } | null;
+};
+
+export type MercadoPagoOrder = {
+  id: string;
+  external_reference?: string | number | null;
+  total_amount?: string | number | null;
+  total_paid_amount?: string | number | null;
+  country_code?: string | null;
+  status?: string | null;
+  status_detail?: string | null;
+  created_date?: string | null;
+  last_updated_date?: string | null;
+  transactions?: { payments?: MercadoPagoOrderPayment[] | null } | null;
+};
+
 export function getMercadoPagoEnvironment() {
   const runtime = env as unknown as MercadoPagoEnvironment;
   return {
@@ -137,21 +166,37 @@ export async function mercadoPagoRequest<T>(path: string, init: RequestInit = {}
   } finally {
     if (timeout != null) clearTimeout(timeout);
   }
-  const data = await response.json().catch(() => ({})) as T & { error?: string; message?: string; cause?: Array<{ code?: string | number }> };
+  const data = await response.json().catch(() => ({})) as T & {
+    error?: string;
+    message?: string;
+    cause?: Array<{ code?: string | number; description?: string }>;
+    errors?: Array<{ code?: string | number; message?: string; detail?: string }>;
+  };
   if (!response.ok) {
     const providerMessage = String(data.message ?? "").toLowerCase();
+    const providerDetail = [
+      ...(Array.isArray(data.cause) ? data.cause.map((item) => `${item.code ?? ""} ${item.description ?? ""}`) : []),
+      ...(Array.isArray(data.errors) ? data.errors.map((item) => `${item.code ?? ""} ${item.message ?? ""} ${item.detail ?? ""}`) : []),
+    ].join(" ").toLowerCase();
+    const combinedMessage = `${providerMessage} ${providerDetail}`;
     const messageCode = providerMessage.includes("idempotency")
       ? "idempotency_key_invalid"
-      : providerMessage.includes("payer") && providerMessage.includes("collector")
+      : combinedMessage.includes("payer") && combinedMessage.includes("collector")
         ? "payer_collector_conflict"
-        : providerMessage.includes("email")
+        : combinedMessage.includes("invalid users involved")
+          ? "payer_collector_conflict"
+        : combinedMessage.includes("pix") && combinedMessage.includes("key")
+          ? "pix_key_not_available"
+        : combinedMessage.includes("collector") && (combinedMessage.includes("not allowed") || combinedMessage.includes("disabled"))
+          ? "collector_account_restricted"
+        : combinedMessage.includes("email")
           ? "payer_email_invalid"
           : response.status === 401 || response.status === 403
             ? "credential_not_authorized"
             : response.status >= 500
               ? "provider_internal_error"
               : "request_rejected";
-    const rawCode = String(data.cause?.[0]?.code ?? data.error ?? messageCode);
+    const rawCode = String(data.errors?.[0]?.code ?? data.cause?.[0]?.code ?? data.error ?? messageCode);
     const providerCode = rawCode.replace(/[^a-zA-Z0-9_.-]/g, "_").slice(0, 80) || "request_failed";
     throw new MercadoPagoApiError(response.status, providerCode);
   }

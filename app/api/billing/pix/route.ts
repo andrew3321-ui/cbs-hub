@@ -10,15 +10,15 @@ import {
   mercadoPagoRequest,
   mercadoPagoTransportErrorCode,
   randomBillingReference,
-  type MercadoPagoPayment,
+  type MercadoPagoOrder,
   type MercadoPagoSubscription,
 } from "../../../billing";
 import {
   latestPixTransaction,
   pixAccessIsValid,
   pixRenewalIsEligible,
-  reconcilePixPaymentFromProvider,
-  reconcilePixPaymentSnapshot,
+  reconcilePixOrderSnapshot,
+  reconcilePixTransactionFromProvider,
 } from "../../../billing-pix";
 import { getPlatformOperationState } from "../../../platform-controls";
 
@@ -55,7 +55,7 @@ export async function POST(request: Request) {
     const currentPix = account ? await latestPixTransaction(account.id, account.externalReference) : null;
     if (account && currentPix?.providerPaymentId && ["pending", "in_process", "in_mediation"].includes(currentPix.status)) {
       stage = "PROVIDER_RECONCILIATION";
-      const current = await reconcilePixPaymentFromProvider(currentPix.providerPaymentId, account.externalReference);
+      const current = await reconcilePixTransactionFromProvider(currentPix, account.externalReference);
       [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.id, account.id)).limit(1);
       if (current.checkout) return Response.json({ mode: "pix", status: account.status, pix: current.checkout });
       if (account?.status === "active") return Response.json({ mode: "pix", status: "active", pix: null, message: "Pix confirmado. Seu acesso está ativo." });
@@ -101,30 +101,60 @@ export async function POST(request: Request) {
     });
 
     stage = "PROVIDER_REQUEST";
-    const payment = await mercadoPagoRequest<MercadoPagoPayment>("/v1/payments", {
+    const amount = (plan.priceCents / 100).toFixed(2);
+    const order = await mercadoPagoRequest<MercadoPagoOrder>("/v1/orders", {
       method: "POST",
       headers: { "X-Idempotency-Key": await billingIdempotencyKey(`${reference}:pix:${plan.key}:${plan.priceCents}`) },
       body: JSON.stringify({
-        transaction_amount: plan.priceCents / 100,
-        description: plan.reason,
-        payment_method_id: "pix",
-        payer: { email: user.email },
+        type: "online",
+        total_amount: amount,
         external_reference: reference,
-        date_of_expiration: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
+        processing_mode: "automatic",
+        description: plan.reason,
+        transactions: {
+          payments: [{
+            amount,
+            payment_method: { id: "pix", type: "bank_transfer" },
+            expiration_time: "P1D",
+          }],
+        },
+        payer: { email: user.email },
       }),
     });
     stage = "PROVIDER_RESPONSE";
-    const linked = await reconcilePixPaymentSnapshot(payment, reference);
+    const linked = await reconcilePixOrderSnapshot(order, reference);
     if (linked.outcome !== "linked") throw new Error(`pix_payment_${linked.outcome}`);
     const [updated] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
-    if (updated?.status !== "active" && !linked.checkout?.ticketUrl && !linked.checkout?.qrCode) throw new Error("pix_payment_instructions_missing");
+    const awaitingInstructions = updated?.status !== "active" && !linked.checkout?.ticketUrl && !linked.checkout?.qrCode;
     return Response.json({
       mode: "pix",
       status: updated?.status ?? "pending",
       pix: linked.checkout,
-      message: updated?.status === "active" ? "Pix confirmado. Seu acesso está ativo." : "Pix gerado com segurança pelo Mercado Pago.",
-    });
+      message: updated?.status === "active"
+        ? "Pix confirmado. Seu acesso está ativo."
+        : awaitingInstructions
+          ? "O Mercado Pago está finalizando o QR Code. Esta tela atualizará automaticamente."
+          : "Pix gerado com segurança pelo Mercado Pago.",
+    }, { status: awaitingInstructions ? 202 : 200 });
   } catch (error) {
+    if (["PROVIDER_REQUEST", "PROVIDER_RESPONSE"].includes(stage)) {
+      try {
+        const db = getDb();
+        const [reserved] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
+        if (reserved && !reserved.providerSubscriptionId && ["pix_creating", "renewal_pending"].includes(reserved.status)) {
+          const now = new Date().toISOString();
+          await db.update(billingAccounts).set({
+            externalReference: randomBillingReference(user.id),
+            status: pixAccessIsValid(reserved) ? "active" : "payment_failed",
+            checkoutUrl: null,
+            lastSyncedAt: now,
+            updatedAt: now,
+          }).where(eq(billingAccounts.id, reserved.id));
+        }
+      } catch {
+        // Preserve the provider error below even if failure-state cleanup is unavailable.
+      }
+    }
     const providerError = mercadoPagoApiErrorDetails(error);
     const transportError = stage === "PROVIDER_REQUEST" && !providerError ? mercadoPagoTransportErrorCode(error) : null;
     console.error(JSON.stringify({ event: "billing.pix_error", stage, status: providerError?.status ?? null, providerCode: providerError?.providerCode ?? transportError ?? "unclassified" }));

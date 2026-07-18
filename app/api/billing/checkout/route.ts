@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts, billingTransactions } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
-import { billingIdempotencyKey, billingPlans, isPaidPlanKey, mercadoPagoApiErrorDetails, mercadoPagoRequest, type MercadoPagoPayment, MercadoPagoSubscription, mercadoPagoTransportErrorCode, normalizeBillingStatus, randomBillingReference } from "../../../billing";
-import { latestPixTransaction } from "../../../billing-pix";
+import { billingIdempotencyKey, billingPlans, isPaidPlanKey, mercadoPagoApiErrorDetails, mercadoPagoRequest, MercadoPagoSubscription, mercadoPagoTransportErrorCode, normalizeBillingStatus, randomBillingReference } from "../../../billing";
+import { cancelPixTransactionAtProvider, latestPixTransaction } from "../../../billing-pix";
 import { getPlatformOperationState } from "../../../platform-controls";
 
 export async function POST(request: Request) {
@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       const pixTransaction = await latestPixTransaction(existing.id, existing.externalReference);
       if (pixTransaction?.providerPaymentId && ["pending", "in_process", "in_mediation"].includes(pixTransaction.status)) {
         checkoutStage = "PIX_CHECKOUT_CANCELLATION";
-        await mercadoPagoRequest<MercadoPagoPayment>(`/v1/payments/${encodeURIComponent(pixTransaction.providerPaymentId)}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
+        await cancelPixTransactionAtProvider(pixTransaction);
         const canceledAt = new Date().toISOString();
         await db.update(billingTransactions).set({ status: "cancelled", statusDetail: "replaced_by_card", lastSyncedAt: canceledAt, updatedAt: canceledAt }).where(eq(billingTransactions.id, pixTransaction.id));
       }

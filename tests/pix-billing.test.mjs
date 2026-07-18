@@ -5,22 +5,25 @@ import test from "node:test";
 const root = new URL("../", import.meta.url);
 const read = (path) => readFile(new URL(path, root), "utf8");
 
-test("Pix é criado no servidor com preço do plano e chave idempotente", async () => {
+test("Pix uses the Orders API with server-side price and idempotency", async () => {
   const [route, billing] = await Promise.all([
     read("app/api/billing/pix/route.ts"),
     read("app/billing.ts"),
   ]);
-  assert.match(route, /mercadoPagoRequest<MercadoPagoPayment>\("\/v1\/payments"/);
-  assert.match(route, /transaction_amount: plan\.priceCents \/ 100/);
-  assert.match(route, /payment_method_id: "pix"/);
+  assert.match(route, /mercadoPagoRequest<MercadoPagoOrder>\("\/v1\/orders"/);
+  assert.match(route, /const amount = \(plan\.priceCents \/ 100\)\.toFixed\(2\)/);
+  assert.match(route, /total_amount: amount/);
+  assert.match(route, /payment_method: \{ id: "pix", type: "bank_transfer" \}/);
+  assert.match(route, /processing_mode: "automatic"/);
   assert.match(route, /payer: \{ email: user\.email \}/);
   assert.match(route, /external_reference: reference/);
   assert.match(route, /billingIdempotencyKey\(`\$\{reference\}:pix:\$\{plan\.key\}:\$\{plan\.priceCents\}`\)/);
   assert.doesNotMatch(route, /payload\.(amount|email|payer|pixKey)/);
-  assert.match(billing, /point_of_interaction/);
+  assert.match(billing, /type MercadoPagoOrder/);
+  assert.match(billing, /data\.errors\?\.\[0\]\?\.code/);
 });
 
-test("conciliação Pix valida identidade, valor, moeda e método antes de liberar acesso", async () => {
+test("Pix reconciliation validates identity, amount, country and method before granting access", async () => {
   const [reconciliation, cardRoute] = await Promise.all([
     read("app/billing-pix.ts"),
     read("app/api/billing/checkout/route.ts"),
@@ -28,17 +31,21 @@ test("conciliação Pix valida identidade, valor, moeda e método antes de liber
   assert.match(reconciliation, /account\.externalReference !== externalReference/);
   assert.match(reconciliation, /amountCents !== plan\.priceCents/);
   assert.match(reconciliation, /currency !== "BRL"/);
-  assert.match(reconciliation, /payment\.payment_method_id !== "pix"/);
+  assert.match(reconciliation, /snapshot\.paymentMethod !== "pix"/);
+  assert.match(reconciliation, /snapshot\.paymentType !== "bank_transfer"/);
   assert.match(reconciliation, /status === "approved"/);
   assert.match(reconciliation, /alreadyCredited/);
   assert.match(reconciliation, /status: "active", checkoutUrl: null/);
   assert.match(reconciliation, /ensureFiscalIssuance/);
-  assert.match(reconciliation, /providerSummaryJson: JSON\.stringify\(\{ paymentId, status, statusDetail, paymentMethod: "pix" \}\)/);
+  assert.match(reconciliation, /providerInvoiceId: `pix-order:\$\{orderId\}`/);
+  assert.match(reconciliation, /providerFlow: "orders"/);
+  assert.match(reconciliation, /reconcilePixTransactionFromProvider/);
+  assert.match(reconciliation, /\/v1\/orders\/\$\{encodeURIComponent\(orderId\)\}\/cancel/);
   assert.match(cardRoute, /status: "cancelled", statusDetail: "replaced_by_card"/);
   assert.match(cardRoute, /PIX_CHECKOUT_CANCELLATION/);
 });
 
-test("interface distingue Pix mensal de assinatura automática e não expõe chave do recebedor", async () => {
+test("UI distinguishes monthly Pix from automatic subscription without exposing a receiver key", async () => {
   const [client, page, worker, webhook] = await Promise.all([
     read("app/planos/PricingClient.tsx"),
     read("app/planos/page.tsx"),
@@ -52,6 +59,7 @@ test("interface distingue Pix mensal de assinatura automática e não expõe cha
   assert.match(client, /data:image\/png;base64/);
   assert.match(page, /Pix não renova sozinho/);
   assert.match(worker, /pathname === "\/api\/billing\/pix"/);
+  assert.match(webhook, /eventType === "order"/);
   assert.match(webhook, /eventType === "payment"/);
   assert.doesNotMatch(client, /\+55\d{11}|pixKey/);
 });

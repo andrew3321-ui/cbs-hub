@@ -2,8 +2,8 @@ import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts, billingTransactions } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
-import { mercadoPagoRequest, MercadoPagoSubscription, randomBillingReference, type MercadoPagoPayment } from "../../../billing";
-import { latestPixTransaction, pixAccessIsValid } from "../../../billing-pix";
+import { mercadoPagoRequest, MercadoPagoSubscription, randomBillingReference } from "../../../billing";
+import { cancelPixTransactionAtProvider, latestPixTransaction, pixAccessIsValid } from "../../../billing-pix";
 
 export async function POST() {
   const user = await getCurrentUser();
@@ -18,7 +18,7 @@ export async function POST() {
       if (!transaction?.providerPaymentId || !["pending", "in_process", "in_mediation"].includes(transaction.status)) {
         return Response.json({ error: "O Pix mensal não possui renovação automática para cancelar." }, { status: 409 });
       }
-      await mercadoPagoRequest<MercadoPagoPayment>(`/v1/payments/${encodeURIComponent(transaction.providerPaymentId)}`, { method: "PUT", body: JSON.stringify({ status: "cancelled" }) });
+      await cancelPixTransactionAtProvider(transaction);
       const now = new Date().toISOString();
       await db.batch([
         db.update(billingTransactions).set({ status: "cancelled", statusDetail: "canceled_by_user", lastSyncedAt: now, updatedAt: now }).where(eq(billingTransactions.id, transaction.id)),
