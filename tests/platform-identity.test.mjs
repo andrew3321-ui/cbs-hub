@@ -3,7 +3,7 @@ import fs from "node:fs";
 import test from "node:test";
 import { formatNumericCnpj, numericCnpjIsValid, platformIdentity, publicPlatformOwnership } from "../domain/platform-identity.ts";
 
-test("V34 attaches a mathematically valid and consistently formatted CNPJ", () => {
+test("V35 preserves a mathematically valid and consistently formatted CNPJ", () => {
   assert.equal(numericCnpjIsValid("64.297.777/0001-42"), true);
   assert.equal(numericCnpjIsValid("64.297.777/0001-43"), false);
   assert.equal(numericCnpjIsValid("11.111.111/1111-11"), false);

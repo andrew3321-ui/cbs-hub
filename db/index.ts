@@ -141,6 +141,51 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS billing_transactions (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          billing_account_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          provider TEXT DEFAULT 'mercado_pago' NOT NULL,
+          provider_invoice_id TEXT NOT NULL,
+          provider_payment_id TEXT,
+          external_reference TEXT NOT NULL,
+          status TEXT DEFAULT 'pending' NOT NULL,
+          status_detail TEXT DEFAULT '' NOT NULL,
+          gross_amount_cents INTEGER NOT NULL,
+          fee_amount_cents INTEGER,
+          net_amount_cents INTEGER,
+          currency TEXT DEFAULT 'BRL' NOT NULL,
+          payment_method TEXT,
+          approved_at TEXT,
+          provider_summary_json TEXT DEFAULT '{}' NOT NULL,
+          last_synced_at TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_issuances (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          transaction_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          customer_type TEXT DEFAULT 'unknown' NOT NULL,
+          customer_name TEXT DEFAULT '' NOT NULL,
+          customer_tax_id TEXT,
+          note_requested INTEGER DEFAULT 0 NOT NULL,
+          service_code TEXT,
+          service_description TEXT NOT NULL,
+          competence_month TEXT NOT NULL,
+          amount_cents INTEGER NOT NULL,
+          status TEXT DEFAULT 'pending_data' NOT NULL,
+          nfse_number TEXT,
+          nfse_key TEXT,
+          issued_at TEXT,
+          internal_note TEXT DEFAULT '' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS users (
           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
           name TEXT NOT NULL,
@@ -576,6 +621,13 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_accounts_user_id_idx ON billing_accounts (user_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_accounts_external_reference_idx ON billing_accounts (external_reference)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_accounts_provider_subscription_id_idx ON billing_accounts (provider_subscription_id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS billing_transactions_provider_invoice_idx ON billing_transactions (provider_invoice_id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS billing_transactions_provider_payment_idx ON billing_transactions (provider_payment_id) WHERE provider_payment_id IS NOT NULL"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_transactions_user_status_idx ON billing_transactions (user_id, status, approved_at)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_transactions_account_created_idx ON billing_transactions (billing_account_id, created_at, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_issuances_transaction_idx ON fiscal_issuances (transaction_id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_issuances_status_competence_idx ON fiscal_issuances (status, competence_month, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_issuances_user_created_idx ON fiscal_issuances (user_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_owner_user_id_idx ON audit_events (owner_user_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_company_id_idx ON audit_events (company_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_scenario_id_idx ON audit_events (scenario_id)"),

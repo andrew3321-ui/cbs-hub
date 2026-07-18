@@ -525,6 +525,58 @@ export const billingAccounts = sqliteTable("billing_accounts", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const billingTransactions = sqliteTable("billing_transactions", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  billingAccountId: integer("billing_account_id").notNull(),
+  userId: integer("user_id").notNull(),
+  provider: text("provider").notNull().default("mercado_pago"),
+  providerInvoiceId: text("provider_invoice_id").notNull(),
+  providerPaymentId: text("provider_payment_id"),
+  externalReference: text("external_reference").notNull(),
+  status: text("status").notNull().default("pending"),
+  statusDetail: text("status_detail").notNull().default(""),
+  grossAmountCents: integer("gross_amount_cents").notNull(),
+  feeAmountCents: integer("fee_amount_cents"),
+  netAmountCents: integer("net_amount_cents"),
+  currency: text("currency").notNull().default("BRL"),
+  paymentMethod: text("payment_method"),
+  approvedAt: text("approved_at"),
+  providerSummaryJson: text("provider_summary_json").notNull().default("{}"),
+  lastSyncedAt: text("last_synced_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("billing_transactions_provider_invoice_idx").on(table.providerInvoiceId),
+  uniqueIndex("billing_transactions_provider_payment_idx").on(table.providerPaymentId),
+  index("billing_transactions_user_status_idx").on(table.userId, table.status, table.approvedAt),
+  index("billing_transactions_account_created_idx").on(table.billingAccountId, table.createdAt, table.id),
+]);
+
+export const fiscalIssuances = sqliteTable("fiscal_issuances", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  transactionId: integer("transaction_id").notNull(),
+  userId: integer("user_id").notNull(),
+  customerType: text("customer_type").notNull().default("unknown"),
+  customerName: text("customer_name").notNull().default(""),
+  customerTaxId: text("customer_tax_id"),
+  noteRequested: integer("note_requested", { mode: "boolean" }).notNull().default(false),
+  serviceCode: text("service_code"),
+  serviceDescription: text("service_description").notNull(),
+  competenceMonth: text("competence_month").notNull(),
+  amountCents: integer("amount_cents").notNull(),
+  status: text("status").notNull().default("pending_data"),
+  nfseNumber: text("nfse_number"),
+  nfseKey: text("nfse_key"),
+  issuedAt: text("issued_at"),
+  internalNote: text("internal_note").notNull().default(""),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_issuances_transaction_idx").on(table.transactionId),
+  index("fiscal_issuances_status_competence_idx").on(table.status, table.competenceMonth, table.id),
+  index("fiscal_issuances_user_created_idx").on(table.userId, table.createdAt, table.id),
+]);
+
 export const reportShares = sqliteTable("report_shares", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   token: text("token").notNull().unique(),

@@ -33,6 +33,33 @@ test("credenciais de cobrança permanecem somente no servidor", async () => {
   assert.doesNotMatch(hosting, /MERCADO_PAGO|ACCESS_TOKEN|WEBHOOK_SECRET/);
 });
 
+test("versão 35 concilia cobranças recorrentes e cria fila fiscal restrita", async () => {
+  const [center, adminApi, webhook, adminGuard, schema, runtimeDb, environment] = await Promise.all([
+    readFile(new URL("app/app/BillingCenter.tsx", root), "utf8"),
+    readFile(new URL("app/api/admin/billing/route.ts", root), "utf8"),
+    readFile(new URL("app/api/billing/webhook/route.ts", root), "utf8"),
+    readFile(new URL("app/platform-admin.ts", root), "utf8"),
+    readFile(new URL("db/schema.ts", root), "utf8"),
+    readFile(new URL("db/index.ts", root), "utf8"),
+    readFile(new URL(".env.example", root), "utf8"),
+  ]);
+  assert.match(center, /Central de Faturamento/);
+  assert.match(center, /Abrir Emissor Nacional/);
+  assert.match(center, /A nota continua manual/);
+  assert.match(adminApi, /getPlatformAdminUser/);
+  assert.match(adminApi, /mark_issued/);
+  assert.match(webhook, /subscription_authorized_payment/);
+  assert.match(webhook, /\/authorized_payments\//);
+  assert.match(webhook, /providerSummaryJson/);
+  assert.match(adminGuard, /PLATFORM_ADMIN_EMAILS/);
+  assert.match(schema, /billingTransactions/);
+  assert.match(schema, /fiscalIssuances/);
+  assert.match(runtimeDb, /CREATE TABLE IF NOT EXISTS billing_transactions/);
+  assert.match(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_issuances/);
+  assert.match(environment, /MERCADO_PAGO_ACCESS_TOKEN/);
+  assert.match(environment, /MERCADO_PAGO_WEBHOOK_SECRET/);
+});
+
 test("análises publicadas expõem versionamento e não afirmam homologação", async () => {
   const [app, report, methodology, scenariosApi, signing] = await Promise.all([
     readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),

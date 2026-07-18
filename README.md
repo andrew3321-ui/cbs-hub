@@ -74,6 +74,10 @@ Comandos principais:
 
 `GET /api/reviews` lista a fila do escritório, métricas de prazo, revisores elegíveis e a conversa de cada rodada. `POST /api/reviews` adiciona comentários, reatribui itens ou registra devolução/rejeição; a aprovação assinada continua em `POST /api/scenarios/approve`.
 
+`GET/POST /api/admin/billing` exige que o e-mail autenticado conste em `PLATFORM_ADMIN_EMAILS` (ou no legado `LEGACY_OWNER_EMAIL`). A central concilia assinaturas, pagamentos e pendências de NFS-e. Ela nunca recebe tokens pelo navegador e não emite nota automaticamente.
+
+A cobrança recorrente usa `MERCADO_PAGO_ACCESS_TOKEN` e `MERCADO_PAGO_WEBHOOK_SECRET` como segredos do ambiente publicado. O webhook `/api/billing/webhook` deve receber os eventos `subscription_preapproval` e `subscription_authorized_payment`.
+
 A chave `SCENARIO_SIGNING_KEY_V1` vive apenas no ambiente publicado. Nunca deve ser gravada no repositório ou enviada ao navegador.
 
 Consulte [Arquitetura e invariantes](docs/architecture.md) antes de alterar o motor fiscal, as rotas de cenário ou o fluxo de revisão.

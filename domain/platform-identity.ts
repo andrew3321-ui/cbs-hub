@@ -1,4 +1,4 @@
-export const PLATFORM_IDENTITY_VERSION = "2026.07.17-v34";
+export const PLATFORM_IDENTITY_VERSION = "2026.07.18-v35";
 export const RECEITA_CNPJ_LOOKUP_URL = "https://solucoes.receita.fazenda.gov.br/Servicos/cnpjreva/Cnpjreva_Solicitacao.asp";
 
 export function normalizeNumericCnpj(value: string) {

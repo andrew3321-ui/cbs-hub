@@ -11,8 +11,9 @@ import NationalCoverageCenter from "./NationalCoverageCenter";
 import FiscalExpansionCenter from "./FiscalExpansionCenter";
 import NfeAuditWorkbench from "./NfeAuditWorkbench";
 import DeterministicTaxLab from "./DeterministicTaxLab";
+import BillingCenter from "./BillingCenter";
 
-type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "academy";
+type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "billing" | "academy";
 
 type ScenarioApproval = {
   id: number;
@@ -382,9 +383,10 @@ type MargemAppProps = {
   user: { id: number; displayName: string; email: string };
   workspace: { id: number; name: string; type: "individual" | "office"; ownerUserId: number; suggestedPlanKey: "pro" | "escritorio"; role: "owner" | "admin" | "preparer" | "reviewer" };
   signOutPath: string;
+  isPlatformAdmin: boolean;
 };
 
-export default function MargemApp({ user, workspace, signOutPath }: MargemAppProps) {
+export default function MargemApp({ user, workspace, signOutPath, isPlatformAdmin }: MargemAppProps) {
   const [section, setSection] = useState<Section>("overview");
   const [companies, setCompanies] = useState<Company[]>([]);
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
@@ -1217,6 +1219,9 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
           <button title="Apuração fiscal" className={section === "determination" ? "active" : ""} onClick={() => setSection("determination")}>
             <span className="nav-icon">≋</span>Apuração fiscal
           </button>
+          {isPlatformAdmin && <button title="Central de faturamento" className={section === "billing" ? "active" : ""} onClick={() => setSection("billing")}>
+            <span className="nav-icon">$</span>Faturamento
+          </button>}
           <button title="Demonstrações" className={section === "academy" ? "active" : ""} onClick={() => setSection("academy")}>
             <span className="nav-icon">▷</span>Demonstrações
           </button>
@@ -1814,6 +1819,8 @@ export default function MargemApp({ user, workspace, signOutPath }: MargemAppPro
             </>}
           </div>
         )}
+
+        {section === "billing" && isPlatformAdmin && <BillingCenter />}
 
         {section === "academy" && (
           <div className="page-content academy-page">

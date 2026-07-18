@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { clearSessionCookieHeader, getCurrentUser, verifyPassword } from "../../auth";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { accountingWorkspaces, auditEvents, billingAccounts, companies, reportShares, scenarioApprovals, scenarioReviewComments, scenarioReviewRounds, scenarios, sessions, users, workspaceInvitations, workspaceMembers } from "../../../db/schema";
+import { accountingWorkspaces, auditEvents, billingAccounts, billingTransactions, companies, fiscalIssuances, reportShares, scenarioApprovals, scenarioReviewComments, scenarioReviewRounds, scenarios, sessions, users, workspaceInvitations, workspaceMembers } from "../../../db/schema";
 import { getWorkspaceContext } from "../../workspace";
 
 export async function DELETE(request: Request) {
@@ -23,6 +23,8 @@ export async function DELETE(request: Request) {
       const [assignedReview] = await db.select({ id: scenarioReviewRounds.id }).from(scenarioReviewRounds).where(and(eq(scenarioReviewRounds.workspaceId, workspace.id), eq(scenarioReviewRounds.assignedReviewerUserId, user.id), eq(scenarioReviewRounds.status, "pending"))).limit(1);
       if (assignedReview) return Response.json({ error: "Peça a um gestor para reatribuir suas revisões pendentes antes de excluir a conta." }, { status: 409 });
       await db.delete(workspaceMembers).where(eq(workspaceMembers.userId, user.id));
+      await db.delete(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
+      await db.delete(billingTransactions).where(eq(billingTransactions.userId, user.id));
       await db.delete(billingAccounts).where(eq(billingAccounts.userId, user.id));
       await db.delete(sessions).where(eq(sessions.userId, user.id));
       await db.delete(users).where(eq(users.id, user.id));
@@ -31,6 +33,8 @@ export async function DELETE(request: Request) {
 
     const ownedCompanies = await db.select({ id: companies.id }).from(companies).where(eq(companies.workspaceId, workspace.id));
     const companyIds = ownedCompanies.map((company) => company.id);
+    await db.delete(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
+    await db.delete(billingTransactions).where(eq(billingTransactions.userId, user.id));
     await db.delete(billingAccounts).where(eq(billingAccounts.userId, user.id));
     await db.delete(auditEvents).where(eq(auditEvents.ownerUserId, user.id));
     await db.delete(reportShares).where(eq(reportShares.ownerUserId, user.id));

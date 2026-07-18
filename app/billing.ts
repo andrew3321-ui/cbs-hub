@@ -32,12 +32,55 @@ export type MercadoPagoSubscription = {
   next_payment_date?: string | null;
 };
 
+export type MercadoPagoAuthorizedPayment = {
+  id: string | number;
+  preapproval_id?: string | null;
+  external_reference?: string | number | null;
+  currency_id?: string | null;
+  transaction_amount?: string | number | null;
+  debit_date?: string | null;
+  date_created?: string | null;
+  status?: string | null;
+  summarized?: string | null;
+  payment?: { id?: string | number | null; status?: string | null; status_detail?: string | null } | null;
+};
+
+export type MercadoPagoPayment = {
+  id: string | number;
+  external_reference?: string | number | null;
+  status?: string | null;
+  status_detail?: string | null;
+  transaction_amount?: string | number | null;
+  currency_id?: string | null;
+  payment_method_id?: string | null;
+  payment_type_id?: string | null;
+  date_created?: string | null;
+  date_approved?: string | null;
+  fee_details?: Array<{ amount?: string | number | null; type?: string | null }>;
+  transaction_details?: { net_received_amount?: string | number | null } | null;
+};
+
 export function getMercadoPagoEnvironment() {
   const runtime = env as unknown as MercadoPagoEnvironment;
   return {
     accessToken: String(runtime.MERCADO_PAGO_ACCESS_TOKEN ?? "").trim(),
     webhookSecret: String(runtime.MERCADO_PAGO_WEBHOOK_SECRET ?? "").trim(),
   };
+}
+
+export function mercadoPagoConfigurationStatus() {
+  const { accessToken, webhookSecret } = getMercadoPagoEnvironment();
+  return {
+    accessToken: Boolean(accessToken),
+    webhookSecret: Boolean(webhookSecret),
+    mode: accessToken.startsWith("TEST-") ? "test" : accessToken ? "production" : "disabled",
+  } as const;
+}
+
+export function currencyAmountToCents(value: string | number | null | undefined) {
+  const amount = Number(value);
+  if (!Number.isFinite(amount) || amount < 0) return 0;
+  return Math.round(amount * 100);
 }
 
 export function isPaidPlanKey(value: unknown): value is PaidPlanKey {
