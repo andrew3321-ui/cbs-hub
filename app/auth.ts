@@ -6,7 +6,10 @@ import { sessions, users } from "../db/schema";
 
 const SESSION_COOKIE = "mc_session";
 const SESSION_SECONDS = 60 * 60 * 24 * 7;
-export const CURRENT_PASSWORD_ITERATIONS = 600_000;
+// Keep a single PBKDF2 operation within the deployed Worker runtime ceiling.
+// Password length, per-user salts, lockouts and edge rate limits provide the
+// remaining layers without making authentication unavailable in production.
+export const CURRENT_PASSWORD_ITERATIONS = 100_000;
 const LEGACY_PASSWORD_ITERATIONS = 100_000;
 
 export type AppUser = {

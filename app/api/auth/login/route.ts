@@ -30,7 +30,11 @@ export async function POST(request: Request) {
     await getDb().update(users).set({ failedLoginAttempts: 0, lockedUntil: null, ...(passwordUpgrade ? { passwordHash: passwordUpgrade.hash, passwordSalt: passwordUpgrade.salt, passwordIterations: passwordUpgrade.iterations } : {}) }).where(eq(users.id, user.id));
     const session = await createSession(user.id);
     return Response.json({ user: { id: user.id, name: user.name, email: user.email } }, { headers: { "Set-Cookie": sessionCookieHeader(session.token, request) } });
-  } catch {
+  } catch (error) {
+    console.error(JSON.stringify({
+      event: "auth.login_failed_unexpectedly",
+      error: error instanceof Error ? error.name : "UnknownError",
+    }));
     return Response.json({ error: "Não foi possível entrar agora." }, { status: 500 });
   }
 }

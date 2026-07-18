@@ -32,10 +32,10 @@ test("worker applies layered request and response defenses", () => {
   assert.match(worker, /pathname !== "\/api\/billing\/webhook"/);
 });
 
-test("authentication upgrades password derivation and shortens sessions", () => {
+test("authentication uses the runtime-supported password derivation cost and short sessions", () => {
   const auth = read("../app/auth.ts");
   const login = read("../app/api/auth/login/route.ts");
-  assert.match(auth, /CURRENT_PASSWORD_ITERATIONS = 600_000/);
+  assert.match(auth, /CURRENT_PASSWORD_ITERATIONS = 100_000/);
   assert.match(auth, /SESSION_SECONDS = 60 \* 60 \* 24 \* 7/);
   assert.match(auth, /value\.length >= 12/);
   assert.match(auth, /HttpOnly; SameSite=Lax; Priority=High/);
