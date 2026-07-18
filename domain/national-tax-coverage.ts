@@ -1,12 +1,14 @@
-export const NATIONAL_COVERAGE_VERSION = "2026.07.17-v27";
-export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-17";
+import { issDeepCityProfiles, issDeepProfileByIbge, issDeepSources } from "./iss-deep-coverage.ts";
+
+export const NATIONAL_COVERAGE_VERSION = "2026.07.18-v52";
+export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-18";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
 export type UfCode = "AC" | "AL" | "AP" | "AM" | "BA" | "CE" | "DF" | "ES" | "GO" | "MA" | "MT" | "MS" | "MG" | "PA" | "PB" | "PR" | "PE" | "PI" | "RJ" | "RN" | "RS" | "RO" | "RR" | "SC" | "SP" | "SE" | "TO";
 
 export type CoverageSource = { code: string; title: string; publisher: string; url: string; checkedAt: string };
 export type StateCoverage = { uf: UfCode; name: string; region: "N" | "NE" | "CO" | "SE" | "S"; status: CoverageStatus; officialPortal: string; supported: string[]; blockers: string[] };
-export type CityCoverage = { ibgeCode: string; city: string; uf: UfCode; status: CoverageStatus; rangeBps: [number, number]; supported: string[]; blockers: string[] };
+export type CityCoverage = { ibgeCode: string; city: string; uf: UfCode; status: CoverageStatus; rangeBps: [number, number]; depth: "structured" | "catalogued"; officialSourceCodes: string[]; structuredAt: string | null; supported: string[]; blockers: string[] };
 export type SegmentCoverage = { code: string; name: string; status: CoverageStatus; routes: string[]; supported: string[]; blockers: string[] };
 export type ScenarioCoverage = { code: string; tax: string; title: string; status: CoverageStatus; supported: string[]; blockers: string[] };
 
@@ -21,6 +23,7 @@ export const coverageSources: CoverageSource[] = [
   { code: "EFD-ICMS-IPI", title: "Guia Prático EFD-ICMS/IPI v3.2.2", publisher: "SPED", url: "https://sped.rfb.gov.br/arquivo/download/8112", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   { code: "RTC-CALCULATOR", title: "Calculadora oficial de tributos sobre consumo", publisher: "Receita Federal", url: "https://consumo.tributos.gov.br/servico/calcular-tributos-consumo/calculadora/regime-geral", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   { code: "RTC-MANUAL", title: "Manual de serviços da Reforma Tributária do Consumo", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/manuais/reforma-tributaria-do-consumo/manual-servicos-rtc.pdf", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
+  ...issDeepSources,
 ];
 
 const state = (uf: UfCode, name: string, region: StateCoverage["region"], officialPortal: string): StateCoverage => ({
@@ -65,11 +68,21 @@ const cityRows: Array<[string, string, UfCode]> = [
   ["1500800", "Ananindeua", "PA"], ["5107602", "Rondonópolis", "MT"], ["5008305", "Três Lagoas", "MS"], ["1100205", "Porto Velho", "RO"], ["1200401", "Rio Branco", "AC"],
 ];
 
-export const cityCoverage: CityCoverage[] = cityRows.map(([ibgeCode, city, uf]) => ({
-  ibgeCode, city, uf, status: "partial", rangeBps: [200, 500],
-  supported: ["faixa nacional de 2% a 5%", "item da LC 116", "município de incidência como fato obrigatório", "preparação para NFS-e padrão nacional"],
-  blockers: ["alíquota exata depende do código de serviço e da lei municipal vigente", "retenção, local de incidência, cadastro e regime especial precisam ser confirmados"],
-}));
+export const cityCoverage: CityCoverage[] = cityRows.map(([ibgeCode, city, uf]) => {
+  const deepProfile = issDeepProfileByIbge.get(ibgeCode);
+  return {
+    ibgeCode,
+    city,
+    uf,
+    status: "partial",
+    rangeBps: [200, 500],
+    depth: deepProfile ? "structured" : "catalogued",
+    officialSourceCodes: deepProfile?.sourceCodes ?? [],
+    structuredAt: deepProfile?.checkedAt ?? null,
+    supported: deepProfile?.supportedOutputs ?? ["faixa nacional de 2% a 5%", "item da LC 116", "município de incidência como fato obrigatório", "preparação para NFS-e padrão nacional"],
+    blockers: deepProfile?.hardStops ?? ["alíquota exata depende do código de serviço e da lei municipal vigente", "retenção, local de incidência, cadastro e regime especial precisam ser confirmados"],
+  };
+});
 
 export const recurringScenarios: ScenarioCoverage[] = [
   { code: "SIMPLES-PGDAS", tax: "Simples", title: "Receita segregada, anexo e fator R", status: "partial", supported: ["triagem e memória de fatos"], blockers: ["DAS depende das receitas segregadas e parâmetros do período"] },
@@ -83,6 +96,7 @@ export const recurringScenarios: ScenarioCoverage[] = [
 
 export const normativeMonitorSources = [
   coverageSources[3], coverageSources[4], coverageSources[5], coverageSources[6], coverageSources[7], coverageSources[8],
+  ...issDeepSources,
   { code: "RFB-NEWS", title: "Notícias da Receita Federal", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/assuntos/noticias", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   { code: "SIMPLES-NEWS", title: "Notícias do Simples Nacional", publisher: "Receita Federal", url: "https://www8.receita.fazenda.gov.br/SimplesNacional/Noticias/NoticiaCompleta.aspx", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   ...stateCoverage.map((item) => ({ code: `SEFAZ-${item.uf}`, title: `Portal oficial da SEFAZ — ${item.name}`, publisher: `Administração tributária de ${item.name}`, url: item.officialPortal, checkedAt: NATIONAL_COVERAGE_CHECKED_AT })),
@@ -101,6 +115,7 @@ export function coverageMetrics() {
   const all = [...stateCoverage, ...cityCoverage, ...stSegments, ...recurringScenarios];
   return {
     states: stateCoverage.length, cities: cityCoverage.length, stSegments: stSegments.length, recurringScenarios: recurringScenarios.length,
+    deepIssCities: issDeepCityProfiles.length,
     supported: all.filter((item) => item.status === "supported").length,
     partial: all.filter((item) => item.status === "partial").length,
     notSupported: all.filter((item) => item.status === "not_supported").length,
@@ -109,7 +124,7 @@ export function coverageMetrics() {
 }
 
 export async function hashNationalCoverage() {
-  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, cities: cityCoverage, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
+  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

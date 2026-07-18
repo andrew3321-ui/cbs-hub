@@ -1,4 +1,5 @@
 import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, NATIONAL_COVERAGE_CHECKED_AT, NATIONAL_COVERAGE_VERSION, recurringScenarios, stateCoverage, stSegments } from "../../../../domain/national-tax-coverage";
+import { issDeepCityProfiles, issDeepMetrics, issDeepSources } from "../../../../domain/iss-deep-coverage";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function publicCoverage() {
@@ -10,6 +11,12 @@ async function publicCoverage() {
     metrics: coverageMetrics(),
     states: stateCoverage,
     cities: cityCoverage,
+    issDeep: {
+      metrics: issDeepMetrics,
+      profiles: issDeepCityProfiles,
+      sources: issDeepSources,
+      policy: "Estruturado significa fontes e portões técnicos conectados. Não significa testado, homologado ou liberado para cálculo exato.",
+    },
     stSegments,
     recurringScenarios,
     sources: coverageSources,

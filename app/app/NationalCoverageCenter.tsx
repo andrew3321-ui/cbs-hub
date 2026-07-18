@@ -4,10 +4,12 @@ import { FormEvent, useEffect, useMemo, useState } from "react";
 
 type Status = "supported" | "partial" | "not_supported";
 type StateRow = { uf: string; name: string; region: string; status: Status; officialPortal: string; supported: string[]; blockers: string[] };
-type CityRow = { ibgeCode: string; city: string; uf: string; status: Status; rangeBps: [number, number]; supported: string[]; blockers: string[] };
+type CityRow = { ibgeCode: string; city: string; uf: string; status: Status; rangeBps: [number, number]; depth: "structured" | "catalogued"; officialSourceCodes: string[]; structuredAt: string | null; supported: string[]; blockers: string[] };
 type Segment = { code: string; name: string; status: Status; routes: string[]; supported: string[]; blockers: string[] };
 type Scenario = { code: string; tax: string; title: string; status: Status; supported: string[]; blockers: string[] };
-type Coverage = { version: string; checkedAt: string; fingerprint: string; metrics: { states: number; cities: number; stSegments: number; recurringScenarios: number; supported: number; partial: number; notSupported: number; sourceCount: number }; states: StateRow[]; cities: CityRow[]; stSegments: Segment[]; recurringScenarios: Scenario[]; sources: Array<{ code: string; title: string; publisher: string; url: string }> };
+type IssDeepProfile = { code: string; ibgeCode: string; city: string; uf: string; stage: "structured"; sourceCodes: string[]; supportedOutputs: string[]; hardStops: string[]; placeOfIncidence: { generalRule: string; requiredFacts: string[] }; withholding: { conclusion: "requires_facts"; requiredFacts: string[] } };
+type IssDeepSource = { code: string; title: string; publisher: string; url: string; checkedAt: string; kind: "municipal_law" | "rate_table" | "operational_guidance" };
+type Coverage = { version: string; checkedAt: string; fingerprint: string; metrics: { states: number; cities: number; deepIssCities: number; stSegments: number; recurringScenarios: number; supported: number; partial: number; notSupported: number; sourceCount: number }; states: StateRow[]; cities: CityRow[]; issDeep: { metrics: { structuredCities: number; officialSources: number; testedCities: number; professionallyApprovedCities: number; automaticHomologation: false }; profiles: IssDeepProfile[]; sources: IssDeepSource[]; policy: string }; stSegments: Segment[]; recurringScenarios: Scenario[]; sources: Array<{ code: string; title: string; publisher: string; url: string }> };
 type Governance = { identity: { ruleCode: string; ruleVersion: string; ruleHash: string }; approval: null | { reviewerName: string; professionalRole: string; professionalRegistration: string; decidedAt: string; verified: boolean }; executionEnabled: boolean; canApprove: boolean; error?: string };
 type Monitor = { checkedAt: string; previousCheckedAt: string | null; rotation: { offset: number; totalSources: number; cycleDays: number }; metrics: { monitored: number; checkedToday: number; checked: number; unavailable: number; changeSignals: number }; sources: Array<{ code: string; title: string; url: string; status: "checked" | "unavailable"; changed: boolean; lastModified: string | null }>; policy: string; error?: string };
 type BatchResult = { batchId: string; metrics: { total: number; accepted: number; warning: number; blocked: number }; items: Array<{ filename: string; documentType: string; status: "accepted" | "warning" | "blocked"; sourceHash: string; issues: string[]; summary: Record<string, string | number | boolean | null> }>; message: string; error?: string };
@@ -54,6 +56,8 @@ export default function NationalCoverageCenter() {
   }, []);
 
   const cities = useMemo(() => coverage?.cities.filter((item) => `${item.city} ${item.uf}`.toLocaleLowerCase("pt-BR").includes(cityQuery.toLocaleLowerCase("pt-BR"))) ?? [], [coverage, cityQuery]);
+  const issDeepProfiles = useMemo(() => new Map(coverage?.issDeep.profiles.map((item) => [item.ibgeCode, item]) ?? []), [coverage]);
+  const issDeepSources = useMemo(() => new Map(coverage?.issDeep.sources.map((item) => [item.code, item]) ?? []), [coverage]);
 
   const calculateIcms = async (event: FormEvent) => {
     event.preventDefault(); setBusy("icms"); setError(""); setIcmsResult(null);
@@ -84,7 +88,7 @@ export default function NationalCoverageCenter() {
 
   return <div className="national-coverage-center">
     <section className="coverage-hero">
-      <div><span>VERSÃO 27 · COBERTURA NACIONAL CONTROLADA</span><h1>O que o Margem Clara realmente suporta</h1><p>ICMS, ST, ISS, tributos federais, Reforma, documentos e mudanças normativas em uma matriz pública — sem esconder os cenários ainda parciais.</p></div>
+      <div><span>VERSÃO 52 · ISS MUNICIPAL PROFUNDO</span><h1>O que o Margem Clara realmente suporta</h1><p>ICMS, ST, ISS, tributos federais, Reforma, documentos e mudanças normativas em uma matriz pública — sem esconder os cenários ainda parciais.</p></div>
       <div className="coverage-hero-proof"><small>BASE VERSIONADA</small><b>#{coverage.fingerprint}</b><span>{new Date(`${coverage.checkedAt}T12:00:00`).toLocaleDateString("pt-BR")}</span></div>
     </section>
 
@@ -92,7 +96,7 @@ export default function NationalCoverageCenter() {
 
     <section className="coverage-kpis">
       <article><span>ICMS geral</span><strong>{coverage.metrics.states}/27</strong><small>UFs mapeadas</small></article>
-      <article><span>ISS prioritário</span><strong>{coverage.metrics.cities}</strong><small>municípios indexados</small></article>
+      <article><span>ISS profundo</span><strong>{coverage.metrics.deepIssCities}/25</strong><small>{coverage.metrics.cities} municípios indexados</small></article>
       <article><span>ST prioritária</span><strong>{coverage.metrics.stSegments}</strong><small>segmentos controlados</small></article>
       <article><span>Cenários federais</span><strong>{coverage.metrics.recurringScenarios}</strong><small>rotinas recorrentes</small></article>
       <article className={governance?.executionEnabled ? "ready" : "locked"}><span>Execução</span><strong>{governance?.executionEnabled ? "Liberada" : "Bloqueada"}</strong><small>{governance?.executionEnabled ? "aprovação íntegra" : "aguarda profissional"}</small></article>
@@ -106,7 +110,7 @@ export default function NationalCoverageCenter() {
       <div className="coverage-legend"><div><StatusPill status="supported" /><p><b>Suportado</b><span>Regra testada e apta após aprovação.</span></p></div><div><StatusPill status="partial" /><p><b>Parcial</b><span>Triagem útil, conclusão bloqueada.</span></p></div><div><StatusPill status="not_supported" /><p><b>Não suportado</b><span>Identifica o tema sem calcular.</span></p></div></div>
       <div className="coverage-summary-grid">
         <article><span>27</span><h3>Estados e Distrito Federal</h3><p>Rotas interestaduais nacionais e acesso direto ao portal oficial de cada UF.</p><b>Todos parciais até homologar alíquota interna, produto e exceções.</b></article>
-        <article><span>50</span><h3>Municípios prioritários</h3><p>Faixa nacional, código IBGE, item de serviço e bloqueio da alíquota exata.</p><b>Lei municipal continua obrigatória.</b></article>
+        <article><span>{coverage.metrics.deepIssCities}</span><h3>ISS profundo estruturado</h3><p>Fontes municipais, classificadores, incidência, retenção e portão da alíquota exata.</p><b>Estruturado ainda não significa testado ou homologado.</b></article>
         <article><span>8</span><h3>Segmentos de ST</h3><p>Autopeças avança com rota profunda SP→MG; demais funis já exigem NCM/CEST e fatos.</p><b>Protocolos por rota ainda são homologados individualmente.</b></article>
         <article><span>Diário</span><h3>Monitor de fontes</h3><p>A primeira abertura do dia confere um lote rotativo de fontes primárias e compara cada uma com sua captura anterior.</p><b>O ciclo completo preserva recursos e nenhum sinal altera regra automaticamente.</b></article>
       </div>
@@ -133,9 +137,20 @@ export default function NationalCoverageCenter() {
     </section>}
 
     {tab === "iss" && <section className="iss-coverage">
-      <div className="coverage-section-heading"><span>50 MUNICÍPIOS PRIORITÁRIOS</span><h2>ISS com limite nacional e lei municipal obrigatória</h2><p>A plataforma conhece a faixa legal de 2% a 5%, mas não inventa alíquota exata sem item do serviço, município de incidência e norma local vigente.</p></div>
+      <div className="coverage-section-heading"><span>15 PROFUNDOS · 50 MUNICÍPIOS INDEXADOS</span><h2>ISS municipal com fonte e portão de cálculo</h2><p>Quinze capitais e polos já têm pacote municipal estruturado. A plataforma nunca converte a faixa legal de 2% a 5% em alíquota exata sem código do serviço, vigência, local de incidência, retenção e aprovação profissional.</p></div>
+      <div className="iss-depth-metrics">
+        <article><span>Estruturados</span><strong>{coverage.issDeep.metrics.structuredCities}</strong><small>pacotes municipais profundos</small></article>
+        <article><span>Fontes municipais</span><strong>{coverage.issDeep.metrics.officialSources}</strong><small>leis, tabelas e orientações oficiais</small></article>
+        <article><span>Testados</span><strong>{coverage.issDeep.metrics.testedCities}</strong><small>aguardam casos de referência</small></article>
+        <article><span>Aprovados</span><strong>{coverage.issDeep.metrics.professionallyApprovedCities}</strong><small>nenhuma homologação automática</small></article>
+      </div>
+      <div className="iss-depth-policy"><b>O que “profundo” quer dizer agora</b><span>fonte oficial conectada · classificador municipal exigido · incidência e retenção estruturadas · cálculo exato bloqueado até evidência e revisão</span></div>
       <div className="city-search"><input value={cityQuery} onChange={(event) => setCityQuery(event.target.value)} placeholder="Buscar cidade ou UF" /><span>{cities.length} cidades</span></div>
-      <div className="city-table"><div className="city-table-head"><span>Município</span><span>IBGE</span><span>Faixa nacional</span><span>Cobertura</span></div>{cities.map((item) => <details key={item.ibgeCode}><summary><span><b>{item.city}</b><small>{item.uf}</small></span><code>{item.ibgeCode}</code><strong>2%–5%</strong><StatusPill status={item.status} /></summary><div><p><b>O sistema já organiza:</b> {item.supported.join(" · ")}</p><p><b>Conclusão bloqueada por:</b> {item.blockers.join(" · ")}</p></div></details>)}</div>
+      <div className="city-table"><div className="city-table-head"><span>Município</span><span>IBGE</span><span>Faixa nacional</span><span>Profundidade</span></div>{cities.map((item) => {
+        const deepProfile = issDeepProfiles.get(item.ibgeCode);
+        const sources = deepProfile?.sourceCodes.map((code) => issDeepSources.get(code)).filter((source): source is IssDeepSource => Boolean(source)) ?? [];
+        return <details key={item.ibgeCode} className={deepProfile ? "deep" : "catalogued"}><summary><span><b>{item.city}</b><small>{item.uf}</small></span><code>{item.ibgeCode}</code><strong>2%–5%</strong><em className={`iss-depth-badge ${item.depth}`}>{item.depth === "structured" ? "Profundo estruturado" : "Catalogado"}</em></summary><div><p><b>O sistema já organiza:</b> {item.supported.join(" · ")}</p>{deepProfile && <><p><b>Incidência:</b> {deepProfile.placeOfIncidence.generalRule}</p><div className="iss-source-links">{sources.map((source) => <a key={source.code} href={source.url} target="_blank" rel="noreferrer"><span>{source.kind === "municipal_law" ? "LEI" : source.kind === "rate_table" ? "TABELA" : "ORIENTAÇÃO"}</span><b>{source.title}</b><small>{source.publisher} · conferida em {new Date(`${source.checkedAt}T12:00:00`).toLocaleDateString("pt-BR")} ↗</small></a>)}</div></>}<p className="iss-blockers"><b>Conclusão bloqueada por:</b> {item.blockers.join(" · ")}</p></div></details>;
+      })}</div>
     </section>}
 
     {tab === "federal" && <section className="federal-scenario-area">

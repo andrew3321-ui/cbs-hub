@@ -6,8 +6,9 @@ import {
   stSegments,
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
+import { issDeepProfileByIbge, sourcesForIssDeepProfile } from "./iss-deep-coverage.ts";
 
-export const FISCAL_EXPANSION_VERSION = "2026.07.17-v29";
+export const FISCAL_EXPANSION_VERSION = "2026.07.18-v52";
 export const FISCAL_EXPANSION_MONTH = "2026-07";
 
 export type ExpansionScope = "icms" | "iss" | "st" | "federal" | "sources";
@@ -117,20 +118,24 @@ const icmsItems = stateCoverage.map((state) => makeItem({
   blockers: state.blockers,
 }));
 
-const issItems = cityCoverage.map((city, index) => makeItem({
-  code: `ISS-${city.ibgeCode}`,
-  scope: "iss" as const,
-  title: `ISS — ${city.city}/${city.uf}`,
-  jurisdiction: `${city.city}/${city.uf}`,
-  supportStatus: city.status,
-  defaultStage: "catalogued" as const,
-  impact: index < 25 ? 5 : 4,
-  risk: 4,
-  readiness: index < 25 ? 3 : 2,
-  sourceUrl: null,
-  sourceTitle: null,
-  blockers: city.blockers,
-}));
+const issItems = cityCoverage.map((city, index) => {
+  const deepProfile = issDeepProfileByIbge.get(city.ibgeCode);
+  const primarySource = deepProfile ? sourcesForIssDeepProfile(deepProfile)[0] : null;
+  return makeItem({
+    code: `ISS-${city.ibgeCode}`,
+    scope: "iss" as const,
+    title: `ISS — ${city.city}/${city.uf}`,
+    jurisdiction: `${city.city}/${city.uf}`,
+    supportStatus: city.status,
+    defaultStage: deepProfile ? "structured" as const : "catalogued" as const,
+    impact: index < 25 ? 5 : 4,
+    risk: 4,
+    readiness: deepProfile ? 4 : index < 25 ? 3 : 2,
+    sourceUrl: primarySource?.url ?? null,
+    sourceTitle: primarySource?.title ?? null,
+    blockers: city.blockers,
+  });
+});
 
 const stItems = stSegments.map((segment, index) => makeItem({
   code: `ST-${segment.code}`,
@@ -166,7 +171,7 @@ const nationalSourceItems = coverageSources.map((source) => makeItem({
   code: `SRC-${source.code}`,
   scope: "sources" as const,
   title: source.title,
-  jurisdiction: "Nacional",
+  jurisdiction: source.code.startsWith("ISS-") ? "Municipal" : "Nacional",
   supportStatus: "partial" as const,
   defaultStage: "source_connected" as const,
   impact: 4,
@@ -214,7 +219,15 @@ export function nextExpansionStage(stage: ExpansionStage): ExpansionStage | null
 
 export function applyExpansionProgress(items: ExpansionItem[], progress: ExpansionProgress[]) {
   const byCode = new Map(progress.map((entry) => [entry.itemCode, entry]));
-  return items.map((item) => ({ ...item, stage: byCode.get(item.code)?.stage ?? item.defaultStage, progress: byCode.get(item.code) ?? null }));
+  return items.map((item) => {
+    const entry = byCode.get(item.code) ?? null;
+    const stage = !entry
+      ? item.defaultStage
+      : entry.stage === "blocked" || stageWeight[entry.stage] >= stageWeight[item.defaultStage]
+        ? entry.stage
+        : item.defaultStage;
+    return { ...item, stage, progress: entry };
+  });
 }
 
 export function expansionMetrics(items: Array<ExpansionItem & { stage?: ExpansionStage }>) {
