@@ -50,6 +50,30 @@ type HomologationCase = {
 
 type CenterPayload = {
   cases: HomologationCase[];
+  simulations: {
+    version: string;
+    syntheticDataOnly: true;
+    cases: Array<{
+      code: string;
+      title: string;
+      moduleLabel: string;
+      profile: string;
+      scenario: string;
+      operationPeriod: string;
+      kind: "calculated_reference" | "expected_block";
+      expectedProfessionalConclusion: string;
+      technicalStatus: "passed" | "failed";
+      outputStatus: string;
+      summary: string;
+      checksPassed: number;
+      checksTotal: number;
+      blockers: string[];
+      sourceCount: number;
+      existingCaseId: string | null;
+      professionalStatus: HomologationCase["status"] | "not_started";
+    }>;
+    metrics: { total: number; technicalPassed: number; calculatedReferences: number; expectedBlocks: number; professionalApproved: number; distinctModules: number };
+  };
   eligibleReviewers: Array<{ userId: number; name: string; role: string }>;
   context: { currentUserId: number; currentUserName: string; workspaceType: "individual" | "office"; role: string; canPrepare: boolean; canReview: boolean; currentBaseVersion: string };
   metrics: { total: number; drafts: number; awaitingReview: number; approved: number; current: number; needsRevalidation: number; regressionFailures: number; rejected: number };
@@ -118,7 +142,8 @@ export default function FiscalHomologationCenter({ candidate }: { candidate: Can
   const perform = async (body: Record<string, unknown>, message: string, preferredId?: string) => {
     setBusy(true); setError(""); setSuccess("");
     try {
-      const response = await jsonRequest(body.action === "create" ? "/api/fiscal-homologations" : "/api/fiscal-homologations/review", body.action === "create" ? { question: body.question, facts: body.facts } : body);
+      const createBody = typeof body.simulationCode === "string" ? { simulationCode: body.simulationCode } : { question: body.question, facts: body.facts };
+      const response = await jsonRequest(body.action === "create" ? "/api/fiscal-homologations" : "/api/fiscal-homologations/review", body.action === "create" ? createBody : body);
       const responseCase = response.case as { id?: string } | undefined;
       await load(responseCase?.id ?? preferredId);
       setSuccess(message);
@@ -130,6 +155,7 @@ export default function FiscalHomologationCenter({ candidate }: { candidate: Can
   };
 
   const freezeCandidate = () => candidate && void perform({ action: "create", question: candidate.question, facts: candidate.facts }, "Caso congelado. Ele ainda precisa de revisão profissional.");
+  const freezeSimulation = (simulationCode: string, title: string) => void perform({ action: "create", simulationCode }, `“${title}” entrou na fila. O teste técnico não substitui a homologação profissional.`);
   const submitReview = () => selected && void perform({ caseId: selected.id, action: "submit", reviewerUserId: Number(reviewerUserId), dueAt }, data?.context.workspaceType === "office" ? "Caso enviado para revisão independente." : "Autorrevisão profissional iniciada.", selected.id);
   const decide = (action: "approve" | "changes_requested" | "reject") => selected && void perform({ caseId: selected.id, action, comparisonOutcome, independentConclusion, note, professionalRegistration: registration, sourcesConfirmed, independentlyChecked, acknowledged }, action === "approve" ? "Caso homologado e assinado." : action === "reject" ? "Caso rejeitado com trilha registrada." : "Ajustes solicitados com trilha registrada.", selected.id);
 
@@ -149,6 +175,33 @@ export default function FiscalHomologationCenter({ candidate }: { candidate: Can
       <article className={data?.metrics.needsRevalidation ? "warning" : ""}><span>Revalidar</span><strong>{data?.metrics.needsRevalidation ?? 0}</strong></article>
     </div>
 
+    <details className="homologation-simulation-suite" open>
+      <summary>
+        <div><small>BATERIA V54 · DADOS FICTÍCIOS</small><b>Casos realistas para homologar o comportamento da plataforma</b><span>O servidor reexecutou {data?.simulations.metrics.total ?? 0} cenários; nenhum deles recebe chancela profissional automaticamente.</span></div>
+        <strong>{data?.simulations.metrics.technicalPassed ?? 0}/{data?.simulations.metrics.total ?? 0}<small>técnicos aprovados</small></strong>
+      </summary>
+      <div className="simulation-assurance">
+        <article><span>Módulos</span><b>{data?.simulations.metrics.distinctModules ?? 0}</b><small>cálculos e portões</small></article>
+        <article><span>Cálculos esperados</span><b>{data?.simulations.metrics.calculatedReferences ?? 0}</b><small>referências matemáticas</small></article>
+        <article><span>Bloqueios esperados</span><b>{data?.simulations.metrics.expectedBlocks ?? 0}</b><small>falha segura exercitada</small></article>
+        <article className="professional"><span>Homologados</span><b>{data?.simulations.metrics.professionalApproved ?? 0}</b><small>por contador/tributarista</small></article>
+      </div>
+      <div className="simulation-policy"><b>O que está sendo testado</b><span>Faixas, arredondamentos, retenção, créditos, limites e bloqueios por falta de fatos. Empresas, valores e operações são sintéticos; as leis e tabelas citadas são oficiais.</span></div>
+      <div className="simulation-case-grid">
+        {data?.simulations.cases.map((simulation) => <article className={simulation.technicalStatus} key={simulation.code}>
+          <header><span>{simulation.moduleLabel}</span><i className={simulation.kind}>{simulation.kind === "expected_block" ? "BLOQUEIO ESPERADO" : "CÁLCULO ESPERADO"}</i></header>
+          <h3>{simulation.title}</h3>
+          <p><b>{simulation.profile}</b>{simulation.scenario}</p>
+          <div className="simulation-result"><span>{simulation.technicalStatus === "passed" ? "✓ Reproduzido" : "× Divergência"}</span><b>{simulation.checksPassed}/{simulation.checksTotal} controles</b><small>{simulation.sourceCount} fontes · {simulation.operationPeriod}</small></div>
+          {simulation.blockers.length > 0 && <div className="simulation-blocker">{simulation.blockers.join(" · ")}</div>}
+          <details><summary>Conclusão que o profissional deve conferir</summary><p>{simulation.expectedProfessionalConclusion}</p></details>
+          <button type="button" disabled={busy || !data.context.canPrepare || simulation.technicalStatus !== "passed"} onClick={() => simulation.existingCaseId ? setSelectedId(simulation.existingCaseId) : freezeSimulation(simulation.code, simulation.title)}>
+            {simulation.existingCaseId ? simulation.professionalStatus === "approved" ? "Ver homologação" : "Abrir candidato" : "Congelar candidato"}
+          </button>
+        </article>)}
+      </div>
+    </details>
+
     <div className={`homologation-candidate ${candidateEligible ? "eligible" : "blocked"}`}>
       <div><small>CONSULTA ATUAL</small><b>{candidate?.question || "Faça uma consulta e preencha todos os fatos para abrir um caso."}</b><span>{candidate ? `${candidate.result.topicCode} · ${candidate.result.completeness.percentage}% dos fatos · ${candidate.result.sources.length} fontes aplicadas` : "O servidor repetirá a análise antes de congelar o snapshot."}</span></div>
       <button type="button" disabled={busy || !candidateEligible || !data?.context.canPrepare} onClick={freezeCandidate}>{busy ? "Processando…" : candidateEligible ? "Congelar caso para homologação" : "Complete a consulta primeiro"}</button>
@@ -166,7 +219,7 @@ export default function FiscalHomologationCenter({ candidate }: { candidate: Can
       </aside>
 
       <div className="homologation-detail">
-        {!selected ? <div className="homologation-empty"><b>A biblioteca começa com uma consulta completa</b><p>Ela não nasce com “200 casos inventados”: cresce com decisões reais e reproduzíveis dos profissionais que testarem a plataforma.</p></div> : <>
+        {!selected ? <div className="homologation-empty"><b>Escolha um caso da bateria ou complete uma consulta</b><p>Casos sintéticos exercitam o motor sem expor contribuintes. A biblioteca homologada cresce apenas quando um profissional fizer a conferência independente.</p></div> : <>
           <div className="homologation-case-head">
             <div><span className={`homologation-status ${selected.status}`}>{statusLabels[selected.status]}</span><h3>{selected.title}</h3><p>{selected.question}</p></div>
             <div><small>SNAPSHOT</small><code>#{selected.snapshotHash.slice(0, 12)}</code><span className={selected.integrityStatus}>{selected.integrityStatus === "verified" ? "Integridade verificada" : "Integridade bloqueada"}</span></div>

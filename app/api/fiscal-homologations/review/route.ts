@@ -6,6 +6,7 @@ import {
   parseFiscalHomologationSnapshot,
 } from "../../../../domain/fiscal-homologation";
 import { FISCAL_HOMOLOGATION_SIGNATURE_VERSION } from "../../../../domain/fiscal-homologation-signing";
+import { FISCAL_SIMULATION_BASE_CODE, fiscalSimulationBaseHash } from "../../../../domain/fiscal-homologation-simulations";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { fiscalHomologationCases, users, workspaceMembers } from "../../../../db/schema";
 import { withApiTelemetry } from "../../../api-infrastructure";
@@ -44,7 +45,8 @@ async function reviewFiscalHomologation(request: Request) {
     const snapshot = parseFiscalHomologationSnapshot(caseRow.snapshotJson);
     if (!snapshot || await hashFiscalHomologationText(caseRow.snapshotJson) !== caseRow.snapshotHash) return Response.json({ error: "A integridade do snapshot falhou. O caso foi bloqueado." }, { status: 409 });
     const { stored } = await loadFiscalKnowledgeBase();
-    if (caseRow.baseHash !== stored.contentHash || snapshot.evidence.baseHash !== stored.contentHash) return Response.json({ error: "A base fiscal mudou. Reavalie a consulta e crie uma nova versão do caso." }, { status: 409 });
+    const activeBaseHash = caseRow.baseCode === FISCAL_SIMULATION_BASE_CODE ? await fiscalSimulationBaseHash() : stored.contentHash;
+    if (caseRow.baseHash !== activeBaseHash || snapshot.evidence.baseHash !== activeBaseHash) return Response.json({ error: "A base fiscal mudou. Reavalie a consulta e crie uma nova versão do caso." }, { status: 409 });
     const now = new Date().toISOString();
 
     if (action === "submit") {

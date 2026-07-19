@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { headers } from "next/headers";
 import "./globals.css";
 import "./homologation.css";
+import "./homologation-simulations.css";
 import "./federal-pme.css";
 import "./national-coverage.css";
 import "./fiscal-expansion.css";

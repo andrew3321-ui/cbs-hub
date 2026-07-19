@@ -1,11 +1,15 @@
 import { desc, eq, inArray } from "drizzle-orm";
 import {
   createFiscalHomologationSnapshot,
+  createFiscalLabHomologationSnapshot,
   expectedOutcomeFromHomologation,
+  FISCAL_HOMOLOGATION_LAB_SCHEMA_VERSION,
   hashFiscalHomologationText,
   parseFiscalHomologationSnapshot,
 } from "../domain/fiscal-homologation";
 import { evaluateExpandedFiscalQuestion } from "../domain/fiscal-intelligence-v24";
+import { calculateTaxLab } from "../domain/deterministic-tax-lab";
+import { FISCAL_SIMULATION_BASE_CODE, getFiscalSimulationCase } from "../domain/fiscal-homologation-simulations";
 import type { FiscalIntelligenceDefinition } from "../domain/fiscal-intelligence";
 import {
   FISCAL_HOMOLOGATION_SIGNATURE_VERSION,
@@ -38,7 +42,7 @@ export function homologationDecisionRecord(row: typeof fiscalHomologationCases.$
   };
 }
 
-export async function fiscalHomologationResponseRows(workspaceId: number, currentBaseHash: string, currentDefinition: FiscalIntelligenceDefinition) {
+export async function fiscalHomologationResponseRows(workspaceId: number, currentBaseHash: string, currentDefinition: FiscalIntelligenceDefinition, currentSimulationBaseHash = "") {
   const db = getDb();
   const rows = await db.select().from(fiscalHomologationCases).where(eq(fiscalHomologationCases.workspaceId, workspaceId)).orderBy(desc(fiscalHomologationCases.createdAt), desc(fiscalHomologationCases.id)).limit(80);
   const userIds = Array.from(new Set(rows.flatMap((row) => [row.createdByUserId, row.assignedReviewerUserId, row.decisionByUserId]).filter((id): id is number => Number.isInteger(id))));
@@ -57,9 +61,10 @@ export async function fiscalHomologationResponseRows(workspaceId: number, curren
       ? await verifyFiscalHomologationDecision(record, row.decisionSignature, row.signatureVersion)
       : row.status !== "approved";
     const integrityStatus = snapshotHashValid && signatureValid ? "verified" : "blocked";
+    const activeBaseHash = row.baseCode === FISCAL_SIMULATION_BASE_CODE ? currentSimulationBaseHash : currentBaseHash;
     const validityStatus = row.status !== "approved"
       ? "not_applicable"
-      : integrityStatus !== "verified" || row.baseHash !== currentBaseHash
+      : integrityStatus !== "verified" || !activeBaseHash || row.baseHash !== activeBaseHash
         ? "requires_revalidation"
         : "current";
     let regressionStatus: "not_applicable" | "passed" | "failed" | "requires_revalidation" = "not_applicable";
@@ -67,6 +72,13 @@ export async function fiscalHomologationResponseRows(workspaceId: number, curren
       regressionStatus = validityStatus === "current" && snapshot
         ? (() => {
           try {
+            if (snapshot.schemaVersion === FISCAL_HOMOLOGATION_LAB_SCHEMA_VERSION) {
+              const simulation = getFiscalSimulationCase(snapshot.simulation.code);
+              if (!simulation) return "failed";
+              const currentResult = calculateTaxLab(simulation.input);
+              const currentSnapshot = createFiscalLabHomologationSnapshot(simulation, currentResult, currentSimulationBaseHash, snapshot.capturedAt);
+              return JSON.stringify(expectedOutcomeFromHomologation(currentSnapshot)) === row.expectedJson ? "passed" : "failed";
+            }
             const currentResult = evaluateExpandedFiscalQuestion(snapshot.question, snapshot.facts, snapshot.facts.referenceDate, currentDefinition);
             const currentSnapshot = createFiscalHomologationSnapshot(snapshot.question, currentResult, currentBaseHash, snapshot.capturedAt);
             return JSON.stringify(expectedOutcomeFromHomologation(currentSnapshot)) === row.expectedJson ? "passed" : "failed";
