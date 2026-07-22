@@ -93,7 +93,7 @@ export default function NationalCoverageCenter() {
 
   return <div className="national-coverage-center">
     <section className="coverage-hero">
-      <div><span>VERSÃO 57 · MATRIZ ST SP→MG</span><h1>O que o Margem Clara realmente suporta</h1><p>ICMS, ST, ISS, tributos federais, Reforma, documentos e mudanças normativas em uma matriz pública — sem esconder os cenários ainda parciais.</p></div>
+      <div><span>VERSÃO 58 · +2 REGRAS ST ESTRUTURADAS</span><h1>O que o Margem Clara realmente suporta</h1><p>ICMS, ST, ISS, tributos federais, Reforma, documentos e mudanças normativas em uma matriz pública — sem esconder os cenários ainda parciais.</p></div>
       <div className="coverage-hero-proof"><small>BASE VERSIONADA</small><b>#{coverage.fingerprint}</b><span>{new Date(`${coverage.checkedAt}T12:00:00`).toLocaleDateString("pt-BR")}</span></div>
     </section>
 

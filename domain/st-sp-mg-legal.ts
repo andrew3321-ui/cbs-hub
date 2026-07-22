@@ -1,6 +1,6 @@
 import { stSegments } from "./national-tax-coverage.ts";
 
-export const ST_SP_MG_LEGAL_VERSION = "2026.07.21-v57";
+export const ST_SP_MG_LEGAL_VERSION = "2026.07.21-v58";
 export const ST_SP_MG_CHECKED_AT = "2026-07-21";
 
 export type StLegalFactCode =
@@ -111,18 +111,16 @@ const defaultBlockers = [
   "sem todos os fatos e fontes do item, o sistema bloqueia o valor final",
 ];
 
+const representativeRules: Partial<Record<string, NonNullable<StSpMgLegalPackage["representativeRule"]>>> = {
+  AUTO_PARTS: { cest: "01.075.00", ncm: "8708", description: "Partes e acessórios dos veículos automóveis - caso canônico controlado", mvaOriginalBps: 7_178, agreementCode: "PROTOCOLO-ICMS-41-2008", effectiveFrom: "2025-05-24", sourceExcerpt: "Capítulo 1, âmbito 1.1: São Paulo; MVA de 71,78% para o recorte canônico." },
+  CEMENT: { cest: "05.001.00", ncm: "2523", description: "Cimento", mvaOriginalBps: 2_000, agreementCode: "PROTOCOLO-ICM-11-1985", effectiveFrom: "2023-07-01", sourceExcerpt: "Capítulo 5, âmbito 5.1: São Paulo; cimento CEST 05.001.00, NCM 2523 e MVA de 20%." },
+  PET_FOOD: { cest: "22.001.00", ncm: "2309", description: "Ração tipo pet para animais domésticos", mvaOriginalBps: 5_555, agreementCode: "PROTOCOLO-ICMS-26-2004", effectiveFrom: "2025-12-01", sourceExcerpt: "Capítulo 22, âmbito 22.1: São Paulo; ração pet CEST 22.001.00, NCM 2309 e MVA de 55,55%." },
+};
+
 export const stSpMgLegalPackages: StSpMgLegalPackage[] = stSegments.map((segment) => {
   const mapping = chapterBySegment[segment.code];
   if (!mapping) throw new Error(`missing_st_sp_mg_mapping:${segment.code}`);
-  const representativeRule = segment.code === "AUTO_PARTS" ? {
-    cest: "01.075.00",
-    ncm: "8708",
-    description: "Partes e acessórios dos veículos automóveis - caso canônico controlado",
-    mvaOriginalBps: 7_178,
-    agreementCode: "PROTOCOLO-ICMS-41-2008",
-    effectiveFrom: "2025-05-24",
-    sourceExcerpt: "Capítulo 1, âmbito 1.1: São Paulo; MVA de 71,78% para o recorte canônico.",
-  } : null;
+  const representativeRule = representativeRules[segment.code] ?? null;
   return {
     segmentCode: segment.code,
     segmentName: segment.name,
@@ -137,7 +135,7 @@ export const stSpMgLegalPackages: StSpMgLegalPackage[] = stSegments.map((segment
     mandatoryFacts: [...ST_GENERAL_MANDATORY_FACTS],
     representativeRule,
     blockers: representativeRule ? [
-      "o cálculo validado cobre somente o CEST/NCM canônico e não se estende automaticamente a todas as autopeças",
+      "a regra validada cobre somente o CEST, NCM, descrição, rota e período informados; não se estende automaticamente ao segmento inteiro",
       "PMPF, benefício, regime especial ou descrição divergente bloqueiam a regra de MVA",
     ] : [...defaultBlockers],
   };
@@ -151,6 +149,24 @@ export function stSpMgLegalMetrics() {
     calculationsBlocked: stSpMgLegalPackages.filter((item) => item.legalStatus !== "calculation_validated").length,
     officialSources: new Set(stSpMgLegalPackages.map((item) => item.sourceUrl)).size,
   };
+}
+
+function roundDivide(numerator: number, denominator: number) {
+  if (!Number.isSafeInteger(numerator) || !Number.isSafeInteger(denominator) || denominator <= 0) throw new Error("unsafe_st_reference_calculation");
+  return Math.floor((numerator + Math.floor(denominator / 2)) / denominator);
+}
+
+export function calculateRepresentativeStMemory(input: { operationCents: number; ownIcmsBaseCents: number; mvaOriginalBps: number; interstateRateBps: number; internalRateBps: number; fcpRateBps?: number; adjustMva: boolean }) {
+  const values = [input.operationCents, input.ownIcmsBaseCents, input.mvaOriginalBps, input.interstateRateBps, input.internalRateBps, input.fcpRateBps ?? 0];
+  if (!values.every(Number.isSafeInteger) || input.operationCents <= 0 || input.ownIcmsBaseCents <= 0 || input.internalRateBps <= 0 || input.internalRateBps >= 10_000) throw new Error("invalid_st_reference_input");
+  const adjustedCoefficientBps = input.adjustMva ? roundDivide((10_000 + input.mvaOriginalBps) * (10_000 - input.interstateRateBps), 10_000 - input.internalRateBps) : 10_000 + input.mvaOriginalBps;
+  const mvaAppliedBps = Math.max(0, adjustedCoefficientBps - 10_000);
+  const stBaseCents = roundDivide(input.operationCents * (10_000 + mvaAppliedBps), 10_000);
+  const ownIcmsCents = roundDivide(input.ownIcmsBaseCents * input.interstateRateBps, 10_000);
+  const presumedInternalIcmsCents = roundDivide(stBaseCents * input.internalRateBps, 10_000);
+  const icmsStCents = Math.max(0, presumedInternalIcmsCents - ownIcmsCents);
+  const fcpCents = roundDivide(stBaseCents * (input.fcpRateBps ?? 0), 10_000);
+  return { mvaAppliedBps, stBaseCents, ownIcmsCents, presumedInternalIcmsCents, icmsStCents, fcpCents, destinationTotalCents: icmsStCents + fcpCents };
 }
 
 export function validateStSpMgLegalCatalog() {

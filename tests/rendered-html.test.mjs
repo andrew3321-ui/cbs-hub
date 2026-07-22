@@ -422,7 +422,7 @@ test("versão 27 publica cobertura nacional, lote documental, monitor e aprovaç
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 57 · MATRIZ ST SP→MG/);
+  assert.match(ui, /VERSÃO 58 · \+2 REGRAS ST ESTRUTURADAS/);
   assert.match(ui, /stSpMg\.metrics\.legalGatesStructured/);
   assert.match(ui, /CÁLCULO VALIDADO/);
   assert.match(publicApi, /stSpMg/);
