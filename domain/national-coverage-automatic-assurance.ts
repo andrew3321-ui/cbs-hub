@@ -6,8 +6,9 @@ import { hashStSpCalculationRuns, stSpCalculationValidationMetrics, validateStSp
 import { hashStCementSpRoutes, validateStCementSpRoutes } from "./st-cement-sp-routes.ts";
 import { hashStCementPriorityBatch, validateStCementPriorityBatch } from "./st-cement-priority-batch.ts";
 import { hashStAutoPartsPriorityBatch, validateStAutoPartsPriorityBatch } from "./st-auto-parts-priority-batch.ts";
+import { hashStAutoPartsHighUseCorridors, validateStAutoPartsHighUseCorridors } from "./st-auto-parts-high-use-corridors.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.22-v65";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.22-v66";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-22";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -25,6 +26,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("CEMENT_SP_ROUTES", "Rotas nacionais de cimento", validateStCementSpRoutes()),
     moduleResult("CEMENT_PRIORITY_BATCH", "Lote estadual de cimento", validateStCementPriorityBatch()),
     moduleResult("AUTO_PARTS_PRIORITY_BATCH", "Lote prioritário de autopeças", validateStAutoPartsPriorityBatch()),
+    moduleResult("AUTO_PARTS_HIGH_USE_CORRIDORS", "Corredores bidirecionais de autopeças", validateStAutoPartsHighUseCorridors()),
   ];
   const calculation = stSpCalculationValidationMetrics();
   const errors = modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`));
@@ -61,6 +63,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStCementSpRoutes(),
     hashStCementPriorityBatch(),
     hashStAutoPartsPriorityBatch(),
+    hashStAutoPartsHighUseCorridors(),
   ]);
   const payload = JSON.stringify({ version: NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, moduleHashes });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));

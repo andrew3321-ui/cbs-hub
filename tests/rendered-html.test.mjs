@@ -411,7 +411,7 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
   assert.match(layout, /federal-pme\.css/);
 });
 
-test("versão 65 publica cobertura nacional com garantia automática e 26 rotas de autopeças", async () => {
+test("versão 66 publica cobertura nacional com garantia automática e corredores bidirecionais de autopeças", async () => {
   const [ui, domain, publicApi, calculatorApi, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
     readFile(new URL("domain/national-tax-coverage.ts", root), "utf8"),
@@ -426,19 +426,22 @@ test("versão 65 publica cobertura nacional com garantia automática e 26 rotas 
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 65 · 26 ROTAS DE AUTOPEÇAS CONTROLADAS/);
+  assert.match(ui, /VERSÃO 66 · AUTOPEÇAS EM 12 CORREDORES E 24 SENTIDOS/);
   assert.match(ui, /structuredCells} combinações estruturadas/);
   assert.match(publicApi, /stSpOriginMatrix/);
   assert.match(publicApi, /stSpCalculationValidation/);
   assert.match(publicApi, /stCementSpRoutes/);
   assert.match(publicApi, /stCementPriorityBatch/);
   assert.match(publicApi, /stAutoPartsPriorityBatch/);
+  assert.match(publicApi, /stAutoPartsHighUseCorridors/);
   assert.match(publicApi, /automaticAssurance/);
   assert.match(ui, /Uma base legal, 26 rotas controladas/);
   assert.match(ui, /novos valores finais liberados/);
   assert.match(ui, /PMPF por GTIN antes da MVA/);
   assert.match(ui, /Somente o RJ possui memória sintética reproduzida/);
-  assert.match(ui, /As 26 rotas separadas pelo acordo vigente/);
+  assert.match(ui, /12 pares avaliados como 24 rotas independentes/);
+  assert.match(ui, /Ida ≠ volta/);
+  assert.match(ui, /26 destinos mapeados — não confundir com cobertura nacional de origens/);
   assert.match(ui, /Rota fora do Protocolo 41\/08 não significa isenção/);
   assert.match(ui, /CEST 01\.015\.00 também fica fora deste protocolo/);
   assert.match(ui, /produtos representativos/);

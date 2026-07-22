@@ -7,6 +7,7 @@ import { hashStSpCalculationRuns, stSpCalculationRuns, stSpCalculationValidation
 import { hashStCementSpRoutes, stCementSpRouteMetrics, stCementSpRoutes, ST_CEMENT_PRODUCT_SOURCE, ST_CEMENT_PROTOCOL_SOURCE, ST_CEMENT_SP_ROUTES_VERSION, validateStCementSpRoutes } from "../../../../domain/st-cement-sp-routes";
 import { hashStCementPriorityBatch, stCementPriorityBatchMetrics, stCementPrioritySources, stCementPriorityStates, ST_CEMENT_PRIORITY_BATCH_VERSION, validateStCementPriorityBatch } from "../../../../domain/st-cement-priority-batch";
 import { hashStAutoPartsPriorityBatch, stAutoPartsPriorityBatchMetrics, stAutoPartsPriorityRoutes, stAutoPartsPrioritySources, ST_AUTO_PARTS_PRIORITY_BATCH_VERSION, validateStAutoPartsPriorityBatch } from "../../../../domain/st-auto-parts-priority-batch";
+import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, stAutoPartsHighUseRoutes, stAutoPartsHighUseSources, ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION, validateStAutoPartsHighUseCorridors } from "../../../../domain/st-auto-parts-high-use-corridors";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
@@ -22,6 +23,7 @@ async function publicCoverage() {
   const cementFingerprint = (await hashStCementSpRoutes()).slice(0, 12);
   const cementPriorityFingerprint = (await hashStCementPriorityBatch()).slice(0, 12);
   const autoPartsPriorityFingerprint = (await hashStAutoPartsPriorityBatch()).slice(0, 12);
+  const autoPartsHighUseFingerprint = (await hashStAutoPartsHighUseCorridors()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   return Response.json({
     version: NATIONAL_COVERAGE_VERSION,
@@ -102,6 +104,15 @@ async function publicCoverage() {
       sources: stAutoPartsPrioritySources,
       routes: stAutoPartsPriorityRoutes,
       policy: "As 26 rotas com origem em São Paulo foram confrontadas com a redação vigente do Protocolo 41/08. A plataforma distingue acordo interestadual vigente de tratamento próprio do destino; nenhum valor final é liberado sem parâmetros estaduais e fatos da operação.",
+    },
+    stAutoPartsHighUseCorridors: {
+      version: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION,
+      fingerprint: autoPartsHighUseFingerprint,
+      validation: validateStAutoPartsHighUseCorridors(),
+      metrics: stAutoPartsHighUseCorridorMetrics(),
+      sources: stAutoPartsHighUseSources,
+      routes: stAutoPartsHighUseRoutes,
+      policy: "Os 12 corredores prioritários são avaliados nos dois sentidos, totalizando 24 decisões independentes. A ida nunca herda o enquadramento, a MVA ou os parâmetros da volta; somente referências sintéticas com todos os dados controlados exibem memória.",
     },
     recurringScenarios,
     sources: coverageSources,

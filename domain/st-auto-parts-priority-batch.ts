@@ -1,6 +1,6 @@
 import { calculateRepresentativeStMemory } from "./st-sp-mg-legal.ts";
 
-export const ST_AUTO_PARTS_PRIORITY_BATCH_VERSION = "2026.07.22-v65";
+export const ST_AUTO_PARTS_PRIORITY_BATCH_VERSION = "2026.07.22-v66";
 export const ST_AUTO_PARTS_PRIORITY_BATCH_CHECKED_AT = "2026-07-22";
 
 export const ST_AUTO_PARTS_DESTINATIONS = [
@@ -14,7 +14,7 @@ export const ST_AUTO_PARTS_PROTOCOL_41_DESTINATIONS = [
   "AC", "AL", "AP", "AM", "BA", "DF", "MA", "MG", "MT", "PA", "PB", "PI", "PR", "RJ", "RR",
 ] as const satisfies readonly AutoPartsDestination[];
 
-export const ST_AUTO_PARTS_DESTINATION_MVA_UFS = ["AL", "BA", "MT", "PI", "PR"] as const satisfies readonly AutoPartsDestination[];
+export const ST_AUTO_PARTS_DESTINATION_MVA_UFS = ["AL", "MT", "PI", "PR"] as const satisfies readonly AutoPartsDestination[];
 export const ST_AUTO_PARTS_SP_PROTOCOL_EXCLUDED_CESTS_2026 = ["01.015.00"] as const;
 
 export type StAutoPartsPrioritySource = {
@@ -38,7 +38,7 @@ export const stAutoPartsPrioritySources: StAutoPartsPrioritySource[] = [
       "11 destinos fora da relação vigente",
       "uso especificamente automotivo e sujeição interna no destino",
       "MVA original de 36,56% em fidelidade ou 71,78% nos demais casos",
-      "MVA definida pela legislação de AL, BA, MT, PI e PR",
+      "MVA definida pela legislação de AL, MT, PI, PR e SP; neste lote com origem SP, o destino SP não é uma rota",
       "exceções por industrialização, transferência e destinatário",
       "CEST 01.015.00 fora do protocolo quando São Paulo é origem ou destino desde 2026",
     ],
@@ -243,7 +243,7 @@ export function validateStAutoPartsPriorityBatch() {
   if (stAutoPartsPriorityRoutes.filter((route) => route.parameterMethod === "destination_internal_mva").map((route) => route.destination).join(",") !== ST_AUTO_PARTS_DESTINATION_MVA_UFS.join(",")) errors.push("destination_mva_routes_changed");
   const rj = stAutoPartsPriorityRouteByDestination.get("RJ");
   if (rj?.syntheticReference?.mvaAppliedBps !== 8_896 || rj.syntheticReference.destinationTotalCents !== 29_571) errors.push("rj_auto_parts_reference_did_not_reproduce");
-  if (stAutoPartsPriorityRoutes.some((route) => route.destination !== "RJ" && route.syntheticReference !== null)) errors.push("only_rj_auto_parts_reference_can_be_reproduced_in_v65");
+  if (stAutoPartsPriorityRoutes.some((route) => route.destination !== "RJ" && route.syntheticReference !== null)) errors.push("only_rj_auto_parts_reference_can_be_reproduced_in_sp_origin_batch");
   if (!ST_AUTO_PARTS_SP_PROTOCOL_EXCLUDED_CESTS_2026.includes("01.015.00")) errors.push("sp_2026_cest_exception_missing");
   return { passed: errors.length === 0, errors };
 }

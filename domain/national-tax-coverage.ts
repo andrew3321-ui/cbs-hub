@@ -1,6 +1,6 @@
 import { issDeepCityProfiles, issDeepProfileByIbge, issDeepSources } from "./iss-deep-coverage.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.22-v65";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.22-v66";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-22";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
@@ -45,7 +45,7 @@ export const stateCoverage: StateCoverage[] = [
 ];
 
 export const stSegments: SegmentCoverage[] = [
-  { code: "AUTO_PARTS", name: "Autopeças", status: "partial", routes: ["SP → MG homologável", "demais UFs em triagem"], supported: ["NCM/CEST", "MVA original e ajustada", "revenda, uso/consumo e industrialização", "ICMS-ST linha a linha na rota SP→MG"], blockers: ["protocolos, exceções e vigências das demais rotas ainda não homologados"] },
+  { code: "AUTO_PARTS", name: "Autopeças", status: "partial", routes: ["26 destinos com origem em SP", "12 corredores prioritários em 24 sentidos"], supported: ["NCM/CEST representativo", "âmbito vigente do Protocolo 41/08 por direção", "MVA protocolar ou estadual sem presumir simetria", "memórias sintéticas controladas para destinos MG e RJ"], blockers: ["20 sentidos prioritários permanecem sem memória por ausência de acordo ou parâmetros estaduais completos", "operações reais sempre exigem produto, finalidade, destinatário, benefícios, base, vigência e documentos"] },
   { code: "BEVERAGES", name: "Bebidas", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "separação ST/monofásico"], blockers: ["pauta, PMPF, FCP e acordos por produto/UF"] },
   { code: "FUELS", name: "Combustíveis e lubrificantes", status: "partial", routes: ["triagem nacional com bloqueio monofásico/ad rem"], supported: ["identificação de segmento, NCM/CEST e rota", "bloqueio antes de calcular sem ato específico"], blockers: ["regime monofásico, ad rem, PMPF e atos específicos exigem motor próprio"] },
   { code: "PHARMA", name: "Medicamentos", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "alerta de PMC e benefício"], blockers: ["listas positiva/negativa/neutra, PMC, FCP e benefícios estaduais"] },

@@ -11,13 +11,13 @@ import {
 } from "../domain/st-auto-parts-priority-batch.ts";
 import { stSpCalculationRuns } from "../domain/st-sp-calculation-validation.ts";
 
-test("V65 structures every SP auto-parts route against the current protocol", () => {
+test("V66 structures every SP auto-parts route against the current protocol", () => {
   assert.deepEqual(validateStAutoPartsPriorityBatch(), { passed: true, errors: [] });
   assert.deepEqual(stAutoPartsPriorityBatchMetrics(), {
     routesInBatch: 26,
     activeAgreementRoutes: 15,
     outsideProtocolRoutes: 11,
-    destinationMvaOverrides: 5,
+    destinationMvaOverrides: 4,
     productIdentitiesFrozen: 26,
     syntheticReferencesReproduced: 1,
     officialSources: 7,
@@ -39,12 +39,12 @@ test("every destination outside the current protocol fails closed", () => {
 });
 
 test("destinations named by the current protocol use the correct MVA source", () => {
-  for (const uf of ["AL", "BA", "MT", "PI", "PR"]) {
+  for (const uf of ["AL", "MT", "PI", "PR"]) {
     const route = stAutoPartsPriorityRouteByDestination.get(uf);
     assert.equal(route?.parameterMethod, "destination_internal_mva");
     assert.equal(route?.mvaOriginalBps, null);
   }
-  for (const uf of ["AC", "AP", "AM", "DF", "MA", "MG", "PA", "PB", "RJ", "RR"]) {
+  for (const uf of ["AC", "AP", "AM", "BA", "DF", "MA", "MG", "PA", "PB", "RJ", "RR"]) {
     const route = stAutoPartsPriorityRouteByDestination.get(uf);
     assert.equal(route?.parameterMethod, "protocol_mva");
     assert.equal(route?.mvaOriginalBps, 7_178);
