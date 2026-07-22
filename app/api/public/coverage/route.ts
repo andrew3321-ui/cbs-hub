@@ -2,6 +2,8 @@ import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, N
 import { buildIssDeepTechnicalEvidence, issDeepCityProfiles, issDeepMetrics, issDeepSources } from "../../../../domain/iss-deep-coverage";
 import { hashStSpMgLegalCatalog, stSpMgLegalMetrics, stSpMgLegalPackages, ST_SP_MG_LEGAL_VERSION, validateStSpMgLegalCatalog } from "../../../../domain/st-sp-mg-legal";
 import { hashStSpOriginMatrix, stSpOriginCells, stSpOriginDestinations, stSpOriginMandatoryFacts, stSpOriginMatrixMetrics, ST_SP_ORIGIN_MATRIX_VERSION, validateStSpOriginMatrix } from "../../../../domain/st-sp-origin-matrix";
+import { hashStRepresentativeProducts, stRepresentativeProducts, ST_REPRESENTATIVE_PRODUCTS_SOURCE, ST_REPRESENTATIVE_PRODUCTS_VERSION, validateStRepresentativeProducts } from "../../../../domain/st-representative-products";
+import { hashStSpCalculationRuns, stSpCalculationRuns, stSpCalculationValidationMetrics, ST_SP_CALCULATION_VALIDATION_VERSION, validateStSpCalculationRuns } from "../../../../domain/st-sp-calculation-validation";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function publicCoverage() {
@@ -11,6 +13,8 @@ async function publicCoverage() {
   const stFingerprint = (await hashStSpMgLegalCatalog()).slice(0, 12);
   const spOriginValidation = validateStSpOriginMatrix();
   const spOriginFingerprint = (await hashStSpOriginMatrix()).slice(0, 12);
+  const representativeFingerprint = (await hashStRepresentativeProducts()).slice(0, 12);
+  const calculationFingerprint = (await hashStSpCalculationRuns()).slice(0, 12);
   return Response.json({
     version: NATIONAL_COVERAGE_VERSION,
     checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
@@ -43,6 +47,22 @@ async function publicCoverage() {
       destinations: stSpOriginDestinations,
       cells: stSpOriginCells,
       policy: "Matriz estruturada não significa cálculo liberado. Cada célula SP→UF permanece bloqueada até acordo, legislação do destino, parâmetros, exceções e teste determinístico estarem documentados.",
+    },
+    stRepresentativeProducts: {
+      version: ST_REPRESENTATIVE_PRODUCTS_VERSION,
+      fingerprint: representativeFingerprint,
+      validation: validateStRepresentativeProducts(),
+      source: ST_REPRESENTATIVE_PRODUCTS_SOURCE,
+      products: stRepresentativeProducts,
+      policy: "Um produto congela apenas uma identidade fiscal representativa. Ele não valida os demais produtos do segmento nem fornece parâmetros dos estados de destino.",
+    },
+    stSpCalculationValidation: {
+      version: ST_SP_CALCULATION_VALIDATION_VERSION,
+      fingerprint: calculationFingerprint,
+      validation: validateStSpCalculationRuns(),
+      metrics: stSpCalculationValidationMetrics(),
+      runs: stSpCalculationRuns,
+      policy: "As 650 células são executadas. Uma referência só gera memória quando todos os parâmetros jurídicos controlados existem; ausência de lei, acordo, MVA, alíquota ou FCP produz bloqueio sem valor final.",
     },
     recurringScenarios,
     sources: coverageSources,
