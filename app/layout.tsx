@@ -5,6 +5,7 @@ import "./homologation.css";
 import "./homologation-simulations.css";
 import "./federal-pme.css";
 import "./national-coverage.css";
+import "./national-coverage-v64.css";
 import "./fiscal-expansion.css";
 import "./deterministic-tax-lab.css";
 import "./legal-reference-center.css";

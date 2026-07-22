@@ -1,0 +1,89 @@
+.automatic-assurance-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 18px;
+  border: 1px solid #c6d5d1;
+  border-radius: 14px;
+  background: #f4f8f7;
+}
+
+.automatic-assurance-card > span {
+  display: grid;
+  place-items: center;
+  flex: 0 0 42px;
+  height: 42px;
+  border-radius: 12px;
+  background: #dfe9e6;
+  color: #355b56;
+  font-size: 22px;
+  font-weight: 900;
+}
+
+.automatic-assurance-card.automatically_verified {
+  border-color: #bce26f;
+  background: #f6ffe7;
+}
+
+.automatic-assurance-card.automatically_verified > span {
+  background: #c3f55f;
+  color: #274b21;
+}
+
+.automatic-assurance-card small {
+  color: #607672;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .1em;
+}
+
+.automatic-assurance-card h3 {
+  margin: 5px 0;
+}
+
+.automatic-assurance-card p {
+  margin: 0;
+  color: #5c726e;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.professional-boundary {
+  margin-top: 14px;
+  padding: 17px;
+  border-left: 4px solid #e3ad43;
+  border-radius: 10px;
+  background: #fff8e9;
+}
+
+.professional-boundary > span {
+  color: #8c620f;
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: .11em;
+}
+
+.professional-boundary h3 {
+  margin: 6px 0;
+}
+
+.professional-boundary p {
+  margin: 0;
+  color: #665f50;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.professional-boundary small {
+  display: block;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px solid #eedebc;
+  color: #776b54;
+}
+
+@media (max-width: 520px) {
+  .automatic-assurance-card {
+    display: grid;
+  }
+}

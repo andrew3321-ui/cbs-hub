@@ -7,6 +7,7 @@ import { hashStSpCalculationRuns, stSpCalculationRuns, stSpCalculationValidation
 import { hashStCementSpRoutes, stCementSpRouteMetrics, stCementSpRoutes, ST_CEMENT_PRODUCT_SOURCE, ST_CEMENT_PROTOCOL_SOURCE, ST_CEMENT_SP_ROUTES_VERSION, validateStCementSpRoutes } from "../../../../domain/st-cement-sp-routes";
 import { hashStCementPriorityBatch, stCementPriorityBatchMetrics, stCementPrioritySources, stCementPriorityStates, ST_CEMENT_PRIORITY_BATCH_VERSION, validateStCementPriorityBatch } from "../../../../domain/st-cement-priority-batch";
 import { hashStAutoPartsPriorityBatch, stAutoPartsPriorityBatchMetrics, stAutoPartsPriorityRoutes, stAutoPartsPrioritySources, ST_AUTO_PARTS_PRIORITY_BATCH_VERSION, validateStAutoPartsPriorityBatch } from "../../../../domain/st-auto-parts-priority-batch";
+import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function publicCoverage() {
@@ -21,10 +22,15 @@ async function publicCoverage() {
   const cementFingerprint = (await hashStCementSpRoutes()).slice(0, 12);
   const cementPriorityFingerprint = (await hashStCementPriorityBatch()).slice(0, 12);
   const autoPartsPriorityFingerprint = (await hashStAutoPartsPriorityBatch()).slice(0, 12);
+  const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   return Response.json({
     version: NATIONAL_COVERAGE_VERSION,
     checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
     fingerprint,
+    automaticAssurance: {
+      ...validateNationalCoverageAutomatically(),
+      fingerprint: automaticAssuranceFingerprint,
+    },
     metrics: coverageMetrics(),
     states: stateCoverage,
     cities: cityCoverage,
@@ -100,7 +106,7 @@ async function publicCoverage() {
     recurringScenarios,
     sources: coverageSources,
     legend: {
-      supported: "Cenário com regra, fatos obrigatórios, testes e aprovação profissional disponíveis.",
+      supported: "Cenário com regra, fatos obrigatórios e testes automáticos disponíveis dentro do escopo indicado.",
       partial: "Triagem e parte da memória são suportadas; a conclusão depende de fatos ou homologação adicional.",
       not_supported: "O sistema identifica o tema, mas bloqueia cálculo ou conclusão.",
     },

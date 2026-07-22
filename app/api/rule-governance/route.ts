@@ -6,6 +6,7 @@ import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { canReviewScenarios, getWorkspaceContext } from "../../workspace";
 import { withWorkspaceFeature } from "../../plan-entitlements";
+import { validateNationalCoverageAutomatically } from "../../../domain/national-coverage-automatic-assurance";
 
 async function status() {
   const user = await getCurrentUser();
@@ -13,7 +14,16 @@ async function status() {
   const workspace = await getWorkspaceContext(user.id);
   if (!workspace) return Response.json({ error: "Espaço contábil não encontrado." }, { status: 403 });
   const result = await getActiveNationalRuleApproval(workspace.id);
-  return Response.json({ identity: { ...result.identity, ruleHash: result.identity.ruleHash.slice(0, 12) }, approval: result.approval ? { reviewerName: result.approval.reviewerName, professionalRole: result.approval.professionalRole, professionalRegistration: result.approval.professionalRegistration, decidedAt: result.approval.decidedAt, verified: result.verified } : null, executionEnabled: result.verified, canApprove: canReviewScenarios(workspace.role) }, { headers: { "Cache-Control": "no-store" } });
+  const automaticAssurance = validateNationalCoverageAutomatically();
+  return Response.json({
+    identity: { ...result.identity, ruleHash: result.identity.ruleHash.slice(0, 12) },
+    automaticAssurance,
+    approval: result.approval ? { reviewerName: result.approval.reviewerName, professionalRole: result.approval.professionalRole, professionalRegistration: result.approval.professionalRegistration, decidedAt: result.approval.decidedAt, verified: result.verified } : null,
+    executionEnabled: automaticAssurance.status === "automatically_verified",
+    professionalApprovalVerified: result.verified,
+    professionalApprovalRequiredForReferences: false,
+    canApprove: canReviewScenarios(workspace.role),
+  }, { headers: { "Cache-Control": "no-store" } });
 }
 
 async function approve(request: Request) {

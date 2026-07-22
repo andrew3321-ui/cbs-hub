@@ -1,6 +1,6 @@
 import { env } from "cloudflare:workers";
 import { and, eq } from "drizzle-orm";
-import { hashNationalCoverage, NATIONAL_COVERAGE_VERSION } from "../domain/national-tax-coverage";
+import { NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, hashNationalCoverageAutomaticAssurance } from "../domain/national-coverage-automatic-assurance";
 import { getDb } from "../db";
 import { fiscalRuleApprovals } from "../db/schema";
 
@@ -77,7 +77,7 @@ async function verifyRuleApproval(record: ApprovalRecord, signature: string) {
 }
 
 export async function currentNationalRuleIdentity() {
-  return { ruleCode: NATIONAL_RULE_CODE, ruleVersion: NATIONAL_COVERAGE_VERSION, ruleHash: await hashNationalCoverage() };
+  return { ruleCode: NATIONAL_RULE_CODE, ruleVersion: NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, ruleHash: await hashNationalCoverageAutomaticAssurance() };
 }
 
 export async function getActiveNationalRuleApproval(workspaceId: number) {

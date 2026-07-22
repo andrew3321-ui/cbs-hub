@@ -407,7 +407,7 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
   assert.match(layout, /federal-pme\.css/);
 });
 
-test("versão 27 publica cobertura nacional, lote documental, monitor e aprovação obrigatória", async () => {
+test("versão 64 publica cobertura nacional com garantia automática e responsabilidade separada", async () => {
   const [ui, domain, publicApi, calculatorApi, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
     readFile(new URL("domain/national-tax-coverage.ts", root), "utf8"),
@@ -422,13 +422,14 @@ test("versão 27 publica cobertura nacional, lote documental, monitor e aprovaç
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 63 · AUTOPEÇAS NAS ROTAS MAIS RECORRENTES/);
+  assert.match(ui, /VERSÃO 64 · GARANTIA AUTOMÁTICA SEM FALSA HOMOLOGAÇÃO/);
   assert.match(ui, /structuredCells} combinações estruturadas/);
   assert.match(publicApi, /stSpOriginMatrix/);
   assert.match(publicApi, /stSpCalculationValidation/);
   assert.match(publicApi, /stCementSpRoutes/);
   assert.match(publicApi, /stCementPriorityBatch/);
   assert.match(publicApi, /stAutoPartsPriorityBatch/);
+  assert.match(publicApi, /automaticAssurance/);
   assert.match(ui, /Uma base legal, 26 rotas controladas/);
   assert.match(ui, /novos valores finais liberados/);
   assert.match(ui, /PMPF por GTIN antes da MVA/);
@@ -445,15 +446,21 @@ test("versão 27 publica cobertura nacional, lote documental, monitor e aprovaç
   assert.match(domain, /state\("TO"/);
   assert.match(domain, /cityRows/);
   assert.match(publicApi, /public, max-age=300/);
-  assert.match(calculatorApi, /rule_approval_required/);
+  assert.match(calculatorApi, /validateNationalCoverageAutomatically/);
+  assert.match(calculatorApi, /professionalApprovalRequired: false/);
+  assert.doesNotMatch(calculatorApi, /rule_approval_required/);
   assert.match(batchApi, /rawFilesPersisted: false/);
   assert.match(monitorApi, /Nunca altera regra/);
   assert.match(governanceApi, /signRuleApproval/);
+  assert.match(governanceApi, /professionalApprovalRequiredForReferences: false/);
+  assert.match(ui, /Nenhuma assinatura humana é exigida/);
+  assert.match(ui, /O software não se apresenta como profissional habilitado/);
   assert.match(schema, /fiscalRuleApprovals/);
   assert.doesNotMatch(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_rule_approvals/);
   assert.match(approvalService, /ensureFiscalRuleApprovalSchema/);
   assert.match(landing, /landing-coverage-strip/);
   assert.match(layout, /national-coverage\.css/);
+  assert.match(layout, /national-coverage-v64\.css/);
 });
 
 test("versão 55 cria esteira fiscal sem custo por consulta e com verificação automática", async () => {

@@ -1,5 +1,5 @@
 import { resolveInterstateIcms, stateCoverage, type UfCode } from "../../../domain/national-tax-coverage";
-import { getActiveNationalRuleApproval } from "../../fiscal-rule-approval";
+import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../domain/national-coverage-automatic-assurance";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { getWorkspaceContext } from "../../workspace";
@@ -10,14 +10,15 @@ async function calculate(request: Request) {
   if (!user) return Response.json({ error: "Faça login para usar a referência nacional." }, { status: 401 });
   const workspace = await getWorkspaceContext(user.id);
   if (!workspace) return Response.json({ error: "Espaço contábil não encontrado." }, { status: 403 });
-  const approval = await getActiveNationalRuleApproval(workspace.id);
-  if (!approval.verified) return Response.json({ error: "Execução bloqueada: a versão atual das regras ainda não possui aprovação profissional assinada.", code: "rule_approval_required" }, { status: 409 });
+  const assurance = validateNationalCoverageAutomatically();
+  if (assurance.status !== "automatically_verified") return Response.json({ error: "Execução bloqueada: a verificação automática encontrou uma falha de integridade na base.", code: "automatic_assurance_failed", details: assurance.errors }, { status: 503 });
   try {
     const body = await request.json() as Record<string, unknown>;
     const origin = String(body.origin ?? "") as UfCode;
     const destination = String(body.destination ?? "") as UfCode;
     if (!stateCoverage.some((item) => item.uf === origin) || !stateCoverage.some((item) => item.uf === destination) || typeof body.importedQualified !== "boolean") throw new Error("invalid_facts");
-    return Response.json({ result: resolveInterstateIcms(origin, destination, body.importedQualified), facts: { origin, destination, importedQualified: body.importedQualified }, rule: { version: approval.identity.ruleVersion, fingerprint: approval.identity.ruleHash.slice(0, 12), approvalVerified: true }, limitation: "Referência de alíquota interestadual. Não calcula DIFAL, ST, FCP, benefício, base ou imposto líquido." }, { headers: { "Cache-Control": "no-store" } });
+    const fingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
+    return Response.json({ result: resolveInterstateIcms(origin, destination, body.importedQualified), facts: { origin, destination, importedQualified: body.importedQualified }, rule: { version: assurance.version, fingerprint, assurance: assurance.status, professionalApprovalRequired: false }, limitation: "Referência de alíquota interestadual. Não calcula DIFAL, ST, FCP, benefício, base ou imposto líquido. A verificação automática comprova o comportamento do motor, não a aplicabilidade a uma operação real." }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return Response.json({ error: "Informe origem, destino e qualificação da mercadoria importada." }, { status: 400 });
   }
