@@ -1,6 +1,7 @@
 import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, NATIONAL_COVERAGE_CHECKED_AT, NATIONAL_COVERAGE_VERSION, recurringScenarios, stateCoverage, stSegments } from "../../../../domain/national-tax-coverage";
 import { buildIssDeepTechnicalEvidence, issDeepCityProfiles, issDeepMetrics, issDeepSources } from "../../../../domain/iss-deep-coverage";
 import { hashStSpMgLegalCatalog, stSpMgLegalMetrics, stSpMgLegalPackages, ST_SP_MG_LEGAL_VERSION, validateStSpMgLegalCatalog } from "../../../../domain/st-sp-mg-legal";
+import { hashStSpOriginMatrix, stSpOriginCells, stSpOriginDestinations, stSpOriginMandatoryFacts, stSpOriginMatrixMetrics, ST_SP_ORIGIN_MATRIX_VERSION, validateStSpOriginMatrix } from "../../../../domain/st-sp-origin-matrix";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function publicCoverage() {
@@ -8,6 +9,8 @@ async function publicCoverage() {
   const technicalEvidence = await buildIssDeepTechnicalEvidence();
   const stValidation = validateStSpMgLegalCatalog();
   const stFingerprint = (await hashStSpMgLegalCatalog()).slice(0, 12);
+  const spOriginValidation = validateStSpOriginMatrix();
+  const spOriginFingerprint = (await hashStSpOriginMatrix()).slice(0, 12);
   return Response.json({
     version: NATIONAL_COVERAGE_VERSION,
     checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
@@ -30,6 +33,16 @@ async function publicCoverage() {
       metrics: stSpMgLegalMetrics(),
       packages: stSpMgLegalPackages,
       policy: "Estruturado significa que os fatos legais obrigatórios, o capítulo e a fonte estão identificados. Cálculo validado exige um CEST/NCM representativo, âmbito SP→MG vigente, parâmetro de preço e testes determinísticos; os demais permanecem bloqueados.",
+    },
+    stSpOriginMatrix: {
+      version: ST_SP_ORIGIN_MATRIX_VERSION,
+      fingerprint: spOriginFingerprint,
+      validation: spOriginValidation,
+      metrics: stSpOriginMatrixMetrics(),
+      mandatoryFacts: stSpOriginMandatoryFacts,
+      destinations: stSpOriginDestinations,
+      cells: stSpOriginCells,
+      policy: "Matriz estruturada não significa cálculo liberado. Cada célula SP→UF permanece bloqueada até acordo, legislação do destino, parâmetros, exceções e teste determinístico estarem documentados.",
     },
     recurringScenarios,
     sources: coverageSources,
