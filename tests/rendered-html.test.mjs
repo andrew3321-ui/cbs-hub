@@ -347,6 +347,10 @@ test("versão 24 expande a inteligência fiscal sem promover triagem a cálculo 
   assert.match(ui, /MOTOR MANUAL · 8 MÓDULOS/);
   assert.match(ui, /result\?\.topicCode === "ICMS-SP-MG-AUTO-PARTS"/);
   assert.match(ui, /sem cálculo definitivo/);
+  assert.match(ui, /searchController\.current\?\.abort\(\)/);
+  assert.match(ui, /onChange=\{\(event\) => changeQuestion\(event\.target\.value\)\}/);
+  assert.match(ui, /cache: "no-store"/);
+  assert.doesNotMatch(ui, /const parsed = data\.result\.facts/);
   assert.match(api, /evaluateExpandedFiscalQuestion/);
   assert.match(api, /fiscalTopicCatalog\(definition\)/);
   assert.match(service, /pisCofinsRegime/);

@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import FiscalDossierWorkbench from "./FiscalDossierWorkbench";
 import FiscalHomologationCenter from "./FiscalHomologationCenter";
 
@@ -159,6 +159,8 @@ export default function FiscalIntelligence() {
   const [loading, setLoading] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [error, setError] = useState("");
+  const searchSequence = useRef(0);
+  const searchController = useRef<AbortController | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -180,38 +182,52 @@ export default function FiscalIntelligence() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => () => searchController.current?.abort(), []);
+
   function updateFact(field: keyof FactForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
   }
 
   async function search(nextQuestion = question, nextForm = form) {
-    if (nextQuestion.trim().length < 5) return;
+    const normalizedQuestion = nextQuestion.trim();
+    if (normalizedQuestion.length < 5) return;
+    const sequence = searchSequence.current + 1;
+    searchSequence.current = sequence;
+    searchController.current?.abort();
+    const controller = new AbortController();
+    searchController.current = controller;
     setLoading(true);
     setError("");
+    setResult(null);
     try {
       const response = await fetch("/api/fiscal-intelligence", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: nextQuestion.trim(), facts: buildFacts(nextForm) }),
+        body: JSON.stringify({ question: normalizedQuestion, facts: buildFacts(nextForm) }),
+        cache: "no-store",
+        signal: controller.signal,
       });
       const data = await response.json() as { error?: string; result?: FiscalResult; knowledge?: Pick<KnowledgeMeta, "fingerprint" | "checkedAt"> };
       if (!response.ok || !data.result) throw new Error(data.error ?? "Não foi possível concluir a pesquisa.");
+      if (sequence !== searchSequence.current) return;
       setResult(data.result);
       setKnowledge((current) => current && data.knowledge ? { ...current, ...data.knowledge } : current);
-      const parsed = data.result.facts;
-      setForm((current) => {
-        const next = { ...current };
-        for (const field of Object.keys(next) as Array<keyof FactForm>) {
-          const value = parsed[field];
-          if (!next[field] && typeof value === "string" && value !== "unknown") next[field] = value;
-        }
-        return next;
-      });
     } catch (cause) {
+      if (controller.signal.aborted || sequence !== searchSequence.current) return;
       setError(cause instanceof Error ? cause.message : "Não foi possível concluir a pesquisa.");
     } finally {
-      setLoading(false);
+      if (sequence === searchSequence.current) setLoading(false);
     }
+  }
+
+  function changeQuestion(value: string) {
+    searchSequence.current += 1;
+    searchController.current?.abort();
+    setLoading(false);
+    setQuestion(value);
+    setForm(emptyFacts);
+    setResult(null);
+    setError("");
   }
 
   function submit(event: FormEvent) {
@@ -272,7 +288,7 @@ export default function FiscalIntelligence() {
       <form className="intelligence-search panel" onSubmit={submit}>
         <label htmlFor="fiscal-question">Descreva a operação e a sua dúvida</label>
         <div className="intelligence-search-row">
-          <textarea id="fiscal-question" maxLength={500} rows={2} value={question} onChange={(event) => setQuestion(event.target.value)} placeholder="Ex.: qual a alíquota de ICMS para autopeças de SP para MG?" />
+          <textarea id="fiscal-question" maxLength={500} rows={2} value={question} onChange={(event) => changeQuestion(event.target.value)} placeholder="Ex.: qual a alíquota de ICMS para autopeças de SP para MG?" />
           <button className="primary-button" disabled={loading || catalogLoading || question.trim().length < 5}>{loading ? "Analisando…" : "Pesquisar regras"}<span>→</span></button>
         </div>
         <div className="intelligence-examples"><span>TESTAR PERGUNTA:</span>{examples.map((example) => <button type="button" onClick={() => runExample(example)} key={example}>{example}</button>)}<button className="complete-case-button" type="button" onClick={runCompleteReferenceCase}>Preencher caso demonstrativo · 100% dos fatos</button></div>
