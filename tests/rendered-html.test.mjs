@@ -411,7 +411,7 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
   assert.match(layout, /federal-pme\.css/);
 });
 
-test("versão 66 publica cobertura nacional com garantia automática e corredores bidirecionais de autopeças", async () => {
+test("versão 67 publica cobertura nacional com motor temporal de autopeças", async () => {
   const [ui, domain, publicApi, calculatorApi, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
     readFile(new URL("domain/national-tax-coverage.ts", root), "utf8"),
@@ -426,7 +426,9 @@ test("versão 66 publica cobertura nacional com garantia automática e corredore
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 66 · AUTOPEÇAS EM 12 CORREDORES E 24 SENTIDOS/);
+  assert.match(ui, /VERSÃO 67 · MOTOR TEMPORAL DE AUTOPEÇAS/);
+  assert.match(ui, /CALCULADORA TEMPORAL/);
+  assert.match(ui, /Confirme os oito fatos documentados/);
   assert.match(ui, /structuredCells} combinações estruturadas/);
   assert.match(publicApi, /stSpOriginMatrix/);
   assert.match(publicApi, /stSpCalculationValidation/);

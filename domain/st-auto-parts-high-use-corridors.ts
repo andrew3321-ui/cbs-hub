@@ -1,7 +1,9 @@
 import { calculateRepresentativeStMemory } from "./st-sp-mg-legal.ts";
 
-export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION = "2026.07.22-v66";
+export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION = "2026.07.22-v67";
 export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT = "2026-07-22";
+export const ST_AUTO_PARTS_SUPPORTED_PERIOD = { from: "2026-01-01", to: "2026-12-31" } as const;
+export const ST_AUTO_PARTS_SP_EXCLUSION_FROM = "2026-10-01" as const;
 
 export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS = [
   ["SP", "MG"],
@@ -123,6 +125,54 @@ export const stAutoPartsHighUseSources: StAutoPartsHighUseSource[] = [
     checkedAt: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT,
     proves: ["tratamento estadual no Anexo 37, artigos 99 a 101, do Decreto 44.650/2017", "regra própria deve ser conferida fora do Protocolo 41/08"],
   },
+  {
+    code: "SP-SRE-16-2023-AUTO-PARTS-BASE",
+    title: "Portaria SRE 16/2023 — base de cálculo de autopeças até setembro de 2026",
+    publisher: "SEFAZ-SP",
+    url: "https://legislacao.fazenda.sp.gov.br/Paginas/Portaria-SRE-16-de-2023.aspx",
+    checkedAt: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT,
+    proves: ["vigência de 1º/04/2023 a 30/09/2026", "IVA-ST de 47,19% com fidelidade e 72,15% nos demais casos", "ajuste do IVA nas entradas interestaduais"],
+  },
+  {
+    code: "SP-SRE-34-2026-ST-EXCLUSION",
+    title: "Portaria SRE 34/2026 — exclusão paulista de autopeças da ST",
+    publisher: "SEFAZ-SP",
+    url: "https://legislacao.fazenda.sp.gov.br/Paginas/Portaria-SRE-34-de-2026.aspx",
+    checkedAt: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT,
+    proves: ["revogação do Anexo XIV e da Portaria SRE 16/2023", "efeitos a partir de 1º/10/2026", "estoque sujeito ao procedimento da Portaria CAT 28/2020"],
+  },
+  {
+    code: "SP-RICMS-INTERNAL-RATE-18",
+    title: "RICMS/SP — alíquota interna geral aplicável ao produto representativo",
+    publisher: "SEFAZ-SP",
+    url: "https://legislacao.fazenda.sp.gov.br/Paginas/RC33000_2025.aspx",
+    checkedAt: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT,
+    proves: ["alíquota interna geral de 18%", "necessidade de conferir eventual enquadramento específico por NCM e descrição"],
+  },
+  {
+    code: "PR-SEFA-571-2019-AUTO-PARTS-MVA",
+    title: "Resolução SEFA 571/2019 — MVA de autopeças no Paraná",
+    publisher: "SEFA-PR",
+    url: "https://www.fazenda.pr.gov.br/sites/default/arquivos_restritos/files/documento/2020-03/101201900571.pdf",
+    checkedAt: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT,
+    proves: ["MVA original de 36,56% com fidelidade", "MVA original de 71,78% nos demais casos", "fonte indicada como vigente pela SEFA-PR"],
+  },
+  {
+    code: "PR-ICMS-INTERNAL-RATE-19-5",
+    title: "RICMS/PR — alíquota interna geral de 19,5%",
+    publisher: "Governo do Paraná",
+    url: "https://www.legislacao.pr.gov.br/legislacao/listarAtosAno.do?action=exibir&anoSelecionado=2024&anoSpan=2024&codAto=321803&indice=4&isPaginado=true&mesSelecionado=3&totalRegistros=293",
+    checkedAt: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT,
+    proves: ["alíquota interna geral de 19,5%", "vigência usada na referência controlada de 2026"],
+  },
+  {
+    code: "BA-ICMS-LAW-7014-CURRENT",
+    title: "Lei 7.014/1996 consolidada — alíquota interna e FECP da Bahia",
+    publisher: "SEFAZ-BA",
+    url: "https://mbusca.sefaz.ba.gov.br/DITRI/leis/leis_estaduais/legest_1996_7014_icmscomnotas.pdf",
+    checkedAt: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT,
+    proves: ["alíquota interna geral de 20,5%", "adicional de pobreza restrito às hipóteses do art. 16-A", "produto representativo fora das hipóteses adicionais controladas"],
+  },
 ];
 
 const sourceByCode = new Map(stAutoPartsHighUseSources.map((source) => [source.code, source]));
@@ -136,25 +186,72 @@ const representativeProduct = {
   scope: "representative_identity_only" as const,
 };
 
-const mgReference = calculateRepresentativeStMemory({
-  operationCents: 100_000,
-  ownIcmsBaseCents: 100_000,
-  mvaOriginalBps: 7_178,
-  interstateRateBps: 1_200,
-  internalRateBps: 1_800,
-  fcpRateBps: 0,
-  adjustMva: true,
-});
+export const ST_AUTO_PARTS_OPERATION_FACT_LABELS = {
+  productIdentityConfirmed: "descrição, NCM 8708 e CEST 01.075.00 conferidos",
+  automotiveUseConfirmed: "uso especificamente automotivo confirmado",
+  destinationInternalStConfirmed: "sujeição interna à ST no destino confirmada",
+  taxpayerRolesConfirmed: "papéis e regimes do remetente e destinatário confirmados",
+  noSpecialTreatmentConfirmed: "benefícios, regimes especiais e exceções afastados",
+  priceBasisConfirmed: "base, frete, seguro, impostos e encargos confirmados",
+  noSpecificRateExceptionConfirmed: "alíquota específica por NCM/descrição afastada",
+  documentsConfirmed: "documentos fiscais e comerciais conferidos",
+} as const;
 
-const rjReference = calculateRepresentativeStMemory({
-  operationCents: 100_000,
-  ownIcmsBaseCents: 100_000,
-  mvaOriginalBps: 7_178,
-  interstateRateBps: 1_200,
-  internalRateBps: 2_000,
-  fcpRateBps: 200,
-  adjustMva: true,
-});
+export type AutoPartsOperationFacts = Record<keyof typeof ST_AUTO_PARTS_OPERATION_FACT_LABELS, boolean>;
+export type AutoPartsCommercialCondition = "fidelity" | "standard";
+export type AutoPartsOperationInput = {
+  route: string;
+  operationDate: string;
+  operationCents: number;
+  ownIcmsBaseCents: number;
+  cest: string;
+  ncm: string;
+  importedQualified: boolean;
+  commercialCondition: AutoPartsCommercialCondition;
+  facts: AutoPartsOperationFacts;
+};
+
+const destinationParameters = {
+  MG: { fidelityMvaBps: 3_656, standardMvaBps: 7_178, internalRateBps: 1_800, fcpRateBps: 0 },
+  RJ: { fidelityMvaBps: 3_656, standardMvaBps: 7_178, internalRateBps: 2_000, fcpRateBps: 200 },
+  PR: { fidelityMvaBps: 3_656, standardMvaBps: 7_178, internalRateBps: 1_950, fcpRateBps: 0 },
+  BA: { fidelityMvaBps: 3_656, standardMvaBps: 7_178, internalRateBps: 2_050, fcpRateBps: 0 },
+  SP: { fidelityMvaBps: 4_719, standardMvaBps: 7_215, internalRateBps: 1_800, fcpRateBps: 0 },
+} as const;
+
+const allOperationFacts: AutoPartsOperationFacts = Object.fromEntries(
+  Object.keys(ST_AUTO_PARTS_OPERATION_FACT_LABELS).map((key) => [key, true]),
+) as AutoPartsOperationFacts;
+
+function domesticInterstateRateBps(origin: string, destination: string) {
+  return origin === "SP" && destination === "BA" ? 700 : 1_200;
+}
+
+function isIsoDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return !Number.isNaN(date.valueOf()) && date.toISOString().slice(0, 10) === value;
+}
+
+export type AutoPartsOperationResult = {
+  status: "calculated_reference" | "blocked" | "st_not_applicable_after_state_exclusion";
+  route: string;
+  operationDate: string;
+  product: typeof representativeProduct;
+  missingFacts: string[];
+  blockers: string[];
+  parameters: null | {
+    commercialCondition: AutoPartsCommercialCondition;
+    importedQualified: boolean;
+    mvaOriginalBps: number;
+    interstateRateBps: number;
+    internalRateBps: number;
+    fcpRateBps: number;
+  };
+  output: null | ReturnType<typeof calculateRepresentativeStMemory>;
+  sourceCodes: string[];
+  limitation: string;
+};
 
 const commonRealOperationBlockers = [
   "confirmar descrição, NCM, CEST e uso especificamente automotivo",
@@ -183,7 +280,7 @@ export type StAutoPartsHighUseRoute = {
   sourceCodes: string[];
   confirmedInputs: string[];
   remainingBlockers: string[];
-  scheduledReview: null | { effectiveFrom: "2026-10-01"; reason: string; sourceCode: "SP-PORTARIA-CAT-68-2019-ANNEX-XIV" };
+  scheduledReview: null | { effectiveFrom: "2026-10-01"; reason: string; sourceCode: "SP-SRE-34-2026-ST-EXCLUSION" };
   syntheticReference: null | ReturnType<typeof calculateRepresentativeStMemory>;
 };
 
@@ -192,12 +289,72 @@ function stateSourceCodes(origin: StAutoPartsHighUseUf, destination: StAutoParts
   const involved = new Set([origin, destination]);
   if (involved.has("MG")) codes.push("MG-RICMS-2023-ANNEX-VII-AUTO-PARTS");
   if (involved.has("RJ")) codes.push("RJ-RICMS-LIVRO-II-ANNEX-I-AUTO-PARTS", "RJ-ICMS-INTERNAL-RATES-FECP");
-  if (involved.has("SP")) codes.push("SP-PORTARIA-CAT-68-2019-ANNEX-XIV");
-  if (involved.has("BA")) codes.push("BA-RICMS-ANNEX-I-2026");
-  if (involved.has("PR")) codes.push("PR-RICMS-DECREE-7871-2017");
+  if (involved.has("SP")) codes.push("SP-PORTARIA-CAT-68-2019-ANNEX-XIV", "SP-SRE-16-2023-AUTO-PARTS-BASE", "SP-SRE-34-2026-ST-EXCLUSION", "SP-RICMS-INTERNAL-RATE-18");
+  if (involved.has("BA")) codes.push("BA-RICMS-ANNEX-I-2026", "BA-ICMS-LAW-7014-CURRENT");
+  if (involved.has("PR")) codes.push("PR-RICMS-DECREE-7871-2017", "PR-SEFA-571-2019-AUTO-PARTS-MVA", "PR-ICMS-INTERNAL-RATE-19-5");
   if (involved.has("SC")) codes.push("SC-RICMS-ANNEX-1A-CURRENT");
   if (involved.has("PE")) codes.push("PE-AUTO-PARTS-CONSOLIDATED");
   return codes;
+}
+
+export function resolveAutoPartsPriorityOperation(input: AutoPartsOperationInput): AutoPartsOperationResult {
+  const route = stAutoPartsHighUseRouteByKey.get(input.route);
+  const missingFacts = Object.entries(ST_AUTO_PARTS_OPERATION_FACT_LABELS)
+    .filter(([key]) => input.facts?.[key as keyof AutoPartsOperationFacts] !== true)
+    .map(([, label]) => label);
+  const blockers: string[] = [];
+  if (!route || route.agreementStatus !== "protocol_41_active") blockers.push("rota fora das dez direções prioritárias com Protocolo 41/08 ativo");
+  if (!isIsoDate(input.operationDate) || input.operationDate < ST_AUTO_PARTS_SUPPORTED_PERIOD.from || input.operationDate > ST_AUTO_PARTS_SUPPORTED_PERIOD.to) blockers.push("data da operação fora do período controlado de 2026");
+  if (input.cest !== representativeProduct.cest || input.ncm !== representativeProduct.ncm) blockers.push("identidade fiscal diferente do CEST 01.075.00 / NCM 8708 controlado");
+  if (!Number.isSafeInteger(input.operationCents) || input.operationCents <= 0 || input.operationCents > 100_000_000_000) blockers.push("valor da operação inválido ou acima do limite controlado");
+  if (!Number.isSafeInteger(input.ownIcmsBaseCents) || input.ownIcmsBaseCents <= 0 || input.ownIcmsBaseCents > 100_000_000_000) blockers.push("base do ICMS próprio inválida");
+  if (input.commercialCondition !== "fidelity" && input.commercialCondition !== "standard") blockers.push("condição comercial de fidelidade não informada");
+  blockers.push(...missingFacts);
+  const baseResult = {
+    route: input.route,
+    operationDate: input.operationDate,
+    product: representativeProduct,
+    missingFacts,
+    sourceCodes: route?.sourceCodes ?? ["CONFAZ-PROTOCOL-41-2008", "CONFAZ-CONV-142-2018-ANNEX-II"],
+    limitation: "Memória determinística condicional do produto representativo. Não substitui a classificação fiscal, a escrituração nem a responsabilidade técnica sobre a operação real.",
+  };
+  if (blockers.length > 0 || !route) return { ...baseResult, status: "blocked", blockers, parameters: null, output: null };
+  if (route.destination === "SP" && input.operationDate >= ST_AUTO_PARTS_SP_EXCLUSION_FROM) {
+    return {
+      ...baseResult,
+      status: "st_not_applicable_after_state_exclusion",
+      blockers: ["a ST paulista de autopeças controlada foi excluída a partir de 01/10/2026; apure o ICMS pelo tratamento vigente da operação e confira o estoque de transição"],
+      parameters: null,
+      output: null,
+    };
+  }
+  const parameters = destinationParameters[route.destination as keyof typeof destinationParameters];
+  if (!parameters) return { ...baseResult, status: "blocked", blockers: ["parâmetros estaduais do destino não congelados"], parameters: null, output: null };
+  const interstateRateBps = input.importedQualified ? 400 : domesticInterstateRateBps(route.origin, route.destination);
+  const mvaOriginalBps = input.commercialCondition === "fidelity" ? parameters.fidelityMvaBps : parameters.standardMvaBps;
+  const calculationParameters = {
+    commercialCondition: input.commercialCondition,
+    importedQualified: input.importedQualified,
+    mvaOriginalBps,
+    interstateRateBps,
+    internalRateBps: parameters.internalRateBps,
+    fcpRateBps: parameters.fcpRateBps,
+  };
+  return {
+    ...baseResult,
+    status: "calculated_reference",
+    blockers: [],
+    parameters: calculationParameters,
+    output: calculateRepresentativeStMemory({
+      operationCents: input.operationCents,
+      ownIcmsBaseCents: input.ownIcmsBaseCents,
+      mvaOriginalBps,
+      interstateRateBps,
+      internalRateBps: parameters.internalRateBps,
+      fcpRateBps: parameters.fcpRateBps,
+      adjustMva: true,
+    }),
+  };
 }
 
 function buildDirection(corridorRank: number, origin: StAutoPartsHighUseUf, destination: StAutoPartsHighUseUf, direction: "outbound" | "return"): StAutoPartsHighUseRoute {
@@ -254,26 +411,31 @@ function buildDirection(corridorRank: number, origin: StAutoPartsHighUseUf, dest
         ],
     scheduledReview: destination === "SP" ? {
       effectiveFrom: "2026-10-01",
-      reason: "O Anexo XIV da Portaria CAT 68/2019 está revogado a partir desta data; operações com destino a SP exigem nova regra estadual congelada antes de calcular.",
-      sourceCode: "SP-PORTARIA-CAT-68-2019-ANNEX-XIV",
+      reason: "A Portaria SRE 34/2026 exclui as autopeças controladas da ST paulista a partir desta data; o sistema deixa de calcular ST e orienta a apuração do tratamento vigente.",
+      sourceCode: "SP-SRE-34-2026-ST-EXCLUSION",
     } : null,
     syntheticReference: null,
   };
 
-  if (active && destination === "MG" && (origin === "SP" || origin === "RJ")) {
-    route.adjustedMvaBpsFor12 = mgReference.mvaAppliedBps;
-    route.officialInternalRateBps = 1_800;
-    route.officialFcpRateBps = 0;
+  const parameters = destinationParameters[destination as keyof typeof destinationParameters];
+  if (active && parameters) {
+    const interstateRateBps = domesticInterstateRateBps(origin, destination);
+    const reference = calculateRepresentativeStMemory({
+      operationCents: 100_000,
+      ownIcmsBaseCents: 100_000,
+      mvaOriginalBps: parameters.standardMvaBps,
+      interstateRateBps,
+      internalRateBps: parameters.internalRateBps,
+      fcpRateBps: parameters.fcpRateBps,
+      adjustMva: true,
+    });
+    route.mvaOriginalBps = parameters.standardMvaBps;
+    route.adjustedMvaBpsFor12 = interstateRateBps === 1_200 ? reference.mvaAppliedBps : null;
+    route.officialInternalRateBps = parameters.internalRateBps;
+    route.officialFcpRateBps = parameters.fcpRateBps;
     route.calculationStatus = "synthetic_reference_reproduced";
-    route.syntheticReference = mgReference;
-    route.confirmedInputs.push("memória sintética de R$ 1.000 reproduzida centavo a centavo");
-  } else if (active && destination === "RJ" && (origin === "SP" || origin === "MG")) {
-    route.adjustedMvaBpsFor12 = rjReference.mvaAppliedBps;
-    route.officialInternalRateBps = 2_000;
-    route.officialFcpRateBps = 200;
-    route.calculationStatus = "synthetic_reference_reproduced";
-    route.syntheticReference = rjReference;
-    route.confirmedInputs.push("memória sintética de R$ 1.000 reproduzida centavo a centavo");
+    route.syntheticReference = reference;
+    route.confirmedInputs.push(`memória sintética de R$ 1.000 reproduzida centavo a centavo com alíquota interestadual de ${(interstateRateBps / 100).toFixed(0)}%`);
   }
 
   return route;
@@ -312,7 +474,7 @@ export function validateStAutoPartsHighUseCorridors() {
   if (stAutoPartsHighUseRoutes.length !== 24 || new Set(stAutoPartsHighUseRoutes.map((route) => route.route)).size !== 24) errors.push("priority_corridors_must_have_twenty_four_unique_directions");
   if (stAutoPartsHighUseRoutes.map((route) => route.route).join(",") !== expectedRoutes.join(",")) errors.push("priority_direction_order_changed");
   if (stAutoPartsHighUseRoutes.filter((route) => route.agreementStatus === "protocol_41_active").map((route) => route.route).join(",") !== expectedActive.join(",")) errors.push("priority_active_protocol_routes_changed");
-  if (stAutoPartsHighUseSources.length !== 10 || new Set(stAutoPartsHighUseSources.map((source) => source.code)).size !== 10) errors.push("priority_sources_must_be_ten_unique_official_records");
+  if (stAutoPartsHighUseSources.length !== 16 || new Set(stAutoPartsHighUseSources.map((source) => source.code)).size !== 16) errors.push("priority_sources_must_be_sixteen_unique_official_records");
   if (stAutoPartsHighUseSources.some((source) => !source.url.startsWith("https://") || source.proves.length === 0)) errors.push("priority_source_must_be_https_with_scope");
   for (const route of stAutoPartsHighUseRoutes) {
     if (route.directionalSymmetryAssumed !== false) errors.push(`directional_symmetry_forbidden:${route.route}`);
@@ -327,7 +489,7 @@ export function validateStAutoPartsHighUseCorridors() {
   const metrics = stAutoPartsHighUseCorridorMetrics();
   if (metrics.activeAgreementRoutes !== 10 || metrics.outsideProtocolRoutes !== 14) errors.push("priority_protocol_partition_changed");
   if (metrics.protocolMvaRoutes !== 5 || metrics.destinationMvaRoutes !== 5) errors.push("priority_mva_partition_changed");
-  if (metrics.syntheticReferencesReproduced !== 4 || metrics.safelyBlocked !== 20) errors.push("priority_reference_partition_changed");
+  if (metrics.syntheticReferencesReproduced !== 10 || metrics.safelyBlocked !== 14) errors.push("priority_reference_partition_changed");
   for (const key of ["SP-MG", "RJ-MG"]) {
     const reference = stAutoPartsHighUseRouteByKey.get(key)?.syntheticReference;
     if (reference?.destinationTotalCents !== 21_183) errors.push(`mg_reference_did_not_reproduce:${key}`);
@@ -336,6 +498,30 @@ export function validateStAutoPartsHighUseCorridors() {
     const reference = stAutoPartsHighUseRouteByKey.get(key)?.syntheticReference;
     if (reference?.destinationTotalCents !== 29_571) errors.push(`rj_reference_did_not_reproduce:${key}`);
   }
+  const expectedNewReferences = new Map([
+    ["MG-SP", 21_255], ["RJ-SP", 21_255], ["SP-PR", 24_617], ["PR-SP", 21_255], ["SP-BA", 34_195], ["BA-SP", 21_255],
+  ]);
+  for (const [key, total] of expectedNewReferences) {
+    if (stAutoPartsHighUseRouteByKey.get(key)?.syntheticReference?.destinationTotalCents !== total) errors.push(`new_reference_did_not_reproduce:${key}`);
+  }
+  const completeInput: AutoPartsOperationInput = {
+    route: "MG-SP",
+    operationDate: "2026-09-30",
+    operationCents: 100_000,
+    ownIcmsBaseCents: 100_000,
+    cest: "01.075.00",
+    ncm: "8708",
+    importedQualified: false,
+    commercialCondition: "standard",
+    facts: allOperationFacts,
+  };
+  if (resolveAutoPartsPriorityOperation(completeInput).output?.destinationTotalCents !== 21_255) errors.push("temporal_reference_before_sp_exclusion_failed");
+  const afterExclusion = resolveAutoPartsPriorityOperation({ ...completeInput, operationDate: ST_AUTO_PARTS_SP_EXCLUSION_FROM });
+  if (afterExclusion.status !== "st_not_applicable_after_state_exclusion" || afterExclusion.output !== null) errors.push("sp_exclusion_transition_failed");
+  const missingFacts = resolveAutoPartsPriorityOperation({ ...completeInput, facts: { ...allOperationFacts, documentsConfirmed: false } });
+  if (missingFacts.status !== "blocked" || missingFacts.output !== null || missingFacts.missingFacts.length !== 1) errors.push("operation_fact_gate_failed");
+  const imported = resolveAutoPartsPriorityOperation({ ...completeInput, route: "SP-BA", importedQualified: true });
+  if (imported.parameters?.interstateRateBps !== 400 || imported.output === null) errors.push("imported_interstate_rate_failed");
   return { passed: errors.length === 0, errors };
 }
 
@@ -344,6 +530,8 @@ export async function hashStAutoPartsHighUseCorridors() {
     version: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION,
     parties: ST_AUTO_PARTS_PROTOCOL_41_CURRENT_PARTIES,
     destinationMvaUfs: ST_AUTO_PARTS_PROTOCOL_41_DESTINATION_MVA_UFS,
+    supportedPeriod: ST_AUTO_PARTS_SUPPORTED_PERIOD,
+    spExclusionFrom: ST_AUTO_PARTS_SP_EXCLUSION_FROM,
     corridors: ST_AUTO_PARTS_HIGH_USE_CORRIDORS,
     sources: stAutoPartsHighUseSources,
     routes: stAutoPartsHighUseRoutes,

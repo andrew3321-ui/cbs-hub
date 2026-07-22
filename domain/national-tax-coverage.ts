@@ -1,6 +1,6 @@
 import { issDeepCityProfiles, issDeepProfileByIbge, issDeepSources } from "./iss-deep-coverage.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.22-v66";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.22-v67";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-22";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";

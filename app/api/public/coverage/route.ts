@@ -7,7 +7,7 @@ import { hashStSpCalculationRuns, stSpCalculationRuns, stSpCalculationValidation
 import { hashStCementSpRoutes, stCementSpRouteMetrics, stCementSpRoutes, ST_CEMENT_PRODUCT_SOURCE, ST_CEMENT_PROTOCOL_SOURCE, ST_CEMENT_SP_ROUTES_VERSION, validateStCementSpRoutes } from "../../../../domain/st-cement-sp-routes";
 import { hashStCementPriorityBatch, stCementPriorityBatchMetrics, stCementPrioritySources, stCementPriorityStates, ST_CEMENT_PRIORITY_BATCH_VERSION, validateStCementPriorityBatch } from "../../../../domain/st-cement-priority-batch";
 import { hashStAutoPartsPriorityBatch, stAutoPartsPriorityBatchMetrics, stAutoPartsPriorityRoutes, stAutoPartsPrioritySources, ST_AUTO_PARTS_PRIORITY_BATCH_VERSION, validateStAutoPartsPriorityBatch } from "../../../../domain/st-auto-parts-priority-batch";
-import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, stAutoPartsHighUseRoutes, stAutoPartsHighUseSources, ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION, validateStAutoPartsHighUseCorridors } from "../../../../domain/st-auto-parts-high-use-corridors";
+import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, stAutoPartsHighUseRoutes, stAutoPartsHighUseSources, ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION, ST_AUTO_PARTS_OPERATION_FACT_LABELS, ST_AUTO_PARTS_SP_EXCLUSION_FROM, ST_AUTO_PARTS_SUPPORTED_PERIOD, validateStAutoPartsHighUseCorridors } from "../../../../domain/st-auto-parts-high-use-corridors";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
@@ -110,9 +110,12 @@ async function publicCoverage() {
       fingerprint: autoPartsHighUseFingerprint,
       validation: validateStAutoPartsHighUseCorridors(),
       metrics: stAutoPartsHighUseCorridorMetrics(),
+      supportedPeriod: ST_AUTO_PARTS_SUPPORTED_PERIOD,
+      spExclusionFrom: ST_AUTO_PARTS_SP_EXCLUSION_FROM,
+      operationFactLabels: ST_AUTO_PARTS_OPERATION_FACT_LABELS,
       sources: stAutoPartsHighUseSources,
       routes: stAutoPartsHighUseRoutes,
-      policy: "Os 12 corredores prioritários são avaliados nos dois sentidos, totalizando 24 decisões independentes. A ida nunca herda o enquadramento, a MVA ou os parâmetros da volta; somente referências sintéticas com todos os dados controlados exibem memória.",
+      policy: "Os 12 corredores prioritários são avaliados nos dois sentidos, totalizando 24 decisões independentes. Dez rotas ativas têm memória condicional reproduzível; fatos ausentes bloqueiam o número e o destino São Paulo deixa de calcular esta ST a partir de 01/10/2026.",
     },
     recurringScenarios,
     sources: coverageSources,

@@ -8,7 +8,7 @@ import { hashStCementPriorityBatch, validateStCementPriorityBatch } from "./st-c
 import { hashStAutoPartsPriorityBatch, validateStAutoPartsPriorityBatch } from "./st-auto-parts-priority-batch.ts";
 import { hashStAutoPartsHighUseCorridors, validateStAutoPartsHighUseCorridors } from "./st-auto-parts-high-use-corridors.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.22-v66";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.22-v67";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-22";
 
 type Validation = { passed: boolean; errors: string[] };
