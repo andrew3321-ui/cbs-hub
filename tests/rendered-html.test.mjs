@@ -368,7 +368,7 @@ test("versão 55 substitui a fila humana por verificação automática rastreáv
     readFile(new URL("app/api/fiscal-expansion/route.ts", root), "utf8"),
   ]);
 
-  assert.match(ui, /VERSÃO 55 · VERIFICAÇÃO AUTOMÁTICA/);
+  assert.match(ui, /VERSÃO 56 · VERIFICAÇÃO AUTOMÁTICA/);
   assert.match(ui, /Verificação automática ≠ parecer profissional/);
   assert.match(ui, /Não há cadastro de contribuinte, assinatura humana nem aprovação manual/);
   assert.doesNotMatch(ui, /Homologar e assinar/);
@@ -379,7 +379,7 @@ test("versão 55 substitui a fila humana por verificação automática rastreáv
   assert.match(assurance, /isOfficialPublicSource/);
   assert.match(assurance, /safe_block/);
   assert.match(expansion, /automatically_verified/);
-  assert.match(expansion, /runFiscalSimulationSuite/);
+  assert.match(expansion, /fiscalAutomaticAssuranceCapacity/);
   assert.match(expansionApi, /AUTOMATED-SUITE/);
 });
 
@@ -452,7 +452,7 @@ test("versão 55 cria esteira fiscal sem custo por consulta e com verificação 
     readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 55 · VERIFICAÇÃO FISCAL AUTOMÁTICA/);
+  assert.match(ui, /VERSÃO 56 · VERIFICAÇÃO FISCAL AUTOMÁTICA/);
   assert.match(ui, /SEM IA/);
   assert.match(ui, /verificação automática rastreável/);
   assert.match(api, /automaticVerification: true/);

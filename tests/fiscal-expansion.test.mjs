@@ -9,14 +9,14 @@ import {
   nextExpansionStage,
 } from "../domain/fiscal-expansion.ts";
 
-test("V55 preserves a deterministic national backlog without overstating coverage", () => {
+test("V56 preserves a deterministic national backlog without overstating coverage", () => {
   const byScope = (scope) => fiscalExpansionBacklog.filter((item) => item.scope === scope);
   assert.equal(byScope("icms").length, 27);
   assert.equal(byScope("iss").length, 50);
-  assert.equal(byScope("st").length, 8);
+  assert.equal(byScope("st").length, 25);
   assert.equal(byScope("federal").length, 7);
   assert.equal(byScope("sources").length, 65);
-  assert.equal(fiscalExpansionBacklog.length, 157);
+  assert.equal(fiscalExpansionBacklog.length, 174);
   assert.ok(fiscalExpansionBacklog.every((item) => item.blockers.length && item.gates.length));
   assert.ok(fiscalExpansionBacklog.every((item) => item.supportStatus !== "supported"));
 });
@@ -34,12 +34,12 @@ test("monthly metrics expose actual gaps instead of converting targets into achi
   const metrics = expansionMetrics(fiscalExpansionBacklog);
   assert.equal(metrics.actual.icmsBundles, 27);
   assert.equal(metrics.actual.issDeepCities, 15);
-  assert.equal(metrics.actual.stRouteBundles, 1);
+  assert.equal(metrics.actual.stRouteBundles, 25);
   assert.equal(metrics.actual.officialSources, 65);
-  assert.equal(metrics.actual.testedBundles, 0);
-  assert.equal(metrics.actual.automaticTests, 20);
+  assert.equal(metrics.actual.testedBundles, 45);
+  assert.equal(metrics.actual.automaticTests, 40);
   assert.equal(metrics.gaps.officialSources, expansionTargets.officialSources - 65);
-  assert.equal(metrics.gaps.automaticTests, expansionTargets.automaticTests - 20);
+  assert.equal(metrics.gaps.automaticTests, expansionTargets.automaticTests - 40);
   assert.ok(metrics.progressPercent > 0 && metrics.progressPercent < 100);
 });
 

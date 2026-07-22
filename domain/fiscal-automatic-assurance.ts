@@ -11,7 +11,15 @@ import {
  * deterministic outputs, complete fixtures, traceable sources and safe
  * blocking when a required fact is absent.
  */
-export const FISCAL_AUTOMATED_ASSURANCE_VERSION = "2026.07.21-v55";
+export const FISCAL_AUTOMATED_ASSURANCE_VERSION = "2026.07.21-v56";
+
+export const FISCAL_AUTOMATION_INVARIANT_PACKS = [
+  "saída reproduz a expectativa versionada",
+  "status do motor corresponde ao cenário",
+  "fontes são rastreáveis",
+  "ao menos uma fonte possui origem pública oficial",
+  "fato obrigatório ausente bloqueia a conclusão",
+] as const;
 
 export type FiscalAutomaticAssuranceStatus = "automatically_verified" | "blocked";
 
@@ -80,6 +88,15 @@ function assuranceCase(run: FiscalSimulationRun): FiscalAutomaticAssuranceCase {
   };
 }
 
+export function fiscalAutomaticAssuranceCapacity() {
+  const cases = runFiscalSimulationSuite().map(assuranceCase);
+  return {
+    scenarios: cases.length,
+    testPacks: cases.length + FISCAL_AUTOMATION_INVARIANT_PACKS.length,
+    automaticallyVerified: cases.filter((item) => item.status === "automatically_verified").length,
+  };
+}
+
 export async function buildFiscalAutomaticAssurance() {
   const cases = runFiscalSimulationSuite().map(assuranceCase);
   const baseHash = await fiscalSimulationBaseHash();
@@ -107,6 +124,7 @@ export async function buildFiscalAutomaticAssurance() {
     cases,
     metrics: {
       total: cases.length,
+      testPacks: cases.length + FISCAL_AUTOMATION_INVARIANT_PACKS.length,
       automaticallyVerified: automaticallyVerified.length,
       blocked: cases.filter((item) => item.status === "blocked").length,
       calculatedReferences: calculatedReferences.length,

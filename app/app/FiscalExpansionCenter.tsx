@@ -106,7 +106,7 @@ export default function FiscalExpansionCenter() {
 
   return <div className="fiscal-expansion-center">
     <section className="expansion-hero">
-      <div><span>VERSÃO 55 · VERIFICAÇÃO FISCAL AUTOMÁTICA</span><h1>Cobertura cresce com prova, não com promessa</h1><p>Fontes oficiais, regras versionadas e cenários sintéticos são conectados a uma bateria que o servidor reexecuta sem depender de usuários voluntários.</p></div>
+      <div><span>VERSÃO 56 · VERIFICAÇÃO FISCAL AUTOMÁTICA</span><h1>Cobertura cresce com prova, não com promessa</h1><p>Fontes oficiais, regras versionadas e cenários sintéticos são conectados a uma bateria que o servidor reexecuta sem depender de usuários voluntários.</p></div>
       <div className="expansion-guard"><b>SEM IA</b><span>sem API paga</span><small>verificação automática rastreável</small></div>
     </section>
 

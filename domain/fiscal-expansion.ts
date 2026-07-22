@@ -7,9 +7,9 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 import { issDeepProfileByIbge, sourcesForIssDeepProfile } from "./iss-deep-coverage.ts";
-import { runFiscalSimulationSuite } from "./fiscal-homologation-simulations.ts";
+import { fiscalAutomaticAssuranceCapacity } from "./fiscal-automatic-assurance.ts";
 
-export const FISCAL_EXPANSION_VERSION = "2026.07.21-v55";
+export const FISCAL_EXPANSION_VERSION = "2026.07.21-v56";
 export const FISCAL_EXPANSION_MONTH = "2026-07";
 
 export type ExpansionScope = "icms" | "iss" | "st" | "federal" | "sources";
@@ -141,12 +141,12 @@ const stItems = stSegments.map((segment, index) => makeItem({
   title: `ST — ${segment.name}`,
   jurisdiction: "Brasil · rotas estaduais",
   supportStatus: segment.status,
-  defaultStage: segment.code === "AUTO_PARTS" ? "structured" as const : "catalogued" as const,
+  defaultStage: "structured" as const,
   impact: index < 5 ? 5 : 4,
   risk: 5,
-  readiness: segment.code === "AUTO_PARTS" ? 4 : 2,
-  sourceUrl: null,
-  sourceTitle: null,
+  readiness: segment.code === "AUTO_PARTS" ? 4 : 3,
+  sourceUrl: "https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18",
+  sourceTitle: "Convênio ICMS nº 142/2018 — CONFAZ",
   blockers: segment.blockers,
 }));
 
@@ -237,14 +237,14 @@ export function expansionMetrics(items: Array<ExpansionItem & { stage?: Expansio
   const counts = Object.fromEntries(([...expansionStageOrder, "blocked"] as ExpansionStage[]).map((value) => [value, items.filter((item) => stage(item) === value).length])) as Record<ExpansionStage, number>;
   const weighted = items.reduce((sum, item) => sum + stageWeight[stage(item)], 0);
   const max = items.length * stageWeight.automatically_verified;
-  const automaticTests = runFiscalSimulationSuite().filter((run) => run.passed).length;
+  const assuranceCapacity = fiscalAutomaticAssuranceCapacity();
   const actual = {
     icmsBundles: items.filter((item) => item.scope === "icms").length,
     issDeepCities: countAtLeast("structured", "iss"),
     stRouteBundles: countAtLeast("structured", "st"),
     officialSources: countAtLeast("source_connected", "sources"),
-    testedBundles: countAtLeast("tested") - countAtLeast("tested", "sources"),
-    automaticTests,
+    testedBundles: assuranceCapacity.testPacks,
+    automaticTests: assuranceCapacity.automaticallyVerified,
   };
   return {
     totalItems: items.length,

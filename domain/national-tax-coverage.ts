@@ -1,7 +1,7 @@
 import { issDeepCityProfiles, issDeepProfileByIbge, issDeepSources } from "./iss-deep-coverage.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.18-v53";
-export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-18";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.21-v56";
+export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-21";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
 export type UfCode = "AC" | "AL" | "AP" | "AM" | "BA" | "CE" | "DF" | "ES" | "GO" | "MA" | "MT" | "MS" | "MG" | "PA" | "PB" | "PR" | "PE" | "PI" | "RJ" | "RN" | "RS" | "RO" | "RR" | "SC" | "SP" | "SE" | "TO";
@@ -47,12 +47,29 @@ export const stateCoverage: StateCoverage[] = [
 export const stSegments: SegmentCoverage[] = [
   { code: "AUTO_PARTS", name: "Autopeças", status: "partial", routes: ["SP → MG homologável", "demais UFs em triagem"], supported: ["NCM/CEST", "MVA original e ajustada", "revenda, uso/consumo e industrialização", "ICMS-ST linha a linha na rota SP→MG"], blockers: ["protocolos, exceções e vigências das demais rotas ainda não homologados"] },
   { code: "BEVERAGES", name: "Bebidas", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "separação ST/monofásico"], blockers: ["pauta, PMPF, FCP e acordos por produto/UF"] },
-  { code: "FUELS", name: "Combustíveis e lubrificantes", status: "not_supported", routes: ["monitoramento nacional"], supported: ["identificação do segmento"], blockers: ["regime monofásico, ad rem e atos específicos exigem motor próprio"] },
+  { code: "FUELS", name: "Combustíveis e lubrificantes", status: "partial", routes: ["triagem nacional com bloqueio monofásico/ad rem"], supported: ["identificação de segmento, NCM/CEST e rota", "bloqueio antes de calcular sem ato específico"], blockers: ["regime monofásico, ad rem, PMPF e atos específicos exigem motor próprio"] },
   { code: "PHARMA", name: "Medicamentos", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "alerta de PMC e benefício"], blockers: ["listas positiva/negativa/neutra, PMC, FCP e benefícios estaduais"] },
   { code: "CONSTRUCTION", name: "Materiais de construção", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "MVA ajustada quando parâmetros são confirmados"], blockers: ["escopo do segmento e protocolos por UF"] },
   { code: "COSMETICS", name: "Cosméticos e perfumaria", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "trilha de MVA"], blockers: ["listas estaduais, MVA e FCP"] },
   { code: "ELECTRONICS", name: "Eletrônicos e eletrodomésticos", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "trilha de destino"], blockers: ["protocolos, MVA, redução e exceções por NCM"] },
   { code: "FOOD", name: "Alimentos", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "separação de monofásico e ST"], blockers: ["cestas básicas, redução, pauta e listas estaduais"] },
+  { code: "BATTERIES", name: "Acumuladores elétricos", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["porta de entrada estruturada para NCM/CEST, finalidade e destinatário"], blockers: ["MVA, pauta, acordo interestadual e ato interno da UF precisam ser confirmados"] },
+  { code: "MOBILE_DEVICES", name: "Celulares e comunicação", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["porta de entrada estruturada para classificação e exceções"], blockers: ["NCM, MVA, benefício, protocolo e internalização da UF ainda são obrigatórios"] },
+  { code: "HOUSEHOLD_ARTICLES", name: "Artigos de uso doméstico", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["triagem de segmento, NCM/CEST e finalidade"], blockers: ["lista estadual, MVA, pauta e acordo por rota devem ser confirmados"] },
+  { code: "STATIONERY", name: "Papelaria", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["triagem de classificação e fatos mínimos da operação"], blockers: ["escopo do item, MVA e aplicação por UF não podem ser presumidos"] },
+  { code: "SPIRITS", name: "Bebidas alcoólicas", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["separação de produto, NCM/CEST e tratamento especial"], blockers: ["pauta/PMPF, FCP, regime especial e ato estadual exigem conferência"] },
+  { code: "TOBACCO", name: "Cigarros e outros fumígenos", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["identificação do segmento e bloqueio de cálculo sem regra aplicável"], blockers: ["preço de referência, regime próprio e normas da UF precisam ser confirmados"] },
+  { code: "CEMENT", name: "Cimento", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["triagem de NCM/CEST, destinatário e finalidade"], blockers: ["MVA, pauta, protocolos e vigência por rota devem ser confirmados"] },
+  { code: "RAZOR_BLADES", name: "Lâminas e aparelhos de barbear", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["porta de entrada segmentada e controle de exceções"], blockers: ["enquadramento NCM, lista estadual e MVA não podem ser inferidos"] },
+  { code: "TOOLS", name: "Ferramentas", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["classificação inicial de mercadoria e destino"], blockers: ["subitem, NCM, MVA, benefícios e acordos por UF precisam ser validados"] },
+  { code: "LAMPS", name: "Lâmpadas e materiais de iluminação", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["trilha de NCM/CEST e alerta de tratamento estadual"], blockers: ["escopo do segmento, MVA e lista da UF exigem fonte vigente"] },
+  { code: "ELECTRICAL_MATERIALS", name: "Materiais elétricos", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["classificação inicial, finalidade e rota interestadual"], blockers: ["NCM, MVA, redução e acordo aplicável permanecem obrigatórios"] },
+  { code: "CLEANING", name: "Produtos de limpeza", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["triagem do segmento e separação de possíveis regimes"], blockers: ["NCM/CEST, pauta, MVA e tratamento estadual precisam ser confirmados"] },
+  { code: "MACHINERY", name: "Máquinas e equipamentos", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["captura de produto, destino e finalidade da operação"], blockers: ["exceções de NCM, regime especial e rota homologada devem ser provados"] },
+  { code: "DOOR_TO_DOOR", name: "Venda porta a porta", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["identificação do modelo comercial e dados da rota"], blockers: ["hipótese legal, responsabilidade e internalização estadual exigem confirmação"] },
+  { code: "TIRES", name: "Pneumáticos", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["triagem de NCM/CEST e natureza da operação"], blockers: ["MVA, pauta, FCP, protocolos e vigência estadual devem ser confirmados"] },
+  { code: "PET_FOOD", name: "Rações para animais domésticos", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["triagem de classificação, produto e destino"], blockers: ["NCM, enquadramento do item, MVA e lista estadual precisam ser comprovados"] },
+  { code: "ICE_CREAM", name: "Sorvetes e preparados para sorvete", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["triagem de produto, NCM/CEST, destino e período"], blockers: ["lista estadual, pauta/PMPF, MVA e acordo da rota devem ser confirmados antes de qualquer cálculo"] },
 ];
 
 const cityRows: Array<[string, string, UfCode]> = [

@@ -11,9 +11,10 @@ test("automatic fiscal assurance proves only deterministic controls it can execu
   assert.equal(assurance.version, FISCAL_AUTOMATED_ASSURANCE_VERSION);
   assert.equal(assurance.policy.humanReviewRequired, false);
   assert.equal(assurance.policy.professionalOpinion, false);
-  assert.equal(assurance.metrics.total, 20);
-  assert.equal(assurance.metrics.automaticallyVerified, 20);
-  assert.equal(assurance.metrics.expectedBlocks, 6);
+  assert.equal(assurance.metrics.total, 40);
+  assert.equal(assurance.metrics.testPacks, 45);
+  assert.equal(assurance.metrics.automaticallyVerified, 40);
+  assert.equal(assurance.metrics.expectedBlocks, 12);
   assert.match(assurance.baseHash, /^[0-9a-f]{64}$/);
   for (const item of assurance.cases) {
     assert.equal(item.status, "automatically_verified", item.code);

@@ -41,7 +41,7 @@ type AssurancePayload = {
   checkedAt: string;
   policy: { automation: string; humanReviewRequired: false; professionalOpinion: false; statement: string; controls: string[] };
   cases: AutomaticCase[];
-  metrics: { total: number; automaticallyVerified: number; blocked: number; calculatedReferences: number; expectedBlocks: number; officialSources: number; distinctModules: number };
+  metrics: { total: number; testPacks: number; automaticallyVerified: number; blocked: number; calculatedReferences: number; expectedBlocks: number; officialSources: number; distinctModules: number };
   context: { workspaceType: "individual" | "office"; role: string };
 };
 
@@ -77,7 +77,7 @@ export default function FiscalHomologationCenter({ candidate }: { candidate: Can
 
   return <section className="fiscal-homologation-center automatic-assurance-center" aria-labelledby="homologation-title">
     <div className="homologation-heading">
-      <div><span className="eyebrow">VERSÃO 55 · VERIFICAÇÃO AUTOMÁTICA</span><h2 id="homologation-title">A plataforma testa a própria base, sem pedir trabalho ao cliente</h2><p>O servidor reexecuta cenários sintéticos, compara os resultados com expectativas versionadas e bloqueia respostas quando os fatos mínimos não estão presentes.</p></div>
+      <div><span className="eyebrow">VERSÃO 56 · VERIFICAÇÃO AUTOMÁTICA</span><h2 id="homologation-title">A plataforma testa a própria base, sem pedir trabalho ao cliente</h2><p>O servidor reexecuta cenários sintéticos, compara os resultados com expectativas versionadas e bloqueia respostas quando os fatos mínimos não estão presentes.</p></div>
       <span className="homologation-mode">{data?.context.workspaceType === "office" ? "Escritório · controle automático" : "Independente · controle automático"}</span>
     </div>
 
@@ -88,7 +88,7 @@ export default function FiscalHomologationCenter({ candidate }: { candidate: Can
 
     <div className="homologation-metrics automatic-metrics">
       <article className="positive"><span>Verificados</span><strong>{data?.metrics.automaticallyVerified ?? 0}</strong><small>cenários reproduzidos</small></article>
-      <article><span>Controles</span><strong>{data?.metrics.total ?? 0}</strong><small>casos na bateria</small></article>
+      <article><span>Testes</span><strong>{data?.metrics.testPacks ?? 0}</strong><small>{data?.metrics.total ?? 0} cenários + 5 invariantes</small></article>
       <article><span>Bloqueios seguros</span><strong>{data?.metrics.expectedBlocks ?? 0}</strong><small>faltas de fatos testadas</small></article>
       <article><span>Referências</span><strong>{data?.metrics.calculatedReferences ?? 0}</strong><small>cálculos esperados</small></article>
       <article><span>Módulos</span><strong>{data?.metrics.distinctModules ?? 0}</strong><small>recortes exercitados</small></article>
@@ -108,7 +108,7 @@ export default function FiscalHomologationCenter({ candidate }: { candidate: Can
 
     <details className="homologation-simulation-suite" open>
       <summary>
-        <div><small>BATERIA {data?.simulationVersion ?? "V55"} · DADOS FICTÍCIOS</small><b>Resultado dos cenários de referência</b><span>Não há cadastro de contribuinte, assinatura humana nem aprovação manual nesta etapa.</span></div>
+        <div><small>BATERIA {data?.simulationVersion ?? "V56"} · DADOS FICTÍCIOS</small><b>Resultado dos cenários de referência</b><span>Não há cadastro de contribuinte, assinatura humana nem aprovação manual nesta etapa.</span></div>
         <strong>{data?.metrics.automaticallyVerified ?? 0}/{data?.metrics.total ?? 0}<small>verificados</small></strong>
       </summary>
       <div className="simulation-policy"><b>Critério de aprovação</b><span>Um cenário só fica verde se todos os valores e bloqueios esperados forem reproduzidos, houver fonte rastreável e ao menos uma origem pública oficial identificada.</span></div>
