@@ -22,7 +22,7 @@ type IssDeepProfile = { code: string; ibgeCode: string; city: string; uf: string
 type IssDeepSource = { code: string; title: string; publisher: string; url: string; checkedAt: string; kind: "municipal_law" | "rate_table" | "operational_guidance" };
 type IssTechnicalEvidence = IssTechnicalReview & { profileCode: string; ibgeCode: string; evidenceHash: string };
 type AutomaticAssurance = { version: string; checkedAt: string; fingerprint?: string; status: "automatically_verified" | "blocked"; professionalOpinion: false; humanReviewRequired: false; statement: string; metrics: { modules: number; modulesPassed: number; totalRuns: number; referenceReproduced: number; safelyBlocked: number; failed: number }; modules: Array<{ code: string; label: string; passed: boolean; errors: string[] }>; errors: string[] };
-type Coverage = { version: string; checkedAt: string; fingerprint: string; automaticAssurance: AutomaticAssurance; metrics: { states: number; cities: number; deepIssCities: number; stSegments: number; recurringScenarios: number; supported: number; partial: number; notSupported: number; sourceCount: number }; states: StateRow[]; cities: CityRow[]; issDeep: { metrics: { structuredCities: number; officialSources: number; sourceCatalogReviewedCities: number; technicalGateValidatedCities: number; rateReferenceLocatedCities: number; testedCities: number; professionallyApprovedCities: number; automaticHomologation: false }; profiles: IssDeepProfile[]; sources: IssDeepSource[]; technicalEvidence: IssTechnicalEvidence[]; policy: string }; stSegments: Segment[]; stSpMg: { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; metrics: { totalSegments: number; legalGatesStructured: number; calculationsValidated: number; calculationsBlocked: number; officialSources: number }; packages: StSpMgPackage[]; policy: string }; stSpOriginMatrix: StSpOriginMatrix; stRepresentativeProducts: { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; source: { title: string; url: string }; products: StRepresentativeProduct[]; policy: string }; stSpCalculationValidation: StCalculationValidation; stCementSpRoutes: StCementSpRoutes; stCementPriorityBatch: StCementPriorityBatch; stAutoPartsPriorityBatch: StAutoPartsPriorityBatch; recurringScenarios: Scenario[]; sources: Array<{ code: string; title: string; publisher: string; url: string }> };
+type Coverage = { version: string; checkedAt: string; fingerprint: string; automaticAssurance?: AutomaticAssurance; metrics: { states: number; cities: number; deepIssCities: number; stSegments: number; recurringScenarios: number; supported: number; partial: number; notSupported: number; sourceCount: number }; states: StateRow[]; cities: CityRow[]; issDeep: { metrics: { structuredCities: number; officialSources: number; sourceCatalogReviewedCities: number; technicalGateValidatedCities: number; rateReferenceLocatedCities: number; testedCities: number; professionallyApprovedCities: number; automaticHomologation: false }; profiles: IssDeepProfile[]; sources: IssDeepSource[]; technicalEvidence: IssTechnicalEvidence[]; policy: string }; stSegments: Segment[]; stSpMg: { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; metrics: { totalSegments: number; legalGatesStructured: number; calculationsValidated: number; calculationsBlocked: number; officialSources: number }; packages: StSpMgPackage[]; policy: string }; stSpOriginMatrix: StSpOriginMatrix; stRepresentativeProducts: { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; source: { title: string; url: string }; products: StRepresentativeProduct[]; policy: string }; stSpCalculationValidation: StCalculationValidation; stCementSpRoutes: StCementSpRoutes; stCementPriorityBatch: StCementPriorityBatch; stAutoPartsPriorityBatch: StAutoPartsPriorityBatch; recurringScenarios: Scenario[]; sources: Array<{ code: string; title: string; publisher: string; url: string }> };
 type Governance = { identity: { ruleCode: string; ruleVersion: string; ruleHash: string }; automaticAssurance: AutomaticAssurance; approval: null | { reviewerName: string; professionalRole: string; professionalRegistration: string; decidedAt: string; verified: boolean }; executionEnabled: boolean; professionalApprovalVerified: boolean; professionalApprovalRequiredForReferences: false; canApprove: boolean; error?: string };
 type Monitor = { checkedAt: string; previousCheckedAt: string | null; rotation: { offset: number; totalSources: number; cycleDays: number }; metrics: { monitored: number; checkedToday: number; checked: number; unavailable: number; changeSignals: number }; sources: Array<{ code: string; title: string; url: string; status: "checked" | "unavailable"; changed: boolean; lastModified: string | null }>; policy: string; error?: string };
 type BatchResult = { batchId: string; metrics: { total: number; accepted: number; warning: number; blocked: number }; items: Array<{ filename: string; documentType: string; status: "accepted" | "warning" | "blocked"; sourceHash: string; issues: string[]; summary: Record<string, string | number | boolean | null> }>; message: string; error?: string };
@@ -42,6 +42,31 @@ function StatusPill({ status }: { status: Status }) {
   return <span className={`coverage-status ${status}`}><i />{statusLabel[status]}</span>;
 }
 
+function compatibleAutomaticAssurance(coverage: Coverage): AutomaticAssurance {
+  if (coverage.automaticAssurance) return coverage.automaticAssurance;
+  const validations = [coverage.stSpMg.validation, coverage.stSpOriginMatrix.validation, coverage.stRepresentativeProducts.validation, coverage.stSpCalculationValidation.validation, coverage.stCementSpRoutes.validation, coverage.stCementPriorityBatch.validation, coverage.stAutoPartsPriorityBatch.validation];
+  const passed = validations.every((validation) => validation.passed) && coverage.stSpCalculationValidation.metrics.failed === 0;
+  return {
+    version: coverage.version,
+    checkedAt: coverage.checkedAt,
+    fingerprint: coverage.stSpCalculationValidation.fingerprint,
+    status: passed ? "automatically_verified" : "blocked",
+    professionalOpinion: false,
+    humanReviewRequired: false,
+    statement: "Compatibilidade temporária calculada a partir das validações versionadas recebidas da API.",
+    metrics: {
+      modules: validations.length,
+      modulesPassed: validations.filter((validation) => validation.passed).length,
+      totalRuns: coverage.stSpCalculationValidation.metrics.totalRuns,
+      referenceReproduced: coverage.stSpCalculationValidation.metrics.referenceReproduced,
+      safelyBlocked: coverage.stSpCalculationValidation.metrics.safelyBlocked,
+      failed: coverage.stSpCalculationValidation.metrics.failed,
+    },
+    modules: [],
+    errors: validations.flatMap((validation) => validation.errors),
+  };
+}
+
 export default function NationalCoverageCenter() {
   const [coverage, setCoverage] = useState<Coverage | null>(null);
   const [governance, setGovernance] = useState<Governance | null>(null);
@@ -59,7 +84,7 @@ export default function NationalCoverageCenter() {
 
   useEffect(() => {
     void Promise.all([
-      json<Coverage>("/api/public/coverage").then(setCoverage),
+      json<Coverage>("/api/public/coverage?schema=automatic-assurance-v1", { cache: "no-store" }).then(setCoverage),
       json<Governance>("/api/rule-governance").then(setGovernance),
       json<Monitor>("/api/normative-monitor").then(setMonitor),
     ]).catch((cause: Error) => setError(cause.message));
@@ -90,6 +115,7 @@ export default function NationalCoverageCenter() {
   };
 
   if (!coverage) return <section className="coverage-loading"><span className="loading-spinner" /><div><b>Montando o mapa tributário nacional…</b><p>As regras e os limites estão sendo conferidos.</p></div></section>;
+  const automaticAssurance = compatibleAutomaticAssurance(coverage);
 
   return <div className="national-coverage-center">
     <section className="coverage-hero">
@@ -104,7 +130,7 @@ export default function NationalCoverageCenter() {
       <article><span>ISS profundo</span><strong>{coverage.metrics.deepIssCities}/25</strong><small>{coverage.metrics.cities} municípios indexados</small></article>
       <article><span>ST prioritária</span><strong>{coverage.metrics.stSegments}</strong><small>segmentos controlados</small></article>
       <article><span>Cenários federais</span><strong>{coverage.metrics.recurringScenarios}</strong><small>rotinas recorrentes</small></article>
-      <article className={coverage.automaticAssurance.status === "automatically_verified" ? "ready" : "locked"}><span>Motor técnico</span><strong>{coverage.automaticAssurance.status === "automatically_verified" ? "Verificado" : "Bloqueado"}</strong><small>{coverage.automaticAssurance.metrics.totalRuns} células · {coverage.automaticAssurance.metrics.failed} falhas</small></article>
+      <article className={automaticAssurance.status === "automatically_verified" ? "ready" : "locked"}><span>Motor técnico</span><strong>{automaticAssurance.status === "automatically_verified" ? "Verificado" : "Bloqueado"}</strong><small>{automaticAssurance.metrics.totalRuns} células · {automaticAssurance.metrics.failed} falhas</small></article>
     </section>
 
     <nav className="coverage-tabs" aria-label="Áreas da cobertura">
@@ -216,7 +242,7 @@ export default function NationalCoverageCenter() {
     {tab === "governance" && <section className="governance-area">
       <div className="monitor-panel"><div className="coverage-section-heading"><span>MONITOR DIÁRIO ROTATIVO</span><h2>Alterações normativas viram sinal, não regra automática</h2><p>{monitor?.policy ?? "Consultando fontes oficiais…"}</p></div>{monitor && <><div className="monitor-kpis"><span><b>{monitor.metrics.monitored}</b>fontes no ciclo</span><span><b>{monitor.metrics.checked}</b>conferidas hoje</span><span className={monitor.metrics.changeSignals ? "alert" : ""}><b>{monitor.metrics.changeSignals}</b>sinais de mudança</span><span><b>{monitor.metrics.unavailable}</b>indisponíveis hoje</span></div><div className="monitor-list">{monitor.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span className={source.status}>{source.status === "checked" ? "✓" : "!"}</span><p><b>{source.title}</b><small>{source.changed ? "Conteúdo mudou desde a captura anterior — revisar" : source.status === "checked" ? "Sem sinal confirmado" : "Fonte indisponível nesta captura"}</small></p><em>{source.changed ? "Revisar" : "↗"}</em></a>)}</div><small className="monitor-time">Lote {monitor.metrics.checkedToday} de {monitor.metrics.monitored} fontes · ciclo estimado de {monitor.rotation.cycleDays} dias · última captura {new Date(monitor.checkedAt).toLocaleString("pt-BR")}</small></>}</div>
       <div className="approval-panel"><div className="coverage-section-heading"><span>GARANTIA EM DUAS CAMADAS</span><h2>Teste automático agora; responsabilidade no caso concreto</h2><p>A base técnica é liberada por controles reproduzíveis. Nenhuma assinatura humana é exigida para consultar referências condicionais ou executar a bateria automática.</p></div>
-        <div className={`automatic-assurance-card ${coverage.automaticAssurance.status}`}><span>{coverage.automaticAssurance.status === "automatically_verified" ? "✓" : "!"}</span><div><small>VERIFICAÇÃO AUTOMÁTICA · #{coverage.automaticAssurance.fingerprint}</small><h3>{coverage.automaticAssurance.status === "automatically_verified" ? "Base técnica íntegra" : "Base técnica bloqueada"}</h3><p>{coverage.automaticAssurance.metrics.modulesPassed}/{coverage.automaticAssurance.metrics.modules} módulos · {coverage.automaticAssurance.metrics.totalRuns} células · {coverage.automaticAssurance.metrics.referenceReproduced} referências reproduzidas · {coverage.automaticAssurance.metrics.safelyBlocked} bloqueios seguros</p></div></div>
+        <div className={`automatic-assurance-card ${automaticAssurance.status}`}><span>{automaticAssurance.status === "automatically_verified" ? "✓" : "!"}</span><div><small>VERIFICAÇÃO AUTOMÁTICA · #{automaticAssurance.fingerprint}</small><h3>{automaticAssurance.status === "automatically_verified" ? "Base técnica íntegra" : "Base técnica bloqueada"}</h3><p>{automaticAssurance.metrics.modulesPassed}/{automaticAssurance.metrics.modules} módulos · {automaticAssurance.metrics.totalRuns} células · {automaticAssurance.metrics.referenceReproduced} referências reproduzidas · {automaticAssurance.metrics.safelyBlocked} bloqueios seguros</p></div></div>
         <div className="professional-boundary"><span>RESPONSABILIDADE PROFISSIONAL</span><h3>Não é requisito para testar o motor</h3><p>Continua sendo uma camada separada quando um contador ou tributarista assumir, assinar e entregar uma análise de operação real ao cliente. O software não se apresenta como profissional habilitado.</p>{governance?.professionalApprovalVerified && governance.approval ? <small>Revisão adicional registrada por {governance.approval.reviewerName} · {governance.approval.professionalRegistration} · #{governance.identity.ruleHash}</small> : <small>Nenhuma assinatura adicional nesta versão — isso não bloqueia as referências automáticas.</small>}</div>
       </div>
     </section>}

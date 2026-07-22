@@ -449,7 +449,9 @@ test("versão 64 publica cobertura nacional com garantia automática e responsab
   assert.match(ui, /Calculadora oficial integrada/);
   assert.match(domain, /state\("TO"/);
   assert.match(domain, /cityRows/);
-  assert.match(publicApi, /public, max-age=300/);
+  assert.match(publicApi, /Cache-Control": "no-store/);
+  assert.match(ui, /compatibleAutomaticAssurance/);
+  assert.match(ui, /schema=automatic-assurance-v1/);
   assert.match(calculatorApi, /validateNationalCoverageAutomatically/);
   assert.match(calculatorApi, /professionalApprovalRequired: false/);
   assert.doesNotMatch(calculatorApi, /rule_approval_required/);

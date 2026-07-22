@@ -111,7 +111,7 @@ async function publicCoverage() {
       not_supported: "O sistema identifica o tema, mas bloqueia cálculo ou conclusão.",
     },
     safety: "O indicador mede cobertura do produto, não garante aplicabilidade à operação concreta. Nenhuma regra parcial ou não suportada pode produzir conclusão definitiva.",
-  }, { headers: { "Cache-Control": "public, max-age=300, stale-while-revalidate=3600" } });
+  }, { headers: { "Cache-Control": "no-store" } });
 }
 
 export const GET = withApiTelemetry("GET /api/public/coverage", publicCoverage);
