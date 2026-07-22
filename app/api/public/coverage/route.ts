@@ -4,6 +4,7 @@ import { hashStSpMgLegalCatalog, stSpMgLegalMetrics, stSpMgLegalPackages, ST_SP_
 import { hashStSpOriginMatrix, stSpOriginCells, stSpOriginDestinations, stSpOriginMandatoryFacts, stSpOriginMatrixMetrics, ST_SP_ORIGIN_MATRIX_VERSION, validateStSpOriginMatrix } from "../../../../domain/st-sp-origin-matrix";
 import { hashStRepresentativeProducts, stRepresentativeProducts, ST_REPRESENTATIVE_PRODUCTS_SOURCE, ST_REPRESENTATIVE_PRODUCTS_VERSION, validateStRepresentativeProducts } from "../../../../domain/st-representative-products";
 import { hashStSpCalculationRuns, stSpCalculationRuns, stSpCalculationValidationMetrics, ST_SP_CALCULATION_VALIDATION_VERSION, validateStSpCalculationRuns } from "../../../../domain/st-sp-calculation-validation";
+import { hashStCementSpRoutes, stCementSpRouteMetrics, stCementSpRoutes, ST_CEMENT_PRODUCT_SOURCE, ST_CEMENT_PROTOCOL_SOURCE, ST_CEMENT_SP_ROUTES_VERSION, validateStCementSpRoutes } from "../../../../domain/st-cement-sp-routes";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function publicCoverage() {
@@ -15,6 +16,7 @@ async function publicCoverage() {
   const spOriginFingerprint = (await hashStSpOriginMatrix()).slice(0, 12);
   const representativeFingerprint = (await hashStRepresentativeProducts()).slice(0, 12);
   const calculationFingerprint = (await hashStSpCalculationRuns()).slice(0, 12);
+  const cementFingerprint = (await hashStCementSpRoutes()).slice(0, 12);
   return Response.json({
     version: NATIONAL_COVERAGE_VERSION,
     checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
@@ -63,6 +65,15 @@ async function publicCoverage() {
       metrics: stSpCalculationValidationMetrics(),
       runs: stSpCalculationRuns,
       policy: "As 650 células são executadas. Uma referência só gera memória quando todos os parâmetros jurídicos controlados existem; ausência de lei, acordo, MVA, alíquota ou FCP produz bloqueio sem valor final.",
+    },
+    stCementSpRoutes: {
+      version: ST_CEMENT_SP_ROUTES_VERSION,
+      fingerprint: cementFingerprint,
+      validation: validateStCementSpRoutes(),
+      metrics: stCementSpRouteMetrics(),
+      sources: [ST_CEMENT_PROTOCOL_SOURCE, ST_CEMENT_PRODUCT_SOURCE],
+      routes: stCementSpRoutes,
+      policy: "O protocolo confirma âmbito, responsabilidade-base, formação da base, MVA original e prazo; o valor final permanece bloqueado até a legislação vigente do destino fornecer alíquota, FCP, base alternativa, benefícios e exceções do caso concreto.",
     },
     recurringScenarios,
     sources: coverageSources,

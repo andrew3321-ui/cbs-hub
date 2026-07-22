@@ -2,8 +2,9 @@ import { resolveInterstateIcms } from "./national-tax-coverage.ts";
 import { calculateRepresentativeStMemory, stSpMgLegalPackages } from "./st-sp-mg-legal.ts";
 import { stSpOriginCells } from "./st-sp-origin-matrix.ts";
 import { stRepresentativeProducts } from "./st-representative-products.ts";
+import { stCementSpRouteByDestination, stCementSpRouteMetrics } from "./st-cement-sp-routes.ts";
 
-export const ST_SP_CALCULATION_VALIDATION_VERSION = "2026.07.21-v60";
+export const ST_SP_CALCULATION_VALIDATION_VERSION = "2026.07.21-v61";
 
 const products = new Map(stRepresentativeProducts.map((product) => [product.segmentCode, product]));
 const mgRules = new Map(stSpMgLegalPackages.filter((item) => item.representativeRule).map((item) => [item.segmentCode, item.representativeRule!]));
@@ -26,6 +27,28 @@ export const stSpCalculationRuns = stSpOriginCells.map((cell) => {
       output,
     };
   }
+  const cementRoute = cell.segmentCode === "CEMENT" ? stCementSpRouteByDestination.get(cell.destination) : undefined;
+  if (cementRoute) {
+    return {
+      key: cell.key,
+      productCode: product.code,
+      cest: product.cest,
+      ncm: product.ncm,
+      status: cementRoute.protocolStatus === "destination_not_signatory"
+        ? "blocked_protocol_not_applicable" as const
+        : "blocked_missing_destination_parameters" as const,
+      scope: "synthetic_reference_not_tax_assessment" as const,
+      confirmedInputs: [
+        "produto representativo CEST 05.001.00 / NCM 2523",
+        "origem SP",
+        `destino ${cell.destination}`,
+        ...cementRoute.confirmedLegalInputs,
+        `alíquota interestadual de referência ${interstate.rateBps === null ? "bloqueada" : `${interstate.rateBps / 100}%`}`,
+      ],
+      missingLegalInputs: [...cementRoute.missingLegalInputs],
+      output: null,
+    };
+  }
   return {
     key: cell.key,
     productCode: product.code,
@@ -40,12 +63,17 @@ export const stSpCalculationRuns = stSpOriginCells.map((cell) => {
 });
 
 export function stSpCalculationValidationMetrics() {
+  const cement = stCementSpRouteMetrics();
   return {
     totalRuns: stSpCalculationRuns.length,
     referenceReproduced: stSpCalculationRuns.filter((run) => run.status === "reference_reproduced").length,
-    safelyBlocked: stSpCalculationRuns.filter((run) => run.status === "blocked_missing_legal_parameters").length,
+    safelyBlocked: stSpCalculationRuns.filter((run) => run.status.startsWith("blocked_")).length,
     failed: 0,
     representativeProducts: stRepresentativeProducts.length,
+    cementAgreementScoped: cement.signatoryRoutes,
+    cementFixedMvaSourced: cement.fixedMvaRoutes,
+    cementDestinationLawMvaPending: cement.destinationLawMvaRoutes,
+    cementOutsideProtocol: cement.nonSignatoryRoutes,
   };
 }
 
@@ -54,7 +82,9 @@ export function validateStSpCalculationRuns() {
   if (stSpCalculationRuns.length !== 650 || new Set(stSpCalculationRuns.map((run) => run.key)).size !== 650) errors.push("calculation_validation_must_run_650_unique_cells");
   if (stSpCalculationRuns.filter((run) => run.status === "reference_reproduced").length !== 3) errors.push("only_three_legal_references_can_be_reproduced");
   if (stSpCalculationRuns.some((run) => run.status === "reference_reproduced" && !run.output)) errors.push("reproduced_run_without_output");
-  if (stSpCalculationRuns.some((run) => run.status === "blocked_missing_legal_parameters" && (run.output !== null || run.missingLegalInputs.length === 0))) errors.push("blocked_run_leaked_output");
+  if (stSpCalculationRuns.some((run) => run.status.startsWith("blocked_") && (run.output !== null || run.missingLegalInputs.length === 0))) errors.push("blocked_run_leaked_output");
+  if (stSpCalculationRuns.filter((run) => run.productCode === "REP-CEMENT" && run.status === "blocked_missing_destination_parameters").length !== 24) errors.push("cement_signatory_routes_except_mg_must_remain_safely_blocked");
+  if (stSpCalculationRuns.filter((run) => run.productCode === "REP-CEMENT" && run.status === "blocked_protocol_not_applicable").length !== 1) errors.push("cement_am_route_must_not_infer_protocol_applicability");
   return { passed: errors.length === 0, errors };
 }
 

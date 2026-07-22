@@ -19,8 +19,9 @@ test("all 650 calculation cells run and missing law never becomes a number", () 
   const metrics = stSpCalculationValidationMetrics();
   assert.deepEqual(validation.errors, []);
   assert.equal(validation.passed, true);
-  assert.deepEqual(metrics, { totalRuns: 650, referenceReproduced: 3, safelyBlocked: 647, failed: 0, representativeProducts: 25 });
-  assert.equal(stSpCalculationRuns.filter((run) => run.status === "blocked_missing_legal_parameters").every((run) => run.output === null && run.missingLegalInputs.length === 7), true);
+  assert.deepEqual(metrics, { totalRuns: 650, referenceReproduced: 3, safelyBlocked: 647, failed: 0, representativeProducts: 25, cementAgreementScoped: 25, cementFixedMvaSourced: 19, cementDestinationLawMvaPending: 6, cementOutsideProtocol: 1 });
+  assert.equal(stSpCalculationRuns.filter((run) => run.status.startsWith("blocked_")).every((run) => run.output === null && run.missingLegalInputs.length > 0), true);
+  assert.equal(stSpCalculationRuns.filter((run) => run.status === "blocked_missing_legal_parameters").every((run) => run.missingLegalInputs.length === 7), true);
 });
 
 test("the three existing MG references reproduce deterministic cent values", () => {
