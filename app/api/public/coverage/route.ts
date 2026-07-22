@@ -6,6 +6,7 @@ import { hashStRepresentativeProducts, stRepresentativeProducts, ST_REPRESENTATI
 import { hashStSpCalculationRuns, stSpCalculationRuns, stSpCalculationValidationMetrics, ST_SP_CALCULATION_VALIDATION_VERSION, validateStSpCalculationRuns } from "../../../../domain/st-sp-calculation-validation";
 import { hashStCementSpRoutes, stCementSpRouteMetrics, stCementSpRoutes, ST_CEMENT_PRODUCT_SOURCE, ST_CEMENT_PROTOCOL_SOURCE, ST_CEMENT_SP_ROUTES_VERSION, validateStCementSpRoutes } from "../../../../domain/st-cement-sp-routes";
 import { hashStCementPriorityBatch, stCementPriorityBatchMetrics, stCementPrioritySources, stCementPriorityStates, ST_CEMENT_PRIORITY_BATCH_VERSION, validateStCementPriorityBatch } from "../../../../domain/st-cement-priority-batch";
+import { hashStAutoPartsPriorityBatch, stAutoPartsPriorityBatchMetrics, stAutoPartsPriorityRoutes, stAutoPartsPrioritySources, ST_AUTO_PARTS_PRIORITY_BATCH_VERSION, validateStAutoPartsPriorityBatch } from "../../../../domain/st-auto-parts-priority-batch";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function publicCoverage() {
@@ -19,6 +20,7 @@ async function publicCoverage() {
   const calculationFingerprint = (await hashStSpCalculationRuns()).slice(0, 12);
   const cementFingerprint = (await hashStCementSpRoutes()).slice(0, 12);
   const cementPriorityFingerprint = (await hashStCementPriorityBatch()).slice(0, 12);
+  const autoPartsPriorityFingerprint = (await hashStAutoPartsPriorityBatch()).slice(0, 12);
   return Response.json({
     version: NATIONAL_COVERAGE_VERSION,
     checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
@@ -85,6 +87,15 @@ async function publicCoverage() {
       sources: stCementPrioritySources,
       states: stCementPriorityStates,
       policy: "Parâmetro estadual estruturado não equivale a cálculo liberado. A referência do Rio de Janeiro é exclusivamente sintética; operações reais continuam condicionadas ao produto, GTIN, vigência, base aplicável, benefícios, regime do contribuinte e demais fatos documentados.",
+    },
+    stAutoPartsPriorityBatch: {
+      version: ST_AUTO_PARTS_PRIORITY_BATCH_VERSION,
+      fingerprint: autoPartsPriorityFingerprint,
+      validation: validateStAutoPartsPriorityBatch(),
+      metrics: stAutoPartsPriorityBatchMetrics(),
+      sources: stAutoPartsPrioritySources,
+      routes: stAutoPartsPriorityRoutes,
+      policy: "A plataforma distingue acordo interestadual vigente de tratamento próprio do destino. Estar fora do Protocolo 41/08 não significa ausência de ICMS; significa que a responsabilidade, a base e o recolhimento não podem ser herdados desse acordo.",
     },
     recurringScenarios,
     sources: coverageSources,

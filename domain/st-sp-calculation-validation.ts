@@ -4,8 +4,9 @@ import { stSpOriginCells } from "./st-sp-origin-matrix.ts";
 import { stRepresentativeProducts } from "./st-representative-products.ts";
 import { stCementSpRouteByDestination, stCementSpRouteMetrics } from "./st-cement-sp-routes.ts";
 import { stCementPriorityBatchMetrics, stCementPriorityStateByDestination } from "./st-cement-priority-batch.ts";
+import { stAutoPartsPriorityBatchMetrics, stAutoPartsPriorityRouteByDestination } from "./st-auto-parts-priority-batch.ts";
 
-export const ST_SP_CALCULATION_VALIDATION_VERSION = "2026.07.21-v62";
+export const ST_SP_CALCULATION_VALIDATION_VERSION = "2026.07.21-v63";
 
 const products = new Map(stRepresentativeProducts.map((product) => [product.segmentCode, product]));
 const mgRules = new Map(stSpMgLegalPackages.filter((item) => item.representativeRule).map((item) => [item.segmentCode, item.representativeRule!]));
@@ -26,6 +27,35 @@ export const stSpCalculationRuns = stSpOriginCells.map((cell) => {
       confirmedInputs: ["produto representativo", "origem SP", "destino MG", "MVA da regra representativa", "operação sintética de R$ 1.000,00", "alíquotas de teste explicitamente congeladas"],
       missingLegalInputs: [] as string[],
       output,
+    };
+  }
+  const autoPartsRoute = cell.segmentCode === "AUTO_PARTS" ? stAutoPartsPriorityRouteByDestination.get(cell.destination as "RJ" | "PR" | "SC" | "RS" | "GO" | "BA") : undefined;
+  if (autoPartsRoute) {
+    if (autoPartsRoute.syntheticReference) {
+      return {
+        key: cell.key,
+        productCode: product.code,
+        cest: product.cest,
+        ncm: product.ncm,
+        status: "reference_reproduced" as const,
+        scope: "synthetic_reference_not_tax_assessment" as const,
+        confirmedInputs: ["produto representativo CEST 01.075.00 / NCM 8708", "origem SP", `destino ${cell.destination}`, ...autoPartsRoute.confirmedInputs, "operação sintética de R$ 1.000,00"],
+        missingLegalInputs: [] as string[],
+        output: autoPartsRoute.syntheticReference,
+      };
+    }
+    return {
+      key: cell.key,
+      productCode: product.code,
+      cest: product.cest,
+      ncm: product.ncm,
+      status: autoPartsRoute.agreementStatus === "protocol_41_active"
+        ? "blocked_missing_destination_parameters" as const
+        : "blocked_protocol_not_applicable" as const,
+      scope: "synthetic_reference_not_tax_assessment" as const,
+      confirmedInputs: ["produto representativo CEST 01.075.00 / NCM 8708", "origem SP", `destino ${cell.destination}`, autoPartsRoute.agreementReason, ...autoPartsRoute.confirmedInputs],
+      missingLegalInputs: [...autoPartsRoute.remainingBlockers],
+      output: null,
     };
   }
   const cementRoute = cell.segmentCode === "CEMENT" ? stCementSpRouteByDestination.get(cell.destination) : undefined;
@@ -81,6 +111,7 @@ export const stSpCalculationRuns = stSpOriginCells.map((cell) => {
 export function stSpCalculationValidationMetrics() {
   const cement = stCementSpRouteMetrics();
   const priority = stCementPriorityBatchMetrics();
+  const autoParts = stAutoPartsPriorityBatchMetrics();
   return {
     totalRuns: stSpCalculationRuns.length,
     referenceReproduced: stSpCalculationRuns.filter((run) => run.status === "reference_reproduced").length,
@@ -95,17 +126,24 @@ export function stSpCalculationValidationMetrics() {
     cementStateSources: priority.officialStateSources,
     cementAdjustedMvaTables: priority.adjustedMvaTablesSourced,
     cementSyntheticReferences: priority.syntheticReferencesReproduced,
+    autoPartsPriorityRoutes: autoParts.routesInBatch,
+    autoPartsActiveAgreementRoutes: autoParts.activeAgreementRoutes,
+    autoPartsOutsideProtocolRoutes: autoParts.outsideProtocolRoutes,
+    autoPartsSyntheticReferences: autoParts.syntheticReferencesReproduced,
   };
 }
 
 export function validateStSpCalculationRuns() {
   const errors: string[] = [];
   if (stSpCalculationRuns.length !== 650 || new Set(stSpCalculationRuns.map((run) => run.key)).size !== 650) errors.push("calculation_validation_must_run_650_unique_cells");
-  if (stSpCalculationRuns.filter((run) => run.status === "reference_reproduced").length !== 4) errors.push("only_four_controlled_legal_references_can_be_reproduced");
+  if (stSpCalculationRuns.filter((run) => run.status === "reference_reproduced").length !== 5) errors.push("only_five_controlled_legal_references_can_be_reproduced");
   if (stSpCalculationRuns.some((run) => run.status === "reference_reproduced" && !run.output)) errors.push("reproduced_run_without_output");
   if (stSpCalculationRuns.some((run) => run.status.startsWith("blocked_") && (run.output !== null || run.missingLegalInputs.length === 0))) errors.push("blocked_run_leaked_output");
   if (stSpCalculationRuns.filter((run) => run.productCode === "REP-CEMENT" && run.status === "blocked_missing_destination_parameters").length !== 23) errors.push("cement_signatory_routes_except_mg_and_rj_must_remain_safely_blocked");
   if (stSpCalculationRuns.filter((run) => run.productCode === "REP-CEMENT" && run.status === "blocked_protocol_not_applicable").length !== 1) errors.push("cement_am_route_must_not_infer_protocol_applicability");
+  if (stSpCalculationRuns.filter((run) => run.productCode === "REP-AUTO_PARTS" && run.status === "reference_reproduced").length !== 2) errors.push("auto_parts_only_mg_and_rj_references_can_be_reproduced");
+  if (stSpCalculationRuns.filter((run) => run.productCode === "REP-AUTO_PARTS" && run.status === "blocked_missing_destination_parameters").length !== 2) errors.push("auto_parts_pr_and_ba_must_wait_for_destination_parameters");
+  if (stSpCalculationRuns.filter((run) => run.productCode === "REP-AUTO_PARTS" && run.status === "blocked_protocol_not_applicable").length !== 3) errors.push("auto_parts_sc_rs_go_must_not_inherit_denounced_protocol");
   return { passed: errors.length === 0, errors };
 }
 

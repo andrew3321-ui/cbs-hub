@@ -422,16 +422,19 @@ test("versão 27 publica cobertura nacional, lote documental, monitor e aprovaç
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 62 · 5 DESTINOS DE CIMENTO APROFUNDADOS/);
+  assert.match(ui, /VERSÃO 63 · AUTOPEÇAS NAS ROTAS MAIS RECORRENTES/);
   assert.match(ui, /structuredCells} combinações estruturadas/);
   assert.match(publicApi, /stSpOriginMatrix/);
   assert.match(publicApi, /stSpCalculationValidation/);
   assert.match(publicApi, /stCementSpRoutes/);
   assert.match(publicApi, /stCementPriorityBatch/);
+  assert.match(publicApi, /stAutoPartsPriorityBatch/);
   assert.match(ui, /Uma base legal, 26 rotas controladas/);
   assert.match(ui, /novos valores finais liberados/);
   assert.match(ui, /PMPF por GTIN antes da MVA/);
   assert.match(ui, /Somente o RJ possui memória sintética reproduzida/);
+  assert.match(ui, /Seis rotas comerciais sem herdar protocolo revogado/);
+  assert.match(ui, /SC, RS e GO estarem fora do protocolo não transforma a operação em isenta/);
   assert.match(ui, /produtos representativos/);
   assert.match(ui, /stSpMg\.metrics\.legalGatesStructured/);
   assert.match(ui, /CÁLCULO VALIDADO/);
