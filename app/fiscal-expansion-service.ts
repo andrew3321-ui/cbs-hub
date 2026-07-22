@@ -69,23 +69,30 @@ export function ensureFiscalExpansionSchema() {
   return ready;
 }
 
-function isStoredStage(value: string): value is ExpansionStage {
-  return ["catalogued", "source_connected", "structured", "tested", "awaiting_professional", "homologated", "blocked"].includes(value);
+function normalizeStoredStage(value: string): ExpansionStage | null {
+  if (["catalogued", "source_connected", "structured", "tested", "automatically_verified", "blocked"].includes(value)) return value as ExpansionStage;
+  // Legacy human-review records must be re-run by the automatic battery before
+  // receiving the new status. Keeping them at "tested" avoids rewriting history.
+  if (["awaiting_professional", "homologated"].includes(value)) return "tested";
+  return null;
 }
 
 export async function listExpansionProgress(workspaceId: number): Promise<ExpansionProgress[]> {
   await ensureFiscalExpansionSchema();
   const result = await env.DB.prepare("SELECT item_code, stage, evidence_note, evidence_reference, evidence_hash, updated_by_user_id, updated_at FROM fiscal_expansion_progress WHERE workspace_id = ? ORDER BY updated_at DESC")
     .bind(workspaceId).all<ProgressRow>();
-  return (result.results ?? []).flatMap((row: ProgressRow) => isStoredStage(row.stage) ? [{
+  return (result.results ?? []).flatMap((row: ProgressRow) => {
+    const stage = normalizeStoredStage(row.stage);
+    return stage ? [{
     itemCode: row.item_code,
-    stage: row.stage,
+    stage,
     evidenceNote: row.evidence_note,
     evidenceReference: row.evidence_reference,
     evidenceHash: row.evidence_hash,
     updatedAt: row.updated_at,
     updatedByUserId: row.updated_by_user_id,
-  }] : []);
+    }] : [];
+  });
 }
 
 export async function listExpansionEvents(workspaceId: number, limit = 20): Promise<ExpansionEvent[]> {
@@ -93,9 +100,9 @@ export async function listExpansionEvents(workspaceId: number, limit = 20): Prom
   const result = await env.DB.prepare("SELECT id, item_code, actor_user_id, from_stage, to_stage, evidence_note, evidence_reference, evidence_hash, created_at FROM fiscal_expansion_events WHERE workspace_id = ? ORDER BY id DESC LIMIT ?")
     .bind(workspaceId, limit).all<Record<string, string | number | null>>();
   return (result.results ?? []).flatMap((row: Record<string, string | number | null>) => {
-    const fromStage = String(row.from_stage);
-    const toStage = String(row.to_stage);
-    if (!isStoredStage(fromStage) || !isStoredStage(toStage)) return [];
+    const fromStage = normalizeStoredStage(String(row.from_stage));
+    const toStage = normalizeStoredStage(String(row.to_stage));
+    if (!fromStage || !toStage) return [];
     return [{
       id: Number(row.id),
       itemCode: String(row.item_code),

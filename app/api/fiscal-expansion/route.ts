@@ -12,8 +12,9 @@ import {
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { listExpansionEvents, listExpansionProgress, saveExpansionTransition } from "../../fiscal-expansion-service";
-import { canPrepareScenarios, canReviewScenarios, getWorkspaceContext, sha256Hex } from "../../workspace";
+import { canPrepareScenarios, getWorkspaceContext, sha256Hex } from "../../workspace";
 import { withWorkspaceFeature } from "../../plan-entitlements";
+import { FISCAL_SIMULATION_SUITE_VERSION, runFiscalSimulationSuite } from "../../../domain/fiscal-homologation-simulations";
 
 async function payload(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
   const workspace = await getWorkspaceContext(user.id);
@@ -31,12 +32,11 @@ async function payload(user: NonNullable<Awaited<ReturnType<typeof getCurrentUse
     permissions: {
       role: workspace.role,
       canPrepare: canPrepareScenarios(workspace.role),
-      canReview: canReviewScenarios(workspace.role),
     },
     policy: {
       automation: "deterministic_only",
-      automaticHomologation: false,
-      statement: "A esteira organiza fontes, estruturação e testes. Apenas uma revisão profissional externa à fila pode homologar cobertura.",
+      automaticVerification: true,
+      statement: "A esteira conecta fontes oficiais, estrutura regras e executa controles determinísticos no servidor. Mudanças na base exigem nova execução e nunca são liberadas apenas por um clique do usuário.",
     },
   };
 }
@@ -73,17 +73,17 @@ async function advanceExpansion(request: Request) {
     const currentStage: ExpansionStage = currentProgress?.stage ?? base.defaultStage;
     if (String(body.expectedStage ?? "") !== currentStage) return Response.json({ error: "Este item mudou desde que a tela foi aberta. Recarregue a fila." }, { status: 409 });
     const nextStage = nextExpansionStage(currentStage);
-    if (!nextStage) return Response.json({ error: "A fila não pode promover este item. Homologação exige o fluxo profissional próprio." }, { status: 409 });
-    const needsReviewer = nextStage === "awaiting_professional";
-    if (needsReviewer ? !canReviewScenarios(workspace.role) : !canPrepareScenarios(workspace.role)) {
-      return Response.json({ error: needsReviewer ? "Somente revisor, administrador ou proprietário pode liberar o portão profissional." : "Seu papel não permite preparar itens da cobertura." }, { status: 403 });
-    }
-    const evidenceNote = String(body.evidenceNote ?? "").trim();
+    if (!nextStage) return Response.json({ error: "Este item já atingiu o último estado técnico ou está bloqueado." }, { status: 409 });
+    if (!canPrepareScenarios(workspace.role)) return Response.json({ error: "Seu papel não permite preparar itens da cobertura." }, { status: 403 });
+    const automaticRun = nextStage === "automatically_verified" ? runFiscalSimulationSuite() : null;
+    if (automaticRun && !automaticRun.every((run) => run.passed)) return Response.json({ error: "A bateria automática encontrou divergências. O item permanece bloqueado até que os testes sejam corrigidos." }, { status: 409 });
+    const evidenceNote = automaticRun
+      ? `Bateria ${FISCAL_SIMULATION_SUITE_VERSION} reexecutada no servidor: ${automaticRun.length}/${automaticRun.length} cenários aprovados.`
+      : String(body.evidenceNote ?? "").trim();
     if (evidenceNote.length < 30 || evidenceNote.length > 1_500) return Response.json({ error: "Descreva a evidência com 30 a 1.500 caracteres." }, { status: 400 });
-    const evidenceReference = normalizedReference(body.evidenceReference);
+    const evidenceReference = automaticRun ? `AUTOMATED-SUITE:${FISCAL_SIMULATION_SUITE_VERSION}` : normalizedReference(body.evidenceReference);
     if (!evidenceReference) return Response.json({ error: "Informe uma referência verificável: URL oficial, código de regra versionada ou conjunto de testes." }, { status: 400 });
-    if (body.gatesAcknowledged !== true) return Response.json({ error: "Confirme que os critérios da etapa foram conferidos." }, { status: 400 });
-    if (needsReviewer && body.professionalGateAccepted !== true) return Response.json({ error: "Confirme que o item seguirá para revisão profissional sem homologação automática." }, { status: 400 });
+    if (!automaticRun && body.gatesAcknowledged !== true) return Response.json({ error: "Confirme que os critérios da etapa foram conferidos." }, { status: 400 });
     const evidenceHash = await sha256Hex(JSON.stringify({ version: FISCAL_EXPANSION_VERSION, workspaceId: workspace.id, itemCode, currentStage, nextStage, evidenceNote, evidenceReference }));
     await saveExpansionTransition({
       workspaceId: workspace.id,

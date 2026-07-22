@@ -14,257 +14,123 @@ type Candidate = {
   };
 };
 
-type HomologationEvent = { id: number; eventType: string; note: string; createdAt: string };
-type HomologationCase = {
-  id: string;
+type AutomaticCase = {
+  code: string;
   title: string;
-  question: string;
-  topicCode: string;
-  status: "draft" | "ready_for_review" | "approved" | "changes_requested" | "rejected";
-  assuranceLevel: string;
-  createdByUserId: number;
-  assignedReviewerUserId: number | null;
-  decisionByUserId: number | null;
-  createdByName: string;
-  assignedReviewerName: string | null;
-  decisionByName: string | null;
-  professionalRegistration: string | null;
-  comparisonOutcome: string | null;
-  independentConclusion: string;
-  reviewNote: string;
-  snapshotHash: string;
-  decisionSignature: string | null;
-  baseVersion: string;
-  dueAt: string | null;
-  decidedAt: string | null;
-  createdAt: string;
-  integrityStatus: "verified" | "blocked";
-  validityStatus: "not_applicable" | "current" | "requires_revalidation";
-  regressionStatus: "not_applicable" | "passed" | "failed" | "requires_revalidation";
-  snapshot: null | {
-    engine: { headline: string; summary: string; findings: Array<{ code: string; label: string; value: string }> };
-    evidence: { sources: Array<{ code: string; title: string; url: string }> };
-  };
-  events: HomologationEvent[];
+  moduleLabel: string;
+  profile: string;
+  scenario: string;
+  operationPeriod: string;
+  kind: "calculated_reference" | "expected_block";
+  status: "automatically_verified" | "blocked";
+  outputStatus: string;
+  summary: string;
+  checksPassed: number;
+  checksTotal: number;
+  sourceCount: number;
+  officialSourceCount: number;
+  blockers: string[];
+  controls: Array<{ code: string; label: string; passed: boolean }>;
+  expectedConclusion: string;
 };
 
-type CenterPayload = {
-  cases: HomologationCase[];
-  simulations: {
-    version: string;
-    syntheticDataOnly: true;
-    cases: Array<{
-      code: string;
-      title: string;
-      moduleLabel: string;
-      profile: string;
-      scenario: string;
-      operationPeriod: string;
-      kind: "calculated_reference" | "expected_block";
-      expectedProfessionalConclusion: string;
-      technicalStatus: "passed" | "failed";
-      outputStatus: string;
-      summary: string;
-      checksPassed: number;
-      checksTotal: number;
-      blockers: string[];
-      sourceCount: number;
-      existingCaseId: string | null;
-      professionalStatus: HomologationCase["status"] | "not_started";
-    }>;
-    metrics: { total: number; technicalPassed: number; calculatedReferences: number; expectedBlocks: number; professionalApproved: number; distinctModules: number };
-  };
-  eligibleReviewers: Array<{ userId: number; name: string; role: string }>;
-  context: { currentUserId: number; currentUserName: string; workspaceType: "individual" | "office"; role: string; canPrepare: boolean; canReview: boolean; currentBaseVersion: string };
-  metrics: { total: number; drafts: number; awaitingReview: number; approved: number; current: number; needsRevalidation: number; regressionFailures: number; rejected: number };
+type AssurancePayload = {
+  version: string;
+  simulationVersion: string;
+  baseHash: string;
+  checkedAt: string;
+  policy: { automation: string; humanReviewRequired: false; professionalOpinion: false; statement: string; controls: string[] };
+  cases: AutomaticCase[];
+  metrics: { total: number; automaticallyVerified: number; blocked: number; calculatedReferences: number; expectedBlocks: number; officialSources: number; distinctModules: number };
+  context: { workspaceType: "individual" | "office"; role: string };
 };
 
-const statusLabels: Record<HomologationCase["status"], string> = {
-  draft: "Validado pelo motor",
-  ready_for_review: "Aguardando revisão",
-  approved: "Homologado",
-  changes_requested: "Ajustes solicitados",
-  rejected: "Rejeitado",
-};
-
-const dateLabel = (value: string | null) => value ? new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value)) : "—";
-
-async function jsonRequest(url: string, body?: Record<string, unknown>) {
-  const response = await fetch(url, body ? { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) } : { cache: "no-store" });
-  const payload = await response.json() as Record<string, unknown>;
-  if (!response.ok) throw new Error(typeof payload.error === "string" ? payload.error : "A operação não pôde ser concluída.");
-  return payload;
+function checkedAtLabel(value?: string) {
+  if (!value) return "—";
+  return new Intl.DateTimeFormat("pt-BR", { dateStyle: "short", timeStyle: "short" }).format(new Date(value));
 }
 
 export default function FiscalHomologationCenter({ candidate }: { candidate: Candidate | null }) {
-  const [data, setData] = useState<CenterPayload | null>(null);
-  const [selectedId, setSelectedId] = useState("");
-  const [busy, setBusy] = useState(false);
+  const [data, setData] = useState<AssurancePayload | null>(null);
+  const [selectedCode, setSelectedCode] = useState("");
   const [error, setError] = useState("");
-  const [success, setSuccess] = useState("");
-  const [reviewerUserId, setReviewerUserId] = useState("");
-  const [dueAt, setDueAt] = useState("");
-  const [comparisonOutcome, setComparisonOutcome] = useState("matches");
-  const [independentConclusion, setIndependentConclusion] = useState("");
-  const [note, setNote] = useState("");
-  const [registration, setRegistration] = useState("");
-  const [sourcesConfirmed, setSourcesConfirmed] = useState(false);
-  const [independentlyChecked, setIndependentlyChecked] = useState(false);
-  const [acknowledged, setAcknowledged] = useState(false);
-
-  const load = async (preferredId?: string) => {
-    const payload = await jsonRequest("/api/fiscal-homologations") as unknown as CenterPayload;
-    setData(payload);
-    setSelectedId((current) => preferredId && payload.cases.some((item) => item.id === preferredId) ? preferredId : payload.cases.some((item) => item.id === current) ? current : payload.cases[0]?.id ?? "");
-  };
 
   useEffect(() => {
     let cancelled = false;
     fetch("/api/fiscal-homologations", { cache: "no-store" })
       .then(async (response) => {
-        const payload = await response.json() as CenterPayload & { error?: string };
-        if (!response.ok) throw new Error(payload.error ?? "Não foi possível carregar os casos.");
+        const payload = await response.json() as AssurancePayload & { error?: string };
+        if (!response.ok) throw new Error(payload.error ?? "Não foi possível executar a verificação automática.");
         return payload;
       })
       .then((payload) => {
         if (cancelled) return;
         setData(payload);
-        setSelectedId(payload.cases[0]?.id ?? "");
+        setSelectedCode(payload.cases[0]?.code ?? "");
       })
       .catch((cause: Error) => { if (!cancelled) setError(cause.message); });
     return () => { cancelled = true; };
   }, []);
 
-  const selected = useMemo(() => data?.cases.find((item) => item.id === selectedId) ?? null, [data, selectedId]);
-  const candidateEligible = Boolean(candidate && candidate.result.status === "conditional" && candidate.result.completeness.percentage === 100 && candidate.result.completeness.known === candidate.result.completeness.required && candidate.result.clarifications.length === 0 && candidate.result.sources.length > 0 && candidate.result.topicCode !== "TOPIC-ROUTER");
-  const mayReviewSelected = Boolean(selected && data?.context.canReview && selected.status === "ready_for_review" && selected.assignedReviewerUserId === data.context.currentUserId);
+  const selected = useMemo(() => data?.cases.find((item) => item.code === selectedCode) ?? data?.cases[0] ?? null, [data, selectedCode]);
+  const candidateReady = Boolean(candidate && candidate.result.completeness.percentage === 100 && candidate.result.clarifications.length === 0 && candidate.result.sources.length > 0 && candidate.result.status !== "blocked");
 
-  const perform = async (body: Record<string, unknown>, message: string, preferredId?: string) => {
-    setBusy(true); setError(""); setSuccess("");
-    try {
-      const createBody = typeof body.simulationCode === "string" ? { simulationCode: body.simulationCode } : { question: body.question, facts: body.facts };
-      const response = await jsonRequest(body.action === "create" ? "/api/fiscal-homologations" : "/api/fiscal-homologations/review", body.action === "create" ? createBody : body);
-      const responseCase = response.case as { id?: string } | undefined;
-      await load(responseCase?.id ?? preferredId);
-      setSuccess(message);
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "A operação não pôde ser concluída.");
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const freezeCandidate = () => candidate && void perform({ action: "create", question: candidate.question, facts: candidate.facts }, "Caso congelado. Ele ainda precisa de revisão profissional.");
-  const freezeSimulation = (simulationCode: string, title: string) => void perform({ action: "create", simulationCode }, `“${title}” entrou na fila. O teste técnico não substitui a homologação profissional.`);
-  const submitReview = () => selected && void perform({ caseId: selected.id, action: "submit", reviewerUserId: Number(reviewerUserId), dueAt }, data?.context.workspaceType === "office" ? "Caso enviado para revisão independente." : "Autorrevisão profissional iniciada.", selected.id);
-  const decide = (action: "approve" | "changes_requested" | "reject") => selected && void perform({ caseId: selected.id, action, comparisonOutcome, independentConclusion, note, professionalRegistration: registration, sourcesConfirmed, independentlyChecked, acknowledged }, action === "approve" ? "Caso homologado e assinado." : action === "reject" ? "Caso rejeitado com trilha registrada." : "Ajustes solicitados com trilha registrada.", selected.id);
-
-  return <section className="fiscal-homologation-center" aria-labelledby="homologation-title">
+  return <section className="fiscal-homologation-center automatic-assurance-center" aria-labelledby="homologation-title">
     <div className="homologation-heading">
-      <div><span className="eyebrow">VERSÃO 25 · CENTRAL DE HOMOLOGAÇÃO</span><h2 id="homologation-title">Transforme testes reais em referências confiáveis</h2><p>O motor prepara e congela o caso. Um profissional compara a conclusão com sua apuração independente antes de homologar.</p></div>
-      <span className="homologation-mode">{data?.context.workspaceType === "office" ? "Escritório · revisão segregada" : "Independente · autorrevisão identificada"}</span>
+      <div><span className="eyebrow">VERSÃO 55 · VERIFICAÇÃO AUTOMÁTICA</span><h2 id="homologation-title">A plataforma testa a própria base, sem pedir trabalho ao cliente</h2><p>O servidor reexecuta cenários sintéticos, compara os resultados com expectativas versionadas e bloqueia respostas quando os fatos mínimos não estão presentes.</p></div>
+      <span className="homologation-mode">{data?.context.workspaceType === "office" ? "Escritório · controle automático" : "Independente · controle automático"}</span>
     </div>
 
-    <div className="homologation-trust-line"><b>Validação do motor ≠ homologação profissional</b><span>Nenhum caso entra na biblioteca aprovada sem CRC, conclusão independente, fontes confirmadas, hash íntegro e assinatura do servidor.</span></div>
-
-    <div className="homologation-metrics">
-      <article><span>Casos</span><strong>{data?.metrics.total ?? 0}</strong></article>
-      <article><span>Em revisão</span><strong>{data?.metrics.awaitingReview ?? 0}</strong></article>
-      <article><span>Homologados</span><strong>{data?.metrics.approved ?? 0}</strong></article>
-      <article className="positive"><span>Vigentes</span><strong>{data?.metrics.current ?? 0}</strong></article>
-      <article className={data?.metrics.needsRevalidation ? "warning" : ""}><span>Revalidar</span><strong>{data?.metrics.needsRevalidation ?? 0}</strong></article>
+    <div className="homologation-trust-line automatic">
+      <b>Verificação automática ≠ parecer profissional</b>
+      <span>{data?.policy.statement ?? "O sistema só afirma o que consegue provar por execução, evidência e integridade."}</span>
     </div>
+
+    <div className="homologation-metrics automatic-metrics">
+      <article className="positive"><span>Verificados</span><strong>{data?.metrics.automaticallyVerified ?? 0}</strong><small>cenários reproduzidos</small></article>
+      <article><span>Controles</span><strong>{data?.metrics.total ?? 0}</strong><small>casos na bateria</small></article>
+      <article><span>Bloqueios seguros</span><strong>{data?.metrics.expectedBlocks ?? 0}</strong><small>faltas de fatos testadas</small></article>
+      <article><span>Referências</span><strong>{data?.metrics.calculatedReferences ?? 0}</strong><small>cálculos esperados</small></article>
+      <article><span>Módulos</span><strong>{data?.metrics.distinctModules ?? 0}</strong><small>recortes exercitados</small></article>
+    </div>
+
+    <section className="automatic-assurance-policy" aria-label="Controles aplicados">
+      <div><small>BASE CONTROLADA</small><b>#{data?.baseHash.slice(0, 16) ?? "carregando"}</b><span>{data ? `Executada em ${checkedAtLabel(data.checkedAt)}` : "Executando no servidor…"}</span></div>
+      <div><small>O QUE O SISTEMA CONFERE</small><p>{data?.policy.controls.map((control) => <span key={control}>✓ {control}</span>)}</p></div>
+    </section>
+
+    {candidate && <section className={`automatic-query-status ${candidateReady ? "ready" : "blocked"}`}>
+      <div><small>CONSULTA ATUAL</small><b>{candidate.question}</b><span>{candidate.result.topicCode} · {candidate.result.completeness.percentage}% dos fatos · {candidate.result.sources.length} fontes aplicadas</span></div>
+      <p>{candidateReady ? "A resposta contém os fatos e fontes mínimos do recorte. Ainda assim, a bateria automática valida o motor e as regras versionadas — não confirma documentos ou fatos particulares de um contribuinte." : "A resposta permanece bloqueada até que todos os fatos obrigatórios e fontes aplicáveis estejam presentes."}</p>
+    </section>}
+
+    {error && <div className="homologation-message error" role="alert">{error}</div>}
 
     <details className="homologation-simulation-suite" open>
       <summary>
-        <div><small>BATERIA V54 · DADOS FICTÍCIOS</small><b>Casos realistas para homologar o comportamento da plataforma</b><span>O servidor reexecutou {data?.simulations.metrics.total ?? 0} cenários; nenhum deles recebe chancela profissional automaticamente.</span></div>
-        <strong>{data?.simulations.metrics.technicalPassed ?? 0}/{data?.simulations.metrics.total ?? 0}<small>técnicos aprovados</small></strong>
+        <div><small>BATERIA {data?.simulationVersion ?? "V55"} · DADOS FICTÍCIOS</small><b>Resultado dos cenários de referência</b><span>Não há cadastro de contribuinte, assinatura humana nem aprovação manual nesta etapa.</span></div>
+        <strong>{data?.metrics.automaticallyVerified ?? 0}/{data?.metrics.total ?? 0}<small>verificados</small></strong>
       </summary>
-      <div className="simulation-assurance">
-        <article><span>Módulos</span><b>{data?.simulations.metrics.distinctModules ?? 0}</b><small>cálculos e portões</small></article>
-        <article><span>Cálculos esperados</span><b>{data?.simulations.metrics.calculatedReferences ?? 0}</b><small>referências matemáticas</small></article>
-        <article><span>Bloqueios esperados</span><b>{data?.simulations.metrics.expectedBlocks ?? 0}</b><small>falha segura exercitada</small></article>
-        <article className="professional"><span>Homologados</span><b>{data?.simulations.metrics.professionalApproved ?? 0}</b><small>por contador/tributarista</small></article>
-      </div>
-      <div className="simulation-policy"><b>O que está sendo testado</b><span>Faixas, arredondamentos, retenção, créditos, limites e bloqueios por falta de fatos. Empresas, valores e operações são sintéticos; as leis e tabelas citadas são oficiais.</span></div>
-      <div className="simulation-case-grid">
-        {data?.simulations.cases.map((simulation) => <article className={simulation.technicalStatus} key={simulation.code}>
-          <header><span>{simulation.moduleLabel}</span><i className={simulation.kind}>{simulation.kind === "expected_block" ? "BLOQUEIO ESPERADO" : "CÁLCULO ESPERADO"}</i></header>
-          <h3>{simulation.title}</h3>
-          <p><b>{simulation.profile}</b>{simulation.scenario}</p>
-          <div className="simulation-result"><span>{simulation.technicalStatus === "passed" ? "✓ Reproduzido" : "× Divergência"}</span><b>{simulation.checksPassed}/{simulation.checksTotal} controles</b><small>{simulation.sourceCount} fontes · {simulation.operationPeriod}</small></div>
-          {simulation.blockers.length > 0 && <div className="simulation-blocker">{simulation.blockers.join(" · ")}</div>}
-          <details><summary>Conclusão que o profissional deve conferir</summary><p>{simulation.expectedProfessionalConclusion}</p></details>
-          <button type="button" disabled={busy || !data.context.canPrepare || simulation.technicalStatus !== "passed"} onClick={() => simulation.existingCaseId ? setSelectedId(simulation.existingCaseId) : freezeSimulation(simulation.code, simulation.title)}>
-            {simulation.existingCaseId ? simulation.professionalStatus === "approved" ? "Ver homologação" : "Abrir candidato" : "Congelar candidato"}
-          </button>
-        </article>)}
+      <div className="simulation-policy"><b>Critério de aprovação</b><span>Um cenário só fica verde se todos os valores e bloqueios esperados forem reproduzidos, houver fonte rastreável e ao menos uma origem pública oficial identificada.</span></div>
+      <div className="simulation-case-grid automatic-case-grid">
+        {data?.cases.map((item) => <button className={`${item.status} ${selected?.code === item.code ? "active" : ""}`} type="button" key={item.code} onClick={() => setSelectedCode(item.code)}>
+          <header><span>{item.moduleLabel}</span><i className={item.kind}>{item.kind === "expected_block" ? "BLOQUEIO ESPERADO" : "CÁLCULO ESPERADO"}</i></header>
+          <h3>{item.title}</h3>
+          <p><b>{item.profile}</b>{item.scenario}</p>
+          <div className="simulation-result"><span>{item.status === "automatically_verified" ? "✓ Verificado automaticamente" : "× Controle bloqueado"}</span><b>{item.checksPassed}/{item.checksTotal} testes</b><small>{item.sourceCount} fontes · {item.officialSourceCount} públicas · {item.operationPeriod}</small></div>
+        </button>)}
       </div>
     </details>
 
-    <div className={`homologation-candidate ${candidateEligible ? "eligible" : "blocked"}`}>
-      <div><small>CONSULTA ATUAL</small><b>{candidate?.question || "Faça uma consulta e preencha todos os fatos para abrir um caso."}</b><span>{candidate ? `${candidate.result.topicCode} · ${candidate.result.completeness.percentage}% dos fatos · ${candidate.result.sources.length} fontes aplicadas` : "O servidor repetirá a análise antes de congelar o snapshot."}</span></div>
-      <button type="button" disabled={busy || !candidateEligible || !data?.context.canPrepare} onClick={freezeCandidate}>{busy ? "Processando…" : candidateEligible ? "Congelar caso para homologação" : "Complete a consulta primeiro"}</button>
-    </div>
-
-    {error && <div className="homologation-message error" role="alert">{error}</div>}
-    {success && <div className="homologation-message success" role="status">{success}</div>}
-
-    <div className="homologation-workspace">
-      <aside className="homologation-queue">
-        <div><small>BIBLIOTECA VERSIONADA</small><b>{data?.cases.length ?? 0} casos rastreáveis</b></div>
-        {data?.cases.length ? data.cases.map((item) => <button type="button" className={selectedId === item.id ? "active" : ""} onClick={() => setSelectedId(item.id)} key={item.id}>
-          <span><i className={item.status} />{statusLabels[item.status]}</span><b>{item.title}</b><small>{item.createdByName} · {dateLabel(item.createdAt)}</small>
-        </button>) : <p>Nenhum caso congelado ainda.</p>}
-      </aside>
-
-      <div className="homologation-detail">
-        {!selected ? <div className="homologation-empty"><b>Escolha um caso da bateria ou complete uma consulta</b><p>Casos sintéticos exercitam o motor sem expor contribuintes. A biblioteca homologada cresce apenas quando um profissional fizer a conferência independente.</p></div> : <>
-          <div className="homologation-case-head">
-            <div><span className={`homologation-status ${selected.status}`}>{statusLabels[selected.status]}</span><h3>{selected.title}</h3><p>{selected.question}</p></div>
-            <div><small>SNAPSHOT</small><code>#{selected.snapshotHash.slice(0, 12)}</code><span className={selected.integrityStatus}>{selected.integrityStatus === "verified" ? "Integridade verificada" : "Integridade bloqueada"}</span></div>
-          </div>
-
-          <div className="homologation-case-grid">
-            <article><span>Preparador</span><b>{selected.createdByName}</b></article>
-            <article><span>Revisor</span><b>{selected.assignedReviewerName ?? "Ainda não atribuído"}</b></article>
-            <article><span>Base fiscal</span><b>{selected.baseVersion}</b></article>
-            <article><span>Validade / regressão</span><b>{selected.regressionStatus === "passed" ? "Vigente · teste passou" : selected.regressionStatus === "failed" ? "Divergência detectada" : selected.validityStatus === "requires_revalidation" ? "Requer revalidação" : "Ainda não aplicável"}</b></article>
-          </div>
-
-          {selected.snapshot && <div className="homologation-engine-result"><small>CONCLUSÃO CONGELADA DO MOTOR</small><b>{selected.snapshot.engine.headline}</b><p>{selected.snapshot.engine.summary}</p><span>{selected.snapshot.engine.findings.length} achados · {selected.snapshot.evidence.sources.length} fontes</span></div>}
-
-          {selected.status === "draft" && data?.context.canPrepare && <div className="homologation-action-box">
-            <div><small>ETAPA 2 · ATRIBUIR REVISÃO</small><h4>{data.context.workspaceType === "office" ? "Escolha outro profissional" : "Inicie sua autorrevisão identificada"}</h4><p>{data.context.workspaceType === "office" ? "O criador do caso não aparece como opção válida para a decisão." : "O sistema marcará que não houve segregação entre preparador e revisor."}</p></div>
-            {data.context.workspaceType === "office" && <div className="homologation-submit-fields"><label>Revisor<select value={reviewerUserId} onChange={(event) => setReviewerUserId(event.target.value)}><option value="">Selecione</option>{data.eligibleReviewers.filter((reviewer) => reviewer.userId !== selected.createdByUserId).map((reviewer) => <option key={reviewer.userId} value={reviewer.userId}>{reviewer.name} · {reviewer.role}</option>)}</select></label><label>Prazo<input type="datetime-local" value={dueAt} onChange={(event) => setDueAt(event.target.value)} /></label></div>}
-            <button type="button" disabled={busy || (data.context.workspaceType === "office" && (!reviewerUserId || !dueAt))} onClick={submitReview}>{data.context.workspaceType === "office" ? "Enviar para revisão independente" : "Iniciar autorrevisão profissional"}</button>
-          </div>}
-
-          {mayReviewSelected && <div className="homologation-review-form">
-            <div><small>ETAPA 3 · DECISÃO PROFISSIONAL</small><h4>Compare sem copiar a resposta do motor</h4><p>Refaça o enquadramento e o cálculo por sua metodologia; depois registre abaixo o que encontrou.</p></div>
-            <label>Resultado da comparação<select value={comparisonOutcome} onChange={(event) => setComparisonOutcome(event.target.value)}><option value="matches">Coincide integralmente</option><option value="partially_matches">Coincide parcialmente</option><option value="diverges">Diverge</option></select></label>
-            <label>Conclusão independente<textarea rows={4} maxLength={2000} value={independentConclusion} onChange={(event) => setIndependentConclusion(event.target.value)} placeholder="Descreva seu enquadramento, premissas e resultado independente…" /></label>
-            <label>Justificativa técnica<textarea rows={3} maxLength={1500} value={note} onChange={(event) => setNote(event.target.value)} placeholder="Registre ressalvas, documentos conferidos e motivo da decisão…" /></label>
-            <label>CRC do responsável<input maxLength={30} value={registration} onChange={(event) => setRegistration(event.target.value)} placeholder="Ex.: CRC-SP 123456/O-0" /></label>
-            <div className="homologation-checks">
-              <label><input type="checkbox" checked={sourcesConfirmed} onChange={(event) => setSourcesConfirmed(event.target.checked)} />Conferi as fontes normativas aplicadas.</label>
-              <label><input type="checkbox" checked={independentlyChecked} onChange={(event) => setIndependentlyChecked(event.target.checked)} />Refiz o enquadramento/cálculo de forma independente.</label>
-              <label><input type="checkbox" checked={acknowledged} onChange={(event) => setAcknowledged(event.target.checked)} />Assumo a responsabilidade por esta decisão profissional.</label>
-            </div>
-            <div className="homologation-decision-buttons"><button type="button" className="approve" disabled={busy || comparisonOutcome !== "matches" || !sourcesConfirmed || !independentlyChecked || !acknowledged} onClick={() => decide("approve")}>Homologar e assinar</button><button type="button" disabled={busy} onClick={() => decide("changes_requested")}>Solicitar ajustes</button><button type="button" className="reject" disabled={busy} onClick={() => decide("reject")}>Rejeitar</button></div>
-          </div>}
-
-          {selected.status === "ready_for_review" && !mayReviewSelected && <div className="homologation-pending"><b>Aguardando {selected.assignedReviewerName ?? "o revisor atribuído"}</b><span>{selected.dueAt ? `Prazo: ${dateLabel(selected.dueAt)}` : "Sem prazo externo no modo independente."}</span></div>}
-
-          {selected.status === "approved" && <div className={`homologation-seal ${selected.validityStatus}`}>
-            <span>✓</span><div><small>CASO PROFISSIONALMENTE HOMOLOGADO</small><h4>{selected.decisionByName} · {selected.professionalRegistration}</h4><p>{selected.independentConclusion}</p><code>assinatura #{selected.decisionSignature?.slice(0, 16)} · {dateLabel(selected.decidedAt)}</code></div>
-          </div>}
-
-          {["changes_requested", "rejected"].includes(selected.status) && <div className="homologation-outcome"><b>{statusLabels[selected.status]}</b><p>{selected.reviewNote}</p><span>Crie uma nova versão após corrigir a consulta ou as premissas; o histórico anterior permanece imutável.</span></div>}
-
-          <details className="homologation-events"><summary>Trilha de auditoria · {selected.events.length} eventos</summary>{selected.events.map((event) => <article key={event.id}><span>{dateLabel(event.createdAt)}</span><b>{event.eventType.replace("fiscal_homologation.", "")}</b><p>{event.note}</p></article>)}</details>
-        </>}
-      </div>
-    </div>
+    <section className="automatic-case-detail" aria-live="polite">
+      {!selected ? <p>Carregando a bateria de verificação…</p> : <>
+        <div className="automatic-case-head"><div><span className={selected.status}>{selected.status === "automatically_verified" ? "VERIFICADO AUTOMATICAMENTE" : "BLOQUEADO"}</span><h3>{selected.title}</h3><p>{selected.summary}</p></div><code>{selected.code}</code></div>
+        <div className="automatic-control-grid">
+          {selected.controls.map((control) => <article className={control.passed ? "passed" : "failed"} key={control.code}><b>{control.passed ? "✓" : "!"}</b><span>{control.label}</span></article>)}
+        </div>
+        {selected.blockers.length > 0 && <div className="automatic-blockers"><b>Bloqueios exercitados pelo cenário</b>{selected.blockers.map((blocker) => <span key={blocker}>{blocker}</span>)}</div>}
+        <div className="automatic-expectation"><small>CONCLUSÃO DE REFERÊNCIA</small><p>{selected.expectedConclusion}</p><span>Esta conclusão é a expectativa do caso sintético. O resultado de uma empresa real depende das suas notas, enquadramento, período, exceções e legislação vigente.</span></div>
+      </>}
+    </section>
   </section>;
 }

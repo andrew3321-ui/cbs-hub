@@ -358,41 +358,29 @@ test("versão 24 expande a inteligência fiscal sem promover triagem a cálculo 
   assert.match(expanded, /Nenhum valor líquido a pagar foi produzido/);
 });
 
-test("versão 25 transforma validações reais em casos homologados, assinados e revalidáveis", async () => {
-  const [ui, createApi, reviewApi, service, domain, signing, schema, runtimeDb, migration] = await Promise.all([
+test("versão 55 substitui a fila humana por verificação automática rastreável", async () => {
+  const [ui, api, reviewApi, assurance, expansion, expansionApi] = await Promise.all([
     readFile(new URL("app/app/FiscalHomologationCenter.tsx", root), "utf8"),
     readFile(new URL("app/api/fiscal-homologations/route.ts", root), "utf8"),
     readFile(new URL("app/api/fiscal-homologations/review/route.ts", root), "utf8"),
-    readFile(new URL("app/fiscal-homologation-service.ts", root), "utf8"),
-    readFile(new URL("domain/fiscal-homologation.ts", root), "utf8"),
-    readFile(new URL("domain/fiscal-homologation-signing.ts", root), "utf8"),
-    readFile(new URL("db/schema.ts", root), "utf8"),
-    readFile(new URL("db/index.ts", root), "utf8"),
-    readFile(new URL("drizzle/0017_wise_edwin_jarvis.sql", root), "utf8"),
+    readFile(new URL("domain/fiscal-automatic-assurance.ts", root), "utf8"),
+    readFile(new URL("domain/fiscal-expansion.ts", root), "utf8"),
+    readFile(new URL("app/api/fiscal-expansion/route.ts", root), "utf8"),
   ]);
 
-  assert.match(ui, /VERSÃO 25 · CENTRAL DE HOMOLOGAÇÃO/);
-  assert.match(ui, /Validação do motor ≠ homologação profissional/);
-  assert.match(ui, /Refiz o enquadramento\/cálculo de forma independente/);
-  assert.match(ui, /Homologar e assinar/);
-  assert.match(createApi, /evaluateExpandedFiscalQuestion/);
-  assert.match(createApi, /resultado enviado pelo navegador nunca é aceito/);
-  assert.match(createApi, /snapshotHash/);
-  assert.match(reviewApi, /preparador não pode homologar o próprio caso/);
-  assert.match(reviewApi, /comparisonOutcome !== "matches"/);
-  assert.match(reviewApi, /sourcesConfirmed/);
-  assert.match(reviewApi, /independentlyChecked/);
-  assert.match(reviewApi, /professionalRegistrationError/);
-  assert.match(service, /requires_revalidation/);
-  assert.match(service, /regressionStatus/);
-  assert.match(service, /evaluateExpandedFiscalQuestion/);
-  assert.match(service, /expectedOutcomeFromHomologation/);
-  assert.match(domain, /completeness\.percentage !== 100/);
-  assert.match(signing, /HMAC/);
-  assert.match(schema, /fiscalHomologationCases/);
-  assert.match(schema, /fiscalHomologationEvents/);
-  assert.match(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_homologation_cases/);
-  assert.match(migration, /CREATE UNIQUE INDEX `fiscal_homologation_workspace_snapshot_idx`/);
+  assert.match(ui, /VERSÃO 55 · VERIFICAÇÃO AUTOMÁTICA/);
+  assert.match(ui, /Verificação automática ≠ parecer profissional/);
+  assert.match(ui, /Não há cadastro de contribuinte, assinatura humana nem aprovação manual/);
+  assert.doesNotMatch(ui, /Homologar e assinar/);
+  assert.match(api, /buildFiscalAutomaticAssurance/);
+  assert.match(api, /MANUAL_HOMOLOGATION_DISABLED/);
+  assert.match(reviewApi, /MANUAL_REVIEW_DISABLED/);
+  assert.match(assurance, /resultado reexecutado no servidor/);
+  assert.match(assurance, /isOfficialPublicSource/);
+  assert.match(assurance, /safe_block/);
+  assert.match(expansion, /automatically_verified/);
+  assert.match(expansion, /runFiscalSimulationSuite/);
+  assert.match(expansionApi, /AUTOMATED-SUITE/);
 });
 
 test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herdar obrigações", async () => {
@@ -452,7 +440,7 @@ test("versão 27 publica cobertura nacional, lote documental, monitor e aprovaç
   assert.match(layout, /national-coverage\.css/);
 });
 
-test("versão 29 cria esteira fiscal sem custo por consulta e sem homologação automática", async () => {
+test("versão 55 cria esteira fiscal sem custo por consulta e com verificação automática", async () => {
   const [ui, api, service, domain, schema, runtimeDb, monitor, shell, layout] = await Promise.all([
     readFile(new URL("app/app/FiscalExpansionCenter.tsx", root), "utf8"),
     readFile(new URL("app/api/fiscal-expansion/route.ts", root), "utf8"),
@@ -464,17 +452,17 @@ test("versão 29 cria esteira fiscal sem custo por consulta e sem homologação 
     readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 53 · REVISÃO TÉCNICA DOS 15 ISS/);
+  assert.match(ui, /VERSÃO 55 · VERIFICAÇÃO FISCAL AUTOMÁTICA/);
   assert.match(ui, /SEM IA/);
-  assert.match(ui, /nenhuma homologação automática/);
-  assert.match(api, /automaticHomologation: false/);
-  assert.match(api, /nextStage === "awaiting_professional"/);
-  assert.doesNotMatch(api, /toStage:\s*"homologated"/);
+  assert.match(ui, /verificação automática rastreável/);
+  assert.match(api, /automaticVerification: true/);
+  assert.match(api, /nextStage === "automatically_verified"/);
+  assert.match(api, /runFiscalSimulationSuite/);
   assert.match(service, /ensureFiscalExpansionSchema/);
   assert.match(service, /expansionSchemaReady = undefined/);
   assert.doesNotMatch(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_expansion_progress/);
   assert.match(domain, /officialSources: 200/);
-  assert.match(domain, /professionalApprovals: 30/);
+  assert.match(domain, /automaticTests: 100/);
   assert.match(schema, /fiscalExpansionProgress/);
   assert.match(monitor, /DAILY_BATCH_SIZE = 8/);
   assert.match(monitor, /limit\(14\)/);

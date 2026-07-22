@@ -9,7 +9,7 @@ import {
   nextExpansionStage,
 } from "../domain/fiscal-expansion.ts";
 
-test("V53 preserves a deterministic national backlog without overstating coverage", () => {
+test("V55 preserves a deterministic national backlog without overstating coverage", () => {
   const byScope = (scope) => fiscalExpansionBacklog.filter((item) => item.scope === scope);
   assert.equal(byScope("icms").length, 27);
   assert.equal(byScope("iss").length, 50);
@@ -21,13 +21,12 @@ test("V53 preserves a deterministic national backlog without overstating coverag
   assert.ok(fiscalExpansionBacklog.every((item) => item.supportStatus !== "supported"));
 });
 
-test("ordinary pipeline ends at the professional gate and never auto-homologates", () => {
+test("ordinary pipeline ends in server-side automatic verification", () => {
   assert.equal(nextExpansionStage("catalogued"), "source_connected");
   assert.equal(nextExpansionStage("source_connected"), "structured");
   assert.equal(nextExpansionStage("structured"), "tested");
-  assert.equal(nextExpansionStage("tested"), "awaiting_professional");
-  assert.equal(nextExpansionStage("awaiting_professional"), null);
-  assert.equal(nextExpansionStage("homologated"), null);
+  assert.equal(nextExpansionStage("tested"), "automatically_verified");
+  assert.equal(nextExpansionStage("automatically_verified"), null);
   assert.equal(nextExpansionStage("blocked"), null);
 });
 
@@ -38,9 +37,9 @@ test("monthly metrics expose actual gaps instead of converting targets into achi
   assert.equal(metrics.actual.stRouteBundles, 1);
   assert.equal(metrics.actual.officialSources, 65);
   assert.equal(metrics.actual.testedBundles, 0);
-  assert.equal(metrics.actual.professionalApprovals, 0);
+  assert.equal(metrics.actual.automaticTests, 20);
   assert.equal(metrics.gaps.officialSources, expansionTargets.officialSources - 65);
-  assert.equal(metrics.gaps.testedBundles, expansionTargets.testedBundles);
+  assert.equal(metrics.gaps.automaticTests, expansionTargets.automaticTests - 20);
   assert.ok(metrics.progressPercent > 0 && metrics.progressPercent < 100);
 });
 

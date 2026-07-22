@@ -7,12 +7,13 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 import { issDeepProfileByIbge, sourcesForIssDeepProfile } from "./iss-deep-coverage.ts";
+import { runFiscalSimulationSuite } from "./fiscal-homologation-simulations.ts";
 
-export const FISCAL_EXPANSION_VERSION = "2026.07.18-v53";
+export const FISCAL_EXPANSION_VERSION = "2026.07.21-v55";
 export const FISCAL_EXPANSION_MONTH = "2026-07";
 
 export type ExpansionScope = "icms" | "iss" | "st" | "federal" | "sources";
-export type ExpansionStage = "catalogued" | "source_connected" | "structured" | "tested" | "awaiting_professional" | "homologated" | "blocked";
+export type ExpansionStage = "catalogued" | "source_connected" | "structured" | "tested" | "automatically_verified" | "blocked";
 
 export type ExpansionItem = {
   code: string;
@@ -48,7 +49,7 @@ export const expansionTargets = {
   stRouteBundles: 40,
   officialSources: 200,
   testedBundles: 100,
-  professionalApprovals: 30,
+  automaticTests: 100,
 } as const;
 
 export const expansionStageOrder: ExpansionStage[] = [
@@ -56,8 +57,7 @@ export const expansionStageOrder: ExpansionStage[] = [
   "source_connected",
   "structured",
   "tested",
-  "awaiting_professional",
-  "homologated",
+  "automatically_verified",
 ];
 
 export const expansionStageLabels: Record<ExpansionStage, string> = {
@@ -65,8 +65,7 @@ export const expansionStageLabels: Record<ExpansionStage, string> = {
   source_connected: "Fonte conectada",
   structured: "Estruturado",
   tested: "Testado",
-  awaiting_professional: "Aguardando profissional",
-  homologated: "Homologado",
+  automatically_verified: "Verificado automaticamente",
   blocked: "Bloqueado",
 };
 
@@ -75,13 +74,12 @@ const stageWeight: Record<ExpansionStage, number> = {
   source_connected: 2,
   structured: 3,
   tested: 4,
-  awaiting_professional: 5,
-  homologated: 6,
+  automatically_verified: 5,
   blocked: 0,
 };
 
 function score(stage: ExpansionStage, impact: number, risk: number, readiness: number) {
-  const gap = Math.max(0, 6 - stageWeight[stage]);
+  const gap = Math.max(0, 5 - stageWeight[stage]);
   return impact * 35 + risk * 25 + gap * 25 + readiness * 15;
 }
 
@@ -91,11 +89,11 @@ function gates(scope: ExpansionScope) {
     "vigência e jurisdição registradas",
     "fatos obrigatórios e exceções descritos",
     "tratamento determinístico versionado",
-    "casos de referência aprovados nos testes",
+    "casos de referência reexecutados no servidor",
     "monitoramento da fonte ativo",
-    "revisão independente por contador ou tributarista",
+    "verificação automática aprovada com hash da base",
   ];
-  if (scope === "sources") return ["URL oficial confirmada", "captura íntegra e hash registrados", "mudanças encaminhadas para revisão humana"];
+  if (scope === "sources") return ["URL oficial confirmada", "captura íntegra e hash registrados", "mudanças bloqueiam a verificação automática até nova execução"];
   return common;
 }
 
@@ -211,10 +209,10 @@ export function isExpansionStage(value: unknown): value is ExpansionStage {
 }
 
 export function nextExpansionStage(stage: ExpansionStage): ExpansionStage | null {
-  if (stage === "blocked" || stage === "homologated" || stage === "awaiting_professional") return null;
+  if (stage === "blocked" || stage === "automatically_verified") return null;
   const index = expansionStageOrder.indexOf(stage);
   const next = expansionStageOrder[index + 1] ?? null;
-  return next === "homologated" ? null : next;
+  return next;
 }
 
 export function applyExpansionProgress(items: ExpansionItem[], progress: ExpansionProgress[]) {
@@ -238,14 +236,15 @@ export function expansionMetrics(items: Array<ExpansionItem & { stage?: Expansio
   };
   const counts = Object.fromEntries(([...expansionStageOrder, "blocked"] as ExpansionStage[]).map((value) => [value, items.filter((item) => stage(item) === value).length])) as Record<ExpansionStage, number>;
   const weighted = items.reduce((sum, item) => sum + stageWeight[stage(item)], 0);
-  const max = items.length * stageWeight.homologated;
+  const max = items.length * stageWeight.automatically_verified;
+  const automaticTests = runFiscalSimulationSuite().filter((run) => run.passed).length;
   const actual = {
     icmsBundles: items.filter((item) => item.scope === "icms").length,
     issDeepCities: countAtLeast("structured", "iss"),
     stRouteBundles: countAtLeast("structured", "st"),
     officialSources: countAtLeast("source_connected", "sources"),
     testedBundles: countAtLeast("tested") - countAtLeast("tested", "sources"),
-    professionalApprovals: counts.homologated,
+    automaticTests,
   };
   return {
     totalItems: items.length,
@@ -258,7 +257,7 @@ export function expansionMetrics(items: Array<ExpansionItem & { stage?: Expansio
       stRouteBundles: Math.max(0, expansionTargets.stRouteBundles - actual.stRouteBundles),
       officialSources: Math.max(0, expansionTargets.officialSources - actual.officialSources),
       testedBundles: Math.max(0, expansionTargets.testedBundles - actual.testedBundles),
-      professionalApprovals: Math.max(0, expansionTargets.professionalApprovals - actual.professionalApprovals),
+      automaticTests: Math.max(0, expansionTargets.automaticTests - actual.automaticTests),
     },
   };
 }
