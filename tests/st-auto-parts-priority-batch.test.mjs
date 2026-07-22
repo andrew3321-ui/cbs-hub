@@ -11,30 +11,44 @@ import {
 } from "../domain/st-auto-parts-priority-batch.ts";
 import { stSpCalculationRuns } from "../domain/st-sp-calculation-validation.ts";
 
-test("V63 structures the six highest-priority SP auto-parts routes", () => {
+test("V65 structures every SP auto-parts route against the current protocol", () => {
   assert.deepEqual(validateStAutoPartsPriorityBatch(), { passed: true, errors: [] });
   assert.deepEqual(stAutoPartsPriorityBatchMetrics(), {
-    routesInBatch: 6,
-    activeAgreementRoutes: 3,
-    outsideProtocolRoutes: 3,
-    destinationMvaOverrides: 2,
-    productIdentitiesFrozen: 6,
+    routesInBatch: 26,
+    activeAgreementRoutes: 15,
+    outsideProtocolRoutes: 11,
+    destinationMvaOverrides: 5,
+    productIdentitiesFrozen: 26,
     syntheticReferencesReproduced: 1,
     officialSources: 7,
   });
-  assert.deepEqual(stAutoPartsPriorityRoutes.filter((route) => route.agreementStatus === "protocol_41_active").map((route) => route.destination), ["RJ", "PR", "BA"]);
-  assert.deepEqual(stAutoPartsPriorityRoutes.filter((route) => route.agreementStatus === "outside_protocol_41").map((route) => route.destination), ["SC", "RS", "GO"]);
+  assert.deepEqual(stAutoPartsPriorityRoutes.filter((route) => route.agreementStatus === "protocol_41_active").map((route) => route.destination), ["AC", "AL", "AP", "AM", "BA", "DF", "MA", "MG", "MT", "PA", "PB", "PI", "PR", "RJ", "RR"]);
+  assert.deepEqual(stAutoPartsPriorityRoutes.filter((route) => route.agreementStatus === "outside_protocol_41").map((route) => route.destination), ["CE", "ES", "GO", "MS", "PE", "RN", "RO", "RS", "SC", "SE", "TO"]);
 });
 
-test("withdrawn destinations never inherit an obsolete protocol calculation", () => {
-  for (const uf of ["SC", "RS", "GO"]) {
+test("every destination outside the current protocol fails closed", () => {
+  for (const uf of ["CE", "ES", "GO", "MS", "PE", "RN", "RO", "RS", "SC", "SE", "TO"]) {
     const route = stAutoPartsPriorityRouteByDestination.get(uf);
     assert.equal(route?.parameterMethod, "destination_own_treatment_required");
     assert.equal(route?.mvaOriginalBps, null);
     assert.equal(route?.syntheticReference, null);
   }
-  const blocked = stSpCalculationRuns.filter((run) => ["SP-SC:AUTO_PARTS", "SP-RS:AUTO_PARTS", "SP-GO:AUTO_PARTS"].includes(run.key));
-  assert.equal(blocked.every((run) => run.status === "blocked_protocol_not_applicable" && run.output === null), true);
+  const blocked = stSpCalculationRuns.filter((run) => run.productCode === "REP-AUTO_PARTS" && run.status === "blocked_protocol_not_applicable");
+  assert.equal(blocked.length, 11);
+  assert.equal(blocked.every((run) => run.output === null), true);
+});
+
+test("destinations named by the current protocol use the correct MVA source", () => {
+  for (const uf of ["AL", "BA", "MT", "PI", "PR"]) {
+    const route = stAutoPartsPriorityRouteByDestination.get(uf);
+    assert.equal(route?.parameterMethod, "destination_internal_mva");
+    assert.equal(route?.mvaOriginalBps, null);
+  }
+  for (const uf of ["AC", "AP", "AM", "DF", "MA", "MG", "PA", "PB", "RJ", "RR"]) {
+    const route = stAutoPartsPriorityRouteByDestination.get(uf);
+    assert.equal(route?.parameterMethod, "protocol_mva");
+    assert.equal(route?.mvaOriginalBps, 7_178);
+  }
 });
 
 test("the RJ controlled auto-parts reference reproduces every cent", () => {

@@ -101,7 +101,7 @@ async function publicCoverage() {
       metrics: stAutoPartsPriorityBatchMetrics(),
       sources: stAutoPartsPrioritySources,
       routes: stAutoPartsPriorityRoutes,
-      policy: "A plataforma distingue acordo interestadual vigente de tratamento próprio do destino. Estar fora do Protocolo 41/08 não significa ausência de ICMS; significa que a responsabilidade, a base e o recolhimento não podem ser herdados desse acordo.",
+      policy: "As 26 rotas com origem em São Paulo foram confrontadas com a redação vigente do Protocolo 41/08. A plataforma distingue acordo interestadual vigente de tratamento próprio do destino; nenhum valor final é liberado sem parâmetros estaduais e fatos da operação.",
     },
     recurringScenarios,
     sources: coverageSources,

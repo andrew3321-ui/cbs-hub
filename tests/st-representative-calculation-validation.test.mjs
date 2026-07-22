@@ -19,7 +19,7 @@ test("all 650 calculation cells run and missing law never becomes a number", () 
   const metrics = stSpCalculationValidationMetrics();
   assert.deepEqual(validation.errors, []);
   assert.equal(validation.passed, true);
-  assert.deepEqual(metrics, { totalRuns: 650, referenceReproduced: 5, safelyBlocked: 645, failed: 0, representativeProducts: 25, cementAgreementScoped: 25, cementFixedMvaSourced: 19, cementDestinationLawMvaPending: 6, cementOutsideProtocol: 1, cementPriorityStates: 5, cementStateSources: 7, cementAdjustedMvaTables: 5, cementSyntheticReferences: 1, autoPartsPriorityRoutes: 6, autoPartsActiveAgreementRoutes: 3, autoPartsOutsideProtocolRoutes: 3, autoPartsSyntheticReferences: 1 });
+  assert.deepEqual(metrics, { totalRuns: 650, referenceReproduced: 5, safelyBlocked: 645, failed: 0, representativeProducts: 25, cementAgreementScoped: 25, cementFixedMvaSourced: 19, cementDestinationLawMvaPending: 6, cementOutsideProtocol: 1, cementPriorityStates: 5, cementStateSources: 7, cementAdjustedMvaTables: 5, cementSyntheticReferences: 1, autoPartsPriorityRoutes: 26, autoPartsActiveAgreementRoutes: 15, autoPartsOutsideProtocolRoutes: 11, autoPartsSyntheticReferences: 1 });
   assert.equal(stSpCalculationRuns.filter((run) => run.status.startsWith("blocked_")).every((run) => run.output === null && run.missingLegalInputs.length > 0), true);
   assert.equal(stSpCalculationRuns.filter((run) => run.status === "blocked_missing_legal_parameters").every((run) => run.missingLegalInputs.length === 7), true);
 });

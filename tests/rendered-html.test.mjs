@@ -411,7 +411,7 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
   assert.match(layout, /federal-pme\.css/);
 });
 
-test("versão 64 publica cobertura nacional com garantia automática e responsabilidade separada", async () => {
+test("versão 65 publica cobertura nacional com garantia automática e 26 rotas de autopeças", async () => {
   const [ui, domain, publicApi, calculatorApi, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
     readFile(new URL("domain/national-tax-coverage.ts", root), "utf8"),
@@ -426,7 +426,7 @@ test("versão 64 publica cobertura nacional com garantia automática e responsab
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 64 · GARANTIA AUTOMÁTICA SEM FALSA HOMOLOGAÇÃO/);
+  assert.match(ui, /VERSÃO 65 · 26 ROTAS DE AUTOPEÇAS CONTROLADAS/);
   assert.match(ui, /structuredCells} combinações estruturadas/);
   assert.match(publicApi, /stSpOriginMatrix/);
   assert.match(publicApi, /stSpCalculationValidation/);
@@ -438,8 +438,9 @@ test("versão 64 publica cobertura nacional com garantia automática e responsab
   assert.match(ui, /novos valores finais liberados/);
   assert.match(ui, /PMPF por GTIN antes da MVA/);
   assert.match(ui, /Somente o RJ possui memória sintética reproduzida/);
-  assert.match(ui, /Seis rotas comerciais sem herdar protocolo revogado/);
-  assert.match(ui, /SC, RS e GO estarem fora do protocolo não transforma a operação em isenta/);
+  assert.match(ui, /As 26 rotas separadas pelo acordo vigente/);
+  assert.match(ui, /Rota fora do Protocolo 41\/08 não significa isenção/);
+  assert.match(ui, /CEST 01\.015\.00 também fica fora deste protocolo/);
   assert.match(ui, /produtos representativos/);
   assert.match(ui, /stSpMg\.metrics\.legalGatesStructured/);
   assert.match(ui, /CÁLCULO VALIDADO/);

@@ -6,7 +6,7 @@ import { stCementSpRouteByDestination, stCementSpRouteMetrics } from "./st-cemen
 import { stCementPriorityBatchMetrics, stCementPriorityStateByDestination } from "./st-cement-priority-batch.ts";
 import { stAutoPartsPriorityBatchMetrics, stAutoPartsPriorityRouteByDestination } from "./st-auto-parts-priority-batch.ts";
 
-export const ST_SP_CALCULATION_VALIDATION_VERSION = "2026.07.21-v63";
+export const ST_SP_CALCULATION_VALIDATION_VERSION = "2026.07.22-v65";
 
 const products = new Map(stRepresentativeProducts.map((product) => [product.segmentCode, product]));
 const mgRules = new Map(stSpMgLegalPackages.filter((item) => item.representativeRule).map((item) => [item.segmentCode, item.representativeRule!]));
@@ -29,7 +29,7 @@ export const stSpCalculationRuns = stSpOriginCells.map((cell) => {
       output,
     };
   }
-  const autoPartsRoute = cell.segmentCode === "AUTO_PARTS" ? stAutoPartsPriorityRouteByDestination.get(cell.destination as "RJ" | "PR" | "SC" | "RS" | "GO" | "BA") : undefined;
+  const autoPartsRoute = cell.segmentCode === "AUTO_PARTS" ? stAutoPartsPriorityRouteByDestination.get(cell.destination) : undefined;
   if (autoPartsRoute) {
     if (autoPartsRoute.syntheticReference) {
       return {
@@ -142,8 +142,8 @@ export function validateStSpCalculationRuns() {
   if (stSpCalculationRuns.filter((run) => run.productCode === "REP-CEMENT" && run.status === "blocked_missing_destination_parameters").length !== 23) errors.push("cement_signatory_routes_except_mg_and_rj_must_remain_safely_blocked");
   if (stSpCalculationRuns.filter((run) => run.productCode === "REP-CEMENT" && run.status === "blocked_protocol_not_applicable").length !== 1) errors.push("cement_am_route_must_not_infer_protocol_applicability");
   if (stSpCalculationRuns.filter((run) => run.productCode === "REP-AUTO_PARTS" && run.status === "reference_reproduced").length !== 2) errors.push("auto_parts_only_mg_and_rj_references_can_be_reproduced");
-  if (stSpCalculationRuns.filter((run) => run.productCode === "REP-AUTO_PARTS" && run.status === "blocked_missing_destination_parameters").length !== 2) errors.push("auto_parts_pr_and_ba_must_wait_for_destination_parameters");
-  if (stSpCalculationRuns.filter((run) => run.productCode === "REP-AUTO_PARTS" && run.status === "blocked_protocol_not_applicable").length !== 3) errors.push("auto_parts_sc_rs_go_must_not_inherit_denounced_protocol");
+  if (stSpCalculationRuns.filter((run) => run.productCode === "REP-AUTO_PARTS" && run.status === "blocked_missing_destination_parameters").length !== 13) errors.push("auto_parts_active_routes_without_controlled_reference_must_wait_for_destination_parameters");
+  if (stSpCalculationRuns.filter((run) => run.productCode === "REP-AUTO_PARTS" && run.status === "blocked_protocol_not_applicable").length !== 11) errors.push("auto_parts_outside_routes_must_not_inherit_protocol_41");
   return { passed: errors.length === 0, errors };
 }
 
