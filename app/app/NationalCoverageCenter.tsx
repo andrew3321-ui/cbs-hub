@@ -6,12 +6,13 @@ type Status = "supported" | "partial" | "not_supported";
 type StateRow = { uf: string; name: string; region: string; status: Status; officialPortal: string; supported: string[]; blockers: string[] };
 type CityRow = { ibgeCode: string; city: string; uf: string; status: Status; rangeBps: [number, number]; depth: "structured" | "catalogued"; officialSourceCodes: string[]; structuredAt: string | null; supported: string[]; blockers: string[] };
 type Segment = { code: string; name: string; status: Status; routes: string[]; supported: string[]; blockers: string[] };
+type StSpMgPackage = { segmentCode: string; segmentName: string; route: "SP-MG"; mgChapter: string; mgChapterTitle: string; sourceUrl: string; sourceTitle: string; checkedAt: string; legalStatus: "calculation_validated" | "legal_gate_structured"; calculationMethod: "mva" | "pmpf_or_mva" | "special_regime" | "depends_on_product"; mandatoryFacts: string[]; representativeRule: null | { cest: string; ncm: string; description: string; mvaOriginalBps: number; agreementCode: string; effectiveFrom: string; sourceExcerpt: string }; blockers: string[] };
 type Scenario = { code: string; tax: string; title: string; status: Status; supported: string[]; blockers: string[] };
 type IssTechnicalReview = { status: "passed"; reviewerKind: "platform_technical_review"; reviewedAt: string; sourceCatalogReview: "reviewed"; rateReferenceStatus: "located_for_mapping" | "pending_exact_table"; passedChecks: string[]; professionalReview: "pending"; taxHomologation: "pending"; limitation: string };
 type IssDeepProfile = { code: string; ibgeCode: string; city: string; uf: string; stage: "structured"; sourceCodes: string[]; supportedOutputs: string[]; hardStops: string[]; technicalReview: IssTechnicalReview; placeOfIncidence: { generalRule: string; requiredFacts: string[] }; withholding: { conclusion: "requires_facts"; requiredFacts: string[] } };
 type IssDeepSource = { code: string; title: string; publisher: string; url: string; checkedAt: string; kind: "municipal_law" | "rate_table" | "operational_guidance" };
 type IssTechnicalEvidence = IssTechnicalReview & { profileCode: string; ibgeCode: string; evidenceHash: string };
-type Coverage = { version: string; checkedAt: string; fingerprint: string; metrics: { states: number; cities: number; deepIssCities: number; stSegments: number; recurringScenarios: number; supported: number; partial: number; notSupported: number; sourceCount: number }; states: StateRow[]; cities: CityRow[]; issDeep: { metrics: { structuredCities: number; officialSources: number; sourceCatalogReviewedCities: number; technicalGateValidatedCities: number; rateReferenceLocatedCities: number; testedCities: number; professionallyApprovedCities: number; automaticHomologation: false }; profiles: IssDeepProfile[]; sources: IssDeepSource[]; technicalEvidence: IssTechnicalEvidence[]; policy: string }; stSegments: Segment[]; recurringScenarios: Scenario[]; sources: Array<{ code: string; title: string; publisher: string; url: string }> };
+type Coverage = { version: string; checkedAt: string; fingerprint: string; metrics: { states: number; cities: number; deepIssCities: number; stSegments: number; recurringScenarios: number; supported: number; partial: number; notSupported: number; sourceCount: number }; states: StateRow[]; cities: CityRow[]; issDeep: { metrics: { structuredCities: number; officialSources: number; sourceCatalogReviewedCities: number; technicalGateValidatedCities: number; rateReferenceLocatedCities: number; testedCities: number; professionallyApprovedCities: number; automaticHomologation: false }; profiles: IssDeepProfile[]; sources: IssDeepSource[]; technicalEvidence: IssTechnicalEvidence[]; policy: string }; stSegments: Segment[]; stSpMg: { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; metrics: { totalSegments: number; legalGatesStructured: number; calculationsValidated: number; calculationsBlocked: number; officialSources: number }; packages: StSpMgPackage[]; policy: string }; recurringScenarios: Scenario[]; sources: Array<{ code: string; title: string; publisher: string; url: string }> };
 type Governance = { identity: { ruleCode: string; ruleVersion: string; ruleHash: string }; approval: null | { reviewerName: string; professionalRole: string; professionalRegistration: string; decidedAt: string; verified: boolean }; executionEnabled: boolean; canApprove: boolean; error?: string };
 type Monitor = { checkedAt: string; previousCheckedAt: string | null; rotation: { offset: number; totalSources: number; cycleDays: number }; metrics: { monitored: number; checkedToday: number; checked: number; unavailable: number; changeSignals: number }; sources: Array<{ code: string; title: string; url: string; status: "checked" | "unavailable"; changed: boolean; lastModified: string | null }>; policy: string; error?: string };
 type BatchResult = { batchId: string; metrics: { total: number; accepted: number; warning: number; blocked: number }; items: Array<{ filename: string; documentType: string; status: "accepted" | "warning" | "blocked"; sourceHash: string; issues: string[]; summary: Record<string, string | number | boolean | null> }>; message: string; error?: string };
@@ -61,6 +62,7 @@ export default function NationalCoverageCenter() {
   const issDeepProfiles = useMemo(() => new Map(coverage?.issDeep.profiles.map((item) => [item.ibgeCode, item]) ?? []), [coverage]);
   const issDeepSources = useMemo(() => new Map(coverage?.issDeep.sources.map((item) => [item.code, item]) ?? []), [coverage]);
   const issTechnicalEvidence = useMemo(() => new Map(coverage?.issDeep.technicalEvidence.map((item) => [item.ibgeCode, item]) ?? []), [coverage]);
+  const stSpMgPackages = useMemo(() => new Map(coverage?.stSpMg.packages.map((item) => [item.segmentCode, item]) ?? []), [coverage]);
 
   const calculateIcms = async (event: FormEvent) => {
     event.preventDefault(); setBusy("icms"); setError(""); setIcmsResult(null);
@@ -91,7 +93,7 @@ export default function NationalCoverageCenter() {
 
   return <div className="national-coverage-center">
     <section className="coverage-hero">
-      <div><span>VERSÃO 53 · REVISÃO TÉCNICA RASTREÁVEL</span><h1>O que o Margem Clara realmente suporta</h1><p>ICMS, ST, ISS, tributos federais, Reforma, documentos e mudanças normativas em uma matriz pública — sem esconder os cenários ainda parciais.</p></div>
+      <div><span>VERSÃO 57 · MATRIZ ST SP→MG</span><h1>O que o Margem Clara realmente suporta</h1><p>ICMS, ST, ISS, tributos federais, Reforma, documentos e mudanças normativas em uma matriz pública — sem esconder os cenários ainda parciais.</p></div>
       <div className="coverage-hero-proof"><small>BASE VERSIONADA</small><b>#{coverage.fingerprint}</b><span>{new Date(`${coverage.checkedAt}T12:00:00`).toLocaleDateString("pt-BR")}</span></div>
     </section>
 
@@ -114,7 +116,7 @@ export default function NationalCoverageCenter() {
       <div className="coverage-summary-grid">
         <article><span>27</span><h3>Estados e Distrito Federal</h3><p>Rotas interestaduais nacionais e acesso direto ao portal oficial de cada UF.</p><b>Todos parciais até homologar alíquota interna, produto e exceções.</b></article>
         <article><span>{coverage.metrics.deepIssCities}</span><h3>ISS profundo estruturado</h3><p>Fontes municipais, classificadores, incidência, retenção e portão da alíquota exata.</p><b>Estruturado ainda não significa testado ou homologado.</b></article>
-        <article><span>8</span><h3>Segmentos de ST</h3><p>Autopeças avança com rota profunda SP→MG; demais funis já exigem NCM/CEST e fatos.</p><b>Protocolos por rota ainda são homologados individualmente.</b></article>
+        <article><span>{coverage.stSpMg.metrics.legalGatesStructured}</span><h3>Dossiês legais ST SP→MG</h3><p>Os 25 segmentos têm capítulo oficial, fonte e fatos obrigatórios estruturados.</p><b>{coverage.stSpMg.metrics.calculationsValidated} cálculo validado · {coverage.stSpMg.metrics.calculationsBlocked} bloqueados até completar a regra do item.</b></article>
         <article><span>Diário</span><h3>Monitor de fontes</h3><p>A primeira abertura do dia confere um lote rotativo de fontes primárias e compara cada uma com sua captura anterior.</p><b>O ciclo completo preserva recursos e nenhum sinal altera regra automaticamente.</b></article>
       </div>
       <div className="coverage-public-note"><span>INDICADOR PÚBLICO</span><p>Esta mesma matriz pode ser consultada sem login em <code>/api/public/coverage</code>. Clientes e parceiros conseguem verificar o que é suportado antes de confiar uma operação à plataforma.</p></div>
@@ -135,7 +137,15 @@ export default function NationalCoverageCenter() {
       </div>
       <div className="coverage-column">
         <div className="coverage-section-heading"><span>SEGMENTOS PRIORITÁRIOS</span><h2>Substituição tributária profunda</h2><p>Cada segmento informa com transparência o que já entra na memória e o que ainda bloqueia a conclusão.</p></div>
-        <div className="segment-stack">{coverage.stSegments.map((item) => <article key={item.code}><header><div><small>{item.code}</small><h3>{item.name}</h3></div><StatusPill status={item.status} /></header><div><b>Rotas</b><span>{item.routes.join(" · ")}</span></div><details><summary>Ver cobertura e bloqueios</summary><p><b>Suportado agora</b>{item.supported.join(" · ")}</p><p><b>Antes de concluir</b>{item.blockers.join(" · ")}</p></details></article>)}</div>
+        <section className="st-sp-mg-assurance">
+          <div><span>MATRIZ SP→MG · {coverage.stSpMg.version}</span><b>{coverage.stSpMg.metrics.legalGatesStructured}/25 dossiês legais íntegros</b><p>{coverage.stSpMg.policy}</p></div>
+          <div><strong>{coverage.stSpMg.metrics.calculationsValidated}</strong><span>cálculo com regra representativa validada</span><strong>{coverage.stSpMg.metrics.calculationsBlocked}</strong><span>valores finais bloqueados com segurança</span></div>
+          <code>#{coverage.stSpMg.fingerprint}</code>
+        </section>
+        <div className="segment-stack">{coverage.stSegments.map((item) => {
+          const legal = stSpMgPackages.get(item.code);
+          return <article key={item.code}><header><div><small>{item.code}</small><h3>{item.name}</h3></div><span className={`st-legal-status ${legal?.legalStatus ?? "legal_gate_structured"}`}>{legal?.legalStatus === "calculation_validated" ? "CÁLCULO VALIDADO" : "PORTÃO LEGAL"}</span></header><div><b>Rota controlada</b><span>SP → MG · capítulo {legal?.mgChapter ?? "—"} · {legal?.mgChapterTitle ?? "mapeamento pendente"}</span></div><details><summary>Ver dados legais e bloqueios</summary>{legal && <><p><b>Fonte oficial</b><a href={legal.sourceUrl} target="_blank" rel="noreferrer">{legal.sourceTitle} ↗</a></p><p><b>Fatos obrigatórios ({legal.mandatoryFacts.length})</b>{legal.mandatoryFacts.join(" · ")}</p>{legal.representativeRule && <p><b>Regra representativa validada</b>CEST {legal.representativeRule.cest} · NCM {legal.representativeRule.ncm} · MVA original {(legal.representativeRule.mvaOriginalBps / 100).toFixed(2).replace(".", ",")}% · {legal.representativeRule.agreementCode}</p>}<p><b>Antes de concluir</b>{legal.blockers.join(" · ")}</p></>}</details></article>;
+        })}</div>
       </div>
     </section>}
 
