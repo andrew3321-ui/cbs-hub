@@ -28,13 +28,13 @@ test("all cement identities and protocol-derived fields are frozen", () => {
   assert.equal(stCementSpRoutes.find((route) => route.destination === "AM")?.mvaOriginalBps, null);
 });
 
-test("legal enrichment never leaks a new final calculation", () => {
+test("state enrichment releases only the controlled RJ synthetic reference", () => {
   const cementRuns = stSpCalculationRuns.filter((run) => run.productCode === "REP-CEMENT");
   assert.equal(cementRuns.length, 26);
-  assert.equal(cementRuns.filter((run) => run.status === "reference_reproduced").length, 1);
-  assert.equal(cementRuns.filter((run) => run.status === "blocked_missing_destination_parameters").length, 24);
+  assert.equal(cementRuns.filter((run) => run.status === "reference_reproduced").length, 2);
+  assert.equal(cementRuns.filter((run) => run.status === "blocked_missing_destination_parameters").length, 23);
   assert.equal(cementRuns.filter((run) => run.status === "blocked_protocol_not_applicable").length, 1);
-  assert.equal(cementRuns.filter((run) => run.key !== "SP-MG:CEMENT").every((run) => run.output === null && run.missingLegalInputs.length > 0), true);
+  assert.equal(cementRuns.filter((run) => !["SP-MG:CEMENT", "SP-RJ:CEMENT"].includes(run.key)).every((run) => run.output === null && run.missingLegalInputs.length > 0), true);
 });
 
 test("cement route ledger is tamper evident", async () => {
