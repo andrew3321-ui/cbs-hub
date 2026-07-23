@@ -411,12 +411,14 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
   assert.match(layout, /federal-pme\.css/);
 });
 
-test("versão 67 publica cobertura nacional com motor temporal de autopeças", async () => {
-  const [ui, domain, publicApi, calculatorApi, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
+test("versão 68 publica cobertura nacional com bebidas por produto, rota e data", async () => {
+  const [ui, domain, publicApi, calculatorApi, beverageApi, beverageDomain, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
     readFile(new URL("domain/national-tax-coverage.ts", root), "utf8"),
     readFile(new URL("app/api/public/coverage/route.ts", root), "utf8"),
     readFile(new URL("app/api/national-coverage/route.ts", root), "utf8"),
+    readFile(new URL("app/api/national-coverage/beverages/route.ts", root), "utf8"),
+    readFile(new URL("domain/st-cold-beverages-priority.ts", root), "utf8"),
     readFile(new URL("app/api/fiscal-imports/route.ts", root), "utf8"),
     readFile(new URL("app/api/normative-monitor/route.ts", root), "utf8"),
     readFile(new URL("app/api/rule-governance/route.ts", root), "utf8"),
@@ -426,7 +428,9 @@ test("versão 67 publica cobertura nacional com motor temporal de autopeças", a
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 67 · MOTOR TEMPORAL DE AUTOPEÇAS/);
+  assert.match(ui, /VERSÃO 68 · BEBIDAS POR PRODUTO, ROTA E DATA/);
+  assert.match(ui, /Enquadrar bebida sem inventar alíquota/);
+  assert.match(ui, /Ver os 24 sentidos para o produto selecionado/);
   assert.match(ui, /CALCULADORA TEMPORAL/);
   assert.match(ui, /Confirme os oito fatos documentados/);
   assert.match(ui, /structuredCells} combinações estruturadas/);
@@ -436,6 +440,10 @@ test("versão 67 publica cobertura nacional com motor temporal de autopeças", a
   assert.match(publicApi, /stCementPriorityBatch/);
   assert.match(publicApi, /stAutoPartsPriorityBatch/);
   assert.match(publicApi, /stAutoPartsHighUseCorridors/);
+  assert.match(publicApi, /stColdBeveragesPriority/);
+  assert.match(beverageApi, /resolveColdBeveragePriorityOperation/);
+  assert.match(beverageDomain, /ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM/);
+  assert.match(beverageDomain, /productRouteCells/);
   assert.match(publicApi, /automaticAssurance/);
   assert.match(ui, /Uma base legal, 26 rotas controladas/);
   assert.match(ui, /novos valores finais liberados/);

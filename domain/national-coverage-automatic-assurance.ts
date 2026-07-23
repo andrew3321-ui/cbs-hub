@@ -7,8 +7,9 @@ import { hashStCementSpRoutes, validateStCementSpRoutes } from "./st-cement-sp-r
 import { hashStCementPriorityBatch, validateStCementPriorityBatch } from "./st-cement-priority-batch.ts";
 import { hashStAutoPartsPriorityBatch, validateStAutoPartsPriorityBatch } from "./st-auto-parts-priority-batch.ts";
 import { hashStAutoPartsHighUseCorridors, validateStAutoPartsHighUseCorridors } from "./st-auto-parts-high-use-corridors.ts";
+import { hashStColdBeveragePriority, validateStColdBeveragePriority } from "./st-cold-beverages-priority.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.22-v67";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.22-v68";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-22";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -27,6 +28,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("CEMENT_PRIORITY_BATCH", "Lote estadual de cimento", validateStCementPriorityBatch()),
     moduleResult("AUTO_PARTS_PRIORITY_BATCH", "Lote prioritário de autopeças", validateStAutoPartsPriorityBatch()),
     moduleResult("AUTO_PARTS_HIGH_USE_CORRIDORS", "Corredores bidirecionais de autopeças", validateStAutoPartsHighUseCorridors()),
+    moduleResult("COLD_BEVERAGES_PRIORITY", "Bebidas frias por produto, rota e data", validateStColdBeveragePriority()),
   ];
   const calculation = stSpCalculationValidationMetrics();
   const errors = modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`));
@@ -64,6 +66,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStCementPriorityBatch(),
     hashStAutoPartsPriorityBatch(),
     hashStAutoPartsHighUseCorridors(),
+    hashStColdBeveragePriority(),
   ]);
   const payload = JSON.stringify({ version: NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, moduleHashes });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
