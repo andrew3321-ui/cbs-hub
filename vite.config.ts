@@ -5,21 +5,37 @@ import { sites } from "./build/sites-vite-plugin";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
+const MARGEM_CLARA_PRODUCTION_DATABASE_ID =
+  "ce069e8f-9efb-4142-8a76-0721bfb04a1c";
 
 const { d1, r2 } = hostingConfig;
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
+// Cloudflare injects WORKERS_CI=1 only in Workers Builds. Keep the OpenAI
+// preview binding isolated while using the real external D1 during CI deploys.
+const isCloudflareWorkersBuild = process.env.WORKERS_CI === "1";
 
 const localBindingConfig = {
+  ...(isCloudflareWorkersBuild
+    ? {
+        name: "margem-clara",
+        compatibility_date: "2026-07-25",
+      }
+    : {}),
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
   d1_databases: d1
     ? [
         {
           binding: d1,
-          database_name: "site-creator-d1",
-          database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          database_name: isCloudflareWorkersBuild
+            ? "margem-clara-production"
+            : "site-creator-d1",
+          database_id: isCloudflareWorkersBuild
+            ? MARGEM_CLARA_PRODUCTION_DATABASE_ID
+            : SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
+          ...(isCloudflareWorkersBuild ? { migrations_dir: "./drizzle" } : {}),
         },
       ]
     : [],
