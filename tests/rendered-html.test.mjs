@@ -411,14 +411,16 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
   assert.match(layout, /federal-pme\.css/);
 });
 
-test("versão 68 publica cobertura nacional com bebidas por produto, rota e data", async () => {
-  const [ui, domain, publicApi, calculatorApi, beverageApi, beverageDomain, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
+test("versão 69 publica cobertura nacional com PMPF de bebidas destinado a São Paulo", async () => {
+  const [ui, domain, publicApi, calculatorApi, beverageApi, beverageSpApi, beverageDomain, beverageSpDomain, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
     readFile(new URL("domain/national-tax-coverage.ts", root), "utf8"),
     readFile(new URL("app/api/public/coverage/route.ts", root), "utf8"),
     readFile(new URL("app/api/national-coverage/route.ts", root), "utf8"),
     readFile(new URL("app/api/national-coverage/beverages/route.ts", root), "utf8"),
+    readFile(new URL("app/api/national-coverage/beverages/sp-destination/route.ts", root), "utf8"),
     readFile(new URL("domain/st-cold-beverages-priority.ts", root), "utf8"),
+    readFile(new URL("domain/st-cold-beverages-sp-destination.ts", root), "utf8"),
     readFile(new URL("app/api/fiscal-imports/route.ts", root), "utf8"),
     readFile(new URL("app/api/normative-monitor/route.ts", root), "utf8"),
     readFile(new URL("app/api/rule-governance/route.ts", root), "utf8"),
@@ -428,7 +430,9 @@ test("versão 68 publica cobertura nacional com bebidas por produto, rota e data
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 68 · BEBIDAS POR PRODUTO, ROTA E DATA/);
+  assert.match(ui, /VERSÃO 69 · BEBIDAS COM DESTINO A SP/);
+  assert.match(ui, /PMPF vigente com memória em centavos/);
+  assert.match(ui, /Confirme os nove fatos documentados/);
   assert.match(ui, /Enquadrar bebida sem inventar alíquota/);
   assert.match(ui, /Ver os 24 sentidos para o produto selecionado/);
   assert.match(ui, /CALCULADORA TEMPORAL/);
@@ -441,9 +445,13 @@ test("versão 68 publica cobertura nacional com bebidas por produto, rota e data
   assert.match(publicApi, /stAutoPartsPriorityBatch/);
   assert.match(publicApi, /stAutoPartsHighUseCorridors/);
   assert.match(publicApi, /stColdBeveragesPriority/);
+  assert.match(publicApi, /stColdBeveragesSpDestination/);
   assert.match(beverageApi, /resolveColdBeveragePriorityOperation/);
+  assert.match(beverageSpApi, /resolveColdBeverageSpDestinationOperation/);
   assert.match(beverageDomain, /ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM/);
   assert.match(beverageDomain, /productRouteCells/);
+  assert.match(beverageSpDomain, /ST_COLD_BEVERAGES_SP_PMPF_PROFILES/);
+  assert.match(beverageSpDomain, /pmpf_fallback_required/);
   assert.match(publicApi, /automaticAssurance/);
   assert.match(ui, /Uma base legal, 26 rotas controladas/);
   assert.match(ui, /novos valores finais liberados/);

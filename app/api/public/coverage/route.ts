@@ -9,6 +9,7 @@ import { hashStCementPriorityBatch, stCementPriorityBatchMetrics, stCementPriori
 import { hashStAutoPartsPriorityBatch, stAutoPartsPriorityBatchMetrics, stAutoPartsPriorityRoutes, stAutoPartsPrioritySources, ST_AUTO_PARTS_PRIORITY_BATCH_VERSION, validateStAutoPartsPriorityBatch } from "../../../../domain/st-auto-parts-priority-batch";
 import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, stAutoPartsHighUseRoutes, stAutoPartsHighUseSources, ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION, ST_AUTO_PARTS_OPERATION_FACT_LABELS, ST_AUTO_PARTS_SP_EXCLUSION_FROM, ST_AUTO_PARTS_SUPPORTED_PERIOD, validateStAutoPartsHighUseCorridors } from "../../../../domain/st-auto-parts-high-use-corridors";
 import { hashStColdBeveragePriority, stColdBeverageApplicabilityMatrix, stColdBeverageMetrics, stColdBeverageRoutes, stColdBeverageSources, ST_COLD_BEVERAGE_OPERATION_FACT_LABELS, ST_COLD_BEVERAGE_PRODUCTS, ST_COLD_BEVERAGES_PRIORITY_VERSION, ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM, ST_COLD_BEVERAGES_SUPPORTED_PERIOD, validateStColdBeveragePriority } from "../../../../domain/st-cold-beverages-priority";
+import { hashStColdBeverageSpDestination, stColdBeverageSpDestinationMetrics, stColdBeverageSpReferenceRuns, stColdBeverageSpSources, ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD, ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES, ST_COLD_BEVERAGES_SP_DESTINATION_VERSION, ST_COLD_BEVERAGES_SP_FACT_LABELS, ST_COLD_BEVERAGES_SP_PMPF_PROFILES, validateStColdBeverageSpDestination } from "../../../../domain/st-cold-beverages-sp-destination";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
@@ -26,6 +27,7 @@ async function publicCoverage() {
   const autoPartsPriorityFingerprint = (await hashStAutoPartsPriorityBatch()).slice(0, 12);
   const autoPartsHighUseFingerprint = (await hashStAutoPartsHighUseCorridors()).slice(0, 12);
   const coldBeveragesFingerprint = (await hashStColdBeveragePriority()).slice(0, 12);
+  const coldBeveragesSpFingerprint = (await hashStColdBeverageSpDestination()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   return Response.json({
     version: NATIONAL_COVERAGE_VERSION,
@@ -131,7 +133,20 @@ async function publicCoverage() {
       sources: stColdBeverageSources,
       routes: stColdBeverageRoutes,
       applicability: stColdBeverageApplicabilityMatrix,
-      policy: "A prioridade dos corredores é uma heurística operacional interna, não estatística oficial de NF-e. Cada sentido e produto é conferido separadamente; bebida fria nunca recebe alíquota genérica e nenhum valor é exibido sem PMPF/pauta ou MVA vigente do destino.",
+      policy: "A prioridade dos corredores é uma heurística operacional interna, não estatística oficial de NF-e. Cada sentido e produto é conferido separadamente; 35 memórias paulistas usam perfis exatos da pauta vigente e todas as demais combinações continuam bloqueadas.",
+    },
+    stColdBeveragesSpDestination: {
+      version: ST_COLD_BEVERAGES_SP_DESTINATION_VERSION,
+      fingerprint: coldBeveragesSpFingerprint,
+      validation: validateStColdBeverageSpDestination(),
+      metrics: stColdBeverageSpDestinationMetrics(),
+      supportedPeriod: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD,
+      factLabels: ST_COLD_BEVERAGES_SP_FACT_LABELS,
+      routes: ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES,
+      profiles: ST_COLD_BEVERAGES_SP_PMPF_PROFILES,
+      runs: stColdBeverageSpReferenceRuns,
+      sources: stColdBeverageSpSources,
+      policy: "Escopo fechado somente para cinco perfis de “Demais marcas não listadas”, sete origens prioritárias e operações de regime normal entre 01/07 e 31/12/2026. Marca listada, água, Simples Nacional, valor próprio a partir de 90% do PMPF ou qualquer fato divergente bloqueiam o número.",
     },
     recurringScenarios,
     sources: coverageSources,

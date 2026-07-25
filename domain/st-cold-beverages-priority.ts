@@ -1,5 +1,5 @@
-export const ST_COLD_BEVERAGES_PRIORITY_VERSION = "2026.07.22-v68";
-export const ST_COLD_BEVERAGES_PRIORITY_CHECKED_AT = "2026-07-22";
+export const ST_COLD_BEVERAGES_PRIORITY_VERSION = "2026.07.25-v69";
+export const ST_COLD_BEVERAGES_PRIORITY_CHECKED_AT = "2026-07-25";
 export const ST_COLD_BEVERAGES_SUPPORTED_PERIOD = { from: "2026-01-01", to: "2026-12-31" } as const;
 export const ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM = "2026-07-01" as const;
 
@@ -69,20 +69,20 @@ export const stColdBeverageSources: ColdBeverageSource[] = [
     proves: ["identidades nacionais de CEST, NCM e descrição das seis famílias representativas"],
   },
   {
-    code: "SP-SRE-89-2025-BEVERAGES",
-    title: "Portaria SRE 89/2025 — PMPF e IVA-ST de bebidas",
+    code: "SP-SRE-27-2026-BEVERAGES",
+    title: "Portaria SRE 27/2026 — PMPF e IVA-ST de bebidas",
     publisher: "SEFAZ-SP",
-    url: "https://legislacao.fazenda.sp.gov.br/Paginas/Portaria-SRE-89-de-2025.aspx",
+    url: "https://legislacao.fazenda.sp.gov.br/Paginas/Portaria-SRE-27-de-2026.aspx",
     checkedAt: ST_COLD_BEVERAGES_PRIORITY_CHECKED_AT,
-    proves: ["PMPF por marca, embalagem e tamanho", "IVA-ST de refrigerantes quando cabível", "tabelas de energéticos e hidroeletrolíticos"],
+    proves: ["PMPF vigente de 01/07/2026 a 31/12/2026 por marca, embalagem e tamanho", "IVA-ST quando o PMPF não puder ser usado", "trava quando a operação própria atinge 90% da pauta"],
   },
   {
-    code: "SP-SRE-2-2026-BEVERAGES",
-    title: "Portaria SRE 2/2026 — atualização da pauta paulista",
+    code: "SP-RICMS-293-294-BEVERAGES",
+    title: "RICMS/SP — artigos 293 e 294",
     publisher: "SEFAZ-SP",
-    url: "https://legislacao.fazenda.sp.gov.br/Paginas/Portaria-SRE-2-de-2026.aspx",
+    url: "https://legislacao.fazenda.sp.gov.br/Paginas/art293.aspx",
     checkedAt: ST_COLD_BEVERAGES_PRIORITY_CHECKED_AT,
-    proves: ["novos itens e preços com efeitos a partir de 1º de abril de 2026"],
+    proves: ["sujeição passiva por substituição no destino paulista", "equiparação de energéticos e isotônicos a refrigerantes", "IVA-ST divulgado pela SEFAZ-SP"],
   },
   {
     code: "MG-RICMS-ANNEX-VII-BEVERAGES",
@@ -135,7 +135,7 @@ function buildRoute(corridorRank: number, origin: ColdBeverageUf, destination: C
     sourceCodes: [
       "CONFAZ-PROTOCOL-11-1991",
       "CONFAZ-CONV-142-2018-ANNEX-IV",
-      ...(destination === "SP" ? ["SP-SRE-89-2025-BEVERAGES", "SP-SRE-2-2026-BEVERAGES"] : []),
+      ...(destination === "SP" ? ["SP-SRE-27-2026-BEVERAGES", "SP-RICMS-293-294-BEVERAGES"] : []),
       ...(destination === "MG" ? ["MG-RICMS-ANNEX-VII-BEVERAGES"] : []),
     ],
   };
@@ -268,7 +268,7 @@ export function stColdBeverageMetrics() {
     productRouteCells: stColdBeverageApplicabilityMatrix.length,
     protocolScopedCells: scoped,
     explicitExceptionCells: exceptions,
-    finalCalculationsReleased: 0,
+    finalCalculationsReleased: 35,
     officialSources: stColdBeverageSources.length,
   };
 }

@@ -1,0 +1,58 @@
+import {
+  resolveColdBeverageSpDestinationOperation,
+  ST_COLD_BEVERAGES_SP_DESTINATION_VERSION,
+  type ColdBeverageSpFacts,
+  type ColdBeverageSpOperationInput,
+} from "../../../../../domain/st-cold-beverages-sp-destination";
+import { validateNationalCoverageAutomatically } from "../../../../../domain/national-coverage-automatic-assurance";
+import { withApiTelemetry } from "../../../../api-infrastructure";
+import { getCurrentUser } from "../../../../auth";
+import { withWorkspaceFeature } from "../../../../plan-entitlements";
+import { getWorkspaceContext } from "../../../../workspace";
+
+async function calculateSpDestinationBeverage(request: Request) {
+  const user = await getCurrentUser();
+  if (!user) return Response.json({ error: "Faça login para calcular a referência paulista de bebidas." }, { status: 401 });
+  const workspace = await getWorkspaceContext(user.id);
+  if (!workspace) return Response.json({ error: "Espaço contábil não encontrado." }, { status: 403 });
+  const assurance = validateNationalCoverageAutomatically();
+  if (assurance.status !== "automatically_verified") {
+    return Response.json({
+      error: "Execução bloqueada: a verificação automática encontrou uma falha de integridade na base.",
+      code: "automatic_assurance_failed",
+      details: assurance.errors,
+    }, { status: 503 });
+  }
+  try {
+    const body = await request.json() as Record<string, unknown>;
+    const rawFacts = body.facts && typeof body.facts === "object" ? body.facts as Record<string, unknown> : {};
+    const facts = Object.fromEntries(
+      Object.entries(rawFacts).map(([key, value]) => [key, value === true]),
+    ) as ColdBeverageSpFacts;
+    const input: ColdBeverageSpOperationInput = {
+      route: String(body.route ?? ""),
+      profileCode: String(body.profileCode ?? ""),
+      operationDate: String(body.operationDate ?? ""),
+      quantityUnits: Number(body.quantityUnits),
+      operationCents: Number(body.operationCents),
+      ownIcmsBaseCents: Number(body.ownIcmsBaseCents),
+      importedQualified: body.importedQualified === true,
+      facts,
+    };
+    const result = resolveColdBeverageSpDestinationOperation(input);
+    return Response.json({
+      result,
+      rule: {
+        version: ST_COLD_BEVERAGES_SP_DESTINATION_VERSION,
+        assurance: assurance.status,
+      },
+    }, { headers: { "Cache-Control": "no-store" } });
+  } catch {
+    return Response.json({ error: "Não foi possível ler os fatos da operação paulista de bebidas." }, { status: 400 });
+  }
+}
+
+export const POST = withApiTelemetry(
+  "POST /api/national-coverage/beverages/sp-destination",
+  withWorkspaceFeature("nationalCoverageEnabled", calculateSpDestinationBeverage),
+);

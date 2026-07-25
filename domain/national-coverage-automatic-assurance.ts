@@ -8,9 +8,10 @@ import { hashStCementPriorityBatch, validateStCementPriorityBatch } from "./st-c
 import { hashStAutoPartsPriorityBatch, validateStAutoPartsPriorityBatch } from "./st-auto-parts-priority-batch.ts";
 import { hashStAutoPartsHighUseCorridors, validateStAutoPartsHighUseCorridors } from "./st-auto-parts-high-use-corridors.ts";
 import { hashStColdBeveragePriority, validateStColdBeveragePriority } from "./st-cold-beverages-priority.ts";
+import { hashStColdBeverageSpDestination, validateStColdBeverageSpDestination } from "./st-cold-beverages-sp-destination.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.22-v68";
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-22";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.25-v69";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-25";
 
 type Validation = { passed: boolean; errors: string[] };
 
@@ -29,6 +30,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("AUTO_PARTS_PRIORITY_BATCH", "Lote prioritário de autopeças", validateStAutoPartsPriorityBatch()),
     moduleResult("AUTO_PARTS_HIGH_USE_CORRIDORS", "Corredores bidirecionais de autopeças", validateStAutoPartsHighUseCorridors()),
     moduleResult("COLD_BEVERAGES_PRIORITY", "Bebidas frias por produto, rota e data", validateStColdBeveragePriority()),
+    moduleResult("COLD_BEVERAGES_SP_DESTINATION", "PMPF de bebidas com destino a São Paulo", validateStColdBeverageSpDestination()),
   ];
   const calculation = stSpCalculationValidationMetrics();
   const errors = modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`));
@@ -67,6 +69,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStAutoPartsPriorityBatch(),
     hashStAutoPartsHighUseCorridors(),
     hashStColdBeveragePriority(),
+    hashStColdBeverageSpDestination(),
   ]);
   const payload = JSON.stringify({ version: NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, moduleHashes });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));

@@ -13,7 +13,7 @@ import {
   validateStColdBeveragePriority,
 } from "../domain/st-cold-beverages-priority.ts";
 
-test("V68 structures 144 beverage product-route cells without releasing unsafe totals", () => {
+test("V69 keeps 144 directional cells and releases only the 35 separately controlled SP memories", () => {
   assert.deepEqual(validateStColdBeveragePriority(), { passed: true, errors: [] });
   assert.deepEqual(stColdBeverageMetrics(), {
     corridors: 12,
@@ -22,7 +22,7 @@ test("V68 structures 144 beverage product-route cells without releasing unsafe t
     productRouteCells: 144,
     protocolScopedCells: 125,
     explicitExceptionCells: 19,
-    finalCalculationsReleased: 0,
+    finalCalculationsReleased: 35,
     officialSources: 5,
   });
   assert.equal(stColdBeverageApplicabilityMatrix.length, stColdBeverageRoutes.length * ST_COLD_BEVERAGE_PRODUCTS.length);
