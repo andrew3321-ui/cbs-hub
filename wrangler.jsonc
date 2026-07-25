@@ -1,0 +1,13 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "margem-clara",
+  "compatibility_date": "2026-07-25",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "margem-clara-production",
+      "database_id": "ce069e8f-9efb-4142-8a76-0721bfb04a1c",
+      "migrations_dir": "./drizzle"
+    }
+  ]
+}
