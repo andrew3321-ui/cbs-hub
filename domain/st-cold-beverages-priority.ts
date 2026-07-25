@@ -1,4 +1,4 @@
-export const ST_COLD_BEVERAGES_PRIORITY_VERSION = "2026.07.25-v69";
+export const ST_COLD_BEVERAGES_PRIORITY_VERSION = "2026.07.25-v70";
 export const ST_COLD_BEVERAGES_PRIORITY_CHECKED_AT = "2026-07-25";
 export const ST_COLD_BEVERAGES_SUPPORTED_PERIOD = { from: "2026-01-01", to: "2026-12-31" } as const;
 export const ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM = "2026-07-01" as const;
@@ -268,7 +268,7 @@ export function stColdBeverageMetrics() {
     productRouteCells: stColdBeverageApplicabilityMatrix.length,
     protocolScopedCells: scoped,
     explicitExceptionCells: exceptions,
-    finalCalculationsReleased: 35,
+    finalCalculationsReleased: 45,
     officialSources: stColdBeverageSources.length,
   };
 }

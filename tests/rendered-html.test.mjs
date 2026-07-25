@@ -411,16 +411,18 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
   assert.match(layout, /federal-pme\.css/);
 });
 
-test("versão 69 publica cobertura nacional com PMPF de bebidas destinado a São Paulo", async () => {
-  const [ui, domain, publicApi, calculatorApi, beverageApi, beverageSpApi, beverageDomain, beverageSpDomain, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
+test("versão 70 publica PMPF de bebidas destinado a São Paulo e nas rotas SP→MG/RJ", async () => {
+  const [ui, domain, publicApi, calculatorApi, beverageApi, beverageSpApi, beverageSpOriginApi, beverageDomain, beverageSpDomain, beverageSpOriginDomain, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
     readFile(new URL("domain/national-tax-coverage.ts", root), "utf8"),
     readFile(new URL("app/api/public/coverage/route.ts", root), "utf8"),
     readFile(new URL("app/api/national-coverage/route.ts", root), "utf8"),
     readFile(new URL("app/api/national-coverage/beverages/route.ts", root), "utf8"),
     readFile(new URL("app/api/national-coverage/beverages/sp-destination/route.ts", root), "utf8"),
+    readFile(new URL("app/api/national-coverage/beverages/sp-origin/route.ts", root), "utf8"),
     readFile(new URL("domain/st-cold-beverages-priority.ts", root), "utf8"),
     readFile(new URL("domain/st-cold-beverages-sp-destination.ts", root), "utf8"),
+    readFile(new URL("domain/st-cold-beverages-sp-origin.ts", root), "utf8"),
     readFile(new URL("app/api/fiscal-imports/route.ts", root), "utf8"),
     readFile(new URL("app/api/normative-monitor/route.ts", root), "utf8"),
     readFile(new URL("app/api/rule-governance/route.ts", root), "utf8"),
@@ -430,8 +432,10 @@ test("versão 69 publica cobertura nacional com PMPF de bebidas destinado a São
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 69 · BEBIDAS COM DESTINO A SP/);
+  assert.match(ui, /VERSÃO 70 · NOVAS ROTAS SP→MG E SP→RJ/);
   assert.match(ui, /PMPF vigente com memória em centavos/);
+  assert.match(ui, /Novas rotas com PMPF de MG e RJ/);
+  assert.match(ui, /ICMS-ST \+ adicional estadual/);
   assert.match(ui, /Confirme os nove fatos documentados/);
   assert.match(ui, /Enquadrar bebida sem inventar alíquota/);
   assert.match(ui, /Ver os 24 sentidos para o produto selecionado/);
@@ -446,12 +450,17 @@ test("versão 69 publica cobertura nacional com PMPF de bebidas destinado a São
   assert.match(publicApi, /stAutoPartsHighUseCorridors/);
   assert.match(publicApi, /stColdBeveragesPriority/);
   assert.match(publicApi, /stColdBeveragesSpDestination/);
+  assert.match(publicApi, /stColdBeveragesSpOrigin/);
   assert.match(beverageApi, /resolveColdBeveragePriorityOperation/);
   assert.match(beverageSpApi, /resolveColdBeverageSpDestinationOperation/);
+  assert.match(beverageSpOriginApi, /resolveColdBeverageSpOriginOperation/);
   assert.match(beverageDomain, /ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM/);
   assert.match(beverageDomain, /productRouteCells/);
   assert.match(beverageSpDomain, /ST_COLD_BEVERAGES_SP_PMPF_PROFILES/);
   assert.match(beverageSpDomain, /pmpf_fallback_required/);
+  assert.match(beverageSpOriginDomain, /fallbackComparison/);
+  assert.match(beverageSpOriginDomain, /MG_COCA_COLA_PET_2000/);
+  assert.match(beverageSpOriginDomain, /RJ_GATORADE_PET_401_660/);
   assert.match(publicApi, /automaticAssurance/);
   assert.match(ui, /Uma base legal, 26 rotas controladas/);
   assert.match(ui, /novos valores finais liberados/);

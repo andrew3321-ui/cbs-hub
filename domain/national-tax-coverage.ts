@@ -1,6 +1,6 @@
 import { issDeepCityProfiles, issDeepProfileByIbge, issDeepSources } from "./iss-deep-coverage.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.25-v69";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.25-v70";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-25";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
@@ -46,7 +46,7 @@ export const stateCoverage: StateCoverage[] = [
 
 export const stSegments: SegmentCoverage[] = [
   { code: "AUTO_PARTS", name: "Autopeças", status: "partial", routes: ["26 destinos com origem em SP", "12 corredores prioritários em 24 sentidos"], supported: ["NCM/CEST representativo", "âmbito vigente do Protocolo 41/08 por direção", "MVA protocolar ou estadual sem presumir simetria", "memórias sintéticas controladas para destinos MG e RJ"], blockers: ["20 sentidos prioritários permanecem sem memória por ausência de acordo ou parâmetros estaduais completos", "operações reais sempre exigem produto, finalidade, destinatário, benefícios, base, vigência e documentos"] },
-  { code: "BEVERAGES", name: "Bebidas", status: "partial", routes: ["12 corredores prioritários em 24 sentidos", "144 células de produto e rota", "7 rotas prioritárias com destino a SP"], supported: ["seis identidades CEST/NCM de bebidas frias", "Protocolo 11/91 por produto, direção e data", "exceções de água para SP, PR, MG, SC e RS", "35 memórias condicionais com PMPF paulista vigente"], blockers: ["fora dos cinco perfis exatos de marcas não listadas, o valor permanece bloqueado", "marca listada, água, Simples Nacional, fallback por IVA-ST e tratamentos especiais exigem motor próprio", "cerveja, chope e destilados permanecem em motores separados"] },
+  { code: "BEVERAGES", name: "Bebidas", status: "partial", routes: ["12 corredores prioritários em 24 sentidos", "144 células de produto e rota", "7 rotas prioritárias com destino a SP", "SP→MG e SP→RJ com perfis de alto giro"], supported: ["seis identidades CEST/NCM de bebidas frias", "Protocolo 11/91 por produto, direção e data", "exceções de água para SP, PR, MG, SC e RS", "35 memórias condicionais com PMPF paulista vigente", "10 memórias condicionais com PMPF mineiro e fluminense, incluindo FCP separado"], blockers: ["fora dos quinze perfis exatos liberados, o valor permanece bloqueado", "marca ou embalagem divergente, água, Simples Nacional, fallback por MVA e tratamentos especiais exigem motor próprio", "cerveja, chope e destilados permanecem em motores separados"] },
   { code: "FUELS", name: "Combustíveis e lubrificantes", status: "partial", routes: ["triagem nacional com bloqueio monofásico/ad rem"], supported: ["identificação de segmento, NCM/CEST e rota", "bloqueio antes de calcular sem ato específico"], blockers: ["regime monofásico, ad rem, PMPF e atos específicos exigem motor próprio"] },
   { code: "PHARMA", name: "Medicamentos", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "alerta de PMC e benefício"], blockers: ["listas positiva/negativa/neutra, PMC, FCP e benefícios estaduais"] },
   { code: "CONSTRUCTION", name: "Materiais de construção", status: "partial", routes: ["27 UFs em triagem"], supported: ["captura NCM/CEST", "MVA ajustada quando parâmetros são confirmados"], blockers: ["escopo do segmento e protocolos por UF"] },
