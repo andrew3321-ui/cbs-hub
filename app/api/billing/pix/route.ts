@@ -4,12 +4,15 @@ import { billingAccounts } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
 import {
   billingIdempotencyKey,
+  billingAmountCents,
+  BILLING_ADDON_COMPANY_BLOCK_SIZE,
   billingPlans,
-  isPaidPlanKey,
+  isPurchasablePlanKey,
   mercadoPagoApiErrorDetails,
   mercadoPagoRequest,
   mercadoPagoTransportErrorCode,
   normalizeBillingStatus,
+  normalizeCompanyAddonBlocks,
   randomBillingReference,
   type MercadoPagoOrder,
   type MercadoPagoSubscription,
@@ -22,6 +25,7 @@ import {
   reconcilePixTransactionFromProvider,
 } from "../../../billing-pix";
 import { getPlatformOperationState } from "../../../platform-controls";
+import { getWorkspaceContext } from "../../../workspace";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -29,19 +33,24 @@ export async function POST(request: Request) {
   let stage = "SCHEMA";
   try {
     await ensureScenarioSchema();
+    const workspace = await getWorkspaceContext(user.id);
+    if (!workspace || workspace.role !== "owner") return Response.json({ error: "Somente o proprietário do espaço pode contratar ou renovar a assinatura." }, { status: 403 });
     stage = "INPUT";
     const payload = await request.json() as Record<string, unknown>;
-    if (!isPaidPlanKey(payload.planKey)) return Response.json({ error: "Plano inválido." }, { status: 400 });
+    if (!isPurchasablePlanKey(payload.planKey)) return Response.json({ error: "Plano indisponível para novas contratações." }, { status: 400 });
     const plan = billingPlans[payload.planKey];
+    const addonBlocks = normalizeCompanyAddonBlocks(payload.addonBlocks);
+    if (addonBlocks === null) return Response.json({ error: "Capacidade adicional inválida." }, { status: 400 });
+    const amountCents = billingAmountCents(plan.key, addonBlocks);
     const db = getDb();
     stage = "ACCOUNT_LOOKUP";
     let [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
     const operation = await getPlatformOperationState();
     if (!operation.paymentsEnabled) {
       const reference = account?.externalReference ?? randomBillingReference(user.id);
-      await db.insert(billingAccounts).values({ userId: user.id, planKey: plan.key, externalReference: reference, status: "interest", updatedAt: new Date().toISOString() }).onConflictDoUpdate({
+      await db.insert(billingAccounts).values({ userId: user.id, planKey: plan.key, externalReference: reference, companyAddonBlocks: addonBlocks, pendingCompanyAddonBlocks: addonBlocks, status: "interest", updatedAt: new Date().toISOString() }).onConflictDoUpdate({
         target: billingAccounts.userId,
-        set: { planKey: plan.key, status: "interest", updatedAt: new Date().toISOString() },
+        set: { planKey: plan.key, companyAddonBlocks: addonBlocks, pendingCompanyAddonBlocks: addonBlocks, status: "interest", updatedAt: new Date().toISOString() },
       });
       return Response.json({ mode: "interest", message: operation.betaEnabled ? "Interesse em pagar por Pix registrado. O beta continua gratuito." : "Interesse registrado. As cobranças permanecem bloqueadas." }, { status: 202 });
     }
@@ -55,6 +64,9 @@ export async function POST(request: Request) {
 
     const currentPix = account ? await latestPixTransaction(account.id, account.externalReference) : null;
     if (account && currentPix?.providerPaymentId && ["pending", "in_process", "in_mediation"].includes(currentPix.status)) {
+      if (account.planKey !== plan.key || account.pendingCompanyAddonBlocks !== addonBlocks) {
+        return Response.json({ error: "Descarte o Pix pendente antes de alterar a capacidade." }, { status: 409 });
+      }
       stage = "PROVIDER_RECONCILIATION";
       const current = await reconcilePixTransactionFromProvider(currentPix, account.externalReference);
       [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.id, account.id)).limit(1);
@@ -102,12 +114,17 @@ export async function POST(request: Request) {
       : null;
     const reference = reusableReference ?? randomBillingReference(user.id);
     const now = new Date().toISOString();
+    const currentAddonBlocks = account?.planKey === plan.key
+      ? normalizeCompanyAddonBlocks(account.companyAddonBlocks) ?? 0
+      : 0;
     stage = "ACCOUNT_RESERVATION";
     await db.insert(billingAccounts).values({
       userId: user.id,
       planKey: plan.key,
       externalReference: reference,
       providerSubscriptionId: null,
+      companyAddonBlocks: currentAddonBlocks,
+      pendingCompanyAddonBlocks: addonBlocks,
       status: renewal ? "renewal_pending" : "pix_creating",
       checkoutUrl: null,
       nextPaymentAt: renewal ? account?.nextPaymentAt ?? null : null,
@@ -119,6 +136,8 @@ export async function POST(request: Request) {
         planKey: plan.key,
         externalReference: reference,
         providerSubscriptionId: null,
+        companyAddonBlocks: currentAddonBlocks,
+        pendingCompanyAddonBlocks: addonBlocks,
         status: renewal ? "renewal_pending" : "pix_creating",
         checkoutUrl: null,
         nextPaymentAt: renewal ? account?.nextPaymentAt ?? null : null,
@@ -128,16 +147,16 @@ export async function POST(request: Request) {
     });
 
     stage = "PROVIDER_REQUEST";
-    const amount = (plan.priceCents / 100).toFixed(2);
+    const amount = (amountCents / 100).toFixed(2);
     const order = await mercadoPagoRequest<MercadoPagoOrder>("/v1/orders", {
       method: "POST",
-      headers: { "X-Idempotency-Key": await billingIdempotencyKey(`${reference}:pix:${plan.key}:${plan.priceCents}`) },
+      headers: { "X-Idempotency-Key": await billingIdempotencyKey(`${reference}:pix:${plan.key}:${addonBlocks}:${amountCents}`) },
       body: JSON.stringify({
         type: "online",
         total_amount: amount,
         external_reference: reference,
         processing_mode: "automatic",
-        description: plan.reason,
+        description: `${plan.reason} · até ${plan.companyLimit + addonBlocks * BILLING_ADDON_COMPANY_BLOCK_SIZE} empresas`,
         transactions: {
           payments: [{
             amount,
@@ -174,6 +193,7 @@ export async function POST(request: Request) {
             externalReference: randomBillingReference(user.id),
             status: pixAccessIsValid(reserved) ? "active" : "payment_failed",
             checkoutUrl: null,
+            pendingCompanyAddonBlocks: reserved.companyAddonBlocks,
             lastSyncedAt: now,
             updatedAt: now,
           }).where(eq(billingAccounts.id, reserved.id));

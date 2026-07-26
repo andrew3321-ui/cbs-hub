@@ -14,11 +14,11 @@ export async function GET() {
   if (!user) return Response.json({ error: "Faça login para consultar sua assinatura." }, { status: 401 });
   await ensureScenarioSchema();
   const db = getDb();
-  let [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
+  const workspace = await getWorkspaceContext(user.id);
+  const billingOwnerUserId = workspace?.ownerUserId ?? user.id;
+  let [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, billingOwnerUserId)).limit(1);
   const configured = Boolean(getMercadoPagoEnvironment().accessToken);
   const operation = await getPlatformOperationState();
-  const workspace = await getWorkspaceContext(user.id);
-  const entitlements = workspace ? await getWorkspaceEntitlements(workspace) : null;
   let pix: PixCheckout | null = null;
 
   if (configured && account?.providerSubscriptionId && !["canceled", "cancelled"].includes(account.status)) {
@@ -59,21 +59,25 @@ export async function GET() {
     : latestPix || account?.status === "pix_creating"
       ? "pix_monthly"
       : null;
+  const entitlements = workspace ? await getWorkspaceEntitlements(workspace) : null;
 
   return Response.json({
     configured,
     betaEnabled: operation.betaEnabled,
     paymentsEnabled: operation.paymentsEnabled,
+    canManageBilling: workspace?.role === "owner",
     entitlements,
     billing: account ? {
       planKey: account.planKey,
       status: account.status,
+      companyAddonBlocks: account.companyAddonBlocks,
+      pendingCompanyAddonBlocks: account.pendingCompanyAddonBlocks,
       checkoutUrl: account.checkoutUrl,
       nextPaymentAt: account.nextPaymentAt,
       paymentFlow,
       renewalEligible: paymentFlow === "pix_monthly" ? pixRenewalIsEligible(account) : false,
       pix,
       updatedAt: account.updatedAt,
-    } : { planKey: "beta", status: "beta", checkoutUrl: null, nextPaymentAt: null, paymentFlow: null, renewalEligible: false, pix: null, updatedAt: null },
+    } : { planKey: "beta", status: "beta", companyAddonBlocks: 0, pendingCompanyAddonBlocks: 0, checkoutUrl: null, nextPaymentAt: null, paymentFlow: null, renewalEligible: false, pix: null, updatedAt: null },
   });
 }

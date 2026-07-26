@@ -15,6 +15,8 @@ export async function getWorkspaceEntitlements(workspace: WorkspaceContext, now 
       status: billingAccounts.status,
       providerSubscriptionId: billingAccounts.providerSubscriptionId,
       nextPaymentAt: billingAccounts.nextPaymentAt,
+      companyAddonBlocks: billingAccounts.companyAddonBlocks,
+      pendingCompanyAddonBlocks: billingAccounts.pendingCompanyAddonBlocks,
     }).from(billingAccounts).where(eq(billingAccounts.userId, workspace.ownerUserId)).limit(1),
     db.select({ total: count() }).from(companies).where(eq(companies.workspaceId, workspace.id)),
     db.select({ email: users.email }).from(users).where(eq(users.id, workspace.ownerUserId)).limit(1),
@@ -36,7 +38,7 @@ export function companyLimitResponse(entitlements: WorkspaceEntitlements) {
       ? "O cadastro não pôde ser concluído agora."
       : entitlements.companyLimitExceeded
         ? `Sua carteira possui ${entitlements.companyCount} empresas, acima do limite de ${limit} do plano ${entitlements.name}. Nenhum dado foi removido, mas novos cadastros estão bloqueados.`
-        : `O plano ${entitlements.name} permite até ${limit} ${limit === 1 ? "empresa" : "empresas"}. Faça upgrade para ampliar a carteira.`,
+        : `O plano ${entitlements.name} permite até ${limit} ${limit === 1 ? "empresa" : "empresas"}. Contrate mais um bloco de ${entitlements.companyAddonBlockSize} empresas para ampliar a carteira.`,
     code: "PLAN_COMPANY_LIMIT",
     entitlements,
   }, { status: 409 });
@@ -46,10 +48,10 @@ export function featureRequiredResponse(entitlements: WorkspaceEntitlements, fea
   const officeOnly = feature === "officeCollaborationEnabled";
   return Response.json({
     error: officeOnly
-      ? "Convites, papéis e revisão por outra pessoa exigem o plano Escritório ativo."
-      : "Este recurso fiscal avançado exige o plano Pro ou Escritório ativo.",
+      ? "Convites, papéis e revisão por outra pessoa exigem o plano Margem Clara ativo."
+      : "Este recurso exige o plano Margem Clara ativo.",
     code: officeOnly ? "PLAN_OFFICE_REQUIRED" : "PLAN_FEATURE_REQUIRED",
-    requiredPlan: officeOnly ? "escritorio" : "pro",
+    requiredPlan: "unico",
     feature,
     entitlements,
   }, { status: 403 });

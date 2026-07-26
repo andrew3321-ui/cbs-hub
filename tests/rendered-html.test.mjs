@@ -15,34 +15,38 @@ test("a experiência publicada contém identidade e rotas comerciais", async () 
   assert.match(landing, /href="\/planos"/);
   assert.match(layout, /Inteligência tributária/);
   assert.match(layout, /og-accountants\.png/);
-  assert.match(pricing, /Beta integral ativo/);
+  assert.match(pricing, /OPERAÇÃO FISCAL PROFISSIONAL/);
   assert.match(pricing, /PricingClient/);
   assert.doesNotMatch(`${landing}\n${layout}`, /codex-preview|_sites-preview|Your site is taking shape/i);
 });
 
 test("credenciais de cobrança permanecem somente no servidor", async () => {
-  const [client, billing, hosting] = await Promise.all([
+  const [client, billing, deployment] = await Promise.all([
     readFile(new URL("app/planos/PricingClient.tsx", root), "utf8"),
     readFile(new URL("app/billing.ts", root), "utf8"),
-    readFile(new URL(".openai/hosting.json", root), "utf8"),
+    readFile(new URL("wrangler.migrations.jsonc", root), "utf8"),
   ]);
 
   assert.doesNotMatch(client, /MERCADO_PAGO_ACCESS_TOKEN|MERCADO_PAGO_WEBHOOK_SECRET/);
   assert.match(billing, /MERCADO_PAGO_ACCESS_TOKEN/);
   assert.match(billing, /validateMercadoPagoWebhook/);
-  assert.doesNotMatch(hosting, /MERCADO_PAGO|ACCESS_TOKEN|WEBHOOK_SECRET/);
+  assert.doesNotMatch(deployment, /MERCADO_PAGO|ACCESS_TOKEN|WEBHOOK_SECRET/);
 });
 
-test("preço temporário do checkout usa fonte única e fica claramente identificado", async () => {
+test("plano único e capacidade adicional usam uma fonte comercial central", async () => {
   const [plans, pricing, center] = await Promise.all([
     readFile(new URL("domain/billing-plans.ts", root), "utf8"),
     readFile(new URL("app/planos/PricingClient.tsx", root), "utf8"),
     readFile(new URL("app/app/BillingCenter.tsx", root), "utf8"),
   ]);
-  assert.match(plans, /billingPricingMode = "checkout_test"/);
+  assert.match(plans, /billingPricingMode = "single_plan_capacity"/);
+  assert.match(plans, /priceCents: 45_000/);
+  assert.match(plans, /BILLING_BASE_COMPANY_LIMIT = 30/);
+  assert.match(plans, /BILLING_ADDON_COMPANY_BLOCK_PRICE_CENTS = 10_000/);
   assert.equal((plans.match(/priceCents: 100/g) ?? []).length, 2);
-  assert.match(pricing, /PREÇO TEMPORÁRIO DE TESTE/);
-  assert.match(pricing, /Cancele a assinatura após o teste/);
+  assert.match(pricing, /PLANO ÚNICO COM CAPACIDADE AJUSTÁVEL/);
+  assert.match(pricing, /30 empresas incluídas/);
+  assert.match(pricing, /Total mensal/);
   assert.match(center, /CONCILIAÇÃO DE ASSINATURAS/);
   assert.doesNotMatch(center, /Chave interna de assinatura ausente/);
 });
@@ -141,7 +145,8 @@ test("cadastro e escritório distinguem plano, papéis e revisão por segunda pe
 
   assert.match(auth, /Contador independente/);
   assert.match(auth, /Escritório contábil/);
-  assert.match(auth, /Plano Escritório sugerido/);
+  assert.match(auth, /Mesmo plano · espaço colaborativo/);
+  assert.match(auth, /Mesmo plano · espaço individual/);
   assert.match(registerApi, /suggestedPlanKey/);
   assert.match(registerApi, /workspaceMembers/);
   assert.match(membersApi, /Gerar|createWorkspaceInvitationToken/);

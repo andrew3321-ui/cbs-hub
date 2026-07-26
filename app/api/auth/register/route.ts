@@ -50,7 +50,7 @@ export async function POST(request: Request) {
         )).limit(1);
       if (!row) return Response.json({ error: "Este convite expirou ou já foi utilizado." }, { status: 410 });
       if (normalizeEmail(row.email) !== email) return Response.json({ error: `Use o e-mail convidado: ${row.email}.` }, { status: 400 });
-      const entitlements = await getWorkspaceEntitlements({ id: row.workspaceId, name: row.workspaceName, type: "office", ownerUserId: row.ownerUserId, suggestedPlanKey: row.suggestedPlanKey === "escritorio" ? "escritorio" : "pro", role: "owner" });
+      const entitlements = await getWorkspaceEntitlements({ id: row.workspaceId, name: row.workspaceName, type: "office", ownerUserId: row.ownerUserId, suggestedPlanKey: "unico", role: "owner" });
       if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
       invitation = row;
     }
@@ -62,7 +62,7 @@ export async function POST(request: Request) {
     const recoveryKey = createRecoveryKey();
     const recoveryKeyHash = await hashRecoveryKey(recoveryKey);
     const accountType = invitation ? "office" : requestedAccountType;
-    const suggestedPlanKey = accountType === "office" ? "escritorio" : "pro";
+    const suggestedPlanKey = "unico";
     const [user] = await db.insert(users).values({ name, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, passwordIterations: passwordData.iterations, recoveryKeyHash, accountType, suggestedPlanKey }).returning({ id: users.id, name: users.name, email: users.email });
     createdUserId = user.id;
 

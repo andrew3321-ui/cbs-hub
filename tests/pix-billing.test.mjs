@@ -11,13 +11,13 @@ test("Pix uses the Orders API with server-side price and idempotency", async () 
     read("app/billing.ts"),
   ]);
   assert.match(route, /mercadoPagoRequest<MercadoPagoOrder>\("\/v1\/orders"/);
-  assert.match(route, /const amount = \(plan\.priceCents \/ 100\)\.toFixed\(2\)/);
+  assert.match(route, /const amount = \(amountCents \/ 100\)\.toFixed\(2\)/);
   assert.match(route, /total_amount: amount/);
   assert.match(route, /payment_method: \{ id: "pix", type: "bank_transfer" \}/);
   assert.match(route, /processing_mode: "automatic"/);
   assert.match(route, /payer: \{ email: user\.email \}/);
   assert.match(route, /external_reference: reference/);
-  assert.match(route, /billingIdempotencyKey\(`\$\{reference\}:pix:\$\{plan\.key\}:\$\{plan\.priceCents\}`\)/);
+  assert.match(route, /billingIdempotencyKey\(`\$\{reference\}:pix:\$\{plan\.key\}:\$\{addonBlocks\}:\$\{amountCents\}`\)/);
   assert.match(route, /CARD_CHECKOUT_STATUS/);
   assert.match(route, /remoteStatus === "active"/);
   assert.match(route, /billing\.card_checkout_abandoned_for_pix/);
@@ -32,13 +32,14 @@ test("Pix reconciliation validates identity, amount, country and method before g
     read("app/api/billing/checkout/route.ts"),
   ]);
   assert.match(reconciliation, /account\.externalReference !== externalReference/);
-  assert.match(reconciliation, /amountCents !== plan\.priceCents/);
+  assert.match(reconciliation, /amountCents !== expectedAmountCents/);
   assert.match(reconciliation, /currency !== "BRL"/);
   assert.match(reconciliation, /snapshot\.paymentMethod !== "pix"/);
   assert.match(reconciliation, /snapshot\.paymentType !== "bank_transfer"/);
   assert.match(reconciliation, /status === "approved"/);
   assert.match(reconciliation, /alreadyCredited/);
-  assert.match(reconciliation, /status: "active", checkoutUrl: null/);
+  assert.match(reconciliation, /status: "active"/);
+  assert.match(reconciliation, /checkoutUrl: null/);
   assert.match(reconciliation, /ensureFiscalIssuance/);
   assert.match(reconciliation, /providerInvoiceId: `pix-order:\$\{orderId\}`/);
   assert.match(reconciliation, /providerFlow: "orders"/);
@@ -60,7 +61,8 @@ test("UI distinguishes monthly Pix from automatic subscription without exposing 
   assert.match(client, /Pix Copia e Cola/);
   assert.match(client, /O plano só é ativado depois/);
   assert.match(client, /data:image\/png;base64/);
-  assert.match(page, /Pix não renova sozinho/);
+  assert.match(client, /Pix exige confirmação a cada mês/);
+  assert.match(page, /entra na próxima renovação/);
   assert.match(worker, /pathname === "\/api\/billing\/pix"/);
   assert.match(webhook, /eventType === "order"/);
   assert.match(webhook, /eventType === "payment"/);

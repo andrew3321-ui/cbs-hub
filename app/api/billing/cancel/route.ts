@@ -4,12 +4,15 @@ import { billingAccounts, billingTransactions } from "../../../../db/schema";
 import { getCurrentUser } from "../../../auth";
 import { mercadoPagoRequest, MercadoPagoSubscription, randomBillingReference } from "../../../billing";
 import { cancelPixTransactionAtProvider, latestPixTransaction, pixAccessIsValid } from "../../../billing-pix";
+import { getWorkspaceContext } from "../../../workspace";
 
 export async function POST() {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para gerenciar sua assinatura." }, { status: 401 });
   try {
     await ensureScenarioSchema();
+    const workspace = await getWorkspaceContext(user.id);
+    if (!workspace || workspace.role !== "owner") return Response.json({ error: "Somente o proprietário do espaço pode cancelar a assinatura." }, { status: 403 });
     const db = getDb();
     const [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, user.id)).limit(1);
     if (!account) return Response.json({ error: "Nenhum pagamento foi encontrado." }, { status: 404 });
@@ -22,7 +25,7 @@ export async function POST() {
       const now = new Date().toISOString();
       await db.batch([
         db.update(billingTransactions).set({ status: "cancelled", statusDetail: "canceled_by_user", lastSyncedAt: now, updatedAt: now }).where(eq(billingTransactions.id, transaction.id)),
-        db.update(billingAccounts).set({ externalReference: randomBillingReference(user.id), status: pixAccessIsValid(account) ? "active" : "canceled", checkoutUrl: null, lastSyncedAt: now, updatedAt: now }).where(eq(billingAccounts.id, account.id)),
+        db.update(billingAccounts).set({ externalReference: randomBillingReference(user.id), status: pixAccessIsValid(account) ? "active" : "canceled", pendingCompanyAddonBlocks: account.companyAddonBlocks, checkoutUrl: null, lastSyncedAt: now, updatedAt: now }).where(eq(billingAccounts.id, account.id)),
       ]);
       return Response.json({ canceled: true, paymentFlow: "pix_monthly" });
     }

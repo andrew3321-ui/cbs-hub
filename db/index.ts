@@ -9,7 +9,7 @@ let scenarioSchemaReady: Promise<unknown> | undefined;
 export function getDb() {
   if (!env.DB) {
     throw new Error(
-      "Cloudflare D1 binding `DB` is unavailable. Set the `d1` field in .openai/hosting.json to `DB` or let your control plane inject the real binding values before using the database."
+      "Cloudflare D1 binding `DB` is unavailable. Configure the `DB` binding in the Cloudflare Worker before using the database."
     );
   }
 
@@ -132,6 +132,8 @@ export function ensureScenarioSchema() {
           provider TEXT DEFAULT 'mercado_pago' NOT NULL,
           external_reference TEXT NOT NULL UNIQUE,
           provider_subscription_id TEXT,
+          company_addon_blocks INTEGER DEFAULT 0 NOT NULL,
+          pending_company_addon_blocks INTEGER DEFAULT 0 NOT NULL,
           status TEXT DEFAULT 'beta' NOT NULL,
           checkout_url TEXT,
           next_payment_at TEXT,
@@ -197,7 +199,7 @@ export function ensureScenarioSchema() {
           failed_login_attempts INTEGER DEFAULT 0 NOT NULL,
           locked_until TEXT,
           account_type TEXT DEFAULT 'individual' NOT NULL,
-          suggested_plan_key TEXT DEFAULT 'pro' NOT NULL,
+          suggested_plan_key TEXT DEFAULT 'unico' NOT NULL,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
@@ -225,7 +227,7 @@ export function ensureScenarioSchema() {
           name TEXT NOT NULL,
           workspace_type TEXT DEFAULT 'individual' NOT NULL,
           owner_user_id INTEGER NOT NULL,
-          suggested_plan_key TEXT DEFAULT 'pro' NOT NULL,
+          suggested_plan_key TEXT DEFAULT 'unico' NOT NULL,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
@@ -587,10 +589,22 @@ export function ensureScenarioSchema() {
 
     const workspaceColumns = [
       "ALTER TABLE users ADD COLUMN account_type TEXT DEFAULT 'individual' NOT NULL",
-      "ALTER TABLE users ADD COLUMN suggested_plan_key TEXT DEFAULT 'pro' NOT NULL",
+      "ALTER TABLE users ADD COLUMN suggested_plan_key TEXT DEFAULT 'unico' NOT NULL",
       "ALTER TABLE companies ADD COLUMN workspace_id INTEGER",
     ];
     for (const statement of workspaceColumns) {
+      try {
+        await env.DB.prepare(statement).run();
+      } catch (error) {
+        if (!String(error).toLowerCase().includes("duplicate column")) throw error;
+      }
+    }
+
+    const billingCapacityColumns = [
+      "ALTER TABLE billing_accounts ADD COLUMN company_addon_blocks INTEGER DEFAULT 0 NOT NULL",
+      "ALTER TABLE billing_accounts ADD COLUMN pending_company_addon_blocks INTEGER DEFAULT 0 NOT NULL",
+    ];
+    for (const statement of billingCapacityColumns) {
       try {
         await env.DB.prepare(statement).run();
       } catch (error) {
@@ -615,7 +629,7 @@ export function ensureScenarioSchema() {
         CASE WHEN users.account_type = 'office' THEN users.name || ' Contabilidade' ELSE 'Espaço profissional de ' || users.name END,
         CASE WHEN users.account_type = 'office' THEN 'office' ELSE 'individual' END,
         users.id,
-        CASE WHEN users.account_type = 'office' THEN 'escritorio' ELSE 'pro' END
+        'unico'
       FROM users
       WHERE NOT EXISTS (SELECT 1 FROM workspace_members WHERE workspace_members.user_id = users.id)
         AND NOT EXISTS (SELECT 1 FROM accounting_workspaces WHERE accounting_workspaces.owner_user_id = users.id)

@@ -2,6 +2,7 @@ import { and, eq, or } from "drizzle-orm";
 import { getDb } from "../db";
 import { billingAccounts, billingTransactions, fiscalIssuances, users } from "../db/schema";
 import {
+  billingAmountForAccount,
   billingPlans,
   currencyAmountToCents,
   mercadoPagoRequest,
@@ -43,13 +44,15 @@ export async function updateSubscriptionFromProvider(dataId: string, expectedRef
   const account = await accountForProvider(subscription.id, externalReference);
   if (!account) return "retry" satisfies BillingReconciliationResult;
   const plan = billingPlans[account.planKey as keyof typeof billingPlans];
+  const expectedAmountCents = billingAmountForAccount(account);
   const amountCents = currencyAmountToCents(subscription.auto_recurring?.transaction_amount);
   const currency = String(subscription.auto_recurring?.currency_id ?? "");
   if (
     account.externalReference !== externalReference
     || (account.providerSubscriptionId && account.providerSubscriptionId !== subscription.id)
     || !plan
-    || amountCents !== plan.priceCents
+    || expectedAmountCents === null
+    || amountCents !== expectedAmountCents
     || currency !== "BRL"
   ) return "rejected" satisfies BillingReconciliationResult;
 
@@ -94,8 +97,9 @@ export async function recordAuthorizedPaymentFromProvider(dataId: string, expect
     ? null
     : currencyAmountToCents(payment.transaction_details.net_received_amount);
   const plan = billingPlans[account.planKey as keyof typeof billingPlans];
+  const expectedAmountCents = billingAmountForAccount(account);
   const currency = String(payment?.currency_id ?? invoice.currency_id ?? "");
-  if (!plan || grossAmountCents !== plan.priceCents || currency !== "BRL") return "rejected" satisfies BillingReconciliationResult;
+  if (!plan || expectedAmountCents === null || grossAmountCents !== expectedAmountCents || currency !== "BRL") return "rejected" satisfies BillingReconciliationResult;
 
   const approvedAt = payment?.date_approved ?? (status === "approved" ? invoice.debit_date ?? invoice.date_created ?? new Date().toISOString() : null);
   const now = new Date().toISOString();

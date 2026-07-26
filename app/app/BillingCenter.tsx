@@ -32,7 +32,7 @@ type BillingTransaction = {
 };
 
 type BillingPayload = {
-  configuration: { accessToken: boolean; webhookSecret: boolean; reconciliationEnabled: boolean; pricingMode: "checkout_test"; adminAccess: boolean; mode: "test" | "production" | "disabled"; webhookUrl: string; requiredEvents: string[] };
+  configuration: { accessToken: boolean; webhookSecret: boolean; reconciliationEnabled: boolean; pricingMode: "single_plan_capacity"; adminAccess: boolean; mode: "test" | "production" | "disabled"; webhookUrl: string; requiredEvents: string[] };
   operation: {
     betaEnabled: boolean;
     paymentsEnabled: boolean;
@@ -42,7 +42,7 @@ type BillingPayload = {
     readiness: { ready: boolean; gates: Array<{ key: string; label: string; ready: boolean; detail: string }> };
   };
   metrics: { activeSubscriptions: number; estimatedMrrCents: number; grossThisMonthCents: number; netThisMonthCents: number; pendingFiscal: number };
-  subscriptions: Array<{ id: number; customerName: string; customerEmail: string; planKey: string; status: string; nextPaymentAt: string | null; updatedAt: string }>;
+  subscriptions: Array<{ id: number; customerName: string; customerEmail: string; planKey: string; companyAddonBlocks: number; pendingCompanyAddonBlocks: number; companyLimit: number | null; monthlyAmountCents: number | null; paymentFlow: string; status: string; nextPaymentAt: string | null; updatedAt: string }>;
   transactions: BillingTransaction[];
 };
 
@@ -61,6 +61,10 @@ type FiscalDraft = {
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const statusLabels: Record<string, string> = {
+  active: "Acesso ativo",
+  renewal_pending: "Renovação pendente",
+  canceled: "Cancelada",
+  payment_failed: "Falha no pagamento",
   approved: "Pagamento aprovado",
   pending: "Pagamento pendente",
   rejected: "Pagamento recusado",
@@ -181,7 +185,7 @@ export default function BillingCenter() {
 
     <section className={`panel platform-mode-card ${data.operation.betaEnabled ? "beta" : "live"}`}>
       <div className="platform-mode-summary">
-        <div><span className="eyebrow">CONTROLE OPERACIONAL · REVISÃO {data.operation.revision}</span><h3>{data.operation.betaEnabled ? "Modo beta integral ativado" : "Operação comercial ativada"}</h3><p>{data.operation.betaEnabled ? "Todos os recursos e empresas estão liberados para todas as contas. O servidor bloqueia novas cobranças e mantém as assinaturas já existentes registradas." : "Cada conta segue os recursos e limites do próprio plano; novos pagamentos com cartão ou Pix podem ser criados."}</p></div>
+        <div><span className="eyebrow">CONTROLE OPERACIONAL · REVISÃO {data.operation.revision}</span><h3>{data.operation.betaEnabled ? "Modo beta integral ativado" : "Operação comercial ativada"}</h3><p>{data.operation.betaEnabled ? "Todos os recursos e empresas estão liberados para todas as contas. O servidor bloqueia novas cobranças e mantém as assinaturas já existentes registradas." : "O plano único libera todos os recursos e o servidor aplica a capacidade de empresas contratada; novos pagamentos com cartão ou Pix podem ser criados."}</p></div>
         <div className="platform-mode-switch"><span>{data.operation.paymentsEnabled ? "Pagamentos ativos" : "Pagamentos bloqueados"}</span><button type="button" aria-pressed={data.operation.betaEnabled} disabled={Boolean(busy) || (data.operation.betaEnabled && !data.operation.readiness.ready)} onClick={() => void toggleBetaMode()}><i />{busy === "set_beta_mode" ? "Alterando…" : data.operation.betaEnabled ? "Desativar beta" : "Ativar beta"}</button></div>
       </div>
       <div className="payment-readiness-grid">
@@ -199,6 +203,11 @@ export default function BillingCenter() {
         <div className={data.configuration.adminAccess ? "ready" : "pending"}><span>{data.configuration.adminAccess ? "✓" : "3"}</span><p><b>PLATFORM_ADMIN_EMAILS</b><small>Acesso restrito ao responsável da plataforma.</small></p></div>
       </div>
       <div className="billing-webhook-box"><span>WEBHOOK OPCIONAL</span><code>{data.configuration.webhookUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(data.configuration.webhookUrl)}>Copiar</button><small>{data.configuration.webhookSecret ? `HMAC oficial preparado para os eventos ${data.configuration.requiredEvents.join(" e ")}.` : "Ainda não configurado no painel do Mercado Pago. Isso não bloqueia o teste: o retorno do checkout consulta a API oficial diretamente."}</small></div>
+    </section>
+
+    <section className="panel billing-transactions-panel">
+      <div className="panel-heading"><div><span className="eyebrow">CONTRATOS E CAPACIDADE</span><h3>Assinaturas registradas</h3></div><span className="editable-chip">{data.subscriptions.length} conta(s)</span></div>
+      <div className="table-wrap"><table><thead><tr><th>Cliente</th><th>Contrato</th><th>Capacidade</th><th>Mensalidade</th><th>Estado</th><th>Próximo ciclo</th></tr></thead><tbody>{data.subscriptions.map((item) => <tr key={item.id}><td><b>{item.customerName}</b><small>{item.customerEmail}</small></td><td><b>{item.planKey === "unico" ? "Margem Clara" : `${item.planKey} legado`}</b><small>{item.paymentFlow}</small></td><td><b>{item.companyLimit == null ? "Sem limite" : `${item.companyLimit} empresas`}</b><small>{item.planKey === "unico" ? `${item.companyAddonBlocks} bloco(s) adicional(is)` : "Capacidade histórica"}</small></td><td>{item.monthlyAmountCents == null ? "—" : money.format(item.monthlyAmountCents / 100)}</td><td><span className={`billing-table-status ${item.status}`}>{statusLabels[item.status] ?? item.status}</span></td><td>{item.nextPaymentAt ? new Date(item.nextPaymentAt).toLocaleDateString("pt-BR") : "—"}</td></tr>)}</tbody></table></div>
     </section>
 
     <section className="billing-fiscal-layout">

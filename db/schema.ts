@@ -26,7 +26,7 @@ export const users = sqliteTable("users", {
   failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
   lockedUntil: text("locked_until"),
   accountType: text("account_type").notNull().default("individual"),
-  suggestedPlanKey: text("suggested_plan_key").notNull().default("pro"),
+  suggestedPlanKey: text("suggested_plan_key").notNull().default("unico"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -53,7 +53,7 @@ export const accountingWorkspaces = sqliteTable("accounting_workspaces", {
   name: text("name").notNull(),
   workspaceType: text("workspace_type").notNull().default("individual"),
   ownerUserId: integer("owner_user_id").notNull(),
-  suggestedPlanKey: text("suggested_plan_key").notNull().default("pro"),
+  suggestedPlanKey: text("suggested_plan_key").notNull().default("unico"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("accounting_workspaces_owner_idx").on(table.ownerUserId),
@@ -536,6 +536,8 @@ export const billingAccounts = sqliteTable("billing_accounts", {
   provider: text("provider").notNull().default("mercado_pago"),
   externalReference: text("external_reference").notNull().unique(),
   providerSubscriptionId: text("provider_subscription_id"),
+  companyAddonBlocks: integer("company_addon_blocks").notNull().default(0),
+  pendingCompanyAddonBlocks: integer("pending_company_addon_blocks").notNull().default(0),
   status: text("status").notNull().default("beta"),
   checkoutUrl: text("checkout_url"),
   nextPaymentAt: text("next_payment_at"),

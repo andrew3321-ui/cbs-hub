@@ -46,7 +46,7 @@ Comandos principais:
 11. No modo independente, “revisão do responsável” registra autodeclaração e ausência de segregação de funções; nunca é apresentada como revisão independente.
 12. No modo escritório, o servidor exige `reviewer_user_id !== prepared_by_user_id` e um papel apto a revisar; isso é segunda revisão interna, não independência externa.
 13. A entrega ao cliente exige duas assinaturas válidas: a da versão calculada e a da aprovação aplicável ao modo de trabalho.
-14. A escolha feita no cadastro é apenas uma sugestão; os benefícios pagos só nascem de assinatura conciliada. Gratuito permite 1 empresa, Pro 10 e Escritório 50, com limite atômico no servidor e colaboração reservada ao plano Escritório.
+14. A escolha feita no cadastro define o modo de trabalho, não o preço. Os benefícios pagos só nascem de assinatura conciliada. Gratuito permite 1 empresa; o plano Margem Clara custa R$ 450/mês, inclui 30 empresas e permite blocos adicionais de 10 por R$ 100/mês, com limite atômico no servidor.
 15. No escritório, toda revisão congelada tem um responsável designado, prazo e rodada; somente o responsável distinto do preparador pode decidir.
 16. Comentários e decisões são append-only. Uma solicitação de correção nunca reabre a versão: cria outro cenário ligado por `supersedes_scenario_id`.
 17. A pesquisa fiscal não inventa fatos: qualquer condição ausente, fora da cobertura ou ainda não modelada bloqueia a conclusão operacional.
@@ -55,8 +55,8 @@ Comandos principais:
 
 ## Modos de trabalho
 
-- **Contador independente:** espaço individual, plano Profissional sugerido e revisão feita pela própria conta responsável, com essa limitação explícita no relatório.
-- **Escritório contábil:** carteira compartilhada, plano Escritório sugerido, convites de sete dias e papéis de proprietário, administrador, preparador e revisor.
+- **Contador independente:** espaço individual e revisão feita pela própria conta responsável, com essa limitação explícita no relatório.
+- **Escritório contábil:** carteira compartilhada, convites de sete dias e papéis de proprietário, administrador, preparador e revisor. O modo colaborativo está incluído no plano Margem Clara.
 - Contas individuais existentes podem ativar o modo escritório sem perder empresas ou versões.
 - Um usuário pertence a um único espaço de trabalho nesta fase. Convites são destinados a e-mails ainda não cadastrados.
 
@@ -78,7 +78,7 @@ Comandos principais:
 
 O modo beta é persistido em D1 e somente o administrador da plataforma pode alterá-lo. Com o beta ativo, o servidor registra interesse, mas não cria cobranças. A ativação comercial exige credencial de produção, conciliação oficial, CPF válido do fornecedor, endereço legal, canal de privacidade e `SECURITY_HASH_KEY` com pelo menos 32 caracteres. O webhook HMAC é uma camada opcional; a confirmação pela API oficial continua obrigatória.
 
-O plano efetivo pertence ao responsável pelo espaço profissional e é resolvido no servidor a partir do estado conciliado da assinatura. Pagamento pendente, cartão pausado e Pix vencido não liberam benefícios. Ao atingir ou ultrapassar o limite, a carteira existente permanece íntegra e acessível, mas novos cadastros são recusados com o código `PLAN_COMPANY_LIMIT`; convites e revisão colaborativa exigem plano Escritório ativo.
+O plano efetivo pertence ao responsável pelo espaço profissional e é resolvido no servidor a partir do estado conciliado da assinatura. Pagamento pendente, cartão pausado e Pix vencido não liberam benefícios. Ao atingir ou ultrapassar a capacidade contratada, a carteira existente permanece íntegra e acessível, mas novos cadastros são recusados com o código `PLAN_COMPANY_LIMIT`. O plano Margem Clara libera todos os módulos e a colaboração; os blocos adicionais alteram somente o número máximo de empresas.
 
 `PLATFORM_OWNER_TAX_ID`, `PLATFORM_OWNER_LEGAL_ADDRESS` e `PLATFORM_PRIVACY_CONTACT_EMAIL` alimentam a identificação comercial publicada apenas quando pagamentos estiverem ativos. `SECURITY_HASH_KEY` pseudonimiza os marcadores temporários usados na limitação de abuso.
 

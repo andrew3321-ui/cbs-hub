@@ -5,17 +5,15 @@ import { applyPlanUsage, planDefinitions, resolveEffectivePlan, resolveWorkspace
 
 const now = Date.parse("2026-07-18T12:00:00.000Z");
 
-test("the free, Pro and Office plans expose distinct enforceable benefits", () => {
+test("the free entry and single paid plan expose enforceable benefits", () => {
   assert.equal(planDefinitions.beta.companyLimit, 1);
   assert.equal(planDefinitions.beta.fiscalIntelligenceEnabled, false);
   assert.equal(planDefinitions.beta.taxDeterminationEnabled, false);
   assert.equal(planDefinitions.beta.officeCollaborationEnabled, false);
-  assert.equal(planDefinitions.pro.companyLimit, 10);
-  assert.equal(planDefinitions.pro.fiscalIntelligenceEnabled, true);
-  assert.equal(planDefinitions.pro.taxDeterminationEnabled, true);
-  assert.equal(planDefinitions.pro.officeCollaborationEnabled, false);
-  assert.equal(planDefinitions.escritorio.companyLimit, 50);
-  assert.equal(planDefinitions.escritorio.officeCollaborationEnabled, true);
+  assert.equal(planDefinitions.unico.companyLimit, 30);
+  assert.equal(planDefinitions.unico.fiscalIntelligenceEnabled, true);
+  assert.equal(planDefinitions.unico.taxDeterminationEnabled, true);
+  assert.equal(planDefinitions.unico.officeCollaborationEnabled, true);
 });
 
 test("the platform owner and global beta bypass every package restriction", () => {
@@ -38,6 +36,7 @@ test("the platform owner and global beta bypass every package restriction", () =
 });
 
 test("only a reconciled active subscription grants a paid plan", () => {
+  assert.equal(resolveEffectivePlan({ planKey: "unico", status: "active", providerSubscriptionId: "subscription-new", nextPaymentAt: null }, now).key, "unico");
   assert.equal(resolveEffectivePlan({ planKey: "pro", status: "active", providerSubscriptionId: "subscription-1", nextPaymentAt: null }, now).key, "pro");
   assert.equal(resolveEffectivePlan({ planKey: "escritorio", status: "active", providerSubscriptionId: null, nextPaymentAt: "2026-08-18T12:00:00.000Z" }, now).key, "escritorio");
   assert.equal(resolveEffectivePlan({ planKey: "pro", status: "renewal_pending", providerSubscriptionId: null, nextPaymentAt: "2026-07-25T12:00:00.000Z" }, now).key, "pro");
@@ -46,14 +45,18 @@ test("only a reconciled active subscription grants a paid plan", () => {
 });
 
 test("usage reaches and exceeds a plan without deleting existing companies", () => {
-  const atLimit = applyPlanUsage(planDefinitions.pro, { planKey: "pro", status: "active", providerSubscriptionId: "subscription-1", nextPaymentAt: null }, 10);
+  const paidSnapshot = { planKey: "unico", status: "active", providerSubscriptionId: "subscription-1", nextPaymentAt: null, companyAddonBlocks: 2, pendingCompanyAddonBlocks: 2 };
+  const atLimit = applyPlanUsage(planDefinitions.unico, paidSnapshot, 50);
+  assert.equal(atLimit.companyLimit, 50);
+  assert.equal(atLimit.monthlyPriceCents, 65_000);
+  assert.equal(atLimit.companyAddonBlocks, 2);
   assert.equal(atLimit.companyRemaining, 0);
   assert.equal(atLimit.companyLimitReached, true);
   assert.equal(atLimit.companyLimitExceeded, false);
   assert.equal(atLimit.canCreateCompany, false);
 
-  const overLimit = applyPlanUsage(planDefinitions.pro, { planKey: "pro", status: "active", providerSubscriptionId: "subscription-1", nextPaymentAt: null }, 12);
-  assert.equal(overLimit.companyCount, 12);
+  const overLimit = applyPlanUsage(planDefinitions.unico, paidSnapshot, 52);
+  assert.equal(overLimit.companyCount, 52);
   assert.equal(overLimit.companyLimitExceeded, true);
   assert.equal(overLimit.canCreateCompany, false);
 });
@@ -95,6 +98,8 @@ test("the application displays the active plan, usage and limit state", () => {
   assert.match(app, /Limite do plano atingido/);
   assert.match(app, /plan-feature-locked-card/);
   assert.match(app, /sectionPlanFeatures/);
-  assert.match(pricing, /Até 1 empresa monitorada/);
+  assert.match(pricing, /1 empresa para avaliação/);
   assert.match(pricing, /Inteligência e laboratório fiscal/);
+  assert.match(pricing, /30 empresas incluídas/);
+  assert.match(pricing, /Cada bloco adiciona/);
 });

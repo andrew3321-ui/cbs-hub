@@ -10,7 +10,7 @@ export type WorkspaceContext = {
   name: string;
   type: WorkspaceType;
   ownerUserId: number;
-  suggestedPlanKey: "pro" | "escritorio";
+  suggestedPlanKey: "unico";
   role: WorkspaceRole;
 };
 
@@ -34,7 +34,7 @@ export async function getWorkspaceContext(userId: number): Promise<WorkspaceCont
     ...row,
     type: row.type as WorkspaceType,
     role: row.role as WorkspaceRole,
-    suggestedPlanKey: row.suggestedPlanKey === "escritorio" ? "escritorio" : "pro",
+    suggestedPlanKey: "unico",
   };
 }
 

@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts, billingTransactions, fiscalIssuances, users } from "../../../../db/schema";
-import { billingPlans, billingPricingMode, mercadoPagoConfigurationStatus } from "../../../billing";
+import { billingAmountForAccount, billingLimitForAccount, billingPricingMode, mercadoPagoConfigurationStatus } from "../../../billing";
 import { getPlatformAdminUser, platformAdminIsConfigured } from "../../../platform-admin";
 import { getPlatformOperationState, PlatformModeError, setBetaMode } from "../../../platform-controls";
 
@@ -26,6 +26,9 @@ async function payloadFor(request: Request) {
     customerName: users.name,
     customerEmail: users.email,
     planKey: billingAccounts.planKey,
+    companyAddonBlocks: billingAccounts.companyAddonBlocks,
+    pendingCompanyAddonBlocks: billingAccounts.pendingCompanyAddonBlocks,
+    providerSubscriptionId: billingAccounts.providerSubscriptionId,
     status: billingAccounts.status,
     nextPaymentAt: billingAccounts.nextPaymentAt,
     updatedAt: billingAccounts.updatedAt,
@@ -68,9 +71,15 @@ async function payloadFor(request: Request) {
 
   const currentMonth = new Date().toISOString().slice(0, 7);
   const activeSubscriptions = subscriptions.filter((item) => item.status === "active");
+  const subscriptionRows = subscriptions.map((item) => ({
+    ...item,
+    companyLimit: billingLimitForAccount(item),
+    monthlyAmountCents: billingAmountForAccount(item),
+    paymentFlow: item.providerSubscriptionId ? "Cartão automático" : "Pix mensal",
+  }));
   const approvedThisMonth = transactions.filter((item) => item.status === "approved" && item.approvedAt?.startsWith(currentMonth));
   const pendingFiscal = transactions.filter((item) => ["pending_data", "pending_issue"].includes(item.fiscalStatus ?? "")).length;
-  const estimatedMrrCents = activeSubscriptions.reduce((sum, item) => sum + (billingPlans[item.planKey as keyof typeof billingPlans]?.priceCents ?? 0), 0);
+  const estimatedMrrCents = activeSubscriptions.reduce((sum, item) => sum + (billingAmountForAccount(item) ?? 0), 0);
   const grossThisMonthCents = approvedThisMonth.reduce((sum, item) => sum + item.grossAmountCents, 0);
   const netThisMonthCents = approvedThisMonth.reduce((sum, item) => sum + (item.netAmountCents ?? item.grossAmountCents - (item.feeAmountCents ?? 0)), 0);
   const provider = mercadoPagoConfigurationStatus();
@@ -87,7 +96,7 @@ async function payloadFor(request: Request) {
     },
     operation,
     metrics: { activeSubscriptions: activeSubscriptions.length, estimatedMrrCents, grossThisMonthCents, netThisMonthCents, pendingFiscal },
-    subscriptions,
+    subscriptions: subscriptionRows,
     transactions,
   };
 }

@@ -1,7 +1,26 @@
 import { env } from "cloudflare:workers";
-import { billingPlans, type PaidPlanKey } from "../domain/billing-plans";
+import {
+  billingAmountCents,
+  billingCompanyLimit,
+  billingPlans,
+  normalizeCompanyAddonBlocks,
+  type PaidPlanKey,
+  type PurchasablePaidPlanKey,
+} from "../domain/billing-plans";
 
-export { billingPlans, billingPricingMode, type PaidPlanKey } from "../domain/billing-plans";
+export {
+  BILLING_ADDON_COMPANY_BLOCK_PRICE_CENTS,
+  BILLING_ADDON_COMPANY_BLOCK_SIZE,
+  BILLING_BASE_COMPANY_LIMIT,
+  BILLING_MAX_ADDON_BLOCKS,
+  billingAmountCents,
+  billingCompanyLimit,
+  billingPlans,
+  billingPricingMode,
+  normalizeCompanyAddonBlocks,
+  type PaidPlanKey,
+  type PurchasablePaidPlanKey,
+} from "../domain/billing-plans";
 
 type MercadoPagoEnvironment = {
   MERCADO_PAGO_ACCESS_TOKEN?: string;
@@ -132,6 +151,30 @@ export function currencyAmountToCents(value: string | number | null | undefined)
 
 export function isPaidPlanKey(value: unknown): value is PaidPlanKey {
   return typeof value === "string" && value in billingPlans;
+}
+
+export function isPurchasablePlanKey(value: unknown): value is PurchasablePaidPlanKey {
+  return isPaidPlanKey(value) && billingPlans[value].purchasable;
+}
+
+export function billingAmountForAccount(input: {
+  planKey: string;
+  companyAddonBlocks?: number | null;
+  pendingCompanyAddonBlocks?: number | null;
+  providerSubscriptionId?: string | null;
+  status?: string | null;
+}) {
+  if (!isPaidPlanKey(input.planKey)) return null;
+  const activeBlocks = normalizeCompanyAddonBlocks(input.companyAddonBlocks) ?? 0;
+  const pendingBlocks = normalizeCompanyAddonBlocks(input.pendingCompanyAddonBlocks) ?? activeBlocks;
+  const usePending = !input.providerSubscriptionId
+    && ["pix_creating", "pending", "renewal_pending"].includes(String(input.status ?? ""));
+  return billingAmountCents(input.planKey, usePending ? pendingBlocks : activeBlocks);
+}
+
+export function billingLimitForAccount(input: { planKey: string; companyAddonBlocks?: number | null }) {
+  if (!isPaidPlanKey(input.planKey)) return null;
+  return billingCompanyLimit(input.planKey, normalizeCompanyAddonBlocks(input.companyAddonBlocks) ?? 0);
 }
 
 export function normalizeBillingStatus(status: string | null | undefined) {

@@ -16,19 +16,19 @@ export default async function PricingPage() {
         <div><Link href={user ? "/app" : "/entrar"}>{user ? "Voltar ao painel" : "Entrar"}</Link><Link className="landing-cta small" href={user ? "/app" : "/cadastro"}>{user ? "Abrir aplicativo" : "Criar acesso"}<span>→</span></Link></div>
       </header>
       <section className="pricing-hero">
-        <span className="landing-eyebrow">PREÇOS TRANSPARENTES</span>
-        <h1>Comece grátis. Pague quando o produto já estiver gerando valor.</h1>
-        <p>{operation.betaEnabled ? "Durante o beta integral, todas as contas usam empresas e recursos sem restrição de pacote." : "Fora do beta, os limites de empresas e os módulos disponíveis seguem exatamente o pacote de cada conta."}</p>
-        <div className="beta-guarantee"><i />{operation.betaEnabled ? " Beta integral ativo — novas cobranças bloqueadas" : " Operação comercial ativa — planos aplicados pelo servidor"}</div>
+        <span className="landing-eyebrow">OPERAÇÃO FISCAL PROFISSIONAL</span>
+        <h1>Mais controle para atender sua carteira com segurança e escala.</h1>
+        <p>Centralize inteligência fiscal, cálculos, documentos, revisão e rastreabilidade em uma única plataforma. O plano inclui 30 empresas e cresce junto com a sua operação.</p>
+        <div className="beta-guarantee"><i /> Plano completo · 30 empresas incluídas · capacidade ajustável</div>
       </section>
       <section className="pricing-content"><PricingClient signedIn={Boolean(user)} /></section>
       <section className="pricing-faq">
         <div><span className="landing-eyebrow">DÚVIDAS DIRETAS</span><h2>Sem surpresa na cobrança.</h2></div>
-        <article><strong>Vou pagar agora?</strong><p>{operation.paymentsEnabled ? "Somente se você escolher cartão ou Pix e confirmar o pagamento no Mercado Pago." : "Não. Com o beta integral ativo, novas cobranças ficam bloqueadas pelo servidor."}</p></article>
+        <article><strong>Como a contratação é confirmada?</strong><p>{operation.paymentsEnabled ? "A assinatura só começa depois que você escolhe cartão ou Pix e confirma o pagamento no Mercado Pago." : "Novas contratações estão temporariamente indisponíveis. Nenhuma cobrança será iniciada enquanto o pagamento estiver bloqueado."}</p></article>
         <article><strong>Quais meios são aceitos?</strong><p>Cartão de crédito com renovação automática ou Pix mensal com QR Code e Copia e Cola gerados pelo Mercado Pago.</p></article>
-        <article><strong>Como funciona o Pix?</strong><p>O Pix não renova sozinho. O acesso só é ativado ou prorrogado depois da confirmação oficial, e um novo código é gerado a cada mês.</p></article>
+        <article><strong>Como aumento minha carteira?</strong><p>Adicione blocos de 10 empresas por R$ 100 mensais. No cartão, o novo valor vai para as próximas cobranças; no Pix, entra na próxima renovação.</p></article>
       </section>
-      <footer className="pricing-footer"><span>Margem Clara · {operation.betaEnabled ? "Beta integral" : "Planos comerciais"} · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/responsavel">Responsável</Link><Link href="/">Voltar ao início</Link></div></footer>
+      <footer className="pricing-footer"><span>Margem Clara · Plataforma fiscal profissional · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/responsavel">Responsável</Link><Link href="/">Voltar ao início</Link></div></footer>
     </main>
   );
 }

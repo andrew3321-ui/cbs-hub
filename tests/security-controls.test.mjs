@@ -37,7 +37,7 @@ test("subscriptions omit unsupported callback fields and reconcile provider trut
   const billingRoute = read("../app/api/billing/route.ts");
   assert.doesNotMatch(checkout, /notification_url/);
   assert.match(checkout, /back_url/);
-  assert.match(checkout, /billingIdempotencyKey\(`\$\{reference\}:\$\{plan\.key\}:\$\{plan\.priceCents\}`\)/);
+  assert.match(checkout, /billingIdempotencyKey\(`\$\{reference\}:\$\{plan\.key\}:\$\{addonBlocks\}:\$\{amountCents\}`\)/);
   assert.match(checkout, /supportCode/);
   assert.match(billing, /MercadoPagoApiError/);
   assert.match(billing, /mercadoPagoApiErrorDetails/);
@@ -53,7 +53,7 @@ test("subscriptions omit unsupported callback fields and reconcile provider trut
   assert.match(billingRoute, /syncBillingAccountFromProvider/);
   assert.match(reconciliation, /authorized_payments\/search/);
   assert.match(reconciliation, /account\.externalReference !== externalReference/);
-  assert.match(reconciliation, /grossAmountCents !== plan\.priceCents/);
+  assert.match(reconciliation, /grossAmountCents !== expectedAmountCents/);
   assert.match(reconciliation, /currency !== "BRL"/);
   assert.match(reconciliation, /status: "active"/);
 });

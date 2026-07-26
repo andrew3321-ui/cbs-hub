@@ -114,7 +114,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
           <p>Esta chave substitui o envio por e-mail nesta fase gratuita. Ela será exibida apenas agora e permite redefinir sua senha.</p>
           <div className="recovery-key-box"><span>{issuedRecoveryKey}</span><button type="button" onClick={copyRecoveryKey}>{copied ? "Copiada ✓" : "Copiar chave"}</button></div>
           <div className="recovery-warning"><b>Importante</b><span>Salve em um gerenciador de senhas ou local seguro. Não compartilhe esta chave.</span></div>
-          <div className="auth-plan-suggestion"><span>PLANO SUGERIDO</span><b>{accountType === "office" ? "Escritório" : "Profissional"}</b><small>Beta gratuito agora. A sugestão não inicia cobrança.</small></div>
+          <div className="auth-plan-suggestion"><span>PLANO DISPONÍVEL</span><b>Margem Clara</b><small>Beta gratuito agora. Nenhuma cobrança é iniciada no cadastro.</small></div>
           <a className="auth-primary-link" href="/app">Guardei a chave · entrar no painel <span>→</span></a>
         </section>
       </main>
@@ -142,8 +142,8 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
           <form onSubmit={submit}>
             {mode === "register" && <>
               {inviteInfo ? <div className="auth-invite-banner"><span>CONVITE PARA EQUIPE</span><b>{inviteInfo.workspaceName}</b><small>Você entrará como {inviteInfo.role === "reviewer" ? "revisor" : inviteInfo.role === "preparer" ? "preparador" : "administrador"}.</small></div> : <fieldset className="auth-account-type"><legend>Como você trabalha?</legend><div>
-                <button type="button" className={accountType === "individual" ? "active" : ""} onClick={() => setAccountType("individual")}><span>01</span><b>Contador independente</b><small>Você prepara e assume a própria revisão.</small><em>Plano Profissional sugerido</em></button>
-                <button type="button" className={accountType === "office" ? "active" : ""} onClick={() => setAccountType("office")}><span>02</span><b>Escritório contábil</b><small>Equipe com preparadores e revisão segregada.</small><em>Plano Escritório sugerido</em></button>
+                <button type="button" className={accountType === "individual" ? "active" : ""} onClick={() => setAccountType("individual")}><span>01</span><b>Contador independente</b><small>Você prepara e assume a própria revisão.</small><em>Mesmo plano · espaço individual</em></button>
+                <button type="button" className={accountType === "office" ? "active" : ""} onClick={() => setAccountType("office")}><span>02</span><b>Escritório contábil</b><small>Equipe com preparadores e revisão segregada.</small><em>Mesmo plano · espaço colaborativo</em></button>
               </div></fieldset>}
               <label>Seu nome completo<input autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome do profissional" /></label>
               {accountType === "office" && <label>Nome do escritório<input required minLength={2} maxLength={120} value={officeName} onChange={(event) => setOfficeName(event.target.value)} readOnly={Boolean(inviteInfo)} placeholder="Ex.: Horizonte Contabilidade" /></label>}

@@ -1,4 +1,12 @@
-import { billingPlans, type PaidPlanKey } from "./billing-plans.ts";
+import {
+  BILLING_ADDON_COMPANY_BLOCK_PRICE_CENTS,
+  BILLING_ADDON_COMPANY_BLOCK_SIZE,
+  billingAmountCents,
+  billingCompanyLimit,
+  billingPlans,
+  normalizeCompanyAddonBlocks,
+  type PaidPlanKey,
+} from "./billing-plans.ts";
 
 export type EffectivePlanKey = "owner" | "global_beta" | "beta" | PaidPlanKey;
 export type EntitlementAccessMode = "platform_owner" | "beta_full" | "plan";
@@ -8,6 +16,8 @@ export type BillingAccessSnapshot = {
   status: string;
   providerSubscriptionId: string | null;
   nextPaymentAt: string | null;
+  companyAddonBlocks?: number | null;
+  pendingCompanyAddonBlocks?: number | null;
 } | null;
 
 export type PlanFeatureKey =
@@ -46,6 +56,11 @@ export type WorkspaceEntitlements = PlanDefinition & {
   billingStatus: string;
   requestedPlanKey: string | null;
   companyCount: number;
+  companyAddonBlocks: number;
+  pendingCompanyAddonBlocks: number;
+  companyAddonBlockSize: number;
+  companyAddonPriceCents: number;
+  monthlyPriceCents: number | null;
   companyRemaining: number | null;
   companyLimitReached: boolean;
   companyLimitExceeded: boolean;
@@ -108,6 +123,16 @@ export const planDefinitions: Record<EffectivePlanKey, PlanDefinition> = {
     officeCollaborationEnabled: false,
     prioritySupport: false,
   },
+  unico: {
+    key: "unico",
+    name: billingPlans.unico.name,
+    accessMode: "plan",
+    companyLimit: billingPlans.unico.companyLimit,
+    ...coreFeatures,
+    ...advancedFiscalFeatures,
+    officeCollaborationEnabled: true,
+    prioritySupport: true,
+  },
   pro: {
     key: "pro",
     name: billingPlans.pro.name,
@@ -140,8 +165,8 @@ export function billingAccessIsActive(snapshot: BillingAccessSnapshot, now = Dat
 }
 
 export function resolveEffectivePlan(snapshot: BillingAccessSnapshot, now = Date.now()) {
-  if (billingAccessIsActive(snapshot, now) && snapshot && (snapshot.planKey === "pro" || snapshot.planKey === "escritorio")) {
-    return planDefinitions[snapshot.planKey];
+  if (billingAccessIsActive(snapshot, now) && snapshot && snapshot.planKey in billingPlans) {
+    return planDefinitions[snapshot.planKey as PaidPlanKey];
   }
   return planDefinitions.beta;
 }
@@ -154,13 +179,34 @@ export function resolveWorkspacePlan(input: { platformOwner: boolean; betaEnable
 
 export function applyPlanUsage(plan: PlanDefinition, snapshot: BillingAccessSnapshot, companyCount: number): WorkspaceEntitlements {
   const safeCount = Number.isInteger(companyCount) && companyCount > 0 ? companyCount : 0;
-  const limit = plan.companyLimit;
+  const companyAddonBlocks = plan.key === "unico"
+    ? normalizeCompanyAddonBlocks(snapshot?.companyAddonBlocks) ?? 0
+    : 0;
+  const pendingCompanyAddonBlocks = plan.key === "unico"
+    ? normalizeCompanyAddonBlocks(snapshot?.pendingCompanyAddonBlocks) ?? companyAddonBlocks
+    : 0;
+  const limit = plan.key === "unico"
+    ? billingCompanyLimit("unico", companyAddonBlocks)
+    : plan.companyLimit;
+  const monthlyPriceCents = plan.key === "unico"
+    ? billingAmountCents("unico", companyAddonBlocks)
+    : plan.key === "pro" || plan.key === "escritorio"
+      ? billingAmountCents(plan.key)
+      : plan.key === "beta"
+        ? 0
+        : null;
   const companyRemaining = limit === null ? null : Math.max(0, limit - safeCount);
   return {
     ...plan,
+    companyLimit: limit,
     billingStatus: snapshot?.status ?? "beta",
     requestedPlanKey: snapshot?.planKey ?? null,
     companyCount: safeCount,
+    companyAddonBlocks,
+    pendingCompanyAddonBlocks,
+    companyAddonBlockSize: BILLING_ADDON_COMPANY_BLOCK_SIZE,
+    companyAddonPriceCents: BILLING_ADDON_COMPANY_BLOCK_PRICE_CENTS,
+    monthlyPriceCents,
     companyRemaining,
     companyLimitReached: limit === null ? false : safeCount >= limit,
     companyLimitExceeded: limit === null ? false : safeCount > limit,

@@ -2,6 +2,7 @@ import { and, desc, eq, or } from "drizzle-orm";
 import { getDb } from "../db";
 import { billingAccounts, billingTransactions, fiscalIssuances, users } from "../db/schema";
 import {
+  billingAmountForAccount,
   billingIdempotencyKey,
   billingPlans,
   currencyAmountToCents,
@@ -172,10 +173,12 @@ async function reconcileNormalizedPixSnapshot(snapshot: NormalizedPixSnapshot, e
   const account = await accountForPixProvider(paymentId, providerInvoiceId, externalReference);
   if (!account) return { outcome: "retry", checkout: null };
   const plan = billingPlans[account.planKey as keyof typeof billingPlans];
+  const expectedAmountCents = billingAmountForAccount(account);
   if (
     account.externalReference !== externalReference
     || !plan
-    || amountCents !== plan.priceCents
+    || expectedAmountCents === null
+    || amountCents !== expectedAmountCents
     || currency !== "BRL"
     || snapshot.paymentMethod !== "pix"
     || snapshot.paymentType !== "bank_transfer"
@@ -227,11 +230,20 @@ async function reconcileNormalizedPixSnapshot(snapshot: NormalizedPixSnapshot, e
     const alreadyCredited = existingTransaction?.status === "approved";
     const accessBase = account.status === "renewal_pending" && accessIsStillValid(account) ? account.nextPaymentAt! : now;
     const accessExpiresAt = alreadyCredited && account.nextPaymentAt ? account.nextPaymentAt : addOneCalendarMonth(accessBase);
-    await db.update(billingAccounts).set({ status: "active", checkoutUrl: null, nextPaymentAt: accessExpiresAt, lastSyncedAt: now, updatedAt: now }).where(eq(billingAccounts.id, account.id));
+    await db.update(billingAccounts).set({
+      status: "active",
+      companyAddonBlocks: account.pendingCompanyAddonBlocks,
+      pendingCompanyAddonBlocks: account.pendingCompanyAddonBlocks,
+      checkoutUrl: null,
+      nextPaymentAt: accessExpiresAt,
+      lastSyncedAt: now,
+      updatedAt: now,
+    }).where(eq(billingAccounts.id, account.id));
     await ensureFiscalIssuance(transaction, account, snapshot.approvedAt ?? now);
   } else if (terminalStatuses.has(status)) {
     await db.update(billingAccounts).set({
       status: accessIsStillValid(account) ? "active" : "payment_failed",
+      pendingCompanyAddonBlocks: account.companyAddonBlocks,
       checkoutUrl: null,
       lastSyncedAt: now,
       updatedAt: now,

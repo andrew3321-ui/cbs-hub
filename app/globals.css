@@ -714,9 +714,25 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* Hybrid billing: recurring card or provider-confirmed monthly Pix. */
 .pricing-payment-actions { margin-top: auto; display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.pricing-grid.single-plan { grid-template-columns: minmax(280px,.72fr) minmax(460px,1.28fr); }
+.pricing-grid.single-plan .pricing-card:last-child { grid-column: auto; }
 .pricing-payment-actions .pricing-button { margin-top: 0; padding: 0 12px; }
 .pricing-payment-actions .pricing-button.pix { border: 1px solid #9bc75e; background: #eff9df; color: #456d25; }
 .pricing-payment-actions > small { grid-column: 1/-1; color: #7b8c88; font-size: 8px; line-height: 1.45; text-align: center; }
+.pricing-payment-actions.single { grid-template-columns: 1fr; }
+.pricing-contract-note { margin: 0; padding: 12px; border-left: 3px solid #c9973f; background: #fff8e9; color: #755e38; font-size: 9px; line-height: 1.5; }
+.capacity-selector { margin: 0 0 18px; padding: 16px; display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 8px 18px; border: 1px solid #d4e1da; border-radius: 11px; background: #f5f8f5; }
+.capacity-selector span,.capacity-selector strong,.capacity-selector small { display: block; }
+.capacity-selector span { color: #66807a; font-size: 7px; font-weight: 900; letter-spacing: .8px; }
+.capacity-selector > div > strong { margin: 5px 0 3px; font-size: 18px; }
+.capacity-selector small { color: #7d8c89; font-size: 8px; }
+.capacity-selector > p { grid-column: 1/-1; margin: 4px 0 0; color: #667975; font-size: 8px; }
+.capacity-selector output { grid-column: 1/-1; padding-top: 9px; border-top: 1px solid #dce5e0; color: #526763; font-size: 9px; }
+.capacity-selector output strong { display: inline; color: var(--deep); font-size: 13px; }
+.capacity-stepper { display: grid; grid-template-columns: 34px 30px 34px; align-items: center; gap: 5px; }
+.capacity-stepper button { width: 34px; height: 34px; border: 1px solid #cddbd4; border-radius: 8px; background: white; color: var(--teal); font-size: 18px; font-weight: 800; cursor: pointer; }
+.capacity-stepper button:disabled { opacity: .4; cursor: not-allowed; }
+.capacity-stepper b { text-align: center; font-size: 12px; }
 .pricing-card:has(.pricing-payment-actions) { min-height: 550px; }
 .pix-checkout-panel { margin: 0 0 28px; overflow: hidden; border: 1px solid #b9d58e; border-radius: 18px; background: #fff; box-shadow: 0 20px 55px rgba(18,58,59,.09); }
 .pix-checkout-heading { padding: 24px 28px; display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; border-bottom: 1px solid #e1e9dd; background: linear-gradient(135deg,#f3fae8,#fff); }
@@ -744,6 +760,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .billing-status-card.renewal_pending,.billing-status-card.pending { border-color: #d8e4bf; background: #fbfdf7; }
 .billing-status-card.overdue,.billing-status-card.payment_failed { border-color: #ebc2b5; background: #fff7f4; }
 @media (max-width: 720px) {
+  .pricing-grid.single-plan { grid-template-columns: 1fr; }
   .pricing-payment-actions { grid-template-columns: 1fr; }
   .pricing-payment-actions > small { grid-column: auto; }
   .pix-checkout-heading { padding: 20px; align-items: flex-start; flex-direction: column; }
@@ -752,6 +769,8 @@ tbody tr:last-child td { border-bottom: 0; }
   .pix-safety-note { margin: 0 20px 20px; }
   .pix-actions { display: grid; }
   .pix-actions button,.pix-actions a { width: 100%; }
+  .capacity-selector { grid-template-columns: 1fr; }
+  .capacity-stepper { justify-self: start; }
 }
 
 /* Platform mode, payment gates and public privacy center */
