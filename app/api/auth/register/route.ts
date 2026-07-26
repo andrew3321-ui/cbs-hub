@@ -1,4 +1,4 @@
-import { and, count, eq, gt, isNull } from "drizzle-orm";
+import { and, count, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { createRecoveryKey, createSession, hashPassword, hashRecoveryKey, normalizeEmail, passwordIsStrong, sessionCookieHeader } from "../../../auth";
 import { ensureScenarioSchema, getDb } from "../../../../db";
@@ -104,7 +104,13 @@ export async function POST(request: Request) {
       if (trialIdentity) {
         trialStartedAt = new Date().toISOString();
         trialEndsAtValue = trialEndsAt(trialStartedAt);
-        const [claim] = await db.insert(trialDeviceClaims).values({
+        const hashVersions = [trialIdentity, ...trialIdentity.historicalHashes];
+        const [usedClaim] = await db.select({ id: trialDeviceClaims.id }).from(trialDeviceClaims).where(or(
+          inArray(trialDeviceClaims.deviceHash, hashVersions.map((hash) => hash.deviceHash)),
+          inArray(trialDeviceClaims.fingerprintHash, hashVersions.map((hash) => hash.fingerprintHash)),
+          inArray(trialDeviceClaims.emailHash, hashVersions.map((hash) => hash.emailHash)),
+        )).limit(1);
+        const [claim] = usedClaim ? [] : await db.insert(trialDeviceClaims).values({
           userId: user.id,
           workspaceId,
           deviceHash: trialIdentity.deviceHash,

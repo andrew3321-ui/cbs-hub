@@ -190,6 +190,13 @@
       "when": 1785089184081,
       "tag": "0026_plain_vin_gonzales",
       "breakpoints": true
+    },
+    {
+      "idx": 27,
+      "version": "6",
+      "when": 1785103163776,
+      "tag": "0027_familiar_black_bolt",
+      "breakpoints": true
     }
   ]
 }

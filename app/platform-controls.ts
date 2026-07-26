@@ -59,6 +59,11 @@ function runtimeConfiguration() {
   };
 }
 
+export function privacyContactEmail() {
+  const email = runtimeConfiguration().privacyEmail;
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email) ? email : "";
+}
+
 function paymentReadinessGates(): ReadinessGate[] {
   const provider = mercadoPagoConfigurationStatus();
   const runtime = runtimeConfiguration();

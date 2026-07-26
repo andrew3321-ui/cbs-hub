@@ -815,3 +815,53 @@ export const reportShares = sqliteTable("report_shares", {
   index("report_shares_owner_company_created_idx").on(table.ownerUserId, table.companyId, table.createdAt, table.id),
   index("report_shares_scenario_owner_idx").on(table.scenarioId, table.ownerUserId),
 ]);
+
+export const privacyRequestEvents = sqliteTable("privacy_request_events", {
+  id: text("id").primaryKey(),
+  subjectHash: text("subject_hash").notNull(),
+  workspaceHash: text("workspace_hash"),
+  action: text("action").notNull(),
+  status: text("status").notNull(),
+  requestId: text("request_id").notNull(),
+  detailsJson: text("details_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  retainUntil: text("retain_until").notNull(),
+}, (table) => [
+  index("privacy_request_events_subject_created_idx").on(table.subjectHash, table.createdAt, table.id),
+  index("privacy_request_events_retention_idx").on(table.retainUntil, table.id),
+]);
+
+export const securityIncidents = sqliteTable("security_incidents", {
+  id: text("id").primaryKey(),
+  severity: text("severity").notNull(),
+  category: text("category").notNull(),
+  status: text("status").notNull().default("open"),
+  summary: text("summary").notNull(),
+  impactSummary: text("impact_summary").notNull().default(""),
+  personalDataInvolved: integer("personal_data_involved", { mode: "boolean" }).notNull().default(false),
+  authorityNotification: text("authority_notification").notNull().default("pending_assessment"),
+  dataSubjectNotification: text("data_subject_notification").notNull().default("pending_assessment"),
+  detectedAt: text("detected_at").notNull(),
+  containedAt: text("contained_at"),
+  resolvedAt: text("resolved_at"),
+  reportedByUserId: integer("reported_by_user_id"),
+  requestId: text("request_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  retainUntil: text("retain_until").notNull(),
+}, (table) => [
+  index("security_incidents_status_severity_idx").on(table.status, table.severity, table.detectedAt, table.id),
+  index("security_incidents_retention_idx").on(table.retainUntil, table.id),
+]);
+
+export const securityIncidentEvents = sqliteTable("security_incident_events", {
+  id: text("id").primaryKey(),
+  incidentId: text("incident_id").notNull(),
+  actorUserId: integer("actor_user_id"),
+  eventType: text("event_type").notNull(),
+  detailsJson: text("details_json").notNull().default("{}"),
+  requestId: text("request_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("security_incident_events_incident_created_idx").on(table.incidentId, table.createdAt, table.id),
+]);

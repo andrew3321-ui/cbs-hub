@@ -2,11 +2,31 @@
 
 import { useState } from "react";
 
-export default function PrivacyActions({ signedIn }: { signedIn: boolean }) {
+export default function PrivacyActions({ signedIn, initialName, initialEmail }: { signedIn: boolean; initialName: string; initialEmail: string }) {
   const [password, setPassword] = useState("");
+  const [correctionPassword, setCorrectionPassword] = useState("");
+  const [name, setName] = useState(initialName);
+  const [email, setEmail] = useState(initialEmail);
   const [confirmed, setConfirmed] = useState(false);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+
+  async function correctAccount() {
+    if (!name.trim() || !email.trim() || !correctionPassword) return;
+    setBusy(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/account", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password: correctionPassword }) });
+      const payload = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(payload.error ?? "Não foi possível corrigir os dados.");
+      setCorrectionPassword("");
+      setMessage("Dados corrigidos. As demais sessões da conta foram encerradas.");
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Não foi possível corrigir os dados.");
+    } finally {
+      setBusy(false);
+    }
+  }
 
   async function deleteAccount() {
     if (!confirmed || !password || !window.confirm("Esta ação exclui permanentemente sua conta e os dados vinculados permitidos. Deseja continuar?")) return;
@@ -28,6 +48,7 @@ export default function PrivacyActions({ signedIn }: { signedIn: boolean }) {
 
   return <div className="privacy-actions">
     <article><span>ACESSO E PORTABILIDADE</span><h3>Baixar meus dados</h3><p>Gera uma cópia JSON com conta, empresas, cenários, aprovações, auditoria e registros financeiros, sem senhas, sessões ou payloads brutos do provedor.</p><a className="primary-button" href="/api/account?download=1">Baixar cópia dos dados</a></article>
+    <article><span>CORREÇÃO</span><h3>Corrigir nome ou e-mail</h3><p>A senha atual confirma a alteração. A correção gira a sessão e encerra acessos anteriores.</p><label>Nome<input value={name} maxLength={100} onChange={(event) => setName(event.target.value)} /></label><label>E-mail<input type="email" value={email} maxLength={254} onChange={(event) => setEmail(event.target.value)} /></label><label>Senha atual<input type="password" autoComplete="current-password" value={correctionPassword} onChange={(event) => setCorrectionPassword(event.target.value)} /></label><button type="button" disabled={busy || !name.trim() || !email.trim() || !correctionPassword} onClick={() => void correctAccount()}>{busy ? "Salvando…" : "Salvar correção"}</button></article>
     <article className="danger"><span>EXCLUSÃO</span><h3>Excluir minha conta</h3><p>A senha é exigida novamente. Escritórios com outros membros ou revisões pendentes precisam resolver essas responsabilidades antes da exclusão.</p><label>Confirme sua senha<input type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} /></label><label className="privacy-delete-confirm"><input type="checkbox" checked={confirmed} onChange={(event) => setConfirmed(event.target.checked)} /><span>Entendo que a exclusão é permanente.</span></label><button type="button" disabled={busy || !confirmed || !password} onClick={() => void deleteAccount()}>{busy ? "Excluindo…" : "Excluir permanentemente"}</button>{message && <small role="alert">{message}</small>}</article>
   </div>;
 }

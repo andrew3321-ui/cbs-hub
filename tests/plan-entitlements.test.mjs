@@ -38,12 +38,14 @@ test("the platform owner and global beta bypass every package restriction", () =
   assert.equal(unlimited.canCreateCompany, true);
 });
 
-test("only a reconciled active subscription grants a paid plan", () => {
+test("only an approved and reconciled active payment grants a paid plan", () => {
   assert.equal(resolveEffectivePlan({ planKey: "unico", status: "active", providerSubscriptionId: "subscription-new", nextPaymentAt: null }, now).key, "unico");
   assert.equal(resolveEffectivePlan({ planKey: "pro", status: "active", providerSubscriptionId: "subscription-1", nextPaymentAt: null }, now).key, "pro");
   assert.equal(resolveEffectivePlan({ planKey: "escritorio", status: "active", providerSubscriptionId: null, nextPaymentAt: "2026-08-18T12:00:00.000Z" }, now).key, "escritorio");
   assert.equal(resolveEffectivePlan({ planKey: "pro", status: "renewal_pending", providerSubscriptionId: null, nextPaymentAt: "2026-07-25T12:00:00.000Z" }, now).key, "pro");
-  assert.equal(resolveEffectivePlan({ planKey: "pro", status: "pending", providerSubscriptionId: "subscription-1", nextPaymentAt: null }, now).key, "beta");
+  for (const status of ["pending", "overdue", "paused", "canceled", "payment_failed"]) {
+    assert.equal(resolveEffectivePlan({ planKey: "unico", status, providerSubscriptionId: "subscription-1", nextPaymentAt: null }, now).key, "beta", status);
+  }
   assert.equal(resolveEffectivePlan({ planKey: "pro", status: "active", providerSubscriptionId: null, nextPaymentAt: "2026-07-18T11:59:59.000Z" }, now).key, "beta");
 });
 

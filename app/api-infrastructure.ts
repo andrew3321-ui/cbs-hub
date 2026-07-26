@@ -1,6 +1,8 @@
 type ApiHandler = (request: Request) => Promise<Response>;
 
-function requestId() {
+function requestId(request: Request) {
+  const supplied = request.headers.get("x-request-id") ?? "";
+  if (/^[0-9a-f-]{32,36}$/i.test(supplied)) return supplied;
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
   const bytes = new Uint8Array(16);
   crypto.getRandomValues(bytes);
@@ -9,7 +11,7 @@ function requestId() {
 
 export function withApiTelemetry(route: string, handler: ApiHandler): ApiHandler {
   return async (request) => {
-    const id = requestId();
+    const id = requestId(request);
     const startedAt = Date.now();
     try {
       const response = await handler(request);
