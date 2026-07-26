@@ -258,6 +258,170 @@ export const fiscalRuleApprovals = sqliteTable("fiscal_rule_approvals", {
   index("fiscal_rule_approvals_workspace_decided_idx").on(table.workspaceId, table.decidedAt, table.id),
 ]);
 
+export const normativeSources = sqliteTable("normative_sources", {
+  id: text("id").primaryKey(),
+  code: text("code").notNull(),
+  catalogVersion: text("catalog_version").notNull(),
+  title: text("title").notNull(),
+  publisher: text("publisher").notNull(),
+  jurisdiction: text("jurisdiction").notNull(),
+  legalDevice: text("legal_device").notNull(),
+  sourceKind: text("source_kind").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  effectiveFrom: text("effective_from"),
+  effectiveTo: text("effective_to"),
+  verificationStatus: text("verification_status").notNull(),
+  impactedRuleCodesJson: text("impacted_rule_codes_json").notNull().default("[]"),
+  metadataHash: text("metadata_hash").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("normative_sources_metadata_hash_idx").on(table.metadataHash),
+  index("normative_sources_code_created_idx").on(table.code, table.createdAt, table.id),
+  index("normative_sources_jurisdiction_kind_idx").on(table.jurisdiction, table.sourceKind, table.id),
+]);
+
+export const normativeMonitorRuns = sqliteTable("normative_monitor_runs", {
+  id: text("id").primaryKey(),
+  runDate: text("run_date").notNull(),
+  status: text("status").notNull().default("running"),
+  catalogVersion: text("catalog_version").notNull(),
+  sourceCount: integer("source_count").notNull().default(0),
+  checkedCount: integer("checked_count").notNull().default(0),
+  unavailableCount: integer("unavailable_count").notNull().default(0),
+  changeCount: integer("change_count").notNull().default(0),
+  startedAt: text("started_at").notNull(),
+  finishedAt: text("finished_at"),
+  errorCode: text("error_code"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("normative_monitor_runs_date_catalog_idx").on(table.runDate, table.catalogVersion),
+  index("normative_monitor_runs_status_date_idx").on(table.status, table.runDate, table.id),
+]);
+
+export const normativeSourceSnapshots = sqliteTable("normative_source_snapshots", {
+  id: text("id").primaryKey(),
+  runId: text("run_id").notNull(),
+  sourceVersionId: text("source_version_id").notNull(),
+  sourceCode: text("source_code").notNull(),
+  captureStatus: text("capture_status").notNull(),
+  httpStatus: integer("http_status"),
+  contentHash: text("content_hash"),
+  previousContentHash: text("previous_content_hash"),
+  etag: text("etag"),
+  lastModified: text("last_modified"),
+  checkedAt: text("checked_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("normative_source_snapshots_run_source_idx").on(table.runId, table.sourceCode),
+  index("normative_source_snapshots_source_checked_idx").on(table.sourceCode, table.checkedAt, table.id),
+  index("normative_source_snapshots_hash_idx").on(table.contentHash, table.id),
+]);
+
+export const normativeChangeEvents = sqliteTable("normative_change_events", {
+  id: text("id").primaryKey(),
+  sourceCode: text("source_code").notNull(),
+  previousSnapshotId: text("previous_snapshot_id"),
+  currentSnapshotId: text("current_snapshot_id").notNull(),
+  changeKind: text("change_kind").notNull(),
+  status: text("status").notNull().default("pending_review"),
+  impactedRuleCodesJson: text("impacted_rule_codes_json").notNull().default("[]"),
+  detectedAt: text("detected_at").notNull(),
+  resolvedAt: text("resolved_at"),
+  resolutionReleaseId: text("resolution_release_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("normative_change_events_current_snapshot_idx").on(table.currentSnapshotId),
+  index("normative_change_events_status_detected_idx").on(table.status, table.detectedAt, table.id),
+  index("normative_change_events_source_detected_idx").on(table.sourceCode, table.detectedAt, table.id),
+]);
+
+export const normativeChangeReviews = sqliteTable("normative_change_reviews", {
+  id: text("id").primaryKey(),
+  changeEventId: text("change_event_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  reviewerUserId: integer("reviewer_user_id").notNull(),
+  reviewerName: text("reviewer_name").notNull(),
+  professionalRole: text("professional_role").notNull(),
+  professionalRegistration: text("professional_registration").notNull(),
+  decision: text("decision").notNull(),
+  decisionNote: text("decision_note").notNull(),
+  releaseVersion: text("release_version"),
+  releaseHash: text("release_hash"),
+  declarationVersion: text("declaration_version").notNull(),
+  decisionSignature: text("decision_signature").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("normative_change_reviews_event_created_idx").on(table.changeEventId, table.createdAt, table.id),
+  index("normative_change_reviews_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+]);
+
+export const fiscalRuleReleases = sqliteTable("fiscal_rule_releases", {
+  id: text("id").primaryKey(),
+  version: text("version").notNull(),
+  manifestJson: text("manifest_json").notNull(),
+  manifestHash: text("manifest_hash").notNull(),
+  previousReleaseHash: text("previous_release_hash"),
+  sourceChangeEventId: text("source_change_event_id"),
+  releaseKind: text("release_kind").notNull().default("normative_change"),
+  status: text("status").notNull().default("approved"),
+  approvedByUserId: integer("approved_by_user_id").notNull(),
+  professionalRegistration: text("professional_registration").notNull(),
+  approvalSignature: text("approval_signature").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_rule_releases_version_idx").on(table.version),
+  uniqueIndex("fiscal_rule_releases_manifest_hash_idx").on(table.manifestHash),
+  index("fiscal_rule_releases_event_created_idx").on(table.sourceChangeEventId, table.createdAt, table.id),
+]);
+
+export const fiscalResultInvalidations = sqliteTable("fiscal_result_invalidations", {
+  id: text("id").primaryKey(),
+  changeEventId: text("change_event_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  dossierId: text("dossier_id").notNull(),
+  ruleCode: text("rule_code").notNull(),
+  ruleVersion: text("rule_version").notNull(),
+  status: text("status").notNull().default("open"),
+  reason: text("reason").notNull(),
+  notifiedAt: text("notified_at"),
+  resolvedAt: text("resolved_at"),
+  resolutionReleaseId: text("resolution_release_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_result_invalidations_event_dossier_idx").on(table.changeEventId, table.dossierId),
+  index("fiscal_result_invalidations_workspace_status_idx").on(table.workspaceId, table.status, table.createdAt),
+  index("fiscal_result_invalidations_dossier_status_idx").on(table.dossierId, table.status, table.id),
+]);
+
+export const governanceNotifications = sqliteTable("governance_notifications", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  recipientUserId: integer("recipient_user_id").notNull(),
+  notificationType: text("notification_type").notNull(),
+  subjectType: text("subject_type").notNull(),
+  subjectId: text("subject_id").notNull(),
+  message: text("message").notNull(),
+  readAt: text("read_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("governance_notifications_recipient_subject_idx").on(table.recipientUserId, table.notificationType, table.subjectType, table.subjectId),
+  index("governance_notifications_workspace_unread_idx").on(table.workspaceId, table.readAt, table.createdAt),
+]);
+
+export const normativeGovernanceAuditEvents = sqliteTable("normative_governance_audit_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  changeEventId: text("change_event_id"),
+  workspaceId: integer("workspace_id"),
+  actorUserId: integer("actor_user_id"),
+  eventType: text("event_type").notNull(),
+  eventData: text("event_data").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("normative_governance_audit_change_created_idx").on(table.changeEventId, table.createdAt, table.id),
+  index("normative_governance_audit_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+]);
+
 export const fiscalExpansionProgress = sqliteTable("fiscal_expansion_progress", {
   id: text("id").primaryKey(),
   workspaceId: integer("workspace_id").notNull(),

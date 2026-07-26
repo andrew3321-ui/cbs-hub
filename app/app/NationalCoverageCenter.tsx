@@ -68,7 +68,44 @@ type IssTechnicalEvidence = IssTechnicalReview & { profileCode: string; ibgeCode
 type AutomaticAssurance = { version: string; checkedAt: string; fingerprint?: string; status: "automatically_verified" | "blocked"; professionalOpinion: false; humanReviewRequired: false; statement: string; metrics: { modules: number; modulesPassed: number; totalRuns: number; referenceReproduced: number; safelyBlocked: number; failed: number }; modules: Array<{ code: string; label: string; passed: boolean; errors: string[] }>; errors: string[] };
 type Coverage = { version: string; checkedAt: string; fingerprint: string; automaticAssurance?: AutomaticAssurance; metrics: { states: number; cities: number; deepIssCities: number; stSegments: number; recurringScenarios: number; supported: number; partial: number; notSupported: number; sourceCount: number }; states: StateRow[]; cities: CityRow[]; issDeep: { metrics: { structuredCities: number; officialSources: number; sourceCatalogReviewedCities: number; technicalGateValidatedCities: number; rateReferenceLocatedCities: number; testedCities: number; professionallyApprovedCities: number; automaticHomologation: false }; profiles: IssDeepProfile[]; sources: IssDeepSource[]; technicalEvidence: IssTechnicalEvidence[]; policy: string }; stSegments: Segment[]; stSpMg: { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; metrics: { totalSegments: number; legalGatesStructured: number; calculationsValidated: number; calculationsBlocked: number; officialSources: number }; packages: StSpMgPackage[]; policy: string }; stSpOriginMatrix: StSpOriginMatrix; stRepresentativeProducts: { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; source: { title: string; url: string }; products: StRepresentativeProduct[]; policy: string }; stSpCalculationValidation: StCalculationValidation; stCementSpRoutes: StCementSpRoutes; stCementPriorityBatch: StCementPriorityBatch; stAutoPartsPriorityBatch: StAutoPartsPriorityBatch; stAutoPartsHighUseCorridors: StAutoPartsHighUseCorridors; stColdBeveragesPriority: StColdBeveragesPriority; stColdBeveragesSpDestination: StColdBeveragesSpDestination; stColdBeveragesSpOrigin: StColdBeveragesSpOrigin; recurringScenarios: Scenario[]; sources: Array<{ code: string; title: string; publisher: string; url: string }> };
 type Governance = { identity: { ruleCode: string; ruleVersion: string; ruleHash: string }; automaticAssurance: AutomaticAssurance; approval: null | { reviewerName: string; professionalRole: string; professionalRegistration: string; decidedAt: string; verified: boolean }; executionEnabled: boolean; professionalApprovalVerified: boolean; professionalApprovalRequiredForReferences: false; canApprove: boolean; error?: string };
-type Monitor = { checkedAt: string; previousCheckedAt: string | null; rotation: { offset: number; totalSources: number; cycleDays: number }; metrics: { monitored: number; checkedToday: number; checked: number; unavailable: number; changeSignals: number }; sources: Array<{ code: string; title: string; url: string; status: "checked" | "unavailable"; changed: boolean; lastModified: string | null }>; policy: string; error?: string };
+type Monitor = {
+  version: string;
+  catalogValidation: { passed: boolean; errors: string[]; sources: number };
+  rotation: { offset: number; totalSources: number; cycleDays: number };
+  metrics: {
+    monitored: number; checkedToday: number; checked: number; unavailable: number; changeSignals: number;
+    pendingReview: number; awaitingNewVersion: number; invalidatedResults: number; unreadNotifications: number;
+    expiringRules: number; expiredRules: number; unverifiableSources: number;
+  };
+  sources: Array<{
+    code: string; title: string; publisher: string; jurisdiction: string; legalDevice: string;
+    sourceKind: string; url: string; effectiveFrom: string | null; effectiveTo: string | null;
+    verificationStatus: string; impactedRuleCodes: string[]; captureStatus: string;
+    httpStatus: number | null; checkedAt: string | null; contentFingerprint: string | null;
+  }>;
+  queue: Array<{
+    id: string; sourceCode: string; title: string; publisher: string; jurisdiction: string;
+    legalDevice: string; sourceUrl: string; changeKind: string; status: string;
+    impactedRuleCodes: string[]; detectedAt: string;
+  }>;
+  invalidations: Array<{ id: string; eventId: string; dossierId: string; ruleCode: string; ruleVersion: string; status: string; reason: string; createdAt: string }>;
+  rules: Array<{ id: number; code: string; version: string; name: string; approvalStatus: string; effectiveFrom: string; effectiveTo: string; sourceCount: number; fingerprint: string; health: "current" | "future" | "expiring" | "expired" | "missing_source" }>;
+  runs: Array<{ id: string; runDate: string; status: string; sourceCount: number; checked: number; unavailable: number; changes: number; startedAt: string; finishedAt: string | null }>;
+  releases: Array<Record<string, string | number | null>>;
+  canReviewNormativeChanges: boolean;
+  policy: string;
+  error?: string;
+};
+type GovernanceReview = {
+  eventId: string;
+  professionalRole: "accountant" | "tax_lawyer";
+  professionalRegistration: string;
+  decision: "no_legal_impact" | "new_version_required" | "superseded_by_new_version";
+  decisionNote: string;
+  releaseVersion: string;
+  releaseSummary: string;
+  declarationAccepted: boolean;
+};
 type BatchResult = { batchId: string; metrics: { total: number; accepted: number; warning: number; blocked: number }; items: Array<{ filename: string; documentType: string; status: "accepted" | "warning" | "blocked"; sourceHash: string; issues: string[]; summary: Record<string, string | number | boolean | null> }>; message: string; error?: string };
 
 const statusLabel: Record<Status, string> = { supported: "Suportado", partial: "Parcial", not_supported: "Não suportado" };
@@ -205,12 +242,25 @@ export default function NationalCoverageCenter() {
   const [error, setError] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [batch, setBatch] = useState<BatchResult | null>(null);
+  const [governanceReview, setGovernanceReview] = useState<GovernanceReview>({
+    eventId: "",
+    professionalRole: "accountant",
+    professionalRegistration: "",
+    decision: "no_legal_impact",
+    decisionNote: "",
+    releaseVersion: "",
+    releaseSummary: "",
+    declarationAccepted: false,
+  });
 
   useEffect(() => {
     void Promise.all([
       json<Coverage>("/api/public/coverage?schema=automatic-assurance-v1", { cache: "no-store" }).then(setCoverage),
       json<Governance>("/api/rule-governance").then(setGovernance),
-      json<Monitor>("/api/normative-monitor").then(setMonitor),
+      json<Monitor>("/api/normative-monitor").then((payload) => {
+        setMonitor(payload);
+        setGovernanceReview((current) => ({ ...current, eventId: current.eventId || payload.queue[0]?.id || "" }));
+      }),
       json<{ companies: CompanyOption[] }>("/api/companies", { cache: "no-store" }).then((payload) => setCompanies(payload.companies.map(({ id, name }) => ({ id, name })))),
     ]).catch((cause: Error) => setError(cause.message));
   }, []);
@@ -372,6 +422,47 @@ export default function NationalCoverageCenter() {
     try { setBatch(await json<BatchResult>("/api/fiscal-imports", { method: "POST", body: form })); }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Lote recusado."); }
     finally { setBusy(""); }
+  };
+
+  const submitGovernanceReview = async (event: FormEvent) => {
+    event.preventDefault();
+    if (!monitor || !governanceReview.eventId) return;
+    const selectedEvent = monitor.queue.find((item) => item.id === governanceReview.eventId);
+    if (!selectedEvent) return;
+    setBusy("governance-review"); setError("");
+    try {
+      await json("/api/normative-monitor/review", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          eventId: governanceReview.eventId,
+          professionalRole: governanceReview.professionalRole,
+          professionalRegistration: governanceReview.professionalRegistration,
+          decision: governanceReview.decision,
+          decisionNote: governanceReview.decisionNote,
+          declarationAccepted: governanceReview.declarationAccepted,
+          release: governanceReview.decision === "superseded_by_new_version" ? {
+            version: governanceReview.releaseVersion,
+            summary: governanceReview.releaseSummary,
+            affectedRuleCodes: selectedEvent.impactedRuleCodes,
+          } : undefined,
+        }),
+      });
+      const refreshed = await json<Monitor>("/api/normative-monitor", { cache: "no-store" });
+      setMonitor(refreshed);
+      setGovernanceReview((current) => ({
+        ...current,
+        eventId: refreshed.queue[0]?.id || "",
+        decisionNote: "",
+        releaseVersion: "",
+        releaseSummary: "",
+        declarationAccepted: false,
+      }));
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "A decisão normativa não pôde ser registrada.");
+    } finally {
+      setBusy("");
+    }
   };
 
   if (!coverage) return <section className="coverage-loading"><span className="loading-spinner" /><div><b>Montando o mapa tributário nacional…</b><p>As regras e os limites estão sendo conferidos.</p></div></section>;
@@ -660,7 +751,50 @@ export default function NationalCoverageCenter() {
     </section>}
 
     {tab === "governance" && <section className="governance-area">
-      <div className="monitor-panel"><div className="coverage-section-heading"><span>MONITOR DIÁRIO ROTATIVO</span><h2>Alterações normativas viram sinal, não regra automática</h2><p>{monitor?.policy ?? "Consultando fontes oficiais…"}</p></div>{monitor && <><div className="monitor-kpis"><span><b>{monitor.metrics.monitored}</b>fontes no ciclo</span><span><b>{monitor.metrics.checked}</b>conferidas hoje</span><span className={monitor.metrics.changeSignals ? "alert" : ""}><b>{monitor.metrics.changeSignals}</b>sinais de mudança</span><span><b>{monitor.metrics.unavailable}</b>indisponíveis hoje</span></div><div className="monitor-list">{monitor.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span className={source.status}>{source.status === "checked" ? "✓" : "!"}</span><p><b>{source.title}</b><small>{source.changed ? "Conteúdo mudou desde a captura anterior — revisar" : source.status === "checked" ? "Sem sinal confirmado" : "Fonte indisponível nesta captura"}</small></p><em>{source.changed ? "Revisar" : "↗"}</em></a>)}</div><small className="monitor-time">Lote {monitor.metrics.checkedToday} de {monitor.metrics.monitored} fontes · ciclo estimado de {monitor.rotation.cycleDays} dias · última captura {new Date(monitor.checkedAt).toLocaleString("pt-BR")}</small></>}</div>
+      <div className="monitor-panel"><div className="coverage-section-heading"><span>MONITOR DIÁRIO PERSISTENTE</span><h2>Alterações viram fila, bloqueio e trilha de auditoria</h2><p>{monitor?.policy ?? "Consultando fontes oficiais…"}</p></div>{monitor && <>
+        <div className="monitor-kpis">
+          <span><b>{monitor.metrics.monitored}</b>fontes registradas</span>
+          <span><b>{monitor.metrics.checked}</b>conferidas hoje</span>
+          <span className={monitor.metrics.changeSignals ? "alert" : ""}><b>{monitor.metrics.changeSignals}</b>mudanças na fila</span>
+          <span className={monitor.metrics.invalidatedResults ? "alert" : ""}><b>{monitor.metrics.invalidatedResults}</b>entregas bloqueadas</span>
+          <span><b>{monitor.metrics.expiringRules}</b>regras vencendo</span>
+          <span className={monitor.metrics.expiredRules ? "alert" : ""}><b>{monitor.metrics.expiredRules}</b>regras vencidas</span>
+        </div>
+        <div className={`governance-catalog-status ${monitor.catalogValidation.passed ? "passed" : "blocked"}`}>
+          <b>{monitor.catalogValidation.passed ? "✓ Catálogo íntegro" : "! Catálogo bloqueado"}</b>
+          <span>{monitor.catalogValidation.sources} fontes · lote diário de {monitor.metrics.checkedToday} · ciclo estimado de {monitor.rotation.cycleDays} dias · versão {monitor.version}</span>
+        </div>
+        <section className="governance-subsection">
+          <header><div><span>FILA DE ANÁLISE</span><h3>Mudanças detectadas</h3></div><b>{monitor.metrics.pendingReview} aguardam revisão · {monitor.metrics.awaitingNewVersion} aguardam versão</b></header>
+          {monitor.queue.length === 0 ? <p className="governance-empty">Nenhuma mudança normativa pendente. A ausência de sinal não substitui a conferência do caso concreto.</p> : <div className="governance-queue">{monitor.queue.map((item) => <article key={item.id}>
+            <span className={item.status}>{item.status === "pending_review" ? "REVISAR" : "NOVA VERSÃO"}</span>
+            <div><b>{item.sourceCode} · {item.jurisdiction}</b><p>{item.legalDevice}</p><small>{item.impactedRuleCodes.join(" · ")} · detectada em {new Date(item.detectedAt).toLocaleString("pt-BR")}</small></div>
+            <a href={item.sourceUrl} target="_blank" rel="noreferrer">Fonte ↗</a>
+          </article>)}</div>}
+        </section>
+        {monitor.canReviewNormativeChanges && monitor.queue.length > 0 && <form className="governance-review-form" onSubmit={submitGovernanceReview}>
+          <h3>Registrar decisão profissional assinada</h3>
+          <label>Mudança<select value={governanceReview.eventId} onChange={(event) => setGovernanceReview({ ...governanceReview, eventId: event.target.value })}>{monitor.queue.map((item) => <option value={item.id} key={item.id}>{item.sourceCode} · {item.status}</option>)}</select></label>
+          <div>
+            <label>Responsável<select value={governanceReview.professionalRole} onChange={(event) => setGovernanceReview({ ...governanceReview, professionalRole: event.target.value as GovernanceReview["professionalRole"] })}><option value="accountant">Contador</option><option value="tax_lawyer">Tributarista</option></select></label>
+            <label>Registro profissional<input value={governanceReview.professionalRegistration} onChange={(event) => setGovernanceReview({ ...governanceReview, professionalRegistration: event.target.value })} placeholder="CRC SP-123456/O-7" /></label>
+          </div>
+          <label>Decisão<select value={governanceReview.decision} onChange={(event) => setGovernanceReview({ ...governanceReview, decision: event.target.value as GovernanceReview["decision"] })}><option value="no_legal_impact">Sem impacto jurídico nas regras</option><option value="new_version_required">Exige nova versão</option><option value="superseded_by_new_version">Resolvida por nova versão</option></select></label>
+          <label>Justificativa técnica<textarea value={governanceReview.decisionNote} onChange={(event) => setGovernanceReview({ ...governanceReview, decisionNote: event.target.value })} minLength={20} maxLength={2000} required /></label>
+          {governanceReview.decision === "superseded_by_new_version" && <div>
+            <label>Versão nova<input value={governanceReview.releaseVersion} onChange={(event) => setGovernanceReview({ ...governanceReview, releaseVersion: event.target.value })} placeholder="rules-2026.07.2" required /></label>
+            <label>Resumo da versão<textarea value={governanceReview.releaseSummary} onChange={(event) => setGovernanceReview({ ...governanceReview, releaseSummary: event.target.value })} minLength={20} maxLength={4000} required /></label>
+          </div>}
+          <label className="approval-declaration"><input type="checkbox" checked={governanceReview.declarationAccepted} onChange={(event) => setGovernanceReview({ ...governanceReview, declarationAccepted: event.target.checked })} />Confirmo a responsabilidade profissional pela decisão e pela evidência registrada nesta trilha.</label>
+          <button disabled={busy === "governance-review" || !governanceReview.declarationAccepted}>{busy === "governance-review" ? "Assinando…" : "Registrar decisão"}</button>
+        </form>}
+        <section className="governance-subsection">
+          <header><div><span>SAÚDE DAS REGRAS</span><h3>Vigência, fonte e fingerprint</h3></div><b>{monitor.rules.length} versões</b></header>
+          <div className="governance-rule-grid">{monitor.rules.map((rule) => <article className={rule.health} key={`${rule.code}-${rule.version}`}><span>{rule.health === "current" ? "VIGENTE" : rule.health === "expiring" ? "VENCENDO" : rule.health === "expired" ? "VENCIDA" : rule.health === "future" ? "FUTURA" : "SEM FONTE"}</span><b>{rule.name}</b><small>{rule.code} · {rule.version} · #{rule.fingerprint}</small><em>{rule.effectiveFrom} → {rule.effectiveTo} · {rule.sourceCount} fonte(s)</em></article>)}</div>
+        </section>
+        <details className="governance-source-catalog"><summary>Ver cadastro de fontes e últimas capturas ({monitor.sources.length})</summary><div>{monitor.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span className={source.captureStatus}>{source.captureStatus === "checked" ? "✓" : source.captureStatus === "unavailable" ? "!" : "·"}</span><p><b>{source.title}</b><small>{source.jurisdiction} · {source.legalDevice} · vigência {source.effectiveFrom ?? "a individualizar"} · #{source.contentFingerprint ?? "sem captura"}</small></p><em>{source.verificationStatus === "rule_evidence" ? "Evidência" : "Monitor"}</em></a>)}</div></details>
+        <details className="governance-run-history"><summary>Histórico append-only das execuções ({monitor.runs.length})</summary>{monitor.runs.map((run) => <p key={run.id}><b>{run.runDate}</b><span>{run.status} · {run.checked}/{run.sourceCount} conferidas · {run.unavailable} indisponíveis · {run.changes} mudanças</span></p>)}</details>
+      </>}</div>
       <div className="approval-panel"><div className="coverage-section-heading"><span>GARANTIA EM DUAS CAMADAS</span><h2>Teste automático agora; responsabilidade no caso concreto</h2><p>A base técnica é liberada por controles reproduzíveis. Nenhuma assinatura humana é exigida para consultar referências condicionais ou executar a bateria automática.</p></div>
         <div className={`automatic-assurance-card ${automaticAssurance.status}`}><span>{automaticAssurance.status === "automatically_verified" ? "✓" : "!"}</span><div><small>VERIFICAÇÃO AUTOMÁTICA · #{automaticAssurance.fingerprint}</small><h3>{automaticAssurance.status === "automatically_verified" ? "Base técnica íntegra" : "Base técnica bloqueada"}</h3><p>{automaticAssurance.metrics.modulesPassed}/{automaticAssurance.metrics.modules} módulos · {automaticAssurance.metrics.totalRuns} células · {automaticAssurance.metrics.referenceReproduced} referências reproduzidas · {automaticAssurance.metrics.safelyBlocked} bloqueios seguros</p></div></div>
         <div className="professional-boundary"><span>RESPONSABILIDADE PROFISSIONAL</span><h3>Não é requisito para testar o motor</h3><p>Continua sendo uma camada separada quando um contador ou tributarista assumir, assinar e entregar uma análise de operação real ao cliente. O software não se apresenta como profissional habilitado.</p>{governance?.professionalApprovalVerified && governance.approval ? <small>Revisão adicional registrada por {governance.approval.reviewerName} · {governance.approval.professionalRegistration} · #{governance.identity.ruleHash}</small> : <small>Nenhuma assinatura adicional nesta versão — isso não bloqueia as referências automáticas.</small>}</div>
