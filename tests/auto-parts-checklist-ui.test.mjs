@@ -3,10 +3,11 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 test("interface de autopeças expõe todos os itens do checklist e salva o snapshot", async () => {
-  const [center, api, report, actions] = await Promise.all([
+  const [center, api, reportPage, reportDocument, actions] = await Promise.all([
     readFile(new URL("../app/app/NationalCoverageCenter.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/national-coverage/auto-parts/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../app/relatorio-fiscal/[id]/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/relatorio-fiscal/FiscalDossierReportDocument.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/relatorio-fiscal/[id]/FiscalReportActions.tsx", import.meta.url), "utf8"),
   ]);
 
@@ -25,7 +26,8 @@ test("interface de autopeças expõe todos os itens do checklist e salva o snaps
   assert.match(api, /saveDossier/);
   assert.match(api, /INSERT INTO fiscal_dossiers/);
   assert.match(api, /inputHash/);
-  assert.match(report, /SHA-256 verificado/);
-  assert.match(report, /FONTES OFICIAIS APLICADAS/);
+  assert.match(reportPage, /sha256Hex\(dossier\.snapshotJson\)/);
+  assert.match(reportDocument, /SHA-256 verificado/);
+  assert.match(reportDocument, /FONTES OFICIAIS APLICADAS/);
   assert.match(actions, /Imprimir \/ salvar PDF/);
 });
