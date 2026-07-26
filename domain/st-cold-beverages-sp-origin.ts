@@ -547,6 +547,51 @@ export function validateStColdBeverageSpOrigin() {
   if (metrics.reproducedMemories + metrics.safeFailures !== metrics.controlledCells) {
     errors.push("sp_origin_metrics_do_not_close");
   }
+  for (const route of ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES) {
+    const profile = ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES.find((item) => item.destination === route.destination)!;
+    const stBaseCents = profile.pmpfCents * 100;
+    const pmpfLimitCents = roundDivide(stBaseCents * route.pmpfLimitBps, 10_000);
+    const regressionInput: ColdBeverageSpOriginOperationInput = {
+      route: route.route,
+      profileCode: profile.code,
+      operationDate: ST_COLD_BEVERAGES_SP_ORIGIN_CHECKED_AT,
+      quantityUnits: 100,
+      operationCents: pmpfLimitCents,
+      ownIcmsBaseCents: pmpfLimitCents,
+      importedQualified: false,
+      facts: allFactsConfirmed,
+    };
+    const atBoundary = resolveColdBeverageSpOriginOperation(regressionInput);
+    const expectedBoundaryStatus = route.fallbackComparison === "greater_than"
+      ? "calculated_reference"
+      : "pmpf_fallback_required";
+    if (atBoundary.status !== expectedBoundaryStatus || (expectedBoundaryStatus !== "calculated_reference" && atBoundary.output !== null)) {
+      errors.push(`sp_origin_${route.destination.toLowerCase()}_boundary_gate_failed`);
+    }
+    const overBoundary = resolveColdBeverageSpOriginOperation({
+      ...regressionInput,
+      operationCents: pmpfLimitCents + 1,
+      ownIcmsBaseCents: pmpfLimitCents + 1,
+    });
+    if (overBoundary.status !== "pmpf_fallback_required" || overBoundary.output !== null) {
+      errors.push(`sp_origin_${route.destination.toLowerCase()}_fallback_gate_failed`);
+    }
+  }
+  const firstProfile = ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES[0];
+  const negativeInput: ColdBeverageSpOriginOperationInput = {
+    route: "SP-MG",
+    profileCode: firstProfile.code,
+    operationDate: "2027-01-01",
+    quantityUnits: 100,
+    operationCents: 1,
+    ownIcmsBaseCents: 1,
+    importedQualified: false,
+    facts: { ...allFactsConfirmed, documentsConfirmed: false },
+  };
+  const blocked = resolveColdBeverageSpOriginOperation(negativeInput);
+  if (blocked.status !== "blocked" || blocked.output !== null || blocked.missingFacts.length !== 1) {
+    errors.push("sp_origin_validity_and_evidence_gates_failed");
+  }
   return { passed: errors.length === 0, errors };
 }
 
