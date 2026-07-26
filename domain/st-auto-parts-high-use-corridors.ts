@@ -191,6 +191,7 @@ export const ST_AUTO_PARTS_OPERATION_FACT_LABELS = {
   automotiveUseConfirmed: "uso especificamente automotivo confirmado",
   destinationInternalStConfirmed: "sujeição interna à ST no destino confirmada",
   taxpayerRolesConfirmed: "papéis e regimes do remetente e destinatário confirmados",
+  operationPurposeConfirmed: "operação destinada à revenda; uso, consumo, ativo e consumidor final afastados",
   noSpecialTreatmentConfirmed: "benefícios, regimes especiais e exceções afastados",
   priceBasisConfirmed: "base, frete, seguro, impostos e encargos confirmados",
   noSpecificRateExceptionConfirmed: "alíquota específica por NCM/descrição afastada",

@@ -120,7 +120,7 @@ export const ST_COLD_BEVERAGES_SP_FACT_LABELS = {
   exactProfileConfirmed: "marca, embalagem, volume, descrição e CEST coincidem com o perfil selecionado",
   unlistedBrandEligibilityConfirmed: "a marca não possui preço próprio na pauta e pode usar “Demais marcas não listadas”",
   normalTaxRegimeConfirmed: "remetente está no regime normal e o débito próprio segue a alíquota interestadual informada",
-  taxpayerResaleOperationConfirmed: "operação interestadual entre contribuintes, destinada à comercialização, confirmada",
+  taxpayerResaleOperationConfirmed: "operação interestadual entre contribuintes destinada à revenda; uso, consumo, ativo e consumidor final afastados",
   substituteResponsibilityConfirmed: "responsabilidade pela retenção em favor de São Paulo confirmada",
   noProtocolExceptionConfirmed: "transferência, operação entre substitutos e demais exceções foram afastadas",
   ownTaxBaseConfirmed: "valor da operação e base do ICMS próprio, com frete e encargos aplicáveis, foram conferidos",

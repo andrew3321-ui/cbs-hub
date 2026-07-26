@@ -99,7 +99,7 @@ const productByCode = new Map<string, ColdBeverageProduct>(ST_COLD_BEVERAGE_PROD
 
 export const ST_COLD_BEVERAGE_OPERATION_FACT_LABELS = {
   productIdentityConfirmed: "descrição, embalagem, capacidade, NCM e CEST conferidos",
-  taxpayerOperationConfirmed: "operação interestadual entre contribuintes confirmada",
+  taxpayerOperationConfirmed: "operação interestadual entre contribuintes destinada à revenda; uso, consumo, ativo e consumidor final afastados",
   responsiblePartyConfirmed: "papel do remetente e responsabilidade pela retenção confirmados",
   noProtocolExceptionConfirmed: "transferência, operação entre substitutos e demais exceções afastadas",
   destinationInternalTreatmentConfirmed: "sujeição interna à ST no destino confirmada",
