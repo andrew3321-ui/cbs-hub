@@ -7,6 +7,7 @@ import {
   validateGovernedSourceCatalog,
   type GovernedNormativeSource,
 } from "../domain/normative-governance.ts";
+import { buildFiscalRegressionReport } from "../domain/fiscal-regression-assurance.ts";
 
 export type NormativeMonitorEnvironment = {
   DB: D1Database;
@@ -173,8 +174,26 @@ async function createChangeEvent(db: D1Database, capture: SourceCapture, current
     .bind(eventId, capture.source.code, previous?.id ?? null, currentSnapshotId, changeKind, JSON.stringify(capture.source.impactedRuleCodes), detectedAt, detectedAt).run();
   if (inserted.meta.changes !== 1) return 0;
   const invalidated = await invalidateAffectedDossiers(db, eventId, capture.source, detectedAt);
+  const regression = await buildFiscalRegressionReport(capture.source.impactedRuleCodes);
+  const regressionEvidence = {
+    reportVersion: regression.reportVersion,
+    status: regression.status,
+    fingerprint: regression.fingerprint,
+    affectedRuleCodes: regression.affectedRuleCodes,
+    unmappedRuleCodes: regression.unmappedRuleCodes,
+    metrics: regression.metrics,
+    modules: regression.modules.map((module) => ({
+      code: module.code,
+      ruleVersion: module.ruleVersion,
+      fingerprint: module.fingerprint,
+      status: module.status,
+    })),
+    errors: regression.errors,
+  };
+  await db.prepare("INSERT INTO normative_governance_audit_events (change_event_id, event_type, event_data, created_at) VALUES (?, 'fiscal_regression.affected_rules_reexecuted', ?, ?)")
+    .bind(eventId, JSON.stringify(regressionEvidence), detectedAt).run();
   await db.prepare("INSERT INTO normative_governance_audit_events (change_event_id, event_type, event_data, created_at) VALUES (?, 'normative_change.detected', ?, ?)")
-    .bind(eventId, JSON.stringify({ sourceCode: capture.source.code, changeKind, impactedRuleCodes: capture.source.impactedRuleCodes, invalidatedDossiers: invalidated }), detectedAt).run();
+    .bind(eventId, JSON.stringify({ sourceCode: capture.source.code, changeKind, impactedRuleCodes: capture.source.impactedRuleCodes, invalidatedDossiers: invalidated, regressionStatus: regression.status, regressionFingerprint: regression.fingerprint }), detectedAt).run();
   return 1;
 }
 
@@ -237,13 +256,14 @@ function parseList(value: string | null | undefined) {
 
 export async function getNormativeGovernanceDashboard(db: D1Database, workspaceId: number, today = monitorDate()) {
   await ensureNormativeGovernanceSchema(db);
-  const [runs, events, invalidations, notifications, rules, releases] = await Promise.all([
+  const [runs, events, invalidations, notifications, rules, releases, regressionRuns] = await Promise.all([
     db.prepare("SELECT id, run_date, status, source_count, checked_count, unavailable_count, change_count, started_at, finished_at FROM normative_monitor_runs ORDER BY run_date DESC, created_at DESC LIMIT 14").all<Record<string, string | number | null>>(),
     db.prepare("SELECT e.*, s.title, s.publisher, s.jurisdiction, s.legal_device, s.source_url FROM normative_change_events e LEFT JOIN normative_sources s ON s.id = (SELECT s2.id FROM normative_sources s2 WHERE s2.code = e.source_code ORDER BY s2.created_at DESC, s2.id DESC LIMIT 1) WHERE e.status IN ('pending_review', 'awaiting_new_version') ORDER BY e.detected_at DESC, e.id DESC LIMIT 50").all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, change_event_id, dossier_id, rule_code, rule_version, status, reason, created_at FROM fiscal_result_invalidations WHERE workspace_id = ? AND status = 'open' ORDER BY created_at DESC LIMIT 100").bind(workspaceId).all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, notification_type, subject_type, subject_id, message, read_at, created_at FROM governance_notifications WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 50").bind(workspaceId).all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, code, version, name, status, effective_from, effective_to, source_count, content_hash FROM fiscal_rule_sets ORDER BY effective_to, code, version").all<RuleRow>(),
     db.prepare("SELECT id, version, manifest_hash, previous_release_hash, source_change_event_id, release_kind, status, created_at FROM fiscal_rule_releases ORDER BY created_at DESC LIMIT 20").all<Record<string, string | number | null>>(),
+    db.prepare("SELECT id, change_event_id, event_data, created_at FROM normative_governance_audit_events WHERE event_type = 'fiscal_regression.affected_rules_reexecuted' ORDER BY created_at DESC, id DESC LIMIT 20").all<Record<string, string | number | null>>(),
   ]);
 
   const sourceRows = await db.prepare("SELECT s.*, snap.capture_status, snap.http_status, snap.content_hash, snap.checked_at FROM normative_sources s LEFT JOIN normative_source_snapshots snap ON snap.id = (SELECT ss.id FROM normative_source_snapshots ss WHERE ss.source_code = s.code ORDER BY ss.checked_at DESC, ss.id DESC LIMIT 1) WHERE s.id = (SELECT ns.id FROM normative_sources ns WHERE ns.code = s.code ORDER BY ns.created_at DESC, ns.id DESC LIMIT 1) ORDER BY s.jurisdiction, s.code")
@@ -320,6 +340,13 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     notifications: notifications.results.map((row) => ({ ...row, unread: !row.read_at })),
     rules: ruleCatalog,
     releases: releases.results,
+    regressionRuns: regressionRuns.results.map((row) => {
+      try {
+        return { id: Number(row.id), changeEventId: String(row.change_event_id), createdAt: String(row.created_at), ...JSON.parse(String(row.event_data)) };
+      } catch {
+        return { id: Number(row.id), changeEventId: String(row.change_event_id), createdAt: String(row.created_at), status: "blocked", errors: ["invalid_regression_audit_payload"] };
+      }
+    }),
     runs: recentRuns,
     metrics: {
       monitored: governedNormativeSources.length,

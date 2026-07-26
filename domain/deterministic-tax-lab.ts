@@ -91,21 +91,40 @@ const annexV = [
 ] as const;
 
 type AnnexTable = ReadonlyArray<{ from: number; to: number; nominalBps: number; deductionCents: number }>;
+function roundBigIntDivide(numerator: bigint, denominator: bigint) {
+  if (numerator < 0n || denominator <= 0n) throw new Error("invalid_fiscal_ratio");
+  const result = (numerator + denominator / 2n) / denominator;
+  if (result > BigInt(Number.MAX_SAFE_INTEGER)) throw new Error("unsafe_fiscal_ratio");
+  return Number(result);
+}
+
+function formatBps(rateBps: number) {
+  const whole = Math.floor(rateBps / 100);
+  return `${whole},${String(rateBps % 100).padStart(2, "0")}%`;
+}
+
 function annexCalculation(rbt12: number, revenue: number, table: AnnexTable) {
   const bracketIndex = table.findIndex((item) => rbt12 >= item.from && rbt12 <= item.to);
   const bracket = table[bracketIndex];
   if (!bracket) throw new Error("rbt12_out_of_supported_annex");
-  const numerator = BigInt(rbt12) * BigInt(bracket.nominalBps) - BigInt(bracket.deductionCents) * BigInt(10000);
-  const effectiveRatePpm = Number((numerator * BigInt(100) + BigInt(rbt12) / BigInt(2)) / BigInt(rbt12));
-  const estimatedCents = Number((BigInt(revenue) * BigInt(effectiveRatePpm) + BigInt(500_000)) / BigInt(1_000_000));
-  return { bracketIndex, bracket, effectiveRatePpm, effectiveRateBps: Math.round(effectiveRatePpm / 100), estimatedCents };
+  // Money remains in cents and rates in basis points. The rational numerator
+  // avoids an intermediate floating-point percentage and only rounds at each
+  // published output boundary.
+  const effectiveBpsNumerator = BigInt(rbt12) * BigInt(bracket.nominalBps)
+    - BigInt(bracket.deductionCents) * 10_000n;
+  const effectiveRateBps = roundBigIntDivide(effectiveBpsNumerator, BigInt(rbt12));
+  const estimatedCents = roundBigIntDivide(
+    BigInt(revenue) * effectiveBpsNumerator,
+    BigInt(rbt12) * 10_000n,
+  );
+  return { bracketIndex, bracket, effectiveRateBps, estimatedCents };
 }
 
 export type SimplesAnnexIInput = { rbt12Cents: number; monthlySegregatedRevenueCents: number; annexConfirmed: boolean; revenueSegregated: boolean; periodClosed: boolean; noSpecialTreatment: boolean };
 export function calculateSimplesAnnexI(input: SimplesAnnexIInput): LabResult {
   const rbt12 = safeInteger(input.rbt12Cents, "rbt12", 1, 480_000_000);
   const revenue = safeInteger(input.monthlySegregatedRevenueCents, "revenue");
-  const { bracketIndex, bracket, effectiveRatePpm, effectiveRateBps, estimatedCents } = annexCalculation(rbt12, revenue, annexI);
+  const { bracketIndex, bracket, effectiveRateBps, estimatedCents } = annexCalculation(rbt12, revenue, annexI);
   const verifiedFacts = facts([["atividade de comércio enquadrada no Anexo I", input.annexConfirmed], ["receita do mês segregada por tratamento tributário", input.revenueSegregated], ["RBT12 e período conferidos", input.periodClosed], ["ST, monofásico, antecipação, exportação e demais tratamentos especiais excluídos", input.noSpecialTreatment]]);
   const issues: LabIssue[] = [...missingFacts(verifiedFacts), { code: "pgdas_required", severity: "warning", message: "O valor exibido é uma referência do Anexo I e deve ser reconciliado com o PGDAS-D e a segregação efetiva da receita." }];
   return result("simples_annex_i", "Simples Nacional — Anexo I", [
@@ -114,7 +133,7 @@ export function calculateSimplesAnnexI(input: SimplesAnnexIInput): LabResult {
     { code: "deduction", label: "Parcela a deduzir", formula: "Tabela oficial do Anexo I", amountCents: bracket.deductionCents },
     { code: "effective", label: "Alíquota efetiva de referência", formula: "(RBT12 × alíquota nominal − parcela a deduzir) ÷ RBT12", amountCents: null, rateBps: effectiveRateBps },
     { code: "das_reference", label: "DAS estimado sobre a receita segregada", formula: "Receita segregada × alíquota efetiva", amountCents: estimatedCents, rateBps: effectiveRateBps },
-  ], issues, [labSources.simples, labSources.pgdas], verifiedFacts, `Faixa ${bracketIndex + 1}; alíquota efetiva aproximada de ${(effectiveRatePpm / 10000).toFixed(4)}%.`);
+  ], issues, [labSources.simples, labSources.pgdas], verifiedFacts, `Faixa ${bracketIndex + 1}; alíquota efetiva aproximada de ${formatBps(effectiveRateBps)}.`);
 }
 
 export type SimplesServicesInput = { rbt12Cents: number; fs12Cents: number; monthlySegregatedRevenueCents: number; activitySubjectToFactorR: boolean; payrollReconciled: boolean; revenueSegregated: boolean; noSpecialTreatment: boolean };
@@ -124,19 +143,19 @@ export function calculateSimplesServices(input: SimplesServicesInput): LabResult
   const revenue = safeInteger(input.monthlySegregatedRevenueCents, "revenue");
   const usesAnnexIII = BigInt(fs12) * BigInt(100) >= BigInt(rbt12) * BigInt(28);
   const annexName = usesAnnexIII ? "III" : "V";
-  const { bracketIndex, bracket, effectiveRatePpm, effectiveRateBps, estimatedCents } = annexCalculation(rbt12, revenue, usesAnnexIII ? annexIII : annexV);
-  const factorRPpm = Number((BigInt(fs12) * BigInt(1_000_000) + BigInt(rbt12) / BigInt(2)) / BigInt(rbt12));
+  const { bracketIndex, bracket, effectiveRateBps, estimatedCents } = annexCalculation(rbt12, revenue, usesAnnexIII ? annexIII : annexV);
+  const factorRBps = roundBigIntDivide(BigInt(fs12) * 10_000n, BigInt(rbt12));
   const verifiedFacts = facts([["atividade está sujeita ao fator R", input.activitySubjectToFactorR], ["FS12 inclui salários, pró-labore, contribuição patronal e FGTS aplicáveis", input.payrollReconciled], ["receita do serviço foi segregada", input.revenueSegregated], ["retenção, exportação, ISS fixo e demais tratamentos especiais foram excluídos", input.noSpecialTreatment]]);
   const issues: LabIssue[] = [...missingFacts(verifiedFacts), { code: "pgdas_required", severity: "warning", message: "O enquadramento e o valor devem ser reconciliados no PGDAS-D. Nem todo serviço usa fator R, e escritórios contábeis possuem tratamento próprio para atividades típicas." }];
   return result("simples_services", `Simples — serviços pelo Anexo ${annexName}`, [
     { code: "fs12", label: "Folha e encargos em 12 meses", formula: "FS12 informada e reconciliada", amountCents: fs12 },
     { code: "rbt12", label: "Receita bruta em 12 meses", formula: "RBT12 dos mercados interno e externo", amountCents: rbt12 },
-    { code: "factor_r", label: "Fator R", formula: "FS12 ÷ RBT12; Anexo III se ≥ 28%", amountCents: null, rateBps: Math.round(factorRPpm / 100) },
+    { code: "factor_r", label: "Fator R", formula: "FS12 ÷ RBT12; Anexo III se ≥ 28%", amountCents: null, rateBps: factorRBps },
     { code: "nominal", label: `Alíquota nominal — Anexo ${annexName}, faixa ${bracketIndex + 1}`, formula: `Tabela oficial do Anexo ${annexName}`, amountCents: null, rateBps: bracket.nominalBps },
     { code: "deduction", label: "Parcela a deduzir", formula: `Tabela oficial do Anexo ${annexName}`, amountCents: bracket.deductionCents },
     { code: "effective", label: "Alíquota efetiva de referência", formula: "(RBT12 × alíquota nominal − parcela a deduzir) ÷ RBT12", amountCents: null, rateBps: effectiveRateBps },
     { code: "das_reference", label: "DAS estimado sobre o serviço segregado", formula: "Receita segregada × alíquota efetiva", amountCents: estimatedCents, rateBps: effectiveRateBps },
-  ], issues, [labSources.simples, labSources.pgdas], verifiedFacts, `Fator R de ${(factorRPpm / 10000).toFixed(4)}%; enquadramento matemático no Anexo ${annexName}.`);
+  ], issues, [labSources.simples, labSources.pgdas], verifiedFacts, `Fator R de ${formatBps(factorRBps)}; enquadramento matemático no Anexo ${annexName}.`);
 }
 
 export type PisCofinsInput = { regime: "cumulative" | "non_cumulative"; taxableRevenueCents: number; eligibleCreditBaseCents: number; regimeConfirmed: boolean; revenueClassified: boolean; specialTreatmentsExcluded: boolean; creditsDocumented: boolean };

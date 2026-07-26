@@ -389,6 +389,43 @@ export function validateStColdBeverageSpDestination() {
   if (metrics.reproducedMemories + metrics.safeFailures !== metrics.controlledCells) {
     errors.push("sp_destination_metrics_do_not_close");
   }
+  const reference = stColdBeverageSpReferenceRuns[0];
+  const profile = ST_COLD_BEVERAGES_SP_PMPF_PROFILES[0];
+  const stBaseCents = profile.pmpfCents * 100;
+  const pmpfLimitCents = roundDivide(stBaseCents * ST_COLD_BEVERAGES_SP_PMPF_LIMIT_BPS, 10_000);
+  const regressionInput: ColdBeverageSpOperationInput = {
+    route: reference.route,
+    profileCode: profile.code,
+    operationDate: ST_COLD_BEVERAGES_SP_DESTINATION_CHECKED_AT,
+    quantityUnits: 100,
+    operationCents: pmpfLimitCents - 1,
+    ownIcmsBaseCents: pmpfLimitCents - 1,
+    importedQualified: false,
+    facts: allFactsConfirmed,
+  };
+  if (resolveColdBeverageSpDestinationOperation(regressionInput).output === null) {
+    errors.push("sp_destination_positive_boundary_failed");
+  }
+  const atBoundary = resolveColdBeverageSpDestinationOperation({
+    ...regressionInput,
+    operationCents: pmpfLimitCents,
+    ownIcmsBaseCents: pmpfLimitCents,
+  });
+  if (atBoundary.status !== "pmpf_fallback_required" || atBoundary.output !== null) {
+    errors.push("sp_destination_pmpf_boundary_gate_failed");
+  }
+  const stale = resolveColdBeverageSpDestinationOperation({
+    ...regressionInput,
+    operationDate: "2026-06-30",
+  });
+  if (stale.status !== "blocked" || stale.output !== null) errors.push("sp_destination_validity_gate_failed");
+  const missingEvidence = resolveColdBeverageSpDestinationOperation({
+    ...regressionInput,
+    facts: { ...allFactsConfirmed, documentsConfirmed: false },
+  });
+  if (missingEvidence.status !== "blocked" || missingEvidence.output !== null || missingEvidence.missingFacts.length !== 1) {
+    errors.push("sp_destination_evidence_gate_failed");
+  }
   return { passed: errors.length === 0, errors };
 }
 
