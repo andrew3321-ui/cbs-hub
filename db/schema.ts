@@ -366,6 +366,26 @@ export const fiscalDossierEvents = sqliteTable("fiscal_dossier_events", {
   index("fiscal_dossier_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
 ]);
 
+export const fiscalDossierShares = sqliteTable("fiscal_dossier_shares", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  token: text("token").notNull().unique(),
+  dossierId: text("dossier_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  ownerUserId: integer("owner_user_id").notNull(),
+  companyId: integer("company_id"),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  note: text("note"),
+  expiresAt: text("expires_at").notNull(),
+  revokedAt: text("revoked_at"),
+  views: integer("views").notNull().default(0),
+  lastViewedAt: text("last_viewed_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("fiscal_dossier_shares_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+  index("fiscal_dossier_shares_dossier_created_idx").on(table.dossierId, table.createdAt, table.id),
+  index("fiscal_dossier_shares_owner_created_idx").on(table.ownerUserId, table.createdAt, table.id),
+]);
+
 export const fiscalDocuments = sqliteTable("fiscal_documents", {
   id: text("id").primaryKey(),
   workspaceId: integer("workspace_id").notNull(),

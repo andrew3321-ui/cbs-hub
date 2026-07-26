@@ -389,6 +389,23 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_dossier_shares (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          token TEXT NOT NULL UNIQUE,
+          dossier_id TEXT NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          owner_user_id INTEGER NOT NULL,
+          company_id INTEGER,
+          created_by_user_id INTEGER NOT NULL,
+          note TEXT,
+          expires_at TEXT NOT NULL,
+          revoked_at TEXT,
+          views INTEGER DEFAULT 0 NOT NULL,
+          last_viewed_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS fiscal_documents (
           id TEXT PRIMARY KEY NOT NULL,
           workspace_id INTEGER NOT NULL,
@@ -735,6 +752,9 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_dossiers_workspace_hash_idx ON fiscal_dossiers (workspace_id, input_hash)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossier_events_dossier_created_idx ON fiscal_dossier_events (dossier_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossier_events_workspace_created_idx ON fiscal_dossier_events (workspace_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossier_shares_workspace_created_idx ON fiscal_dossier_shares (workspace_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossier_shares_dossier_created_idx ON fiscal_dossier_shares (dossier_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossier_shares_owner_created_idx ON fiscal_dossier_shares (owner_user_id, created_at, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_documents_workspace_hash_profile_idx ON fiscal_documents (workspace_id, source_hash, profile_version)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_documents_workspace_status_created_idx ON fiscal_documents (workspace_id, status, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_documents_workspace_access_key_idx ON fiscal_documents (workspace_id, access_key, created_at)"),
