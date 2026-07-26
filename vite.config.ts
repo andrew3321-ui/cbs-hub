@@ -33,6 +33,9 @@ const localBindingConfig = {
       ...(isCloudflareWorkersBuild ? { migrations_dir: "./drizzle" } : {}),
     },
   ],
+  triggers: {
+    crons: ["15 8 * * *"],
+  },
   r2_buckets: [],
 };
 

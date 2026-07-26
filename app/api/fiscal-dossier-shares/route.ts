@@ -73,6 +73,17 @@ async function createFiscalDossierShare(request: Request) {
     if (!clientReportSupported(dossier.snapshotJson)) {
       return Response.json({ error: "Este modelo de dossiê ainda não possui apresentação pública compatível." }, { status: 409 });
     }
+    const openInvalidation = await env.DB.prepare(
+      "SELECT id, reason FROM fiscal_result_invalidations WHERE dossier_id = ? AND workspace_id = ? AND status = 'open' ORDER BY created_at DESC LIMIT 1",
+    ).bind(dossier.id, workspace.id).first<{ id: string; reason: string }>();
+    if (openInvalidation) {
+      return Response.json({
+        error: "A entrega foi bloqueada porque uma fonte normativa ligada a este dossiê mudou e ainda aguarda revisão.",
+        code: "FISCAL_RESULT_INVALIDATED",
+        invalidationId: openInvalidation.id,
+        reason: openInvalidation.reason,
+      }, { status: 409 });
+    }
 
     const now = new Date().toISOString();
     const expiresAt = new Date(Date.now() + expiryDays * 86_400_000).toISOString();

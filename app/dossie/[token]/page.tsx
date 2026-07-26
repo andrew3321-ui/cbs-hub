@@ -3,7 +3,7 @@ import Link from "next/link";
 import { isAutoPartsDossierSnapshot } from "../../../domain/auto-parts-dossier";
 import { isColdBeverageDossierSnapshot } from "../../../domain/cold-beverage-dossier";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { companies, fiscalDossierShares, fiscalDossiers, users } from "../../../db/schema";
+import { companies, fiscalDossierShares, fiscalDossiers, fiscalResultInvalidations, users } from "../../../db/schema";
 import FiscalDossierReportDocument from "../../relatorio-fiscal/FiscalDossierReportDocument";
 import { sha256Hex } from "../../workspace";
 import PublicFiscalReportActions from "./PublicFiscalReportActions";
@@ -18,6 +18,10 @@ function integrityBlocked() {
   return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>INTEGRIDADE NÃO CONFIRMADA</span><h1>Este dossiê foi bloqueado por segurança.</h1><p>O conteúdo armazenado não corresponde ao hash da versão aprovada. Nenhum cálculo será exibido.</p><Link href="/metodologia">Entender os controles →</Link></section></main>;
 }
 
+function normativeReviewBlocked() {
+  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>REVISÃO NORMATIVA EM ANDAMENTO</span><h1>Este dossiê foi temporariamente retirado da entrega.</h1><p>Uma fonte oficial associada ao cálculo mudou. O relatório voltará a ficar disponível somente depois da revisão e, quando necessária, da publicação de uma nova versão da regra.</p><Link href="/metodologia">Entender a governança →</Link></section></main>;
+}
+
 export default async function PublicFiscalDossierPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params;
   if (!/^[0-9a-f]{48}$/.test(token)) return unavailable();
@@ -29,6 +33,12 @@ export default async function PublicFiscalDossierPage({ params }: { params: Prom
     gt(fiscalDossierShares.expiresAt, new Date().toISOString()),
   )).limit(1);
   if (!record || record.dossier.status !== "approved" || !record.dossier.decisionByUserId || !record.dossier.professionalRegistration || !record.dossier.decidedAt) return unavailable();
+  const [openInvalidation] = await db.select({ id: fiscalResultInvalidations.id }).from(fiscalResultInvalidations).where(and(
+    eq(fiscalResultInvalidations.dossierId, record.dossier.id),
+    eq(fiscalResultInvalidations.workspaceId, record.dossier.workspaceId),
+    eq(fiscalResultInvalidations.status, "open"),
+  )).limit(1);
+  if (openInvalidation) return normativeReviewBlocked();
   if (await sha256Hex(record.dossier.snapshotJson) !== record.dossier.inputHash) return integrityBlocked();
 
   let parsed: unknown;

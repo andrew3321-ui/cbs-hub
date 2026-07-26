@@ -1,6 +1,7 @@
 /** Cloudflare Worker entry point for the vinext-starter template. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
+import { runNormativeMonitor } from "../app/normative-governance-service";
 
 interface Env {
   ASSETS: Fetcher;
@@ -21,6 +22,7 @@ interface ExecutionContext {
 }
 
 type RateLimitRule = { scope: string; limit: number; windowSeconds: number };
+type ScheduledController = { scheduledTime: number; cron: string };
 
 const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const contentSecurityPolicy = [
@@ -167,6 +169,17 @@ const worker = {
     }
 
     return secureResponse(await handler.fetch(request, env, ctx), request);
+  },
+  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
+    const date = new Date(controller.scheduledTime).toISOString().slice(0, 10);
+    ctx.waitUntil(runNormativeMonitor({ DB: env.DB }, date).catch((error) => {
+      console.error(JSON.stringify({
+        event: "normative_monitor.failed",
+        date,
+        error: error instanceof Error ? error.name : "UnknownError",
+      }));
+      throw error;
+    }));
   },
 };
 

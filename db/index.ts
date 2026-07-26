@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { drizzle } from "drizzle-orm/d1";
 import { fiscalIntelligenceSeed, hashFiscalIntelligenceContent } from "../domain/fiscal-intelligence";
 import { hashFiscalRuleContent, rtc2026ReferenceCases, rtc2026RuleSeed } from "../domain/fiscal-rules";
+import { ensureNormativeGovernanceSchema } from "../app/normative-governance-service";
 import * as schema from "./schema";
 
 let scenarioSchemaReady: Promise<unknown> | undefined;
@@ -778,6 +779,8 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS tax_period_closures_period_revision_idx ON tax_period_closures (period_id, revision)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS tax_period_closures_owner_status_idx ON tax_period_closures (owner_user_id, status, id)"),
     ]);
+
+    await ensureNormativeGovernanceSchema(env.DB);
 
     const contentHash = await hashFiscalRuleContent(rtc2026RuleSeed.contentJson);
     await env.DB.prepare(`
