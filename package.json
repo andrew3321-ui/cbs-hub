@@ -12,7 +12,9 @@
     "start": "vinext start",
     "test": "npm run build && node --experimental-strip-types --test tests/*.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .wrangler --ignore-pattern work --ignore-pattern outputs",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate",
+    "security:secrets": "node scripts/check-secrets.mjs",
+    "backup:verify": "node scripts/d1-backup-verify.mjs"
   },
   "dependencies": {
     "drizzle-orm": "0.45.2",

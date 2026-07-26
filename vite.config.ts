@@ -34,7 +34,7 @@ const localBindingConfig = {
     },
   ],
   triggers: {
-    crons: ["15 8 * * *"],
+    crons: ["*/30 * * * *", "15 8 * * *"],
   },
   r2_buckets: [],
 };

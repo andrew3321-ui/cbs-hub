@@ -3,6 +3,7 @@ import { drizzle } from "drizzle-orm/d1";
 import { fiscalIntelligenceSeed, hashFiscalIntelligenceContent } from "../domain/fiscal-intelligence";
 import { hashFiscalRuleContent, rtc2026ReferenceCases, rtc2026RuleSeed } from "../domain/fiscal-rules";
 import { ensureNormativeGovernanceSchema } from "../app/normative-governance-service";
+import { ensureSecurityGovernanceSchema } from "../app/security-governance-schema";
 import * as schema from "./schema";
 
 let scenarioSchemaReady: Promise<unknown> | undefined;
@@ -781,6 +782,7 @@ export function ensureScenarioSchema() {
     ]);
 
     await ensureNormativeGovernanceSchema(env.DB);
+    await ensureSecurityGovernanceSchema(env.DB);
 
     const contentHash = await hashFiscalRuleContent(rtc2026RuleSeed.contentJson);
     await env.DB.prepare(`

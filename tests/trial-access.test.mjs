@@ -84,6 +84,9 @@ test("registration claims trial once and stores only pseudonymous server hashes"
   assert.match(protection, /HMAC/);
   assert.match(protection, /HttpOnly; SameSite=Lax/);
   assert.match(protection, /SECURITY_HASH_KEY/);
+  assert.match(protection, /SECURITY_HASH_KEYS_PREVIOUS/);
+  assert.match(protection, /historicalHashes/);
+  assert.match(register, /inArray\(trialDeviceClaims\.deviceHash/);
   assert.match(schema, /deviceHash: text\("device_hash"\)\.notNull\(\)\.unique\(\)/);
   assert.match(schema, /fingerprintHash: text\("fingerprint_hash"\)\.notNull\(\)\.unique\(\)/);
   assert.match(schema, /emailHash: text\("email_hash"\)\.notNull\(\)\.unique\(\)/);

@@ -1,6 +1,7 @@
 import { and, eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../db";
 import { accountingWorkspaces, workspaceMembers } from "../db/schema";
+import { roleHasPermission } from "../domain/workspace-authorization";
 
 export type WorkspaceType = "individual" | "office";
 export type WorkspaceRole = "owner" | "admin" | "preparer" | "reviewer";
@@ -39,15 +40,15 @@ export async function getWorkspaceContext(userId: number): Promise<WorkspaceCont
 }
 
 export function canManageWorkspace(role: WorkspaceRole) {
-  return role === "owner" || role === "admin";
+  return roleHasPermission(role, "manage_workspace");
 }
 
 export function canPrepareScenarios(role: WorkspaceRole) {
-  return role === "owner" || role === "admin" || role === "preparer";
+  return roleHasPermission(role, "prepare_scenario");
 }
 
 export function canReviewScenarios(role: WorkspaceRole) {
-  return role === "owner" || role === "admin" || role === "reviewer";
+  return roleHasPermission(role, "review_scenario");
 }
 
 export async function sha256Hex(value: string) {

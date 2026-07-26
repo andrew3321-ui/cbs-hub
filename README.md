@@ -88,8 +88,20 @@ O trial começa no cadastro do proprietário do espaço, termina exatamente apó
 
 `PLATFORM_OWNER_TAX_ID`, `PLATFORM_OWNER_LEGAL_ADDRESS` e `PLATFORM_PRIVACY_CONTACT_EMAIL` alimentam a identificação comercial publicada apenas quando pagamentos estiverem ativos. `SECURITY_HASH_KEY` deve ter pelo menos 32 caracteres e pseudonimiza os marcadores de rede, limitação de abuso e concessão única do trial.
 
-A cobrança usa `MERCADO_PAGO_ACCESS_TOKEN` somente no servidor e oferece dois fluxos separados: cartão recorrente por `/preapproval` e Pix mensal por `/v1/payments`. O Pix é idempotente, expira em 24 horas e só ativa ou prorroga o acesso quando a consulta oficial confirma referência, plano, valor, BRL, método `pix` e estado `approved`. QR Code, Copia e Cola e link de pagamento vêm do Mercado Pago; a chave Pix do fornecedor não é armazenada nem publicada. `MERCADO_PAGO_WEBHOOK_SECRET` permanece opcional para HMAC, e `/api/billing/webhook` aceita `payment`, `subscription_preapproval` e `subscription_authorized_payment` quando a assinatura oficial estiver configurada.
+A cobrança usa `MERCADO_PAGO_ACCESS_TOKEN` somente no servidor e oferece dois fluxos separados: cartão recorrente por `/preapproval` e Pix mensal por `/v1/payments`. O Pix é idempotente, expira em 24 horas e só ativa ou prorroga o acesso quando a consulta oficial confirma referência, plano, valor, BRL, método `pix` e estado `approved`. QR Code, Copia e Cola e link de pagamento vêm do Mercado Pago; a chave Pix do fornecedor não é armazenada nem publicada. Um cron executa conciliação oficial a cada 30 minutos: contratos instáveis são revistos no ciclo rápido, assinaturas ativas a cada 6 horas e acessos Pix vencidos são marcados como inadimplentes pelo servidor. `MERCADO_PAGO_WEBHOOK_SECRET` permanece opcional para HMAC, e `/api/billing/webhook` aceita `payment`, `subscription_preapproval` e `subscription_authorized_payment` quando a assinatura oficial estiver configurada. O webhook acelera a atualização, mas não é requisito para confirmar pagamento.
+
+Os termos comerciais informam renovação automática do cartão, data da próxima cobrança e cancelamento na área de planos. Não existe reembolso comercial voluntário depois da disponibilização ou uso, sem prejuízo de cobranças indevidas, falhas do serviço e direitos legais obrigatórios, inclusive o direito de arrependimento quando aplicável.
 
 A chave `SCENARIO_SIGNING_KEY_V1` vive apenas no ambiente publicado. Nunca deve ser gravada no repositório ou enviada ao navegador.
+
+## Segurança e LGPD
+
+`GET/PATCH/DELETE /api/account` oferece export individual, correção com confirmação de senha e exclusão. Somente o responsável recebe o conteúdo fiscal completo do workspace; membros recebem os próprios dados de conta. Cada operação gera uma trilha pseudonimizada independente com request ID.
+
+`GET/POST/PATCH /api/admin/security/incidents` mantém o registro restrito de incidentes, eventos, severidade, contenção e decisões de notificação. O plano operacional está em [resposta a incidentes](docs/security/incident-response.md).
+
+`GET /api/admin/security/privacy-requests` expõe ao administrador somente a trilha pseudonimizada dos pedidos, sem nome, e-mail ou conteúdo fiscal.
+
+Toda requisição recebe um request ID no Worker e logs JSON não incluem query string, corpo, token ou mensagem bruta de exceção. Execute `npm run security:secrets` antes de commits. A [política de backup](docs/security/backup-restore.md) define exportação semanal e teste mensal em banco D1 dedicado.
 
 Consulte [Arquitetura e invariantes](docs/architecture.md) antes de alterar o motor fiscal, as rotas de cenário ou o fluxo de revisão.

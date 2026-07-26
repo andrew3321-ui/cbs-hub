@@ -6,6 +6,7 @@ const MINIMUM_SECRET_LENGTH = 32;
 
 type TrialRuntimeEnvironment = {
   SECURITY_HASH_KEY?: string;
+  SECURITY_HASH_KEYS_PREVIOUS?: string;
 };
 
 function bytesToHex(bytes: Uint8Array) {
@@ -21,9 +22,15 @@ function cookieValue(request: Request, name: string) {
   return "";
 }
 
-function protectionSecret() {
-  const secret = String((env as unknown as TrialRuntimeEnvironment).SECURITY_HASH_KEY ?? "").trim();
-  return secret.length >= MINIMUM_SECRET_LENGTH ? secret : "";
+function protectionSecrets() {
+  const runtime = env as unknown as TrialRuntimeEnvironment;
+  const current = String(runtime.SECURITY_HASH_KEY ?? "").trim();
+  if (current.length < MINIMUM_SECRET_LENGTH) return [];
+  const previous = String(runtime.SECURITY_HASH_KEYS_PREVIOUS ?? "")
+    .split(",")
+    .map((secret) => secret.trim())
+    .filter((secret) => secret.length >= MINIMUM_SECRET_LENGTH);
+  return [...new Set([current, ...previous])].slice(0, 8);
 }
 
 async function hmacHex(secret: string, purpose: string, value: string) {
@@ -45,8 +52,8 @@ export function trialDeviceCookieHeader(deviceId: string, request: Request) {
 }
 
 export async function buildTrialClaimIdentity(request: Request, payload: Record<string, unknown>, normalizedEmail: string) {
-  const secret = protectionSecret();
-  if (!secret) return null;
+  const secrets = protectionSecrets();
+  if (!secrets.length) return null;
   const cookieDeviceId = cookieValue(request, TRIAL_DEVICE_COOKIE);
   const suppliedDeviceId = typeof payload.trialDeviceId === "string" ? payload.trialDeviceId.trim().toLowerCase() : "";
   const deviceId = trialDeviceIdIsValid(cookieDeviceId) ? cookieDeviceId.toLowerCase() : suppliedDeviceId;
@@ -64,11 +71,11 @@ export async function buildTrialClaimIdentity(request: Request, payload: Record<
     request.headers.get("sec-ch-ua-platform") ?? "",
     request.headers.get("sec-ch-ua-mobile") ?? "",
   ].join("|");
-  return {
-    deviceId,
+  const hashes = await Promise.all(secrets.map(async (secret) => ({
     deviceHash: await hmacHex(secret, "device", deviceId),
     fingerprintHash: await hmacHex(secret, "fingerprint", technicalFingerprint),
     emailHash: await hmacHex(secret, "email", normalizedEmail),
     networkHash: await hmacHex(secret, "network", forwardedIp),
-  };
+  })));
+  return { deviceId, ...hashes[0], historicalHashes: hashes.slice(1) };
 }
