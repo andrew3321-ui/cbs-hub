@@ -1,7 +1,7 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { clearSessionCookieHeader, getCurrentUser, verifyPassword } from "../../auth";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { accountingWorkspaces, auditEvents, billingAccounts, billingTransactions, companies, fiscalDocumentEvents, fiscalDocuments, fiscalDossierEvents, fiscalDossiers, fiscalExpansionEvents, fiscalExpansionProgress, fiscalHomologationCases, fiscalHomologationEvents, fiscalIssuances, fiscalRuleApprovals, reportShares, scenarioApprovals, scenarioReviewComments, scenarioReviewRounds, scenarios, sessions, taxLedgerEntries, taxPeriodClosures, taxPeriods, taxReconciliationSnapshots, users, workspaceInvitations, workspaceMembers } from "../../../db/schema";
+import { accountingWorkspaces, auditEvents, billingAccounts, billingTransactions, companies, fiscalDocumentEvents, fiscalDocuments, fiscalDossierEvents, fiscalDossiers, fiscalExpansionEvents, fiscalExpansionProgress, fiscalHomologationCases, fiscalHomologationEvents, fiscalIssuances, fiscalRuleApprovals, reportShares, scenarioApprovals, scenarioReviewComments, scenarioReviewRounds, scenarios, sessions, taxLedgerEntries, taxPeriodClosures, taxPeriods, taxReconciliationSnapshots, trialDeviceClaims, users, workspaceInvitations, workspaceMembers } from "../../../db/schema";
 import { getWorkspaceContext } from "../../workspace";
 
 export async function GET(request: Request) {
@@ -14,7 +14,7 @@ export async function GET(request: Request) {
     if (!workspace) return Response.json({ error: "Espaço profissional não encontrado." }, { status: 409 });
     const ownedCompanies = await db.select().from(companies).where(eq(companies.workspaceId, workspace.id));
     const companyIds = ownedCompanies.map((company) => company.id);
-    const [members, scenarioRows, shareRows, approvalRows, auditRows, billingRows, transactionRows, fiscalRows] = await Promise.all([
+    const [members, scenarioRows, shareRows, approvalRows, auditRows, billingRows, transactionRows, fiscalRows, trialRows] = await Promise.all([
       db.select({ id: users.id, name: users.name, email: users.email, role: workspaceMembers.role, status: workspaceMembers.status, joinedAt: workspaceMembers.joinedAt }).from(workspaceMembers).innerJoin(users, eq(users.id, workspaceMembers.userId)).where(eq(workspaceMembers.workspaceId, workspace.id)),
       companyIds.length ? db.select().from(scenarios).where(inArray(scenarios.companyId, companyIds)) : Promise.resolve([]),
       db.select({ id: reportShares.id, scenarioId: reportShares.scenarioId, companyId: reportShares.companyId, expiresAt: reportShares.expiresAt, revokedAt: reportShares.revokedAt, views: reportShares.views, lastViewedAt: reportShares.lastViewedAt, createdAt: reportShares.createdAt }).from(reportShares).where(eq(reportShares.ownerUserId, workspace.ownerUserId)),
@@ -23,6 +23,12 @@ export async function GET(request: Request) {
       db.select({ id: billingAccounts.id, userId: billingAccounts.userId, planKey: billingAccounts.planKey, provider: billingAccounts.provider, externalReference: billingAccounts.externalReference, providerSubscriptionId: billingAccounts.providerSubscriptionId, companyAddonBlocks: billingAccounts.companyAddonBlocks, pendingCompanyAddonBlocks: billingAccounts.pendingCompanyAddonBlocks, status: billingAccounts.status, nextPaymentAt: billingAccounts.nextPaymentAt, lastSyncedAt: billingAccounts.lastSyncedAt, createdAt: billingAccounts.createdAt, updatedAt: billingAccounts.updatedAt }).from(billingAccounts).where(eq(billingAccounts.userId, currentUser.id)),
       db.select({ id: billingTransactions.id, provider: billingTransactions.provider, providerInvoiceId: billingTransactions.providerInvoiceId, providerPaymentId: billingTransactions.providerPaymentId, status: billingTransactions.status, statusDetail: billingTransactions.statusDetail, grossAmountCents: billingTransactions.grossAmountCents, feeAmountCents: billingTransactions.feeAmountCents, netAmountCents: billingTransactions.netAmountCents, currency: billingTransactions.currency, paymentMethod: billingTransactions.paymentMethod, approvedAt: billingTransactions.approvedAt, createdAt: billingTransactions.createdAt, updatedAt: billingTransactions.updatedAt }).from(billingTransactions).where(eq(billingTransactions.userId, currentUser.id)),
       db.select().from(fiscalIssuances).where(eq(fiscalIssuances.userId, currentUser.id)),
+      db.select({
+        status: trialDeviceClaims.status,
+        startedAt: trialDeviceClaims.startedAt,
+        endsAt: trialDeviceClaims.endsAt,
+        createdAt: trialDeviceClaims.createdAt,
+      }).from(trialDeviceClaims).where(eq(trialDeviceClaims.workspaceId, workspace.id)),
     ]);
     const [account] = await db.select({ id: users.id, name: users.name, email: users.email, accountType: users.accountType, suggestedPlanKey: users.suggestedPlanKey, createdAt: users.createdAt }).from(users).where(eq(users.id, currentUser.id)).limit(1);
     const [ruleApprovalRows, expansionProgressRows, expansionEventRows, dossierRows, dossierEventRows, documentRows, documentEventRows, homologationRows, homologationEventRows, taxPeriodRows, taxLedgerRows, reconciliationRows, closureRows] = await Promise.all([
@@ -54,8 +60,9 @@ export async function GET(request: Request) {
       billingAccounts: billingRows,
       billingTransactions: transactionRows,
       fiscalIssuances: fiscalRows,
+      trial: trialRows,
       fiscalControl: { ruleApprovals: ruleApprovalRows, expansionProgress: expansionProgressRows, expansionEvents: expansionEventRows, dossiers: dossierRows, dossierEvents: dossierEventRows, documents: documentRows, documentEvents: documentEventRows, homologations: homologationRows, homologationEvents: homologationEventRows, taxPeriods: taxPeriodRows, taxLedgerEntries: taxLedgerRows, reconciliations: reconciliationRows, closures: closureRows },
-      safeguards: { passwordHashesExcluded: true, recoveryKeysExcluded: true, sessionTokensExcluded: true, providerPayloadsExcluded: true, rawFiscalXmlStored: false },
+      safeguards: { passwordHashesExcluded: true, recoveryKeysExcluded: true, sessionTokensExcluded: true, providerPayloadsExcluded: true, rawFiscalXmlStored: false, rawDeviceSignalsStored: false },
     };
     const download = new URL(request.url).searchParams.get("download") === "1";
     return new Response(JSON.stringify(exportData, null, 2), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...(download ? { "Content-Disposition": `attachment; filename="margem-clara-dados-${new Date().toISOString().slice(0, 10)}.json"` } : {}) } });
@@ -118,6 +125,7 @@ export async function DELETE(request: Request) {
     await db.delete(companies).where(eq(companies.ownerUserId, user.id));
     await db.delete(workspaceInvitations).where(eq(workspaceInvitations.workspaceId, workspace.id));
     await db.delete(workspaceMembers).where(eq(workspaceMembers.workspaceId, workspace.id));
+    await db.update(trialDeviceClaims).set({ userId: null, workspaceId: null, status: "retained_antifraud" }).where(eq(trialDeviceClaims.workspaceId, workspace.id));
     await db.delete(accountingWorkspaces).where(eq(accountingWorkspaces.id, workspace.id));
     await db.delete(sessions).where(eq(sessions.userId, user.id));
     await db.delete(users).where(eq(users.id, user.id));

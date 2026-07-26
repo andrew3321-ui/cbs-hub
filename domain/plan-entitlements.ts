@@ -7,9 +7,10 @@ import {
   normalizeCompanyAddonBlocks,
   type PaidPlanKey,
 } from "./billing-plans.ts";
+import { TRIAL_COMPANY_LIMIT, trialAccessIsActive, trialDaysRemaining, type TrialAccessSnapshot } from "./trial.ts";
 
-export type EffectivePlanKey = "owner" | "global_beta" | "beta" | PaidPlanKey;
-export type EntitlementAccessMode = "platform_owner" | "beta_full" | "plan";
+export type EffectivePlanKey = "owner" | "global_beta" | "trial" | "beta" | PaidPlanKey;
+export type EntitlementAccessMode = "platform_owner" | "beta_full" | "trial_full" | "plan";
 
 export type BillingAccessSnapshot = {
   planKey: string;
@@ -65,6 +66,10 @@ export type WorkspaceEntitlements = PlanDefinition & {
   companyLimitReached: boolean;
   companyLimitExceeded: boolean;
   canCreateCompany: boolean;
+  trialActive: boolean;
+  trialStartedAt: string | null;
+  trialEndsAt: string | null;
+  trialDaysRemaining: number;
 };
 
 const coreFeatures = {
@@ -105,6 +110,16 @@ export const planDefinitions: Record<EffectivePlanKey, PlanDefinition> = {
     ...advancedFiscalFeatures,
     officeCollaborationEnabled: true,
     prioritySupport: true,
+  },
+  trial: {
+    key: "trial",
+    name: "Teste profissional",
+    accessMode: "trial_full",
+    companyLimit: TRIAL_COMPANY_LIMIT,
+    ...coreFeatures,
+    ...advancedFiscalFeatures,
+    officeCollaborationEnabled: true,
+    prioritySupport: false,
   },
   beta: {
     key: "beta",
@@ -171,13 +186,19 @@ export function resolveEffectivePlan(snapshot: BillingAccessSnapshot, now = Date
   return planDefinitions.beta;
 }
 
-export function resolveWorkspacePlan(input: { platformOwner: boolean; betaEnabled: boolean; billing: BillingAccessSnapshot }, now = Date.now()) {
+export function resolveWorkspacePlan(input: { platformOwner: boolean; betaEnabled: boolean; billing: BillingAccessSnapshot; trial?: TrialAccessSnapshot }, now = Date.now()) {
   if (input.platformOwner) return planDefinitions.owner;
+  const paidPlan = resolveEffectivePlan(input.billing, now);
+  if (paidPlan.key !== "beta") return paidPlan;
+  if (trialAccessIsActive(input.trial ?? null, now)) return planDefinitions.trial;
+  // A trial claim keeps new accounts out of the legacy unlimited beta after
+  // the five-day period ends.
+  if (input.trial) return planDefinitions.beta;
   if (input.betaEnabled) return planDefinitions.global_beta;
-  return resolveEffectivePlan(input.billing, now);
+  return planDefinitions.beta;
 }
 
-export function applyPlanUsage(plan: PlanDefinition, snapshot: BillingAccessSnapshot, companyCount: number): WorkspaceEntitlements {
+export function applyPlanUsage(plan: PlanDefinition, snapshot: BillingAccessSnapshot, companyCount: number, trial: TrialAccessSnapshot = null, now = Date.now()): WorkspaceEntitlements {
   const safeCount = Number.isInteger(companyCount) && companyCount > 0 ? companyCount : 0;
   const companyAddonBlocks = plan.key === "unico"
     ? normalizeCompanyAddonBlocks(snapshot?.companyAddonBlocks) ?? 0
@@ -211,5 +232,9 @@ export function applyPlanUsage(plan: PlanDefinition, snapshot: BillingAccessSnap
     companyLimitReached: limit === null ? false : safeCount >= limit,
     companyLimitExceeded: limit === null ? false : safeCount > limit,
     canCreateCompany: limit === null || safeCount < limit,
+    trialActive: plan.key === "trial" && trialAccessIsActive(trial, now),
+    trialStartedAt: trial?.startedAt ?? null,
+    trialEndsAt: trial?.endsAt ?? null,
+    trialDaysRemaining: plan.key === "trial" ? trialDaysRemaining(trial, now) : 0,
   };
 }

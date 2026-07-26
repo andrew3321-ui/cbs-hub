@@ -1312,7 +1312,15 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
             {message && <div className="toast" role="status">{message}</div>}
 
             <section className={`plan-usage-banner ${entitlements.companyLimitExceeded ? "over-limit" : entitlements.companyLimitReached ? "limit-reached" : "within-limit"}`} aria-label="Uso do plano">
-              <div><span>PLANO ATIVO</span><strong>{entitlements.name}</strong><small>{entitlements.companyLimit === null ? entitlements.accessMode === "platform_owner" ? "Acesso administrativo sem restrições" : "Beta integral: todos os recursos liberados" : entitlements.companyLimitExceeded ? "Carteira acima do limite contratado" : entitlements.companyLimitReached ? "Limite de empresas atingido" : `${entitlements.companyRemaining} ${entitlements.companyRemaining === 1 ? "vaga disponível" : "vagas disponíveis"}`}</small></div>
+              <div><span>{entitlements.trialActive ? "TESTE PROFISSIONAL" : "PLANO ATIVO"}</span><strong>{entitlements.name}</strong><small>{entitlements.trialActive
+                ? `${entitlements.trialDaysRemaining} dia(s) restante(s) · acesso completo até ${entitlements.trialEndsAt ? new Date(entitlements.trialEndsAt).toLocaleDateString("pt-BR") : "o fim do período"}`
+                : entitlements.companyLimit === null
+                  ? entitlements.accessMode === "platform_owner" ? "Acesso administrativo sem restrições" : "Beta integral: todos os recursos liberados"
+                  : entitlements.companyLimitExceeded
+                    ? "Carteira acima do limite contratado"
+                    : entitlements.companyLimitReached
+                      ? "Limite de empresas atingido"
+                      : `${entitlements.companyRemaining} ${entitlements.companyRemaining === 1 ? "vaga disponível" : "vagas disponíveis"}`}</small></div>
               <div className="plan-usage-meter"><span><b>{entitlements.companyCount}</b> {entitlements.companyLimit === null ? "empresas · sem limite" : `de ${entitlements.companyLimit} empresas`}</span>{entitlements.companyLimit === null ? <div className="unlimited-plan-meter"><i /></div> : <progress max={entitlements.companyLimit} value={Math.min(entitlements.companyCount, entitlements.companyLimit)} />}</div>
               <a href="/planos">Ver planos →</a>
             </section>

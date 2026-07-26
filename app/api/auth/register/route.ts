@@ -2,9 +2,11 @@ import { and, count, eq, gt, isNull } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { createRecoveryKey, createSession, hashPassword, hashRecoveryKey, normalizeEmail, passwordIsStrong, sessionCookieHeader } from "../../../auth";
 import { ensureScenarioSchema, getDb } from "../../../../db";
-import { accountingWorkspaces, companies, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
+import { accountingWorkspaces, companies, trialDeviceClaims, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
 import { sha256Hex } from "../../../workspace";
 import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../plan-entitlements";
+import { TRIAL_COMPANY_LIMIT, TRIAL_DURATION_DAYS, trialEndsAt } from "../../../../domain/trial";
+import { buildTrialClaimIdentity, trialDeviceCookieHeader } from "../../../trial-protection";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -12,6 +14,7 @@ export async function POST(request: Request) {
   let createdUserId: number | null = null;
   let createdWorkspaceId: number | null = null;
   let acceptedInvitationId: number | null = null;
+  let createdTrialClaimId: number | null = null;
   try {
     await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;
@@ -21,6 +24,7 @@ export async function POST(request: Request) {
     const requestedAccountType = payload.accountType === "office" ? "office" : "individual";
     const requestedOfficeName = typeof payload.officeName === "string" ? payload.officeName.trim().replace(/\s+/g, " ").slice(0, 120) : "";
     const inviteToken = typeof payload.inviteToken === "string" ? payload.inviteToken.trim().toLowerCase() : "";
+    const trialIdentity = inviteToken ? null : await buildTrialClaimIdentity(request, payload, email);
 
     if (name.length < 2 || !emailPattern.test(email) || !passwordIsStrong(password)) {
       return Response.json({ error: "Informe nome, e-mail válido e uma senha com pelo menos 12 caracteres, letra e número." }, { status: 400 });
@@ -68,6 +72,9 @@ export async function POST(request: Request) {
 
     let workspaceId: number;
     let workspaceName: string;
+    let trialGranted = false;
+    let trialStartedAt: string | null = null;
+    let trialEndsAtValue: string | null = null;
     if (invitation) {
       workspaceId = invitation.workspaceId;
       workspaceName = invitation.workspaceName;
@@ -93,6 +100,28 @@ export async function POST(request: Request) {
       workspaceId = workspace.id;
       createdWorkspaceId = workspace.id;
       await db.insert(workspaceMembers).values({ workspaceId, userId: user.id, role: "owner", status: "active" });
+
+      if (trialIdentity) {
+        trialStartedAt = new Date().toISOString();
+        trialEndsAtValue = trialEndsAt(trialStartedAt);
+        const [claim] = await db.insert(trialDeviceClaims).values({
+          userId: user.id,
+          workspaceId,
+          deviceHash: trialIdentity.deviceHash,
+          fingerprintHash: trialIdentity.fingerprintHash,
+          emailHash: trialIdentity.emailHash,
+          networkHash: trialIdentity.networkHash,
+          status: "active",
+          startedAt: trialStartedAt,
+          endsAt: trialEndsAtValue,
+        }).onConflictDoNothing().returning({ id: trialDeviceClaims.id });
+        trialGranted = Boolean(claim);
+        createdTrialClaimId = claim?.id ?? null;
+        if (!claim) {
+          trialStartedAt = null;
+          trialEndsAtValue = null;
+        }
+      }
     }
 
     const configuredLegacyOwner = normalizeEmail(String((env as unknown as { LEGACY_OWNER_EMAIL?: string }).LEGACY_OWNER_EMAIL ?? ""));
@@ -100,11 +129,33 @@ export async function POST(request: Request) {
     if (canClaimLegacyData) await db.update(companies).set({ ownerUserId: user.id, workspaceId }).where(isNull(companies.ownerUserId));
 
     const session = await createSession(user.id);
-    return Response.json({ user, recoveryKey, workspace: { id: workspaceId, name: workspaceName, type: accountType, suggestedPlanKey } }, { status: 201, headers: { "Set-Cookie": sessionCookieHeader(session.token, request) } });
+    const headers = new Headers();
+    headers.append("Set-Cookie", sessionCookieHeader(session.token, request));
+    if (trialIdentity) headers.append("Set-Cookie", trialDeviceCookieHeader(trialIdentity.deviceId, request));
+    return Response.json({
+      user,
+      recoveryKey,
+      workspace: { id: workspaceId, name: workspaceName, type: accountType, suggestedPlanKey },
+      trial: {
+        granted: trialGranted,
+        days: TRIAL_DURATION_DAYS,
+        companyLimit: TRIAL_COMPANY_LIMIT,
+        startedAt: trialStartedAt,
+        endsAt: trialEndsAtValue,
+        reason: invitation
+          ? "workspace_inherited"
+          : trialGranted
+            ? null
+            : trialIdentity
+              ? "device_already_used"
+              : "device_verification_unavailable",
+      },
+    }, { status: 201, headers });
   } catch (error) {
     if (createdUserId) {
       try {
         const db = getDb();
+        if (createdTrialClaimId) await db.delete(trialDeviceClaims).where(eq(trialDeviceClaims.id, createdTrialClaimId));
         await db.delete(workspaceMembers).where(eq(workspaceMembers.userId, createdUserId));
         if (createdWorkspaceId) await db.delete(accountingWorkspaces).where(eq(accountingWorkspaces.id, createdWorkspaceId));
         if (acceptedInvitationId) await db.update(workspaceInvitations).set({ status: "pending", acceptedByUserId: null, acceptedAt: null }).where(and(eq(workspaceInvitations.id, acceptedInvitationId), eq(workspaceInvitations.acceptedByUserId, createdUserId)));

@@ -8,9 +8,62 @@ type AccountType = "individual" | "office";
 
 const content = {
   login: { eyebrow: "BEM-VINDO DE VOLTA", title: "Entre no seu escritório", subtitle: "Continue o trabalho técnico e acompanhe cada cliente da carteira." },
-  register: { eyebrow: "COMECE GRATUITAMENTE", title: "Crie seu espaço profissional", subtitle: "Escolha o modo independente ou escritório; o beta continua gratuito e sem cobrança automática." },
+  register: { eyebrow: "5 DIAS DE ACESSO COMPLETO", title: "Crie seu espaço profissional", subtitle: "Teste todos os recursos com até 10 empresas. O período começa assim que o cadastro é concluído." },
   recover: { eyebrow: "RECUPERAÇÃO SEGURA", title: "Defina uma nova senha", subtitle: "Use a chave de segurança entregue quando sua conta foi criada." },
 };
+
+type TrialResult = {
+  granted: boolean;
+  days: number;
+  companyLimit: number;
+  endsAt: string | null;
+  reason: string | null;
+};
+
+const TRIAL_DEVICE_STORAGE_KEY = "mc_trial_device_v1";
+
+function bytesToHex(bytes: Uint8Array) {
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function sha256Hex(value: string) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
+  return bytesToHex(new Uint8Array(digest));
+}
+
+async function trialDeviceEvidence() {
+  let trialDeviceId = "";
+  try {
+    trialDeviceId = window.localStorage.getItem(TRIAL_DEVICE_STORAGE_KEY) ?? "";
+  } catch {
+    // The protected server cookie and technical fingerprint remain available.
+  }
+  if (!/^[0-9a-f-]{36,64}$/i.test(trialDeviceId)) {
+    trialDeviceId = typeof crypto.randomUUID === "function"
+      ? crypto.randomUUID()
+      : bytesToHex(crypto.getRandomValues(new Uint8Array(32)));
+    try {
+      window.localStorage.setItem(TRIAL_DEVICE_STORAGE_KEY, trialDeviceId);
+    } catch {
+      // Registration can continue; the server also persists an HttpOnly marker.
+    }
+  }
+  const deviceMemory = "deviceMemory" in navigator ? String((navigator as Navigator & { deviceMemory?: number }).deviceMemory ?? "") : "";
+  const fingerprintMaterial = [
+    navigator.userAgent,
+    navigator.platform,
+    navigator.language,
+    navigator.languages.join(","),
+    navigator.hardwareConcurrency,
+    deviceMemory,
+    Intl.DateTimeFormat().resolvedOptions().timeZone,
+    screen.width,
+    screen.height,
+    screen.colorDepth,
+    navigator.maxTouchPoints,
+  ].join("|");
+  return { trialDeviceId, trialDeviceFingerprint: await sha256Hex(fingerprintMaterial) };
+}
 
 export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const [name, setName] = useState("");
@@ -19,6 +72,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [recoveryKey, setRecoveryKey] = useState("");
   const [issuedRecoveryKey, setIssuedRecoveryKey] = useState("");
+  const [issuedTrial, setIssuedTrial] = useState<TrialResult | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -77,11 +131,13 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
     setLoading(true);
     try {
       const endpoint = mode === "login" ? "/api/auth/login" : mode === "register" ? "/api/auth/register" : "/api/auth/reset-password";
-      const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, recoveryKey, accountType, officeName, inviteToken }) });
-      const data = (await response.json()) as { error?: string; recoveryKey?: string };
+      const trialEvidence = mode === "register" && !inviteToken ? await trialDeviceEvidence() : {};
+      const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, recoveryKey, accountType, officeName, inviteToken, ...trialEvidence }) });
+      const data = (await response.json()) as { error?: string; recoveryKey?: string; trial?: TrialResult };
       if (!response.ok) throw new Error(data.error || "Não foi possível concluir.");
       if (mode === "register" && data.recoveryKey) {
         setIssuedRecoveryKey(data.recoveryKey);
+        setIssuedTrial(data.trial ?? null);
         return;
       }
       if (mode === "recover") {
@@ -114,7 +170,15 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
           <p>Esta chave substitui o envio por e-mail nesta fase gratuita. Ela será exibida apenas agora e permite redefinir sua senha.</p>
           <div className="recovery-key-box"><span>{issuedRecoveryKey}</span><button type="button" onClick={copyRecoveryKey}>{copied ? "Copiada ✓" : "Copiar chave"}</button></div>
           <div className="recovery-warning"><b>Importante</b><span>Salve em um gerenciador de senhas ou local seguro. Não compartilhe esta chave.</span></div>
-          <div className="auth-plan-suggestion"><span>PLANO DISPONÍVEL</span><b>Margem Clara</b><small>Beta gratuito agora. Nenhuma cobrança é iniciada no cadastro.</small></div>
+          <div className="auth-plan-suggestion">
+            <span>{issuedTrial?.granted ? "TESTE PROFISSIONAL ATIVADO" : "ACESSO BÁSICO ATIVADO"}</span>
+            <b>{issuedTrial?.granted ? `${issuedTrial.days} dias · até ${issuedTrial.companyLimit} empresas` : "Margem Clara"}</b>
+            <small>{issuedTrial?.granted && issuedTrial.endsAt
+              ? `Todos os recursos estão liberados até ${new Date(issuedTrial.endsAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}. Nenhuma cobrança é iniciada automaticamente.`
+              : issuedTrial?.reason === "workspace_inherited"
+                ? "Seu acesso acompanha as regras e o período do escritório para o qual você foi convidado."
+                : "Este aparelho já utilizou o período de teste ou não pôde ser validado. Nenhuma cobrança foi iniciada."}</small>
+          </div>
           <a className="auth-primary-link" href="/app">Guardei a chave · entrar no painel <span>→</span></a>
         </section>
       </main>
@@ -155,6 +219,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
             {mode === "login" && <div className="auth-form-options"><label><input type="checkbox" defaultChecked /> Manter conectado</label><a href="/recuperar-senha">Esqueci minha senha</a></div>}
             <button className="auth-submit" disabled={loading || (mode !== "login" && passwordScore < 2)}>{loading ? "Protegendo seu acesso…" : mode === "login" ? "Entrar no escritório" : mode === "register" ? inviteInfo ? "Entrar na equipe" : accountType === "office" ? "Criar espaço do escritório" : "Criar conta profissional" : "Redefinir senha"}<span>→</span></button>
           </form>
+          {mode === "register" && !inviteInfo && <p className="auth-trial-disclosure">O teste é concedido uma vez por aparelho. Para prevenir abuso, o sistema guarda somente identificadores técnicos pseudonimizados; não armazena as características brutas do dispositivo.</p>}
           <p className="auth-switch">{mode === "login" ? <>Ainda não tem acesso? <a href="/cadastro">Criar conta gratuita</a></> : mode === "register" ? <>Já tem uma conta? <a href="/entrar">Entrar</a></> : <>Lembrou sua senha? <a href="/entrar">Voltar ao login</a></>}</p>
           <p className="auth-legal">Ao continuar, você concorda com o uso seguro dos dados exclusivamente para operar sua conta.</p>
         </div>

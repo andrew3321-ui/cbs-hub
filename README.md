@@ -46,7 +46,7 @@ Comandos principais:
 11. No modo independente, “revisão do responsável” registra autodeclaração e ausência de segregação de funções; nunca é apresentada como revisão independente.
 12. No modo escritório, o servidor exige `reviewer_user_id !== prepared_by_user_id` e um papel apto a revisar; isso é segunda revisão interna, não independência externa.
 13. A entrega ao cliente exige duas assinaturas válidas: a da versão calculada e a da aprovação aplicável ao modo de trabalho.
-14. A escolha feita no cadastro define o modo de trabalho, não o preço. Os benefícios pagos só nascem de assinatura conciliada. Gratuito permite 1 empresa; o plano Margem Clara custa R$ 450/mês, inclui 30 empresas e permite blocos adicionais de 10 por R$ 100/mês, com limite atômico no servidor.
+14. A escolha feita no cadastro define o modo de trabalho, não o preço. O primeiro cadastro elegível recebe um trial de 5 dias, 10 empresas e todos os recursos; depois, o gratuito permite 1 empresa. O plano Margem Clara custa R$ 450/mês, inclui 30 empresas e permite blocos adicionais de 10 por R$ 100/mês, com limite atômico no servidor.
 15. No escritório, toda revisão congelada tem um responsável designado, prazo e rodada; somente o responsável distinto do preparador pode decidir.
 16. Comentários e decisões são append-only. Uma solicitação de correção nunca reabre a versão: cria outro cenário ligado por `supersedes_scenario_id`.
 17. A pesquisa fiscal não inventa fatos: qualquer condição ausente, fora da cobertura ou ainda não modelada bloqueia a conclusão operacional.
@@ -80,7 +80,9 @@ O modo beta é persistido em D1 e somente o administrador da plataforma pode alt
 
 O plano efetivo pertence ao responsável pelo espaço profissional e é resolvido no servidor a partir do estado conciliado da assinatura. Pagamento pendente, cartão pausado e Pix vencido não liberam benefícios. Ao atingir ou ultrapassar a capacidade contratada, a carteira existente permanece íntegra e acessível, mas novos cadastros são recusados com o código `PLAN_COMPANY_LIMIT`. O plano Margem Clara libera todos os módulos e a colaboração; os blocos adicionais alteram somente o número máximo de empresas.
 
-`PLATFORM_OWNER_TAX_ID`, `PLATFORM_OWNER_LEGAL_ADDRESS` e `PLATFORM_PRIVACY_CONTACT_EMAIL` alimentam a identificação comercial publicada apenas quando pagamentos estiverem ativos. `SECURITY_HASH_KEY` pseudonimiza os marcadores temporários usados na limitação de abuso.
+O trial começa no cadastro do proprietário do espaço, termina exatamente após 5 dias e não exige cartão. Um ledger em D1 impede nova concessão para o mesmo identificador de instalação, ambiente técnico ou identidade de e-mail. O navegador conserva um marcador local e outro HttpOnly; o servidor armazena somente HMACs pseudonimizados. Convites de equipe herdam o acesso do escritório e nunca abrem outro trial. Depois da expiração, a conta retorna ao gratuito mesmo que o modo beta legado permaneça ligado.
+
+`PLATFORM_OWNER_TAX_ID`, `PLATFORM_OWNER_LEGAL_ADDRESS` e `PLATFORM_PRIVACY_CONTACT_EMAIL` alimentam a identificação comercial publicada apenas quando pagamentos estiverem ativos. `SECURITY_HASH_KEY` deve ter pelo menos 32 caracteres e pseudonimiza os marcadores de rede, limitação de abuso e concessão única do trial.
 
 A cobrança usa `MERCADO_PAGO_ACCESS_TOKEN` somente no servidor e oferece dois fluxos separados: cartão recorrente por `/preapproval` e Pix mensal por `/v1/payments`. O Pix é idempotente, expira em 24 horas e só ativa ou prorroga o acesso quando a consulta oficial confirma referência, plano, valor, BRL, método `pix` e estado `approved`. QR Code, Copia e Cola e link de pagamento vêm do Mercado Pago; a chave Pix do fornecedor não é armazenada nem publicada. `MERCADO_PAGO_WEBHOOK_SECRET` permanece opcional para HMAC, e `/api/billing/webhook` aceita `payment`, `subscription_preapproval` e `subscription_authorized_payment` quando a assinatura oficial estiver configurada.
 

@@ -14,6 +14,9 @@ test("the free entry and single paid plan expose enforceable benefits", () => {
   assert.equal(planDefinitions.unico.fiscalIntelligenceEnabled, true);
   assert.equal(planDefinitions.unico.taxDeterminationEnabled, true);
   assert.equal(planDefinitions.unico.officeCollaborationEnabled, true);
+  assert.equal(planDefinitions.trial.companyLimit, 10);
+  assert.equal(planDefinitions.trial.fiscalIntelligenceEnabled, true);
+  assert.equal(planDefinitions.trial.officeCollaborationEnabled, true);
 });
 
 test("the platform owner and global beta bypass every package restriction", () => {
@@ -98,7 +101,7 @@ test("the application displays the active plan, usage and limit state", () => {
   assert.match(app, /Limite do plano atingido/);
   assert.match(app, /plan-feature-locked-card/);
   assert.match(app, /sectionPlanFeatures/);
-  assert.match(pricing, /1 empresa para avaliação/);
+  assert.match(pricing, /Até 10 empresas durante o teste/);
   assert.match(pricing, /Inteligência e laboratório fiscal/);
   assert.match(pricing, /30 empresas incluídas/);
   assert.match(pricing, /Cada bloco adiciona/);

@@ -52,7 +52,7 @@ export async function POST(request: Request) {
         target: billingAccounts.userId,
         set: { planKey: plan.key, companyAddonBlocks: addonBlocks, pendingCompanyAddonBlocks: addonBlocks, status: "interest", updatedAt: new Date().toISOString() },
       });
-      return Response.json({ mode: "interest", message: operation.betaEnabled ? "Interesse em pagar por Pix registrado. O beta continua gratuito." : "Interesse registrado. As cobranças permanecem bloqueadas." }, { status: 202 });
+      return Response.json({ mode: "interest", message: operation.betaEnabled ? "Interesse em pagar por Pix registrado. Nenhuma cobrança foi criada; o acesso atual continua sujeito ao período e aos limites informados na conta." : "Interesse registrado. As cobranças permanecem bloqueadas." }, { status: 202 });
     }
 
     if (account?.status === "active" && account.providerSubscriptionId) {

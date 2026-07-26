@@ -28,7 +28,7 @@ export default async function LandingPage() {
         </nav>
         <div className="landing-nav-actions">
           <Link className="landing-login" href={loginPath}>{user ? "Ir para o painel" : "Entrar"}</Link>
-          <Link className="landing-cta small" href={primaryPath}>{user ? "Continuar análise" : "Começar gratuitamente"}<span>→</span></Link>
+          <Link className="landing-cta small" href={primaryPath}>{user ? "Continuar análise" : "Testar por 5 dias"}<span>→</span></Link>
         </div>
       </header>
 
@@ -38,13 +38,13 @@ export default async function LandingPage() {
           <h1>Da premissa do cliente à entrega <em>revisada</em> pelo contador.</h1>
           <p>Organize a carteira, preserve cada versão e transforme dados fiscais em análises rastreáveis para as empresas atendidas pelo seu escritório.</p>
           <div className="landing-hero-actions">
-            <Link className="landing-cta" href={primaryPath}>{user ? "Abrir meu painel" : "Criar acesso gratuito"}<span>→</span></Link>
+            <Link className="landing-cta" href={primaryPath}>{user ? "Abrir meu painel" : "Iniciar teste de 5 dias"}<span>→</span></Link>
             <a className="landing-watch" href="#demonstracoes"><span className="play-dot">▶</span> Ver como funciona</a>
           </div>
           <div className="landing-trust">
-            <span><b>01</b> Sem cartão</span>
-            <span><b>02</b> Dados separados por empresa</span>
-            <span><b>03</b> Revisão e entrega rastreáveis</span>
+            <span><b>01</b> 10 empresas no teste</span>
+            <span><b>02</b> Todos os recursos</span>
+            <span><b>03</b> Sem cartão</span>
           </div>
         </div>
 
@@ -138,7 +138,7 @@ export default async function LandingPage() {
 
       <section className="landing-final-cta">
         <div><span className="landing-eyebrow">MARGEM CLARA PARA CONTADORES</span><h2>Do trabalho técnico à entrega, sem perder a responsabilidade.</h2><p>Comece com um cliente, registre as premissas, revise a versão e entregue um resultado com limites claros.</p></div>
-        <Link className="landing-cta light" href={primaryPath}>{user ? "Voltar ao painel" : "Criar acesso gratuito"}<span>→</span></Link>
+        <Link className="landing-cta light" href={primaryPath}>{user ? "Voltar ao painel" : "Testar tudo por 5 dias"}<span>→</span></Link>
       </section>
 
       <footer className="landing-footer">

@@ -213,6 +213,21 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS trial_device_claims (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          user_id INTEGER UNIQUE,
+          workspace_id INTEGER UNIQUE,
+          device_hash TEXT NOT NULL UNIQUE,
+          fingerprint_hash TEXT NOT NULL UNIQUE,
+          email_hash TEXT NOT NULL UNIQUE,
+          network_hash TEXT NOT NULL,
+          status TEXT DEFAULT 'active' NOT NULL,
+          started_at TEXT NOT NULL,
+          ends_at TEXT NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS security_rate_limits (
           bucket_key TEXT PRIMARY KEY NOT NULL,
           window_started_at INTEGER NOT NULL,
@@ -680,6 +695,13 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS companies_workspace_name_idx ON companies (workspace_id, name)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS sessions_user_expires_idx ON sessions (user_id, expires_at)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS security_rate_limits_updated_idx ON security_rate_limits (updated_at)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS trial_device_claims_user_idx ON trial_device_claims (user_id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS trial_device_claims_workspace_idx ON trial_device_claims (workspace_id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS trial_device_claims_device_idx ON trial_device_claims (device_hash)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS trial_device_claims_fingerprint_idx ON trial_device_claims (fingerprint_hash)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS trial_device_claims_email_idx ON trial_device_claims (email_hash)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS trial_device_claims_network_created_idx ON trial_device_claims (network_hash, created_at)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS trial_device_claims_status_ends_idx ON trial_device_claims (status, ends_at)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenarios_request_key_idx ON scenarios (request_key) WHERE request_key IS NOT NULL"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_company_created_idx ON scenarios (company_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS scenarios_prepared_by_idx ON scenarios (prepared_by_user_id, created_at, id)"),

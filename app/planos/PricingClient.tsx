@@ -42,6 +42,7 @@ type BillingState = {
 
 const statusLabels: Record<string, string> = {
   beta: "Beta gratuito",
+  trial: "Teste profissional",
   interest: "Interesse registrado",
   pix_creating: "Preparando Pix",
   pending: "Pagamento pendente",
@@ -263,8 +264,12 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
         <p>R$ 450 por mês com 30 empresas. Cada bloco adicional inclui 10 empresas por R$ 100 mensais, sem liberar ou retirar módulos.</p>
       </section>
       {signedIn && billing && <section className={`payment-mode-notice ${billing.paymentsEnabled ? "live" : "beta"}`}>
-        <span>{billing.paymentsEnabled ? "CONTRATAÇÃO DISPONÍVEL" : "CONTRATAÇÃO TEMPORARIAMENTE INDISPONÍVEL"}</span>
-        <p>{billing.paymentsEnabled ? "O servidor aplica a capacidade contratada. Todos os recursos profissionais permanecem incluídos." : "Nenhuma nova cobrança será iniciada enquanto o pagamento estiver bloqueado. Seu acesso atual permanece preservado."}</p>
+        <span>{billing.entitlements?.trialActive ? `TESTE PROFISSIONAL · ${billing.entitlements.trialDaysRemaining} DIA(S) RESTANTE(S)` : billing.paymentsEnabled ? "CONTRATAÇÃO DISPONÍVEL" : "CONTRATAÇÃO TEMPORARIAMENTE INDISPONÍVEL"}</span>
+        <p>{billing.entitlements?.trialActive
+          ? `Todos os recursos e até 10 empresas estão liberados até ${formatDate(billing.entitlements.trialEndsAt)}. Depois disso, a conta volta ao acesso básico se não houver contratação.`
+          : billing.paymentsEnabled
+            ? "O servidor aplica a capacidade contratada. Todos os recursos profissionais permanecem incluídos."
+            : "Nenhuma nova cobrança será iniciada enquanto o pagamento estiver bloqueado. Seu acesso atual permanece preservado."}</p>
       </section>}
       {signedIn && billing && <section className={`billing-status-card ${billing.billing.status}`}>
         <div><span>SEU ACESSO EFETIVO</span><strong>Plano {billing.entitlements?.name ?? statusLabels[billing.billing.status] ?? billing.billing.status}</strong><small>{billing.entitlements?.companyLimit === null ? "Empresas e recursos sem restrições enquanto este acesso estiver vigente." : `Até ${billing.entitlements?.companyLimit ?? 1} empresa(s) · recursos aplicados pelo servidor.`}</small></div>
@@ -307,12 +312,12 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
 
       <div className="pricing-grid single-plan">
         <article className="pricing-card beta">
-          <span className="pricing-label">AVALIAÇÃO</span>
-          <h2>Conheça a operação</h2>
-          <div className="pricing-value"><strong>R$ 0</strong><small>/mês</small></div>
-          <p>Valide o fluxo essencial da plataforma com uma empresa antes de estruturar toda a sua carteira profissional.</p>
-          <ul><li>1 empresa para avaliação</li><li>Simulador e cenários essenciais</li><li>Relatórios compartilháveis</li><li>Importação local de XML</li><li>Migração simples para o plano completo</li></ul>
-          <a className="pricing-button secondary" href={signedIn ? "/app" : "/cadastro"}>{signedIn ? "Voltar ao aplicativo" : "Avaliar a plataforma"}</a>
+          <span className="pricing-label">TESTE GRATUITO</span>
+          <h2>5 dias de acesso completo</h2>
+          <div className="pricing-value"><strong>R$ 0</strong><small>/5 dias</small></div>
+          <p>Conheça a operação profissional com todos os módulos liberados e capacidade suficiente para testar uma carteira real.</p>
+          <ul><li>Até 10 empresas durante o teste</li><li>Todos os módulos fiscais e cálculos</li><li>Relatórios, documentos e importações</li><li>Equipe, revisão e entrega rastreável</li><li>Sem cobrança automática no cadastro</li></ul>
+          <a className="pricing-button secondary" href={signedIn ? "/app" : "/cadastro"}>{signedIn ? "Voltar ao aplicativo" : "Iniciar teste de 5 dias"}</a>
         </article>
 
         <article className="pricing-card featured">

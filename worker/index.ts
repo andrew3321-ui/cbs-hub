@@ -148,6 +148,7 @@ const worker = {
     if (Math.random() < 0.01) ctx.waitUntil(env.DB.batch([
       env.DB.prepare("DELETE FROM security_rate_limits WHERE updated_at < datetime('now', '-2 days')"),
       env.DB.prepare("DELETE FROM sessions WHERE expires_at < datetime('now')"),
+      env.DB.prepare("UPDATE trial_device_claims SET status = 'expired' WHERE status = 'active' AND ends_at <= datetime('now')"),
       env.DB.prepare("UPDATE workspace_invitations SET status = 'expired' WHERE status = 'pending' AND expires_at < datetime('now')"),
       env.DB.prepare("DELETE FROM workspace_invitations WHERE status IN ('expired', 'accepted', 'canceled') AND created_at < datetime('now', '-90 days')"),
       env.DB.prepare("DELETE FROM report_shares WHERE (expires_at < datetime('now', '-90 days')) OR (revoked_at IS NOT NULL AND revoked_at < datetime('now', '-90 days'))"),

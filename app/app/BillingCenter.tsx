@@ -145,7 +145,7 @@ export default function BillingCenter() {
     const betaEnabled = !data.operation.betaEnabled;
     const confirmation = betaEnabled ? "ATIVAR BETA" : "ATIVAR PAGAMENTOS";
     const warning = betaEnabled
-      ? `Ativar o beta liberará todos os recursos para todas as contas e bloqueará novas cobranças. ${data.operation.activeSubscriptions ? `Atenção: ${data.operation.activeSubscriptions} assinatura(s) já existente(s) continuará(ão) apta(s) a renovar no Mercado Pago até o cancelamento.` : "Não há assinaturas em andamento."}`
+      ? `Ativar o beta preservará o acesso integral das contas legadas e bloqueará novas cobranças. Novos cadastros continuarão sujeitos ao trial de 5 dias. ${data.operation.activeSubscriptions ? `Atenção: ${data.operation.activeSubscriptions} assinatura(s) já existente(s) continuará(ão) apta(s) a renovar no Mercado Pago até o cancelamento.` : "Não há assinaturas em andamento."}`
       : "Desativar o beta liberará cobranças reais assim que todas as proteções obrigatórias estiverem prontas.";
     if (!window.confirm(`${warning}\n\nConfirma: ${confirmation}?`)) return;
     setBusy("set_beta_mode");
@@ -155,7 +155,7 @@ export default function BillingCenter() {
       const payload = await response.json() as BillingPayload & { error?: string };
       if (!response.ok) throw new Error(payload.error ?? "Não foi possível alterar o modo operacional.");
       installPayload(payload);
-      setMessage(betaEnabled ? "Modo beta integral ativado: todos os recursos estão liberados e novas cobranças estão bloqueadas." : "Modo beta desativado. Pagamentos e limites dos planos foram ativados.");
+      setMessage(betaEnabled ? "Modo beta legado ativado: novos cadastros continuam no trial de 5 dias e novas cobranças ficam bloqueadas." : "Modo beta desativado. Pagamentos, trials e limites dos planos permanecem aplicados pelo servidor.");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Não foi possível alterar o modo operacional.");
     } finally {
@@ -185,7 +185,7 @@ export default function BillingCenter() {
 
     <section className={`panel platform-mode-card ${data.operation.betaEnabled ? "beta" : "live"}`}>
       <div className="platform-mode-summary">
-        <div><span className="eyebrow">CONTROLE OPERACIONAL · REVISÃO {data.operation.revision}</span><h3>{data.operation.betaEnabled ? "Modo beta integral ativado" : "Operação comercial ativada"}</h3><p>{data.operation.betaEnabled ? "Todos os recursos e empresas estão liberados para todas as contas. O servidor bloqueia novas cobranças e mantém as assinaturas já existentes registradas." : "O plano único libera todos os recursos e o servidor aplica a capacidade de empresas contratada; novos pagamentos com cartão ou Pix podem ser criados."}</p></div>
+        <div><span className="eyebrow">CONTROLE OPERACIONAL · REVISÃO {data.operation.revision}</span><h3>{data.operation.betaEnabled ? "Modo beta legado ativado" : "Operação comercial ativada"}</h3><p>{data.operation.betaEnabled ? "Contas anteriores à política de trial mantêm acesso integral. Novos cadastros recebem 5 dias e até 10 empresas; o servidor bloqueia novas cobranças e mantém as assinaturas existentes registradas." : "O plano único libera todos os recursos e o servidor aplica trial, expiração e capacidade contratada; novos pagamentos com cartão ou Pix podem ser criados."}</p></div>
         <div className="platform-mode-switch"><span>{data.operation.paymentsEnabled ? "Pagamentos ativos" : "Pagamentos bloqueados"}</span><button type="button" aria-pressed={data.operation.betaEnabled} disabled={Boolean(busy) || (data.operation.betaEnabled && !data.operation.readiness.ready)} onClick={() => void toggleBetaMode()}><i />{busy === "set_beta_mode" ? "Alterando…" : data.operation.betaEnabled ? "Desativar beta" : "Ativar beta"}</button></div>
       </div>
       <div className="payment-readiness-grid">

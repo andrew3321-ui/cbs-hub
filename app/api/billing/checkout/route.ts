@@ -47,7 +47,7 @@ export async function POST(request: Request) {
         target: billingAccounts.userId,
         set: { planKey: plan.key, externalReference: reference, companyAddonBlocks: addonBlocks, pendingCompanyAddonBlocks: addonBlocks, status: "interest", updatedAt: now },
       });
-      return Response.json({ mode: "interest", betaEnabled: operation.betaEnabled, message: operation.betaEnabled ? "Interesse registrado. O beta continua gratuito e nenhuma cobrança será iniciada." : "Interesse registrado. As cobranças permanecem bloqueadas até todas as proteções obrigatórias estarem ativas." }, { status: 202 });
+      return Response.json({ mode: "interest", betaEnabled: operation.betaEnabled, message: operation.betaEnabled ? "Interesse registrado. Nenhuma cobrança será iniciada; o acesso atual continua sujeito ao período e aos limites informados na conta." : "Interesse registrado. As cobranças permanecem bloqueadas até todas as proteções obrigatórias estarem ativas." }, { status: 202 });
     }
 
     if (existing?.providerSubscriptionId && existing.checkoutUrl && existing.planKey === plan.key && existing.status === "pending") {

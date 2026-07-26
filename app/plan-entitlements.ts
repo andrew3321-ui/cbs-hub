@@ -1,6 +1,6 @@
 import { count, eq } from "drizzle-orm";
 import { getDb } from "../db";
-import { billingAccounts, companies, users } from "../db/schema";
+import { billingAccounts, companies, trialDeviceClaims, users } from "../db/schema";
 import { applyPlanUsage, resolveWorkspacePlan, type BillingAccessSnapshot, type PlanFeatureKey, type WorkspaceEntitlements } from "../domain/plan-entitlements";
 import { isPlatformAdminEmail } from "./platform-admin";
 import { getPlatformOperationState } from "./platform-controls";
@@ -9,7 +9,7 @@ import { getWorkspaceContext, type WorkspaceContext } from "./workspace";
 
 export async function getWorkspaceEntitlements(workspace: WorkspaceContext, now = Date.now()): Promise<WorkspaceEntitlements> {
   const db = getDb();
-  const [[billingAccount], [portfolio], [owner], operation] = await Promise.all([
+  const [[billingAccount], [trial], [portfolio], [owner], operation] = await Promise.all([
     db.select({
       planKey: billingAccounts.planKey,
       status: billingAccounts.status,
@@ -18,6 +18,11 @@ export async function getWorkspaceEntitlements(workspace: WorkspaceContext, now 
       companyAddonBlocks: billingAccounts.companyAddonBlocks,
       pendingCompanyAddonBlocks: billingAccounts.pendingCompanyAddonBlocks,
     }).from(billingAccounts).where(eq(billingAccounts.userId, workspace.ownerUserId)).limit(1),
+    db.select({
+      startedAt: trialDeviceClaims.startedAt,
+      endsAt: trialDeviceClaims.endsAt,
+      status: trialDeviceClaims.status,
+    }).from(trialDeviceClaims).where(eq(trialDeviceClaims.workspaceId, workspace.id)).limit(1),
     db.select({ total: count() }).from(companies).where(eq(companies.workspaceId, workspace.id)),
     db.select({ email: users.email }).from(users).where(eq(users.id, workspace.ownerUserId)).limit(1),
     getPlatformOperationState(),
@@ -27,8 +32,9 @@ export async function getWorkspaceEntitlements(workspace: WorkspaceContext, now 
     platformOwner: Boolean(owner?.email && isPlatformAdminEmail(owner.email)),
     betaEnabled: operation.betaEnabled,
     billing: snapshot,
+    trial: trial ?? null,
   }, now);
-  return applyPlanUsage(plan, snapshot, Number(portfolio?.total ?? 0));
+  return applyPlanUsage(plan, snapshot, Number(portfolio?.total ?? 0), trial ?? null, now);
 }
 
 export function companyLimitResponse(entitlements: WorkspaceEntitlements) {
@@ -38,7 +44,9 @@ export function companyLimitResponse(entitlements: WorkspaceEntitlements) {
       ? "O cadastro não pôde ser concluído agora."
       : entitlements.companyLimitExceeded
         ? `Sua carteira possui ${entitlements.companyCount} empresas, acima do limite de ${limit} do plano ${entitlements.name}. Nenhum dado foi removido, mas novos cadastros estão bloqueados.`
-        : `O plano ${entitlements.name} permite até ${limit} ${limit === 1 ? "empresa" : "empresas"}. Contrate mais um bloco de ${entitlements.companyAddonBlockSize} empresas para ampliar a carteira.`,
+        : entitlements.trialActive
+          ? `O teste profissional permite até ${limit} empresas durante 5 dias. Para ampliar a carteira, contrate o plano Margem Clara.`
+          : `O plano ${entitlements.name} permite até ${limit} ${limit === 1 ? "empresa" : "empresas"}. Contrate mais um bloco de ${entitlements.companyAddonBlockSize} empresas para ampliar a carteira.`,
     code: "PLAN_COMPANY_LIMIT",
     entitlements,
   }, { status: 409 });

@@ -30,6 +30,23 @@ export const users = sqliteTable("users", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const trialDeviceClaims = sqliteTable("trial_device_claims", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  userId: integer("user_id").unique(),
+  workspaceId: integer("workspace_id").unique(),
+  deviceHash: text("device_hash").notNull().unique(),
+  fingerprintHash: text("fingerprint_hash").notNull().unique(),
+  emailHash: text("email_hash").notNull().unique(),
+  networkHash: text("network_hash").notNull(),
+  status: text("status").notNull().default("active"),
+  startedAt: text("started_at").notNull(),
+  endsAt: text("ends_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("trial_device_claims_network_created_idx").on(table.networkHash, table.createdAt),
+  index("trial_device_claims_status_ends_idx").on(table.status, table.endsAt),
+]);
+
 export const platformSettings = sqliteTable("platform_settings", {
   key: text("key").primaryKey(),
   value: text("value").notNull(),
