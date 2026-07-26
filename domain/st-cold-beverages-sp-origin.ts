@@ -229,7 +229,7 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
 export const ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS = {
   exactProfileConfirmed: "marca, apresentação, volume, NCM/CEST e GTIN coincidem com o perfil selecionado",
   normalTaxRegimeConfirmed: "remetente está no regime normal e o débito próprio segue a alíquota interestadual informada",
-  taxpayerResaleOperationConfirmed: "operação entre contribuintes destinada à revenda foi confirmada",
+  taxpayerResaleOperationConfirmed: "operação entre contribuintes destinada à revenda; uso, consumo, ativo e consumidor final afastados",
   substituteResponsibilityConfirmed: "responsabilidade do remetente paulista pela retenção em favor do destino foi confirmada",
   noProtocolExceptionConfirmed: "transferência, interdependência e demais hipóteses de inaplicabilidade foram afastadas",
   ownTaxBaseConfirmed: "valor da operação e base do ICMS próprio, com frete e encargos, foram conferidos",

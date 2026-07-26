@@ -1,4 +1,5 @@
 import {
+  hashStColdBeverageSpOrigin,
   resolveColdBeverageSpOriginOperation,
   ST_COLD_BEVERAGES_SP_ORIGIN_VERSION,
   type ColdBeverageSpOriginFacts,
@@ -7,6 +8,7 @@ import {
 import { validateNationalCoverageAutomatically } from "../../../../../domain/national-coverage-automatic-assurance";
 import { withApiTelemetry } from "../../../../api-infrastructure";
 import { getCurrentUser } from "../../../../auth";
+import { ColdBeverageDossierError, prepareColdBeverageDossier } from "../../../../cold-beverage-dossier-service";
 import { withWorkspaceFeature } from "../../../../plan-entitlements";
 import { getWorkspaceContext } from "../../../../workspace";
 
@@ -40,14 +42,37 @@ async function calculateSpOriginBeverage(request: Request) {
       facts,
     };
     const result = resolveColdBeverageSpOriginOperation(input);
+    const fingerprint = (await hashStColdBeverageSpOrigin()).slice(0, 12);
+    const dossier = await prepareColdBeverageDossier({
+      scope: "sp_origin",
+      input,
+      result,
+      fingerprint,
+      saveDossier: body.saveDossier === true,
+      companyIdValue: body.companyId,
+      workspace,
+      userId: user.id,
+    });
     return Response.json({
       result,
+      ...dossier,
       rule: {
         version: ST_COLD_BEVERAGES_SP_ORIGIN_VERSION,
+        fingerprint,
         assurance: assurance.status,
       },
-    }, { headers: { "Cache-Control": "no-store" } });
-  } catch {
+    }, { status: body.saveDossier === true && "dossier" in dossier && dossier.idempotent === false ? 201 : 200, headers: { "Cache-Control": "no-store" } });
+  } catch (cause) {
+    if (cause instanceof ColdBeverageDossierError) {
+      const errors = {
+        forbidden: ["Seu papel não permite congelar dossiês fiscais.", 403],
+        invalid_company: ["Cliente inválido.", 400],
+        company_not_found: ["O cliente não pertence a este espaço contábil.", 404],
+        persistence_conflict: ["O dossiê não foi persistido integralmente.", 409],
+      } as const;
+      const [error, status] = errors[cause.code];
+      return Response.json({ error }, { status });
+    }
     return Response.json({ error: "Não foi possível ler os fatos da nova rota de bebidas." }, { status: 400 });
   }
 }

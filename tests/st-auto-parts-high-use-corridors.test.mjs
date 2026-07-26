@@ -70,7 +70,7 @@ test("all ten active directions reproduce their controlled synthetic memories", 
   assert.equal(stAutoPartsHighUseRoutes.filter((route) => route.syntheticReference !== null).length, 10);
 });
 
-const confirmedFacts = { productIdentityConfirmed: true, automotiveUseConfirmed: true, destinationInternalStConfirmed: true, taxpayerRolesConfirmed: true, noSpecialTreatmentConfirmed: true, priceBasisConfirmed: true, noSpecificRateExceptionConfirmed: true, documentsConfirmed: true };
+const confirmedFacts = { productIdentityConfirmed: true, automotiveUseConfirmed: true, destinationInternalStConfirmed: true, taxpayerRolesConfirmed: true, operationPurposeConfirmed: true, noSpecialTreatmentConfirmed: true, priceBasisConfirmed: true, noSpecificRateExceptionConfirmed: true, documentsConfirmed: true };
 const completeInput = { route: "MG-SP", operationDate: "2026-09-30", operationCents: 100_000, ownIcmsBaseCents: 100_000, cest: "01.075.00", ncm: "8708", importedQualified: false, commercialCondition: "standard", facts: confirmedFacts };
 
 test("the temporal engine calculates before and stops after the São Paulo exclusion", () => {

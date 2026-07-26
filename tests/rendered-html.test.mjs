@@ -445,7 +445,7 @@ test("versão 70 publica PMPF de bebidas destinado a São Paulo e nas rotas SP�
   assert.match(ui, /Enquadrar bebida sem inventar alíquota/);
   assert.match(ui, /Ver os 24 sentidos para o produto selecionado/);
   assert.match(ui, /CALCULADORA TEMPORAL/);
-  assert.match(ui, /Confirme os oito fatos documentados/);
+  assert.match(ui, /Confirme os nove fatos documentados/);
   assert.match(ui, /structuredCells} combinações estruturadas/);
   assert.match(publicApi, /stSpOriginMatrix/);
   assert.match(publicApi, /stSpCalculationValidation/);

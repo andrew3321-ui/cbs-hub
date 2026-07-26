@@ -16,8 +16,31 @@ type StCementPriorityState = { destination: "RJ" | "ES" | "BA" | "GO" | "MS"; ro
 type StCementPriorityBatch = { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; metrics: { statesInBatch: number; officialStateSources: number; adjustedMvaTablesSourced: number; productExceptionsStructured: number; pmpfGatesStructured: number; syntheticReferencesReproduced: number }; sources: Array<{ code: string; title: string; publisher: string; url: string }>; states: StCementPriorityState[]; policy: string };
 type StAutoPartsPriorityRoute = { destination: string; route: string; agreementStatus: "protocol_41_active" | "outside_protocol_41"; agreementReason: string; parameterMethod: "protocol_mva" | "destination_internal_mva" | "destination_own_treatment_required"; mvaOriginalBps: number | null; adjustedMvaBpsFor12: number | null; sourceCodes: string[]; remainingBlockers: string[]; syntheticReference: null | { destinationTotalCents: number } };
 type StAutoPartsPriorityBatch = { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; metrics: { routesInBatch: number; activeAgreementRoutes: number; outsideProtocolRoutes: number; destinationMvaOverrides: number; productIdentitiesFrozen: number; syntheticReferencesReproduced: number; officialSources: number }; sources: Array<{ code: string; title: string; publisher: string; url: string }>; routes: StAutoPartsPriorityRoute[]; policy: string };
-type AutoPartsFactKey = "productIdentityConfirmed" | "automotiveUseConfirmed" | "destinationInternalStConfirmed" | "taxpayerRolesConfirmed" | "noSpecialTreatmentConfirmed" | "priceBasisConfirmed" | "noSpecificRateExceptionConfirmed" | "documentsConfirmed";
-type AutoPartsResult = { status: "calculated_reference" | "blocked" | "st_not_applicable_after_state_exclusion"; route: string; operationDate: string; missingFacts: string[]; blockers: string[]; parameters: null | { commercialCondition: "fidelity" | "standard"; importedQualified: boolean; mvaOriginalBps: number; interstateRateBps: number; internalRateBps: number; fcpRateBps: number }; output: null | { mvaAppliedBps: number; stBaseCents: number; ownIcmsCents: number; presumedInternalIcmsCents: number; icmsStCents: number; fcpCents: number; destinationTotalCents: number }; limitation: string };
+type AutoPartsFactKey = "productIdentityConfirmed" | "automotiveUseConfirmed" | "destinationInternalStConfirmed" | "taxpayerRolesConfirmed" | "operationPurposeConfirmed" | "noSpecialTreatmentConfirmed" | "priceBasisConfirmed" | "noSpecificRateExceptionConfirmed" | "documentsConfirmed";
+type AutoPartsResult = { status: "calculated_reference" | "blocked" | "st_not_applicable_after_state_exclusion"; route: string; operationDate: string; product: { cest: string; ncm: string; description: string }; missingFacts: string[]; blockers: string[]; parameters: null | { commercialCondition: "fidelity" | "standard"; importedQualified: boolean; mvaOriginalBps: number; interstateRateBps: number; internalRateBps: number; fcpRateBps: number }; output: null | { mvaAppliedBps: number; stBaseCents: number; ownIcmsCents: number; presumedInternalIcmsCents: number; icmsStCents: number; fcpCents: number; destinationTotalCents: number }; sourceCodes: string[]; limitation: string };
+type AutoPartsDossierLine = { code: string; label: string; formula: string; basis: string; amountCents: number | null; percentageBps: number | null; sourceCodes: string[]; status: "calculated" | "parameter" | "blocked" };
+type AutoPartsDossierPreview = {
+  generatedAt: string;
+  title: string;
+  coverage: { status: Status; label: string; reason: string; representativeScope: string };
+  rule: { code: string; version: string; fingerprint: string; checkedAt: string; effectiveFrom: string; effectiveTo: string; scheduledTransition: null | { effectiveFrom: string; description: string } };
+  operation: { route: string; operationDate: string; operationCents: number; ownIcmsBaseCents: number; cest: string; ncm: string; productDescription: string; importedQualified: boolean; commercialCondition: string; confirmedFacts: Array<{ code: string; label: string; confirmed: boolean }> };
+  calculation: { status: "calculated_conditional" | "needs_information" | "not_applicable"; statusLabel: string; lines: AutoPartsDossierLine[]; blockers: string[]; warnings: string[]; requiredConfirmations: string[]; disclaimer: string };
+  evidence: { sources: Array<{ code: string; title: string; publisher: string; url: string; checkedAt: string; proves: string[] }>; limitations: string[] };
+  clientReport: { ready: boolean; label: string; deliveryCondition: "professional_review_required" };
+};
+type AutoPartsDossierRecord = { id: string; status: string; reportUrl: string };
+type CompanyOption = { id: number; name: string };
+type BeverageDossierPreview = {
+  generatedAt: string;
+  title: string;
+  coverage: { status: Status; label: string; reason: string; representativeScope: string };
+  rule: { code: string; version: string; fingerprint: string; checkedAt: string; effectiveFrom: string; effectiveTo: string };
+  operation: { route: string; operationDate: string; operationCents: number; ownIcmsBaseCents: number; quantityUnits: number; profileCode: string; productDescription: string; cest: string; pmpfUnitCents: number | null; importedQualified: boolean; confirmedFacts: Array<{ code: string; label: string; confirmed: boolean }> };
+  calculation: { status: "calculated_conditional" | "needs_information"; statusLabel: string; lines: AutoPartsDossierLine[]; blockers: string[]; warnings: string[]; requiredConfirmations: string[]; disclaimer: string };
+  evidence: { sources: Array<{ code: string; title: string; publisher: string; url: string; checkedAt: string; proves: string[] }>; limitations: string[] };
+  clientReport: { ready: boolean; label: string; deliveryCondition: "professional_review_required" };
+};
 type StAutoPartsHighUseRoute = { corridorRank: number; direction: "outbound" | "return"; origin: string; destination: string; route: string; agreementStatus: "protocol_41_active" | "outside_protocol_41"; agreementReason: string; directionalSymmetryAssumed: false; parameterMethod: "protocol_mva" | "destination_internal_mva" | "destination_own_treatment_required"; mvaOriginalBps: number | null; adjustedMvaBpsFor12: number | null; calculationStatus: "synthetic_reference_reproduced" | "blocked_destination_parameters" | "blocked_protocol_not_applicable"; sourceCodes: string[]; remainingBlockers: string[]; scheduledReview: null | { effectiveFrom: string; reason: string; sourceCode: string }; syntheticReference: null | { destinationTotalCents: number } };
 type StAutoPartsHighUseCorridors = { version: string; fingerprint: string; validation: { passed: boolean; errors: string[] }; metrics: { corridors: number; directedRoutes: number; activeAgreementRoutes: number; outsideProtocolRoutes: number; protocolMvaRoutes: number; destinationMvaRoutes: number; syntheticReferencesReproduced: number; safelyBlocked: number; scheduledLegalReviews: number; officialSources: number }; supportedPeriod: { from: string; to: string }; spExclusionFrom: string; operationFactLabels: Record<AutoPartsFactKey, string>; sources: Array<{ code: string; title: string; publisher: string; url: string }>; routes: StAutoPartsHighUseRoute[]; policy: string };
 type ColdBeverageFactKey = "productIdentityConfirmed" | "taxpayerOperationConfirmed" | "responsiblePartyConfirmed" | "noProtocolExceptionConfirmed" | "destinationInternalTreatmentConfirmed" | "officialPriceMethodConfirmed" | "stateRatesConfirmed" | "documentsConfirmed";
@@ -63,6 +86,46 @@ function StatusPill({ status }: { status: Status }) {
   return <span className={`coverage-status ${status}`}><i />{statusLabel[status]}</span>;
 }
 
+function BeverageDossierPanel({
+  preview,
+  dossier,
+  companies,
+  companyId,
+  setCompanyId,
+  busy,
+  onFreeze,
+}: {
+  preview: BeverageDossierPreview;
+  dossier: AutoPartsDossierRecord | null;
+  companies: CompanyOption[];
+  companyId: string;
+  setCompanyId: (value: string) => void;
+  busy: boolean;
+  onFreeze: () => void;
+}) {
+  const money = (value: number | null) => value === null ? "—" : (value / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  return <section className="auto-parts-dossier-preview">
+    <header><div><span>DOSSIÊ AUDITÁVEL DE BEBIDAS</span><h3>{preview.title}</h3><p>{preview.coverage.reason}</p></div><StatusPill status={preview.coverage.status} /></header>
+    <div className="auto-parts-dossier-metadata">
+      <article><small>PERFIL EXATO</small><b>{preview.operation.productDescription}</b><span>CEST {preview.operation.cest}</span></article>
+      <article><small>VIGÊNCIA</small><b>{preview.rule.effectiveFrom} → {preview.rule.effectiveTo}</b><span>{preview.rule.version}</span></article>
+      <article><small>PMPF UNITÁRIO</small><b>{money(preview.operation.pmpfUnitCents)}</b><span>{preview.operation.quantityUnits.toLocaleString("pt-BR")} unidade(s)</span></article>
+      <article><small>INTEGRIDADE</small><b>#{preview.rule.fingerprint}</b><span>conferida em {preview.rule.checkedAt}</span></article>
+    </div>
+    <details><summary>Dados e nove fatos congelados</summary><div className="auto-parts-fact-ledger">{preview.operation.confirmedFacts.map((fact) => <span className={fact.confirmed ? "confirmed" : "pending"} key={fact.code}><i>{fact.confirmed ? "✓" : "!"}</i>{fact.label}</span>)}</div></details>
+    <details open><summary>Memória reproduzível em centavos</summary><div className="auto-parts-memory-lines">{preview.calculation.lines.map((line, index) => <article className={line.status} key={line.code}><span>{String(index + 1).padStart(2, "0")}</span><div><small>{line.code}</small><b>{line.label}</b><p>{line.formula}</p><em>{line.basis}</em></div><strong>{line.amountCents !== null ? money(line.amountCents) : line.percentageBps !== null ? `${(line.percentageBps / 100).toFixed(2)}%` : "bloqueado"}</strong></article>)}</div></details>
+    <details><summary>Fontes oficiais aplicadas</summary><div className="auto-parts-applied-sources">{preview.evidence.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span>{source.publisher} · {source.code}</span><b>{source.title} ↗</b><small>Conferida em {source.checkedAt}</small><p>{source.proves.join(" · ")}</p></a>)}</div></details>
+    {preview.calculation.blockers.length > 0 && <div className="auto-parts-dossier-blockers">{preview.calculation.blockers.map((blocker) => <span key={blocker}>{blocker}</span>)}</div>}
+    <div className="auto-parts-dossier-actions">
+      <label>Cliente do relatório<select value={companyId} onChange={(event) => setCompanyId(event.target.value)}><option value="">Sem cliente vinculado</option>{companies.map((company) => <option value={company.id} key={company.id}>{company.name}</option>)}</select></label>
+      {!dossier && <button type="button" disabled={busy} onClick={onFreeze}>{busy ? "Congelando…" : "Congelar dossiê"}</button>}
+      {dossier && <a href={dossier.reportUrl}>Abrir relatório fiscal →</a>}
+      <span>{preview.clientReport.label}</span>
+    </div>
+    <footer><StatusPill status={preview.coverage.status} /><span>{preview.calculation.disclaimer}</span></footer>
+  </section>;
+}
+
 function compatibleAutomaticAssurance(coverage: Coverage): AutomaticAssurance {
   if (coverage.automaticAssurance) return coverage.automaticAssurance;
   const validations = [coverage.stSpMg.validation, coverage.stSpOriginMatrix.validation, coverage.stRepresentativeProducts.validation, coverage.stSpCalculationValidation.validation, coverage.stCementSpRoutes.validation, coverage.stCementPriorityBatch.validation, coverage.stAutoPartsPriorityBatch.validation, coverage.stAutoPartsHighUseCorridors.validation, coverage.stColdBeveragesPriority.validation, coverage.stColdBeveragesSpDestination.validation, coverage.stColdBeveragesSpOrigin.validation];
@@ -104,8 +167,12 @@ export default function NationalCoverageCenter() {
   const [autoPartsOwnBase, setAutoPartsOwnBase] = useState("1000.00");
   const [autoPartsCondition, setAutoPartsCondition] = useState<"" | "fidelity" | "standard">("");
   const [autoPartsImported, setAutoPartsImported] = useState(false);
-  const [autoPartsFacts, setAutoPartsFacts] = useState<Record<AutoPartsFactKey, boolean>>({ productIdentityConfirmed: false, automotiveUseConfirmed: false, destinationInternalStConfirmed: false, taxpayerRolesConfirmed: false, noSpecialTreatmentConfirmed: false, priceBasisConfirmed: false, noSpecificRateExceptionConfirmed: false, documentsConfirmed: false });
+  const [autoPartsFacts, setAutoPartsFacts] = useState<Record<AutoPartsFactKey, boolean>>({ productIdentityConfirmed: false, automotiveUseConfirmed: false, destinationInternalStConfirmed: false, taxpayerRolesConfirmed: false, operationPurposeConfirmed: false, noSpecialTreatmentConfirmed: false, priceBasisConfirmed: false, noSpecificRateExceptionConfirmed: false, documentsConfirmed: false });
   const [autoPartsResult, setAutoPartsResult] = useState<AutoPartsResult | null>(null);
+  const [autoPartsDossierPreview, setAutoPartsDossierPreview] = useState<AutoPartsDossierPreview | null>(null);
+  const [autoPartsDossier, setAutoPartsDossier] = useState<AutoPartsDossierRecord | null>(null);
+  const [autoPartsCompanyId, setAutoPartsCompanyId] = useState("");
+  const [companies, setCompanies] = useState<CompanyOption[]>([]);
   const [beverageRoute, setBeverageRoute] = useState("SP-MG");
   const [beverageDate, setBeverageDate] = useState("2026-07-22");
   const [beverageProduct, setBeverageProduct] = useState<ColdBeverageProductCode>("SOFT_DRINK_PET");
@@ -120,6 +187,8 @@ export default function NationalCoverageCenter() {
   const [beverageSpImported, setBeverageSpImported] = useState(false);
   const [beverageSpFacts, setBeverageSpFacts] = useState<Record<ColdBeverageSpFactKey, boolean>>({ exactProfileConfirmed: false, unlistedBrandEligibilityConfirmed: false, normalTaxRegimeConfirmed: false, taxpayerResaleOperationConfirmed: false, substituteResponsibilityConfirmed: false, noProtocolExceptionConfirmed: false, ownTaxBaseConfirmed: false, noSpecialTreatmentConfirmed: false, documentsConfirmed: false });
   const [beverageSpResult, setBeverageSpResult] = useState<ColdBeverageSpResult | null>(null);
+  const [beverageSpDossierPreview, setBeverageSpDossierPreview] = useState<BeverageDossierPreview | null>(null);
+  const [beverageSpDossier, setBeverageSpDossier] = useState<AutoPartsDossierRecord | null>(null);
   const [beverageSpOriginRoute, setBeverageSpOriginRoute] = useState<"SP-MG" | "SP-RJ">("SP-MG");
   const [beverageSpOriginProfile, setBeverageSpOriginProfile] = useState<ColdBeverageSpOriginProfileCode>("MG_COCA_COLA_PET_2000");
   const [beverageSpOriginDate, setBeverageSpOriginDate] = useState("2026-07-25");
@@ -129,6 +198,9 @@ export default function NationalCoverageCenter() {
   const [beverageSpOriginImported, setBeverageSpOriginImported] = useState(false);
   const [beverageSpOriginFacts, setBeverageSpOriginFacts] = useState<Record<ColdBeverageSpOriginFactKey, boolean>>({ exactProfileConfirmed: false, normalTaxRegimeConfirmed: false, taxpayerResaleOperationConfirmed: false, substituteResponsibilityConfirmed: false, noProtocolExceptionConfirmed: false, ownTaxBaseConfirmed: false, destinationRatesConfirmed: false, noSpecialTreatmentConfirmed: false, documentsConfirmed: false });
   const [beverageSpOriginResult, setBeverageSpOriginResult] = useState<ColdBeverageSpOriginResult | null>(null);
+  const [beverageSpOriginDossierPreview, setBeverageSpOriginDossierPreview] = useState<BeverageDossierPreview | null>(null);
+  const [beverageSpOriginDossier, setBeverageSpOriginDossier] = useState<AutoPartsDossierRecord | null>(null);
+  const [beverageCompanyId, setBeverageCompanyId] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [files, setFiles] = useState<File[]>([]);
@@ -139,6 +211,7 @@ export default function NationalCoverageCenter() {
       json<Coverage>("/api/public/coverage?schema=automatic-assurance-v1", { cache: "no-store" }).then(setCoverage),
       json<Governance>("/api/rule-governance").then(setGovernance),
       json<Monitor>("/api/normative-monitor").then(setMonitor),
+      json<{ companies: CompanyOption[] }>("/api/companies", { cache: "no-store" }).then((payload) => setCompanies(payload.companies.map(({ id, name }) => ({ id, name })))),
     ]).catch((cause: Error) => setError(cause.message));
   }, []);
 
@@ -158,14 +231,31 @@ export default function NationalCoverageCenter() {
     finally { setBusy(""); }
   };
 
-  const calculateAutoParts = async (event: FormEvent) => {
-    event.preventDefault(); setBusy("auto-parts"); setError(""); setAutoPartsResult(null);
+  const autoPartsRequest = (saveDossier = false) => {
     const operationCents = Math.round(Number(autoPartsValue.replace(",", ".")) * 100);
     const ownIcmsBaseCents = Math.round(Number(autoPartsOwnBase.replace(",", ".")) * 100);
+    return { route: autoPartsRoute, operationDate: autoPartsDate, operationCents, ownIcmsBaseCents, cest: "01.075.00", ncm: "8708", importedQualified: autoPartsImported, commercialCondition: autoPartsCondition, facts: autoPartsFacts, saveDossier, companyId: autoPartsCompanyId || null };
+  };
+
+  const calculateAutoParts = async (event: FormEvent) => {
+    event.preventDefault(); setBusy("auto-parts"); setError(""); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null);
     try {
-      const payload = await json<{ result: AutoPartsResult }>("/api/national-coverage/auto-parts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ route: autoPartsRoute, operationDate: autoPartsDate, operationCents, ownIcmsBaseCents, cest: "01.075.00", ncm: "8708", importedQualified: autoPartsImported, commercialCondition: autoPartsCondition, facts: autoPartsFacts }) });
+      const payload = await json<{ result: AutoPartsResult; dossierPreview: AutoPartsDossierPreview }>("/api/national-coverage/auto-parts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(autoPartsRequest()) });
       setAutoPartsResult(payload.result);
+      setAutoPartsDossierPreview(payload.dossierPreview);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Referência de autopeças bloqueada."); }
+    finally { setBusy(""); }
+  };
+
+  const freezeAutoPartsDossier = async () => {
+    if (!autoPartsDossierPreview) return;
+    setBusy("auto-parts-dossier"); setError("");
+    try {
+      const payload = await json<{ result: AutoPartsResult; dossierPreview: AutoPartsDossierPreview; dossier: AutoPartsDossierRecord }>("/api/national-coverage/auto-parts", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(autoPartsRequest(true)) });
+      setAutoPartsResult(payload.result);
+      setAutoPartsDossierPreview(payload.dossierPreview);
+      setAutoPartsDossier(payload.dossier);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível congelar o dossiê de autopeças."); }
     finally { setBusy(""); }
   };
 
@@ -178,51 +268,101 @@ export default function NationalCoverageCenter() {
     finally { setBusy(""); }
   };
 
-  const calculateSpDestinationBeverage = async (event: FormEvent) => {
-    event.preventDefault(); setBusy("beverages-sp"); setError(""); setBeverageSpResult(null);
+  const spDestinationBeverageRequest = (saveDossier = false) => {
     const operationCents = Math.round(Number(beverageSpOperationValue.replace(",", ".")) * 100);
     const ownIcmsBaseCents = Math.round(Number(beverageSpOwnBase.replace(",", ".")) * 100);
+    return {
+      route: beverageSpRoute,
+      profileCode: beverageSpProfile,
+      operationDate: beverageSpDate,
+      quantityUnits: Number(beverageSpQuantity),
+      operationCents,
+      ownIcmsBaseCents,
+      importedQualified: beverageSpImported,
+      facts: beverageSpFacts,
+      saveDossier,
+      companyId: beverageCompanyId || null,
+    };
+  };
+
+  const clearSpDestinationBeverageResult = () => {
+    setBeverageSpResult(null);
+    setBeverageSpDossierPreview(null);
+    setBeverageSpDossier(null);
+  };
+
+  const calculateSpDestinationBeverage = async (event: FormEvent) => {
+    event.preventDefault(); setBusy("beverages-sp"); setError(""); setBeverageSpResult(null); setBeverageSpDossierPreview(null); setBeverageSpDossier(null);
     try {
-      const payload = await json<{ result: ColdBeverageSpResult }>("/api/national-coverage/beverages/sp-destination", {
+      const payload = await json<{ result: ColdBeverageSpResult; dossierPreview: BeverageDossierPreview }>("/api/national-coverage/beverages/sp-destination", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          route: beverageSpRoute,
-          profileCode: beverageSpProfile,
-          operationDate: beverageSpDate,
-          quantityUnits: Number(beverageSpQuantity),
-          operationCents,
-          ownIcmsBaseCents,
-          importedQualified: beverageSpImported,
-          facts: beverageSpFacts,
-        }),
+        body: JSON.stringify(spDestinationBeverageRequest()),
       });
       setBeverageSpResult(payload.result);
+      setBeverageSpDossierPreview(payload.dossierPreview);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Referência paulista de bebidas bloqueada."); }
     finally { setBusy(""); }
   };
 
-  const calculateSpOriginBeverage = async (event: FormEvent) => {
-    event.preventDefault(); setBusy("beverages-sp-origin"); setError(""); setBeverageSpOriginResult(null);
+  const freezeSpDestinationBeverageDossier = async () => {
+    if (!beverageSpDossierPreview) return;
+    setBusy("beverages-sp-dossier"); setError("");
+    try {
+      const payload = await json<{ result: ColdBeverageSpResult; dossierPreview: BeverageDossierPreview; dossier: AutoPartsDossierRecord }>("/api/national-coverage/beverages/sp-destination", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(spDestinationBeverageRequest(true)),
+      });
+      setBeverageSpResult(payload.result); setBeverageSpDossierPreview(payload.dossierPreview); setBeverageSpDossier(payload.dossier);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível congelar o dossiê paulista de bebidas."); }
+    finally { setBusy(""); }
+  };
+
+  const spOriginBeverageRequest = (saveDossier = false) => {
     const operationCents = Math.round(Number(beverageSpOriginOperationValue.replace(",", ".")) * 100);
     const ownIcmsBaseCents = Math.round(Number(beverageSpOriginOwnBase.replace(",", ".")) * 100);
+    return {
+      route: beverageSpOriginRoute,
+      profileCode: beverageSpOriginProfile,
+      operationDate: beverageSpOriginDate,
+      quantityUnits: Number(beverageSpOriginQuantity),
+      operationCents,
+      ownIcmsBaseCents,
+      importedQualified: beverageSpOriginImported,
+      facts: beverageSpOriginFacts,
+      saveDossier,
+      companyId: beverageCompanyId || null,
+    };
+  };
+
+  const clearSpOriginBeverageResult = () => {
+    setBeverageSpOriginResult(null);
+    setBeverageSpOriginDossierPreview(null);
+    setBeverageSpOriginDossier(null);
+  };
+
+  const calculateSpOriginBeverage = async (event: FormEvent) => {
+    event.preventDefault(); setBusy("beverages-sp-origin"); setError(""); setBeverageSpOriginResult(null); setBeverageSpOriginDossierPreview(null); setBeverageSpOriginDossier(null);
     try {
-      const payload = await json<{ result: ColdBeverageSpOriginResult }>("/api/national-coverage/beverages/sp-origin", {
+      const payload = await json<{ result: ColdBeverageSpOriginResult; dossierPreview: BeverageDossierPreview }>("/api/national-coverage/beverages/sp-origin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          route: beverageSpOriginRoute,
-          profileCode: beverageSpOriginProfile,
-          operationDate: beverageSpOriginDate,
-          quantityUnits: Number(beverageSpOriginQuantity),
-          operationCents,
-          ownIcmsBaseCents,
-          importedQualified: beverageSpOriginImported,
-          facts: beverageSpOriginFacts,
-        }),
+        body: JSON.stringify(spOriginBeverageRequest()),
       });
       setBeverageSpOriginResult(payload.result);
+      setBeverageSpOriginDossierPreview(payload.dossierPreview);
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Nova rota de bebidas bloqueada."); }
+    finally { setBusy(""); }
+  };
+
+  const freezeSpOriginBeverageDossier = async () => {
+    if (!beverageSpOriginDossierPreview) return;
+    setBusy("beverages-sp-origin-dossier"); setError("");
+    try {
+      const payload = await json<{ result: ColdBeverageSpOriginResult; dossierPreview: BeverageDossierPreview; dossier: AutoPartsDossierRecord }>("/api/national-coverage/beverages/sp-origin", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(spOriginBeverageRequest(true)),
+      });
+      setBeverageSpOriginResult(payload.result); setBeverageSpOriginDossierPreview(payload.dossierPreview); setBeverageSpOriginDossier(payload.dossier);
+    } catch (cause) { setError(cause instanceof Error ? cause.message : "Não foi possível congelar o dossiê SP→MG/RJ."); }
     finally { setBusy(""); }
   };
 
@@ -299,21 +439,30 @@ export default function NationalCoverageCenter() {
             <header><div><span>DESTINO SÃO PAULO · {coverage.stColdBeveragesSpDestination.version}</span><h3>PMPF vigente com memória em centavos</h3><p>{coverage.stColdBeveragesSpDestination.metrics.controlledCells} combinações reproduzidas: cinco perfis exatos em sete origens prioritárias. Água continua fora deste protocolo.</p></div><small>{new Date(`${coverage.stColdBeveragesSpDestination.supportedPeriod.from}T12:00:00`).toLocaleDateString("pt-BR")}–{new Date(`${coverage.stColdBeveragesSpDestination.supportedPeriod.to}T12:00:00`).toLocaleDateString("pt-BR")}</small></header>
             <div className="beverage-sp-profile-proof"><span>PMPF unitário</span><strong>{selectedBeverageSpProfile ? (selectedBeverageSpProfile.pmpfCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</strong><small>{selectedBeverageSpProfile?.legalTableItem} · CEST {selectedBeverageSpProfile?.cest}</small></div>
             <div className="auto-parts-calculator-fields beverage-sp-fields">
-              <label>Origem → SP<select value={beverageSpRoute} onChange={(event) => { setBeverageSpRoute(event.target.value); setBeverageSpResult(null); }}>{coverage.stColdBeveragesSpDestination.routes.map((route) => <option key={route.route}>{route.route}</option>)}</select></label>
-              <label>Perfil exato<select value={beverageSpProfile} onChange={(event) => { const code = event.target.value as ColdBeverageSpProfileCode; const profile = coverage.stColdBeveragesSpDestination.profiles.find((item) => item.code === code); const quantity = Math.max(1, Number(beverageSpQuantity) || 1); const suggested = profile ? ((profile.pmpfCents * quantity * 0.6) / 100).toFixed(2) : ""; setBeverageSpProfile(code); setBeverageSpOperationValue(suggested); setBeverageSpOwnBase(suggested); setBeverageSpResult(null); }}>{coverage.stColdBeveragesSpDestination.profiles.map((profile) => <option value={profile.code} key={profile.code}>{profile.label}</option>)}</select></label>
-              <label>Data<input type="date" min={coverage.stColdBeveragesSpDestination.supportedPeriod.from} max={coverage.stColdBeveragesSpDestination.supportedPeriod.to} value={beverageSpDate} onChange={(event) => { setBeverageSpDate(event.target.value); setBeverageSpResult(null); }} required /></label>
-              <label>Quantidade de unidades<input type="number" min="1" max="1000000" step="1" value={beverageSpQuantity} onChange={(event) => { setBeverageSpQuantity(event.target.value); setBeverageSpResult(null); }} required /></label>
-              <label>Valor da operação<input type="number" min="0.01" max="1000000000" step="0.01" value={beverageSpOperationValue} onChange={(event) => { setBeverageSpOperationValue(event.target.value); setBeverageSpResult(null); }} required /></label>
-              <label>Base do ICMS próprio<input type="number" min="0.01" max="1000000000" step="0.01" value={beverageSpOwnBase} onChange={(event) => { setBeverageSpOwnBase(event.target.value); setBeverageSpResult(null); }} required /></label>
+              <label>Origem → SP<select value={beverageSpRoute} onChange={(event) => { setBeverageSpRoute(event.target.value); clearSpDestinationBeverageResult(); }}>{coverage.stColdBeveragesSpDestination.routes.map((route) => <option key={route.route}>{route.route}</option>)}</select></label>
+              <label>Perfil exato<select value={beverageSpProfile} onChange={(event) => { const code = event.target.value as ColdBeverageSpProfileCode; const profile = coverage.stColdBeveragesSpDestination.profiles.find((item) => item.code === code); const quantity = Math.max(1, Number(beverageSpQuantity) || 1); const suggested = profile ? ((profile.pmpfCents * quantity * 0.6) / 100).toFixed(2) : ""; setBeverageSpProfile(code); setBeverageSpOperationValue(suggested); setBeverageSpOwnBase(suggested); clearSpDestinationBeverageResult(); }}>{coverage.stColdBeveragesSpDestination.profiles.map((profile) => <option value={profile.code} key={profile.code}>{profile.label}</option>)}</select></label>
+              <label>Data<input type="date" min={coverage.stColdBeveragesSpDestination.supportedPeriod.from} max={coverage.stColdBeveragesSpDestination.supportedPeriod.to} value={beverageSpDate} onChange={(event) => { setBeverageSpDate(event.target.value); clearSpDestinationBeverageResult(); }} required /></label>
+              <label>Quantidade de unidades<input type="number" min="1" max="1000000" step="1" value={beverageSpQuantity} onChange={(event) => { setBeverageSpQuantity(event.target.value); clearSpDestinationBeverageResult(); }} required /></label>
+              <label>Valor da operação<input type="number" min="0.01" max="1000000000" step="0.01" value={beverageSpOperationValue} onChange={(event) => { setBeverageSpOperationValue(event.target.value); clearSpDestinationBeverageResult(); }} required /></label>
+              <label>Base do ICMS próprio<input type="number" min="0.01" max="1000000000" step="0.01" value={beverageSpOwnBase} onChange={(event) => { setBeverageSpOwnBase(event.target.value); clearSpDestinationBeverageResult(); }} required /></label>
             </div>
-            <label className="auto-parts-imported"><input type="checkbox" checked={beverageSpImported} onChange={(event) => { setBeverageSpImported(event.target.checked); setBeverageSpResult(null); }} />Mercadoria importada que cumpre integralmente a Resolução do Senado 13/2012 (4%); desmarcada, a rota usa 12%</label>
-            <fieldset><legend>Confirme os nove fatos documentados</legend>{(Object.entries(coverage.stColdBeveragesSpDestination.factLabels) as Array<[ColdBeverageSpFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={beverageSpFacts[key]} onChange={(event) => setBeverageSpFacts((current) => ({ ...current, [key]: event.target.checked }))} />{label}</label>)}</fieldset>
+            <label className="auto-parts-imported"><input type="checkbox" checked={beverageSpImported} onChange={(event) => { setBeverageSpImported(event.target.checked); clearSpDestinationBeverageResult(); }} />Mercadoria importada que cumpre integralmente a Resolução do Senado 13/2012 (4%); desmarcada, a rota usa 12%</label>
+            <fieldset><legend>Confirme os nove fatos documentados</legend>{(Object.entries(coverage.stColdBeveragesSpDestination.factLabels) as Array<[ColdBeverageSpFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={beverageSpFacts[key]} onChange={(event) => { setBeverageSpFacts((current) => ({ ...current, [key]: event.target.checked })); clearSpDestinationBeverageResult(); }} />{label}</label>)}</fieldset>
             <button disabled={busy === "beverages-sp" || !beverageSpDate || !beverageSpQuantity || !beverageSpOperationValue || !beverageSpOwnBase}>{busy === "beverages-sp" ? "Reproduzindo memória…" : "Calcular PMPF condicionado"}</button>
           </form>
           {beverageSpResult && <section className={`auto-parts-calculator-result beverage-sp-result ${beverageSpResult.status}`}>
             {beverageSpResult.status === "calculated_reference" && beverageSpResult.output && beverageSpResult.parameters ? <><header><span>MEMÓRIA PAULISTA CONDICIONAL · {beverageSpResult.route}</span><strong>{(beverageSpResult.output.destinationTotalCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong><small>ICMS-ST; FCP igual a zero neste recorte de bebidas não alcoólicas</small></header><div><span>Base PMPF<b>{(beverageSpResult.output.stBaseCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>PMPF unitário<b>{(beverageSpResult.parameters.pmpfUnitCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS próprio<b>{(beverageSpResult.output.ownIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS presumido<b>{(beverageSpResult.output.presumedInternalIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS-ST<b>{(beverageSpResult.output.icmsStCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span></div><p>Interestadual {(beverageSpResult.parameters.interstateRateBps / 100).toFixed(0)}% · interna {(beverageSpResult.parameters.internalRateBps / 100).toFixed(0)}% · limite de 90% do PMPF: {(beverageSpResult.parameters.pmpfLimitCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.</p></> : <><header><span>{beverageSpResult.status === "pmpf_fallback_required" ? "PMPF LEGALMENTE AFASTADO" : "CÁLCULO BLOQUEADO"}</span><strong>{beverageSpResult.status === "pmpf_fallback_required" ? "Exige IVA-ST de fallback" : "Sem valor exibido"}</strong></header><ul>{beverageSpResult.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></>}
             <small>{beverageSpResult.limitation}</small>
           </section>}
+          {beverageSpDossierPreview && <BeverageDossierPanel
+            preview={beverageSpDossierPreview}
+            dossier={beverageSpDossier}
+            companies={companies}
+            companyId={beverageCompanyId}
+            setCompanyId={setBeverageCompanyId}
+            busy={busy === "beverages-sp-dossier"}
+            onFreeze={() => void freezeSpDestinationBeverageDossier()}
+          />}
           <form className="auto-parts-calculator beverage-sp-calculator" onSubmit={calculateSpOriginBeverage}>
             <header><div><span>ORIGEM SÃO PAULO · {coverage.stColdBeveragesSpOrigin.version}</span><h3>Novas rotas com PMPF de MG e RJ</h3><p>Dez perfis de alto giro reproduzidos em centavos, com ICMS-ST e FCP separados e trava de 80% específica de cada destino.</p></div><small>{coverage.stColdBeveragesSpOrigin.metrics.reproducedMemories}/{coverage.stColdBeveragesSpOrigin.metrics.controlledCells} memórias íntegras</small></header>
             <div className="beverage-sp-profile-proof"><span>PMPF unitário do destino</span><strong>{selectedBeverageSpOriginProfile ? (selectedBeverageSpOriginProfile.pmpfCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : "—"}</strong><small>{selectedBeverageSpOriginProfile?.legalTableItem} · CEST {selectedBeverageSpOriginProfile?.cest}</small></div>
@@ -328,7 +477,7 @@ export default function NationalCoverageCenter() {
                 if (firstProfile) setBeverageSpOriginProfile(firstProfile.code);
                 setBeverageSpOriginOperationValue(suggested);
                 setBeverageSpOriginOwnBase(suggested);
-                setBeverageSpOriginResult(null);
+                clearSpOriginBeverageResult();
               }}>{coverage.stColdBeveragesSpOrigin.routes.map((route) => <option key={route.route}>{route.route}</option>)}</select></label>
               <label>Perfil exato<select value={beverageSpOriginProfile} onChange={(event) => {
                 const code = event.target.value as ColdBeverageSpOriginProfileCode;
@@ -338,21 +487,30 @@ export default function NationalCoverageCenter() {
                 setBeverageSpOriginProfile(code);
                 setBeverageSpOriginOperationValue(suggested);
                 setBeverageSpOriginOwnBase(suggested);
-                setBeverageSpOriginResult(null);
+                clearSpOriginBeverageResult();
               }}>{beverageSpOriginProfiles.map((profile) => <option value={profile.code} key={profile.code}>{profile.label}</option>)}</select></label>
-              <label>Data<input type="date" min={coverage.stColdBeveragesSpOrigin.supportedPeriod.from} max={coverage.stColdBeveragesSpOrigin.supportedPeriod.to} value={beverageSpOriginDate} onChange={(event) => { setBeverageSpOriginDate(event.target.value); setBeverageSpOriginResult(null); }} required /></label>
-              <label>Quantidade de unidades<input type="number" min="1" max="1000000" step="1" value={beverageSpOriginQuantity} onChange={(event) => { setBeverageSpOriginQuantity(event.target.value); setBeverageSpOriginResult(null); }} required /></label>
-              <label>Valor da operação<input type="number" min="0.01" max="1000000000" step="0.01" value={beverageSpOriginOperationValue} onChange={(event) => { setBeverageSpOriginOperationValue(event.target.value); setBeverageSpOriginResult(null); }} required /></label>
-              <label>Base do ICMS próprio<input type="number" min="0.01" max="1000000000" step="0.01" value={beverageSpOriginOwnBase} onChange={(event) => { setBeverageSpOriginOwnBase(event.target.value); setBeverageSpOriginResult(null); }} required /></label>
+              <label>Data<input type="date" min={coverage.stColdBeveragesSpOrigin.supportedPeriod.from} max={coverage.stColdBeveragesSpOrigin.supportedPeriod.to} value={beverageSpOriginDate} onChange={(event) => { setBeverageSpOriginDate(event.target.value); clearSpOriginBeverageResult(); }} required /></label>
+              <label>Quantidade de unidades<input type="number" min="1" max="1000000" step="1" value={beverageSpOriginQuantity} onChange={(event) => { setBeverageSpOriginQuantity(event.target.value); clearSpOriginBeverageResult(); }} required /></label>
+              <label>Valor da operação<input type="number" min="0.01" max="1000000000" step="0.01" value={beverageSpOriginOperationValue} onChange={(event) => { setBeverageSpOriginOperationValue(event.target.value); clearSpOriginBeverageResult(); }} required /></label>
+              <label>Base do ICMS próprio<input type="number" min="0.01" max="1000000000" step="0.01" value={beverageSpOriginOwnBase} onChange={(event) => { setBeverageSpOriginOwnBase(event.target.value); clearSpOriginBeverageResult(); }} required /></label>
             </div>
-            <label className="auto-parts-imported"><input type="checkbox" checked={beverageSpOriginImported} onChange={(event) => { setBeverageSpOriginImported(event.target.checked); setBeverageSpOriginResult(null); }} />Mercadoria importada que cumpre integralmente a Resolução do Senado 13/2012 (4%); desmarcada, a rota usa 12%</label>
-            <fieldset><legend>Confirme os nove fatos documentados</legend>{(Object.entries(coverage.stColdBeveragesSpOrigin.factLabels) as Array<[ColdBeverageSpOriginFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={beverageSpOriginFacts[key]} onChange={(event) => setBeverageSpOriginFacts((current) => ({ ...current, [key]: event.target.checked }))} />{label}</label>)}</fieldset>
+            <label className="auto-parts-imported"><input type="checkbox" checked={beverageSpOriginImported} onChange={(event) => { setBeverageSpOriginImported(event.target.checked); clearSpOriginBeverageResult(); }} />Mercadoria importada que cumpre integralmente a Resolução do Senado 13/2012 (4%); desmarcada, a rota usa 12%</label>
+            <fieldset><legend>Confirme os nove fatos documentados</legend>{(Object.entries(coverage.stColdBeveragesSpOrigin.factLabels) as Array<[ColdBeverageSpOriginFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={beverageSpOriginFacts[key]} onChange={(event) => { setBeverageSpOriginFacts((current) => ({ ...current, [key]: event.target.checked })); clearSpOriginBeverageResult(); }} />{label}</label>)}</fieldset>
             <button disabled={busy === "beverages-sp-origin" || !beverageSpOriginDate || !beverageSpOriginQuantity || !beverageSpOriginOperationValue || !beverageSpOriginOwnBase}>{busy === "beverages-sp-origin" ? "Reproduzindo memória…" : `Calcular ${beverageSpOriginRoute}`}</button>
           </form>
           {beverageSpOriginResult && <section className={`auto-parts-calculator-result beverage-sp-result ${beverageSpOriginResult.status}`}>
             {beverageSpOriginResult.status === "calculated_reference" && beverageSpOriginResult.output && beverageSpOriginResult.parameters ? <><header><span>MEMÓRIA DO DESTINO CONDICIONAL · {beverageSpOriginResult.route}</span><strong>{(beverageSpOriginResult.output.destinationTotalCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong><small>ICMS-ST + adicional estadual; valores exibidos separadamente abaixo</small></header><div><span>Base PMPF<b>{(beverageSpOriginResult.output.stBaseCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>PMPF unitário<b>{(beverageSpOriginResult.parameters.pmpfUnitCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS próprio<b>{(beverageSpOriginResult.output.ownIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS presumido<b>{(beverageSpOriginResult.output.presumedInternalIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS-ST<b>{(beverageSpOriginResult.output.icmsStCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>FCP/FEM<b>{(beverageSpOriginResult.output.fcpCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span></div><p>Interestadual {(beverageSpOriginResult.parameters.interstateRateBps / 100).toFixed(0)}% · interna {(beverageSpOriginResult.parameters.internalRateBps / 100).toFixed(0)}% · adicional {(beverageSpOriginResult.parameters.fcpRateBps / 100).toFixed(0)}% · limite de 80%: {(beverageSpOriginResult.parameters.pmpfLimitCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.</p></> : <><header><span>{beverageSpOriginResult.status === "pmpf_fallback_required" ? "PMPF LEGALMENTE AFASTADO" : "CÁLCULO BLOQUEADO"}</span><strong>{beverageSpOriginResult.status === "pmpf_fallback_required" ? "Exige MVA do destino" : "Sem valor exibido"}</strong></header><ul>{beverageSpOriginResult.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></>}
             <small>{beverageSpOriginResult.limitation}</small>
           </section>}
+          {beverageSpOriginDossierPreview && <BeverageDossierPanel
+            preview={beverageSpOriginDossierPreview}
+            dossier={beverageSpOriginDossier}
+            companies={companies}
+            companyId={beverageCompanyId}
+            setCompanyId={setBeverageCompanyId}
+            busy={busy === "beverages-sp-origin-dossier"}
+            onFreeze={() => void freezeSpOriginBeverageDossier()}
+          />}
           <form className="beverage-triage" onSubmit={classifyBeverage}>
             <header><div><span>TRIAGEM TEMPORAL</span><h3>Enquadrar bebida sem inventar alíquota</h3><p>Refrigerantes, energéticos, isotônicos e água em vidro. Cerveja, chope e destilados continuam separados.</p></div><small>Período controlado: 2026</small></header>
             <div className="beverage-fields">
@@ -375,22 +533,59 @@ export default function NationalCoverageCenter() {
           <form className="auto-parts-calculator" onSubmit={calculateAutoParts}>
             <header><div><span>CALCULADORA TEMPORAL</span><h3>Autopeças nas dez rotas ativas</h3><p>Produto controlado: CEST 01.075.00 · NCM 8708. A data é obrigatória e muda o tratamento com destino a São Paulo.</p></div><small>Período {new Date(`${coverage.stAutoPartsHighUseCorridors.supportedPeriod.from}T12:00:00`).toLocaleDateString("pt-BR")}–{new Date(`${coverage.stAutoPartsHighUseCorridors.supportedPeriod.to}T12:00:00`).toLocaleDateString("pt-BR")}</small></header>
             <div className="auto-parts-calculator-fields">
-              <label>Rota<select value={autoPartsRoute} onChange={(event) => { setAutoPartsRoute(event.target.value); setAutoPartsResult(null); }}>{coverage.stAutoPartsHighUseCorridors.routes.filter((route) => route.agreementStatus === "protocol_41_active").map((route) => <option key={route.route}>{route.route}</option>)}</select></label>
-              <label>Data da operação<input type="date" min={coverage.stAutoPartsHighUseCorridors.supportedPeriod.from} max={coverage.stAutoPartsHighUseCorridors.supportedPeriod.to} value={autoPartsDate} onChange={(event) => setAutoPartsDate(event.target.value)} required /></label>
-              <label>Base inicial da ST<input type="number" min="0.01" max="1000000000" step="0.01" value={autoPartsValue} onChange={(event) => setAutoPartsValue(event.target.value)} required /></label>
-              <label>Base do ICMS próprio<input type="number" min="0.01" max="1000000000" step="0.01" value={autoPartsOwnBase} onChange={(event) => setAutoPartsOwnBase(event.target.value)} required /></label>
-              <label>Condição comercial<select value={autoPartsCondition} onChange={(event) => setAutoPartsCondition(event.target.value as typeof autoPartsCondition)} required><option value="">Selecione</option><option value="standard">Sem fidelidade</option><option value="fidelity">Com fidelidade comprovada</option></select></label>
+              <label>Rota<select value={autoPartsRoute} onChange={(event) => { setAutoPartsRoute(event.target.value); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null); }}>{coverage.stAutoPartsHighUseCorridors.routes.filter((route) => route.agreementStatus === "protocol_41_active").map((route) => <option key={route.route}>{route.route}</option>)}</select></label>
+              <label>Data da operação<input type="date" min={coverage.stAutoPartsHighUseCorridors.supportedPeriod.from} max={coverage.stAutoPartsHighUseCorridors.supportedPeriod.to} value={autoPartsDate} onChange={(event) => { setAutoPartsDate(event.target.value); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null); }} required /></label>
+              <label>Base inicial da ST<input type="number" min="0.01" max="1000000000" step="0.01" value={autoPartsValue} onChange={(event) => { setAutoPartsValue(event.target.value); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null); }} required /></label>
+              <label>Base do ICMS próprio<input type="number" min="0.01" max="1000000000" step="0.01" value={autoPartsOwnBase} onChange={(event) => { setAutoPartsOwnBase(event.target.value); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null); }} required /></label>
+              <label>Condição comercial<select value={autoPartsCondition} onChange={(event) => { setAutoPartsCondition(event.target.value as typeof autoPartsCondition); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null); }} required><option value="">Selecione</option><option value="standard">Sem fidelidade</option><option value="fidelity">Com fidelidade comprovada</option></select></label>
+              <label>Cliente do dossiê<select value={autoPartsCompanyId} onChange={(event) => { setAutoPartsCompanyId(event.target.value); setAutoPartsDossier(null); }}><option value="">Sem vínculo com cliente</option>{companies.map((company) => <option key={company.id} value={company.id}>{company.name}</option>)}</select></label>
             </div>
-            <label className="auto-parts-imported"><input type="checkbox" checked={autoPartsImported} onChange={(event) => setAutoPartsImported(event.target.checked)} />Mercadoria importada qualificada na Resolução do Senado 13/2012 (alíquota interestadual de 4%)</label>
-            <fieldset><legend>Confirme os oito fatos documentados</legend>{(Object.entries(coverage.stAutoPartsHighUseCorridors.operationFactLabels) as Array<[AutoPartsFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={autoPartsFacts[key]} onChange={(event) => setAutoPartsFacts((current) => ({ ...current, [key]: event.target.checked }))} />{label}</label>)}</fieldset>
+            <label className="auto-parts-imported"><input type="checkbox" checked={autoPartsImported} onChange={(event) => { setAutoPartsImported(event.target.checked); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null); }} />Mercadoria importada qualificada na Resolução do Senado 13/2012 (alíquota interestadual de 4%)</label>
+            <fieldset><legend>Confirme os nove fatos documentados</legend>{(Object.entries(coverage.stAutoPartsHighUseCorridors.operationFactLabels) as Array<[AutoPartsFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={autoPartsFacts[key]} onChange={(event) => { setAutoPartsFacts((current) => ({ ...current, [key]: event.target.checked })); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null); }} />{label}</label>)}</fieldset>
             <button disabled={busy === "auto-parts" || !autoPartsDate || !autoPartsCondition || !autoPartsValue || !autoPartsOwnBase}>{busy === "auto-parts" ? "Reproduzindo memória…" : "Calcular referência condicionada"}</button>
           </form>
           {autoPartsResult && <section className={`auto-parts-calculator-result ${autoPartsResult.status}`}>
             {autoPartsResult.status === "calculated_reference" && autoPartsResult.output && autoPartsResult.parameters ? <><header><span>MEMÓRIA CONDICIONAL · {autoPartsResult.route}</span><strong>{(autoPartsResult.output.destinationTotalCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong><small>ICMS-ST + FCP estimados pelo motor determinístico</small></header><div><span>Base ST<b>{(autoPartsResult.output.stBaseCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>MVA aplicada<b>{(autoPartsResult.output.mvaAppliedBps / 100).toFixed(2).replace(".", ",")}%</b></span><span>ICMS próprio<b>{(autoPartsResult.output.ownIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS-ST<b>{(autoPartsResult.output.icmsStCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>FCP<b>{(autoPartsResult.output.fcpCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span></div><p>Interestadual {(autoPartsResult.parameters.interstateRateBps / 100).toFixed(0)}% · interna {(autoPartsResult.parameters.internalRateBps / 100).toFixed(2).replace(".", ",")}% · MVA original {(autoPartsResult.parameters.mvaOriginalBps / 100).toFixed(2).replace(".", ",")}%.</p></> : <><header><span>{autoPartsResult.status === "st_not_applicable_after_state_exclusion" ? "TRANSIÇÃO LEGAL" : "CÁLCULO BLOQUEADO"}</span><strong>{autoPartsResult.status === "st_not_applicable_after_state_exclusion" ? "ST paulista não aplicável" : "Sem valor exibido"}</strong></header><ul>{autoPartsResult.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></>}
             <small>{autoPartsResult.limitation}</small>
           </section>}
+          {autoPartsDossierPreview && <section className="auto-parts-dossier-preview">
+            <header>
+              <div><span>DOSSIÊ FISCAL · CHECKLIST COMPLETO</span><h3>Resultado explicável e congelável</h3><p>{autoPartsDossierPreview.coverage.reason}</p></div>
+              <span className={`coverage-status ${autoPartsDossierPreview.coverage.status}`}><i />{autoPartsDossierPreview.coverage.label}</span>
+            </header>
+            <div className="auto-parts-dossier-metadata">
+              <article><small>REGRA</small><b>{autoPartsDossierPreview.rule.version}</b><span>#{autoPartsDossierPreview.rule.fingerprint}</span></article>
+              <article><small>VIGÊNCIA CONTROLADA</small><b>{new Date(`${autoPartsDossierPreview.rule.effectiveFrom}T12:00:00`).toLocaleDateString("pt-BR")}–{new Date(`${autoPartsDossierPreview.rule.effectiveTo}T12:00:00`).toLocaleDateString("pt-BR")}</b><span>fontes conferidas em {new Date(`${autoPartsDossierPreview.rule.checkedAt}T12:00:00`).toLocaleDateString("pt-BR")}</span></article>
+              <article><small>PRODUTO</small><b>CEST {autoPartsDossierPreview.operation.cest} · NCM {autoPartsDossierPreview.operation.ncm}</b><span>{autoPartsDossierPreview.operation.productDescription}</span></article>
+              <article><small>ENTREGA</small><b>{autoPartsDossierPreview.clientReport.ready ? "Relatório preparado" : "Relatório bloqueado"}</b><span>revisão responsável antes da entrega</span></article>
+            </div>
+            <details open><summary>Dados utilizados e fatos confirmados</summary>
+              <div className="auto-parts-used-data">
+                <span><small>Rota</small><b>{autoPartsDossierPreview.operation.route}</b></span>
+                <span><small>Data</small><b>{new Date(`${autoPartsDossierPreview.operation.operationDate}T12:00:00`).toLocaleDateString("pt-BR")}</b></span>
+                <span><small>Base inicial</small><b>{(autoPartsDossierPreview.operation.operationCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span>
+                <span><small>Base própria</small><b>{(autoPartsDossierPreview.operation.ownIcmsBaseCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span>
+                <span><small>Origem</small><b>{autoPartsDossierPreview.operation.importedQualified ? "Importada qualificada · 4%" : "Nacional"}</b></span>
+                <span><small>Condição</small><b>{autoPartsDossierPreview.operation.commercialCondition === "fidelity" ? "Fidelidade comprovada" : "Sem fidelidade"}</b></span>
+              </div>
+              <div className="auto-parts-fact-ledger">{autoPartsDossierPreview.operation.confirmedFacts.map((fact) => <span className={fact.confirmed ? "confirmed" : "pending"} key={fact.code}><i>{fact.confirmed ? "✓" : "!"}</i>{fact.label}</span>)}</div>
+            </details>
+            <details open><summary>Memória de cálculo linha por linha</summary>
+              <div className="auto-parts-memory-lines">{autoPartsDossierPreview.calculation.lines.map((line, index) => <article className={line.status} key={line.code}><span>{String(index + 1).padStart(2, "0")}</span><div><small>{line.code}</small><b>{line.label}</b><p>{line.formula}</p><em>{line.basis}</em></div><strong>{line.amountCents !== null ? (line.amountCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : line.percentageBps !== null ? `${(line.percentageBps / 100).toFixed(2).replace(".", ",")}%` : "Bloqueado"}</strong></article>)}</div>
+            </details>
+            <details open><summary>Fontes oficiais efetivamente aplicadas</summary>
+              <div className="auto-parts-applied-sources">{autoPartsDossierPreview.evidence.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span>{source.publisher}</span><b>{source.title} ↗</b><small>{source.code} · conferida em {new Date(`${source.checkedAt}T12:00:00`).toLocaleDateString("pt-BR")}</small><p>{source.proves.join(" · ")}</p></a>)}</div>
+            </details>
+            {(autoPartsDossierPreview.calculation.blockers.length > 0 || autoPartsDossierPreview.calculation.requiredConfirmations.length > 0) && <div className="auto-parts-dossier-blockers"><b>Pendências que impedem a conclusão</b>{[...autoPartsDossierPreview.calculation.blockers, ...autoPartsDossierPreview.calculation.requiredConfirmations].filter((item, index, rows) => rows.indexOf(item) === index).map((item) => <span key={item}>{item}</span>)}</div>}
+            {autoPartsDossierPreview.rule.scheduledTransition && <div className="auto-parts-dossier-transition"><b>Mudança normativa programada · {new Date(`${autoPartsDossierPreview.rule.scheduledTransition.effectiveFrom}T12:00:00`).toLocaleDateString("pt-BR")}</b><span>{autoPartsDossierPreview.rule.scheduledTransition.description}</span></div>}
+            <div className="auto-parts-dossier-actions">
+              <button type="button" disabled={busy === "auto-parts-dossier"} onClick={() => void freezeAutoPartsDossier()}>{busy === "auto-parts-dossier" ? "Congelando snapshot…" : "Salvar dossiê versionado"}</button>
+              {autoPartsDossier ? <a href={autoPartsDossier.reportUrl} target="_blank" rel="noreferrer">Abrir relatório para o cliente ↗</a> : <span>O relatório será liberado após salvar o snapshot.</span>}
+            </div>
+            <footer><b>Limite técnico</b><span>{autoPartsDossierPreview.calculation.disclaimer}</span></footer>
+          </section>}
           <details className="auto-parts-corridor-details" open><summary>Ver as 24 decisões direcionais</summary><div className="auto-parts-corridor-grid">{coverage.stAutoPartsHighUseCorridors.routes.map((route) => <article key={route.route} className={route.calculationStatus}><header><b>{route.origin}→{route.destination}</b><span>PRIORIDADE {String(route.corridorRank).padStart(2, "0")} · {route.direction === "outbound" ? "IDA" : "VOLTA"}</span></header><em>{route.calculationStatus === "synthetic_reference_reproduced" ? "MEMÓRIA SINTÉTICA" : route.agreementStatus === "protocol_41_active" ? "ACORDO ATIVO · PARÂMETROS PENDENTES" : "FORA DO PROTOCOLO 41/08"}</em><strong>{route.syntheticReference ? (route.syntheticReference.destinationTotalCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) : route.parameterMethod === "destination_internal_mva" ? `MVA deve vir de ${route.destination}` : route.parameterMethod === "protocol_mva" ? `MVA original ${(route.mvaOriginalBps! / 100).toFixed(2).replace(".", ",")}% · cálculo bloqueado` : "Exige tratamento próprio do destino"}</strong><p>{route.agreementReason}</p><small>{route.remainingBlockers.length} controles impedem uso automático em operação real</small>{route.scheduledReview && <mark>Revisão obrigatória em {new Date(`${route.scheduledReview.effectiveFrom}T12:00:00`).toLocaleDateString("pt-BR")}: regra paulista muda.</mark>}</article>)}</div></details>
-          <div className="auto-parts-corridor-safety"><b>Resultado desta rodada</b><span>10 sentidos estão dentro do âmbito bilateral atual e têm memória sintética reproduzível; 14 falham fechados. Os valores usam operação controlada de R$ 1.000 e não representam imposto devido por um cliente sem os oito fatos documentados.</span></div>
+          <div className="auto-parts-corridor-safety"><b>Resultado desta rodada</b><span>10 sentidos estão dentro do âmbito bilateral atual e têm memória sintética reproduzível; 14 falham fechados. Os valores usam operação controlada de R$ 1.000 e não representam imposto devido por um cliente sem os nove fatos documentados.</span></div>
           <footer>{coverage.stAutoPartsHighUseCorridors.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}>{source.title} · {source.publisher} ↗</a>)}</footer>
         </section>
         <section className="auto-parts-priority-batch">
