@@ -1,5 +1,5 @@
 import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, NATIONAL_COVERAGE_CHECKED_AT, NATIONAL_COVERAGE_VERSION, recurringScenarios, stateCoverage, stSegments } from "../../../../domain/national-tax-coverage";
-import { buildIssDeepTechnicalEvidence, issDeepCityProfiles, issDeepMetrics, issDeepSources } from "../../../../domain/iss-deep-coverage";
+import { buildIssDeepTechnicalEvidence, ISS_DEEP_CHECKED_AT, ISS_DEEP_VERSION, issDeepCityProfiles, issDeepMetrics, issDeepServiceCoverage, issDeepSources } from "../../../../domain/iss-deep-coverage";
 import { hashStSpMgLegalCatalog, stSpMgLegalMetrics, stSpMgLegalPackages, ST_SP_MG_LEGAL_VERSION, validateStSpMgLegalCatalog } from "../../../../domain/st-sp-mg-legal";
 import { hashStSpOriginMatrix, stSpOriginCells, stSpOriginDestinations, stSpOriginMandatoryFacts, stSpOriginMatrixMetrics, ST_SP_ORIGIN_MATRIX_VERSION, validateStSpOriginMatrix } from "../../../../domain/st-sp-origin-matrix";
 import { hashStRepresentativeProducts, stRepresentativeProducts, ST_REPRESENTATIVE_PRODUCTS_SOURCE, ST_REPRESENTATIVE_PRODUCTS_VERSION, validateStRepresentativeProducts } from "../../../../domain/st-representative-products";
@@ -46,11 +46,14 @@ async function publicCoverage() {
     states: stateCoverage,
     cities: cityCoverage,
     issDeep: {
+      version: ISS_DEEP_VERSION,
+      checkedAt: ISS_DEEP_CHECKED_AT,
       metrics: issDeepMetrics,
       profiles: issDeepCityProfiles,
+      serviceCoverage: issDeepServiceCoverage,
       sources: issDeepSources,
       technicalEvidence,
-      policy: "Revisado tecnicamente significa estrutura, rastreabilidade e bloqueios do software testados. Não significa caso fiscal validado, homologação profissional ou cálculo exato liberado.",
+      policy: "Pacote estruturado não libera alíquota. Somente uma regra municipal exata, vigente, versionada e compatível com todos os fatos do cenário controlado libera memória determinística; qualquer divergência bloqueia o resultado.",
     },
     stSegments,
     stSpMg: {
