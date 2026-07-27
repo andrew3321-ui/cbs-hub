@@ -40,6 +40,13 @@ import {
   stColdBeverageSpOriginSources,
   validateStColdBeverageSpOrigin,
 } from "./st-cold-beverages-sp-origin.ts";
+import {
+  TAX_REFORM_IMPACT_ENGINE_VERSION,
+  hashTaxReformImpactModel,
+  taxReformImpactCasePasses,
+  taxReformImpactReferenceCases,
+  taxReformSources,
+} from "./tax-reform-impact.ts";
 
 export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v1";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-26";
@@ -79,6 +86,27 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 ];
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
+  {
+    code: "RTC_TRANSITION_IMPACT",
+    label: "Impacto financeiro da transição CBS/IBS de 2026 a 2033",
+    ruleCodes: ["RTC-BR-TRANSITION"],
+    version: TAX_REFORM_IMPACT_ENGINE_VERSION,
+    validate: () => {
+      const errors = taxReformImpactReferenceCases
+        .filter((referenceCase) => !taxReformImpactCasePasses(referenceCase))
+        .map((referenceCase) => `${referenceCase.code}:transition_case_failed`);
+      return { passed: errors.length === 0, errors };
+    },
+    hash: hashTaxReformImpactModel,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => ({
+      deterministicCases: taxReformImpactReferenceCases.length,
+      calculatedMemories: taxReformImpactReferenceCases.filter((item) => item.expected.transitionTotalCents !== null).length,
+      safelyBlockedCases: taxReformImpactReferenceCases.filter((item) => item.expected.transitionTotalCents === null).length,
+    }),
+    sourceCodes: () => taxReformSources.map((source) => source.code).sort(),
+    requiredGates: ["ano-alvo", "regime e perfil da operação", "valores contábeis atuais", "alíquotas de referência", "créditos projetados", "vigência e versão"],
+  },
   {
     code: "DETERMINISTIC_TAX_LAB",
     label: "Casos ouro federais, ISS e DIFAL",
