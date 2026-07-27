@@ -16,6 +16,8 @@ import {
   companies,
   fiscalDocumentEvents,
   fiscalDocuments,
+  fiscalImportBatches,
+  fiscalImportItems,
   fiscalDossierEvents,
   fiscalDossiers,
   fiscalDossierShares,
@@ -222,6 +224,8 @@ async function deleteAccount(request: Request) {
     await db.delete(scenarioReviewRounds).where(eq(scenarioReviewRounds.workspaceId, workspace.id));
     await db.delete(fiscalDocumentEvents).where(eq(fiscalDocumentEvents.workspaceId, workspace.id));
     await db.delete(fiscalDocuments).where(eq(fiscalDocuments.workspaceId, workspace.id));
+    await db.delete(fiscalImportItems).where(eq(fiscalImportItems.workspaceId, workspace.id));
+    await db.delete(fiscalImportBatches).where(eq(fiscalImportBatches.workspaceId, workspace.id));
     await db.delete(fiscalDossierShares).where(eq(fiscalDossierShares.workspaceId, workspace.id));
     await db.delete(fiscalDossierEvents).where(eq(fiscalDossierEvents.workspaceId, workspace.id));
     await db.delete(fiscalResultInvalidations).where(eq(fiscalResultInvalidations.workspaceId, workspace.id));

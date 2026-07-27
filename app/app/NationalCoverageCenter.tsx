@@ -107,7 +107,30 @@ type GovernanceReview = {
   releaseSummary: string;
   declarationAccepted: boolean;
 };
-type BatchResult = { batchId: string; metrics: { total: number; accepted: number; warning: number; blocked: number }; items: Array<{ filename: string; documentType: string; status: "accepted" | "warning" | "blocked"; sourceHash: string; issues: string[]; summary: Record<string, string | number | boolean | null> }>; message: string; error?: string };
+type BatchResult = {
+  batchId: string;
+  clientBatchKey: string;
+  status: "processing" | "completed";
+  progress: { processed: number; total: number; percentage: number };
+  metrics: { total: number; accepted: number; warning: number; blocked: number };
+  items: Array<{
+    ordinal: number;
+    filename: string;
+    documentType: string;
+    status: "accepted" | "warning" | "blocked";
+    sourceHash: string;
+    evidenceHash: string;
+    adapterCode: string | null;
+    coverageStatus: "supported" | "partial" | "not_supported";
+    calculationEligible: boolean;
+    issues: string[];
+    issueDetails: Array<{ code: string; severity: string; category: string; message: string }>;
+    calculationBlockers: string[];
+    summary: Record<string, string | number | boolean | null>;
+  }>;
+  message: string;
+  error?: string;
+};
 
 const statusLabel: Record<Status, string> = { supported: "Suportado", partial: "Parcial", not_supported: "Não suportado" };
 const tabs = ["panorama", "icms", "iss", "federal", "documents", "governance"] as const;
@@ -243,6 +266,7 @@ export default function NationalCoverageCenter() {
   const [error, setError] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [batch, setBatch] = useState<BatchResult | null>(null);
+  const [batchKey, setBatchKey] = useState("");
   const [governanceReview, setGovernanceReview] = useState<GovernanceReview>({
     eventId: "",
     professionalRole: "accountant",
@@ -419,8 +443,21 @@ export default function NationalCoverageCenter() {
 
   const importBatch = async (event: FormEvent) => {
     event.preventDefault(); if (!files.length) return; setBusy("batch"); setError(""); setBatch(null);
-    const form = new FormData(); files.forEach((file) => form.append("files", file));
-    try { setBatch(await json<BatchResult>("/api/fiscal-imports", { method: "POST", body: form })); }
+    const totalBytes = files.reduce((sum, file) => sum + file.size, 0);
+    const clientBatchKey = batchKey || crypto.randomUUID();
+    setBatchKey(clientBatchKey);
+    try {
+      for (let ordinal = 0; ordinal < files.length; ordinal += 1) {
+        const form = new FormData();
+        form.append("files", files[ordinal]);
+        form.append("clientBatchKey", clientBatchKey);
+        form.append("ordinal", String(ordinal));
+        form.append("totalFiles", String(files.length));
+        form.append("totalBytes", String(totalBytes));
+        const result = await json<BatchResult>("/api/fiscal-imports", { method: "POST", body: form });
+        setBatch(result);
+      }
+    }
     catch (cause) { setError(cause instanceof Error ? cause.message : "Lote recusado."); }
     finally { setBusy(""); }
   };
@@ -750,9 +787,9 @@ export default function NationalCoverageCenter() {
     </section>}
 
     {tab === "documents" && <section className="batch-import-area">
-      <div className="coverage-section-heading"><span>NF-e · NFS-e · SPED</span><h2>Importação em lote com descarte do arquivo bruto</h2><p>Envie até 25 arquivos por lote. A plataforma identifica o formato, registra hash e manifesto de auditoria e não conserva o XML/TXT bruto.</p></div>
-      <form className="batch-drop" onSubmit={importBatch}><label><input type="file" multiple accept=".xml,.txt" onChange={(event) => setFiles(Array.from(event.target.files ?? []).slice(0, 25))} /><span>＋</span><b>Selecionar documentos fiscais</b><small>XML NF-e/NFS-e ou TXT SPED · 5 MB por arquivo · 30 MB por lote</small></label>{files.length > 0 && <div className="batch-selection"><span>{files.length} arquivo(s) selecionado(s)</span><small>{(files.reduce((sum, file) => sum + file.size, 0) / 1_000_000).toFixed(2)} MB</small></div>}<button disabled={!files.length || busy === "batch"}>{busy === "batch" ? "Processando lote…" : "Importar e validar lote"}</button></form>
-      {batch && <div className="batch-result"><header><div><span>LOTE REGISTRADO</span><h3>{batch.metrics.total} documentos processados</h3><p>{batch.message}</p></div><div><b>{batch.metrics.accepted}</b><small>aceitos</small><b>{batch.metrics.warning}</b><small>revisar</small><b>{batch.metrics.blocked}</b><small>bloqueados</small></div></header><div>{batch.items.map((item) => <article key={`${item.filename}-${item.sourceHash}`} className={item.status}><span>{item.documentType.toUpperCase()}</span><p><b>{item.filename}</b><small>#{item.sourceHash}</small></p><strong>{item.status === "accepted" ? "Aceito" : item.status === "warning" ? "Revisar" : "Bloqueado"}</strong><details><summary>Detalhes</summary>{item.issues.map((issue) => <small key={issue}>{issue}</small>)}</details></article>)}</div></div>}
+      <div className="coverage-section-heading"><span>NF-e · NFS-e · SPED</span><h2>Importação em lote auditável e retomável</h2><p>Envie até 25 arquivos. Cada documento é processado isoladamente, o progresso fica registrado e o XML/TXT bruto é descartado imediatamente. A importação nunca altera um cálculo final.</p></div>
+      <form className="batch-drop" onSubmit={importBatch}><label><input type="file" multiple accept=".xml,.txt" onChange={(event) => { setFiles(Array.from(event.target.files ?? []).slice(0, 25)); setBatchKey(""); setBatch(null); }} /><span>＋</span><b>Selecionar documentos fiscais</b><small>XML NF-e/NFS-e ou TXT SPED · 5 MB por arquivo · 30 MB por lote</small></label>{files.length > 0 && <div className="batch-selection"><span>{files.length} arquivo(s) selecionado(s)</span><small>{(files.reduce((sum, file) => sum + file.size, 0) / 1_000_000).toFixed(2)} MB</small></div>}{batch && <div className="batch-progress" aria-live="polite"><span><i style={{ width: `${batch.progress.percentage}%` }} /></span><b>{batch.progress.processed} de {batch.progress.total} · {batch.progress.percentage}%</b></div>}<button disabled={!files.length || busy === "batch"}>{busy === "batch" ? `Processando ${batch?.progress.processed ?? 0} de ${files.length}…` : batch?.status === "completed" ? "Validar novamente com idempotência" : "Importar e validar lote"}</button></form>
+      {batch && <div className="batch-result"><header><div><span>{batch.status === "completed" ? "LOTE CONCLUÍDO" : "LOTE EM PROCESSAMENTO"}</span><h3>{batch.metrics.total} documentos processados</h3><p>{batch.message}</p></div><div><b>{batch.metrics.accepted}</b><small>aceitos</small><b>{batch.metrics.warning}</b><small>revisar</small><b>{batch.metrics.blocked}</b><small>bloqueados</small></div></header><div>{batch.items.map((item) => <article key={`${item.ordinal}-${item.sourceHash}`} className={item.status}><span>{item.documentType.toUpperCase()}</span><p><b>{item.filename}</b><small>fonte #{item.sourceHash} · evidência #{item.evidenceHash}</small></p><strong>{item.status === "accepted" ? "Aceito" : item.status === "warning" ? "Revisar" : "Bloqueado"}</strong><details><summary>Auditoria e pendências</summary><small><b>Adaptador:</b> {item.adapterCode ?? "não identificado"} · cobertura {item.coverageStatus}</small>{item.issueDetails.map((entry) => <small key={entry.code}><b>{entry.code}</b> · {entry.message}</small>)}<small className="calculation-gate"><b>Não alimenta cálculo final</b> · {item.calculationBlockers[0]}</small></details></article>)}</div></div>}
     </section>}
 
     {tab === "governance" && <section className="governance-area">
