@@ -12,6 +12,7 @@ import FiscalExpansionCenter from "./FiscalExpansionCenter";
 import NfeAuditWorkbench from "./NfeAuditWorkbench";
 import DeterministicTaxLab from "./DeterministicTaxLab";
 import BillingCenter from "./BillingCenter";
+import TaxReformImpact from "./TaxReformImpact";
 import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
 import type { PlanFeatureKey, WorkspaceEntitlements } from "../../domain/plan-entitlements";
 
@@ -1804,7 +1805,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
         {section === "determination" && !sectionIsLocked && (
           <div className="page-content determination-page">
             <div className="page-heading determination-heading">
-              <div><p className="kicker">APURAÇÃO ASSISTIDA · MODELO EM HOMOLOGAÇÃO</p><h1>Apuração líquida sob controle</h1><p>Do documento ao fechamento: cada débito, crédito, ajuste e pagamento precisa ser explicado antes de formar um valor a recolher.</p></div>
+              <div><p className="kicker">APURAÇÃO ASSISTIDA · VERIFICAÇÃO TÉCNICA AUTOMÁTICA</p><h1>Apuração líquida sob controle</h1><p>Do documento ao fechamento: cada débito, crédito, ajuste e pagamento precisa ser explicado antes de formar um valor a recolher.</p></div>
               <span className="determination-lock-badge"><i /> Cálculo produtivo bloqueado</span>
             </div>
 
@@ -1816,13 +1817,15 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
                 <article className="protected"><span>Motor de referência</span><strong>{taxDetermination.integrityStatus === "verified" ? "Íntegro" : "Falha"}</strong><small>#{taxDetermination.fingerprint}</small></article>
                 <article className="protected"><span>Regressões</span><strong>{taxDetermination.referenceCases.filter((item) => item.passed).length}/{taxDetermination.referenceCases.length}</strong><small>{taxDetermination.casesPassed ? "Todos os casos reproduzidos" : "Existem falhas"}</small></article>
                 <article><span>Competências abertas</span><strong>{taxDetermination.workspace.totalPeriods}</strong><small>Escrita desativada nesta fase</small></article>
-                <article className="risk"><span>Valor a recolher</span><strong>Bloqueado</strong><small>Aguardando homologação contábil</small></article>
+                <article className="risk"><span>Valor a recolher</span><strong>Bloqueado</strong><small>Aguardando cobertura e conciliação oficiais</small></article>
               </section>
 
               <section className="panel determination-hero">
                 <div className="determination-hero-copy"><span className="eyebrow">FÓRMULA CONTROLADA · {taxDetermination.engineVersion}</span><h2>O número final só aparece depois que a prova fecha.</h2><p>{taxDetermination.blueprint.legalBoundary}</p><code>{taxDetermination.blueprint.formula}</code></div>
                 <div className="determination-final-lock"><span>VALOR LÍQUIDO A RECOLHER</span><strong>—</strong><b>Não liberado</b><small>{taxDetermination.execution.reasons[0]}</small></div>
               </section>
+
+              <TaxReformImpact initialClientLabel={activeCompany?.name ?? ""} />
 
               <section className="determination-workflow" aria-label="Fluxo de apuração">
                 {taxDetermination.blueprint.stages.map((stage) => <article key={stage.code}><span>{stage.code}</span><div><h3>{stage.title}</h3><p>{stage.description}</p></div></article>)}

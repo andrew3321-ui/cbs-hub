@@ -57,8 +57,8 @@ async function getTaxDeterminationModel() {
         status: "blocked",
         netPayableEnabled: false,
         reasons: [
-          "Modelo ainda em revisão profissional",
-          "Nenhuma versão normativa de cálculo está aprovada",
+          "Cobertura normativa produtiva ainda não está completa",
+          "Nenhuma versão normativa de cálculo definitivo foi liberada",
           "Integrações oficiais e conciliação em três vias ainda não estão habilitadas",
           "Competências de 2026 têm caráter de simulação neste modelo",
         ],
