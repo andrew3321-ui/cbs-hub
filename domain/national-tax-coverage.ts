@@ -1,4 +1,4 @@
-import { issDeepCityProfiles, issDeepProfileByIbge, issDeepSources } from "./iss-deep-coverage.ts";
+import { issDeepCityProfiles, issDeepProfileByIbge, issDeepServiceCoverage, issDeepSources } from "./iss-deep-coverage.ts";
 
 export const NATIONAL_COVERAGE_VERSION = "2026.07.25-v70";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-25";
@@ -141,7 +141,7 @@ export function coverageMetrics() {
 }
 
 export async function hashNationalCoverage() {
-  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
+  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, issDeepServiceCoverage, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

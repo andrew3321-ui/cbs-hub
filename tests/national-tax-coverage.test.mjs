@@ -25,15 +25,15 @@ test("ISS, ST and recurring funnels disclose their unresolved facts", () => {
   assert.ok(stSegments.length >= 8);
   assert.ok(recurringScenarios.length >= 7);
   assert.ok([...cityCoverage, ...stSegments, ...recurringScenarios].every((item) => item.blockers.length > 0));
-  assert.equal(cityCoverage.filter((item) => item.depth === "structured").length, 15);
-  assert.equal(cityCoverage.filter((item) => item.depth === "catalogued").length, 35);
+  assert.equal(cityCoverage.filter((item) => item.depth === "structured").length, 25);
+  assert.equal(cityCoverage.filter((item) => item.depth === "catalogued").length, 25);
 });
 
 test("public metrics and fingerprint cover the national catalog", async () => {
   const metrics = coverageMetrics();
   assert.equal(metrics.states, 27);
   assert.equal(metrics.cities, 50);
-  assert.equal(metrics.deepIssCities, 15);
+  assert.equal(metrics.deepIssCities, 25);
   assert.ok(coverageSources.every((source) => /^https:\/\//.test(source.url)));
   assert.match(await hashNationalCoverage(), /^[0-9a-f]{64}$/);
 });
