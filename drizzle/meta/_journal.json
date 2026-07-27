@@ -197,6 +197,13 @@
       "when": 1785103163776,
       "tag": "0027_familiar_black_bolt",
       "breakpoints": true
+    },
+    {
+      "idx": 28,
+      "version": "6",
+      "when": 1785111783913,
+      "tag": "0028_military_inertia",
+      "breakpoints": true
     }
   ]
 }

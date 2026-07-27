@@ -13,6 +13,9 @@ import NfeAuditWorkbench from "./NfeAuditWorkbench";
 import DeterministicTaxLab from "./DeterministicTaxLab";
 import BillingCenter from "./BillingCenter";
 import TaxReformImpact from "./TaxReformImpact";
+import AccountOnboarding from "./AccountOnboarding";
+import ActionSafetyDialog from "./ActionSafetyDialog";
+import { onboardingActionWarnings } from "../../domain/account-onboarding";
 import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
 import type { PlanFeatureKey, WorkspaceEntitlements } from "../../domain/plan-entitlements";
 
@@ -432,6 +435,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
   const [creatingShareId, setCreatingShareId] = useState<number | null>(null);
   const [comparisonIds, setComparisonIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
+  const [safetyAction, setSafetyAction] = useState<{ mode: "save" } | { mode: "deliver"; scenario: SavedScenario } | null>(null);
   const [message, setMessage] = useState("");
   const [demoIndex, setDemoIndex] = useState(0);
   const [demoStep, setDemoStep] = useState(0);
@@ -942,6 +946,13 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
     }
   }
 
+  async function confirmSafetyAction() {
+    if (!safetyAction) return;
+    if (safetyAction.mode === "save") await saveScenario();
+    else await createReportShare(safetyAction.scenario);
+    setSafetyAction(null);
+  }
+
   function loadScenario(item: SavedScenario, notify = true) {
     if (item.integrityStatus === "invalid") {
       setMessage("Este registro foi bloqueado porque a assinatura criptográfica não confere.");
@@ -1282,6 +1293,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
             </select>
           </div>
           <div className="topbar-actions">
+            <AccountOnboarding workspaceType={workspace.type} workspaceRole={workspace.role} workspaceName={workspace.name} userName={user.displayName} onNavigate={(target) => setSection(target)} />
             <span className={`workspace-chip ${workspace.type}`}><i />{workspace.type === "office" ? workspace.name : "Modo independente"}</span>
             <span className="year-chip"><i /> Ano {targetYear} · {rateSource === "accountant" ? "fonte: contador" : "premissa informada"}</span>
             <button className="notification" aria-label="Notificações" onClick={() => workspace.type === "office" && setSection("reviews")}>{workspace.type === "office" && reviewMetrics.mine ? reviewMetrics.mine : "•"}</button>
@@ -1456,7 +1468,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
           <div className="page-content simulator-page">
             <div className="page-heading">
               <div><p className="kicker">ANÁLISE TRIBUTÁRIA CONTROLADA · {activeCompany?.name?.toUpperCase() ?? "EMPRESA"}</p><h1>Análise de impacto tributário</h1><p>Registre premissas, origem e ano-alvo. Cada versão salva fica congelada e auditável.</p></div>
-              <div className="heading-actions"><button className="secondary-button" onClick={exportScenarioReport}>Exportar prévia</button><button className="primary-button" onClick={saveScenario} disabled={!canPrepare || saving || !scenarioName.trim() || revenue < 1000 || sourceNote.trim().length < 10}>{!canPrepare ? "Acesso somente para revisão" : saving ? "Salvando…" : "Salvar versão"}</button></div>
+              <div className="heading-actions"><button className="secondary-button" onClick={exportScenarioReport}>Exportar prévia</button><button className="primary-button" onClick={() => setSafetyAction({ mode: "save" })} disabled={!canPrepare || saving || !scenarioName.trim() || revenue < 1000 || sourceNote.trim().length < 10}>{!canPrepare ? "Acesso somente para revisão" : saving ? "Salvando…" : "Salvar versão"}</button></div>
             </div>
 
             {message && <div className="toast" role="status">{message}</div>}
@@ -1573,7 +1585,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
                       <i className={`integrity-label ${item.integrityStatus}`}>{item.integrityStatus === "verified" ? `Assinado · #${item.inputHash?.slice(0, 8)}` : item.integrityStatus === "invalid" ? "Integridade bloqueada" : "Legado"}</i>
                     </button>
                     <button className={`review-button ${item.reviewStatus === "ready_for_review" ? "ready" : ""} ${approved ? "approved" : ""}`} onClick={() => officeWorkflow ? void openReviewCenter(item.id) : item.reviewStatus === "ready_for_review" ? openResponsibleApproval(item) : void markReadyForReview(item)} disabled={item.integrityStatus !== "verified" || finalized || reviewingScenarioId === item.id || !item.snapshotJson || (item.reviewStatus === "draft" && !canPrepare)}>{item.integrityStatus === "invalid" ? "Cálculo bloqueado" : approvalBlocked ? "Aprovação bloqueada" : delivered ? "Entregue ao cliente" : approved ? approvedBySecondPerson ? "Revisado por outra pessoa" : "Aprovado pelo responsável" : item.reviewStatus === "changes_requested" ? "Ver correções solicitadas" : item.reviewStatus === "rejected" ? "Ver decisão da revisão" : item.reviewStatus === "ready_for_review" ? workspace.type === "office" ? "Abrir na Central de Revisão" : "Aprovar como responsável" : reviewingScenarioId === item.id ? "Iniciando…" : item.snapshotJson && item.integrityStatus === "verified" ? workspace.type === "office" ? "Enviar para revisor" : "Iniciar revisão interna" : "Regravar versão"}</button>
-                    <span className="delivery-action"><button className="share-report-button" title={!approved ? workspace.type === "office" ? "A entrega libera após a aprovação assinada pelo revisor designado." : "A entrega libera após concluir e assinar a revisão responsável." : "Gerar link rastreável para o cliente."} onClick={() => void createReportShare(item)} disabled={creatingShareId === item.id || !approved || item.integrityStatus !== "verified" || !canPrepare}>{creatingShareId === item.id ? "Gerando…" : delivered ? "Gerar novo link" : "Entregar ao cliente"}</button>{!approved && <small>{approvalBlocked ? "Assinatura inválida" : "Aguardando assinatura"}</small>}</span>
+                    <span className="delivery-action"><button className="share-report-button" title={!approved ? workspace.type === "office" ? "A entrega libera após a aprovação assinada pelo revisor designado." : "A entrega libera após concluir e assinar a revisão responsável." : "Gerar link rastreável para o cliente."} onClick={() => setSafetyAction({ mode: "deliver", scenario: item })} disabled={creatingShareId === item.id || !approved || item.integrityStatus !== "verified" || !canPrepare}>{creatingShareId === item.id ? "Gerando…" : delivered ? "Gerar novo link" : "Entregar ao cliente"}</button>{!approved && <small>{approvalBlocked ? "Assinatura inválida" : "Aguardando assinatura"}</small>}</span>
                     <button className={`compare-toggle ${comparisonIds.includes(item.id) ? "selected" : ""}`} onClick={() => toggleComparison(item.id)} disabled={item.integrityStatus === "invalid"} aria-pressed={comparisonIds.includes(item.id)}>{comparisonIds.includes(item.id) ? "Selecionado" : "Comparar"}</button>
                     <button className={`delete-button ${preserved ? "preserved" : ""}`} onClick={() => deleteScenario(item)} disabled={preserved} title={preserved ? "Versão preservada pela trilha de responsabilidade" : "Excluir versão"} aria-label={preserved ? `Preservar ${item.name}` : `Excluir ${item.name}`}>{preserved ? "⌑" : "×"}</button>
                   </div>
@@ -1974,11 +1986,25 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
         </section>
       </div>}
 
+      {safetyAction && <ActionSafetyDialog
+        key={safetyAction.mode === "save" ? `save-${scenarioName}-${activeCompanyId}` : `deliver-${safetyAction.scenario.id}`}
+        mode={safetyAction.mode}
+        clientName={safetyAction.mode === "save" ? activeCompany?.name ?? "" : safetyAction.scenario.companyName ?? activeCompany?.name ?? ""}
+        scenarioName={safetyAction.mode === "save" ? scenarioName : safetyAction.scenario.name}
+        detail={safetyAction.mode === "save"
+          ? `Ano ${targetYear}; alíquota ${rateSourceLabel(rateSource).toLowerCase()}; a versão será recalculada e assinada pelo servidor.`
+          : `A versão #${safetyAction.scenario.id} será disponibilizada em um link rastreável com validade de 30 dias.`}
+        busy={safetyAction.mode === "save" ? saving : creatingShareId === safetyAction.scenario.id}
+        onClose={() => setSafetyAction(null)}
+        onConfirm={() => void confirmSafetyAction()}
+      />}
+
       {approvalScenario && <div className="approval-modal-backdrop" role="presentation" onMouseDown={() => approvingScenarioId === null && setApprovalScenario(null)}>
         <section className="approval-modal" role="dialog" aria-modal="true" aria-labelledby="approval-title" onMouseDown={(event) => event.stopPropagation()}>
           <header><div><span>{workspace.type === "office" ? "SEGUNDA REVISÃO INTERNA" : "REVISÃO DO RESPONSÁVEL"}</span><h2 id="approval-title">{workspace.type === "office" ? "Revisar uma versão preparada por outra pessoa" : "Assumir responsabilidade por esta versão"}</h2></div><button type="button" onClick={() => setApprovalScenario(null)} disabled={approvingScenarioId !== null} aria-label="Fechar revisão">×</button></header>
           <div className="approval-scenario-summary"><span>VERSÃO CONGELADA</span><strong>{approvalScenario.name}</strong><small>{approvalScenario.companyName ?? activeCompany?.name} · hash #{approvalScenario.inputHash?.slice(0, 12)}</small></div>
           <div className="approval-boundary"><b>{workspace.type === "office" ? `Preparado por ${approvalScenario.preparerName ?? "outro membro do escritório"}; revisado por você.` : "Este é o modo para contador responsável ou profissional que trabalha sozinho."}</b><p>{workspace.type === "office" ? "O sistema registrará duas contas distintas e apresentará isso como revisão interna do escritório — não como revisão independente externa nem como validação do CFC." : "O sistema registrará que preparador e revisor são a mesma conta. Isso não será apresentado como revisão independente nem como validação do CFC."}</p></div>
+          <div className="action-safety-inline"><b>{onboardingActionWarnings.approve.title}</b>{onboardingActionWarnings.approve.checks.map((check) => <p key={check}>□ {check}</p>)}</div>
           <label className={professionalRegistration && !professionalRegistrationIsValid(professionalRegistration) ? "approval-field-invalid" : ""}>Registro profissional declarado<input value={professionalRegistration} onChange={(event) => { setProfessionalRegistration(event.target.value); setApprovalError(""); }} maxLength={40} placeholder="Ex.: CRC SP-123456/O-7" aria-invalid={professionalRegistration ? !professionalRegistrationIsValid(professionalRegistration) : undefined} autoFocus /><small>Precisa conter letras e números, como “CRC SP-123456/O-7”.</small></label>
           <label>Nota da revisão (opcional)<textarea value={approvalNote} onChange={(event) => setApprovalNote(event.target.value)} maxLength={400} placeholder="Registre conferências, ressalvas ou documentos utilizados." /></label>
           <label className="approval-declaration"><input type="checkbox" checked={approvalAcknowledged} onChange={(event) => { setApprovalAcknowledged(event.target.checked); setApprovalError(""); }} /><span>Eu, <b>{user.displayName}</b>, declaro que revisei as premissas, a origem da alíquota, o resultado congelado e os limites metodológicos desta versão{workspace.type === "office" ? " preparada por outro membro" : ""}.</span></label>

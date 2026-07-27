@@ -89,6 +89,24 @@ export const workspaceMembers = sqliteTable("workspace_members", {
   index("workspace_members_workspace_status_idx").on(table.workspaceId, table.status, table.id),
 ]);
 
+export const workspaceOnboardingProgress = sqliteTable("workspace_onboarding_progress", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  userId: integer("user_id").notNull(),
+  onboardingVersion: text("onboarding_version").notNull(),
+  workspaceType: text("workspace_type").notNull(),
+  currentStage: integer("current_stage").notNull().default(0),
+  completedItemIdsJson: text("completed_item_ids_json").notNull().default("[]"),
+  dismissedAt: text("dismissed_at"),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("workspace_onboarding_user_version_idx").on(table.workspaceId, table.userId, table.onboardingVersion),
+  index("workspace_onboarding_workspace_updated_idx").on(table.workspaceId, table.updatedAt, table.id),
+  index("workspace_onboarding_user_completed_idx").on(table.userId, table.completedAt, table.id),
+]);
+
 export const workspaceInvitations = sqliteTable("workspace_invitations", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   workspaceId: integer("workspace_id").notNull(),

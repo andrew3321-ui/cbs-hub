@@ -10,6 +10,7 @@ import "./fiscal-expansion.css";
 import "./deterministic-tax-lab.css";
 import "./legal-reference-center.css";
 import "./tax-reform-impact.css";
+import "./account-onboarding.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();

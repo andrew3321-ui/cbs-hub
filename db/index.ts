@@ -259,6 +259,21 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS workspace_onboarding_progress (
+          id TEXT PRIMARY KEY NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          user_id INTEGER NOT NULL,
+          onboarding_version TEXT NOT NULL,
+          workspace_type TEXT NOT NULL,
+          current_stage INTEGER DEFAULT 0 NOT NULL,
+          completed_item_ids_json TEXT DEFAULT '[]' NOT NULL,
+          dismissed_at TEXT,
+          completed_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS workspace_invitations (
           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
           workspace_id INTEGER NOT NULL,
@@ -729,6 +744,9 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS workspace_members_user_idx ON workspace_members (user_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS workspace_members_workspace_user_idx ON workspace_members (workspace_id, user_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS workspace_members_workspace_status_idx ON workspace_members (workspace_id, status, id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS workspace_onboarding_user_version_idx ON workspace_onboarding_progress (workspace_id, user_id, onboarding_version)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS workspace_onboarding_workspace_updated_idx ON workspace_onboarding_progress (workspace_id, updated_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS workspace_onboarding_user_completed_idx ON workspace_onboarding_progress (user_id, completed_at, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS workspace_invitations_token_idx ON workspace_invitations (token_hash)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS workspace_invitations_workspace_status_idx ON workspace_invitations (workspace_id, status, created_at)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS scenario_approvals_scenario_idx ON scenario_approvals (scenario_id)"),
