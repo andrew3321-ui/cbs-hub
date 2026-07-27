@@ -39,13 +39,38 @@ test("public metrics and fingerprint cover the national catalog", async () => {
 });
 
 test("batch inspector accepts structural SPED and recognizes NF-e/NFS-e safely", () => {
-  const sped = inspectFiscalBatchText("efd.txt", "|0000|020|0|EMPRESA|123|SP|\n|C100|0|1|\n|9999|3|");
+  const spedText = [
+    "|0000|020|0|01072026|31072026|EMPRESA|12345678000190||SP|123|3550308|",
+    "|0001|0|",
+    "|0990|3|",
+    "|C001|0|",
+    "|C100|0|1|",
+    "|C190|000|5102|18,00|100,00|100,00|18,00|0,00|0,00|",
+    "|C990|4|",
+    "|9001|0|",
+    "|9900|C100|1|",
+    "|9990|3|",
+    "|9999|11|",
+  ].join("\n");
+  const sped = inspectFiscalBatchText("efd.txt", spedText);
   assert.equal(sped.documentType, "sped");
   assert.equal(sped.status, "accepted");
+  assert.equal(sped.summary.c190OperationCents, 10_000);
+  assert.equal(sped.summary.c190IcmsCents, 1_800);
+  assert.equal(sped.competenceStart, "2026-07-01");
+  assert.equal(sped.calculationEligible, false);
+  assert.equal(inspectFiscalBatchText("efd.txt", spedText.replace("|9999|11|", "|9999|10|")).status, "blocked");
   const nfe = inspectFiscalBatchText("nfe.xml", "<nfeProc><NFe><infNFe><ide><mod>55</mod></ide><det nItem='1'/></infNFe></NFe></nfeProc>");
   assert.equal(nfe.documentType, "nfe");
-  const nfse = inspectFiscalBatchText("nfse.xml", "<CompNfse><Nfse><InfNfse><Numero>123</Numero><ItemListaServico>1.07</ItemListaServico></InfNfse></Nfse></CompNfse>");
+  assert.equal(nfe.status, "warning");
+  const nfse = inspectFiscalBatchText("nfse.xml", "<CompNfse versao='2.04'><Nfse><InfNfse><Numero>123</Numero><DataEmissao>2026-07-01</DataEmissao><IdentificacaoRps><Numero>1</Numero></IdentificacaoRps><CodigoVerificacao>ABC</CodigoVerificacao><ItemListaServico>1.07</ItemListaServico><CodigoMunicipio>3550308</CodigoMunicipio><ValorServicos>100.00</ValorServicos></InfNfse></Nfse></CompNfse>");
   assert.equal(nfse.documentType, "nfse");
   assert.equal(nfse.status, "warning");
+  assert.equal(nfse.adapterCode, "abrasf-2.04-generic");
+  assert.equal(nfse.coverageStatus, "partial");
+  assert.equal(nfse.summary.serviceCents, 10_000);
+  const unknownProvider = inspectFiscalBatchText("nfse.xml", "<NFSe><InfNfse><Numero>123</Numero></InfNfse></NFSe>");
+  assert.equal(unknownProvider.status, "blocked");
+  assert.equal(unknownProvider.coverageStatus, "not_supported");
   assert.equal(inspectFiscalBatchText("evil.xml", "<!DOCTYPE x [<!ENTITY y SYSTEM 'file:///etc/passwd'>]><NFe/>").status, "blocked");
 });
