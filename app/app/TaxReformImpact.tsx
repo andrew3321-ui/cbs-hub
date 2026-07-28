@@ -129,7 +129,7 @@ export default function TaxReformImpact({ initialClientLabel }: Props) {
     const blob = new Blob([JSON.stringify(report, null, 2)], { type: "application/json;charset=utf-8" });
     const link = document.createElement("a");
     link.href = URL.createObjectURL(blob);
-    link.download = `margem-clara-reforma-${report.inputs.clientLabel || "cliente"}-${report.rule.targetYear}-${report.reportHash.slice(0, 10)}.json`;
+    link.download = `cbshub-reforma-${report.inputs.clientLabel || "cliente"}-${report.rule.targetYear}-${report.reportHash.slice(0, 10)}.json`;
     link.click();
     URL.revokeObjectURL(link.href);
   }

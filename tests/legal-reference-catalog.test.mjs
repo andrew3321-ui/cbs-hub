@@ -27,6 +27,9 @@ test("catalog search is accent-insensitive and combines all query terms", () => 
   assert.ok(searchLegalReferences("aliquotas interestaduais").some((item) => item.code === "RSF-22-1989"));
   assert.ok(searchLegalReferences("fator r", "simples").some((item) => item.code === "CGSN-140-2018"));
   assert.deepEqual(searchLegalReferences("cest ncm").map((item) => item.code), ["CONV-142-2018"]);
+  assert.ok(searchLegalReferences("real_profit_federal").some((item) => item.code === "L-9430-1996"));
+  assert.ok(searchLegalReferences("federal_withholdings").some((item) => item.code === "L-10833-2003"));
+  assert.ok(searchLegalReferences("ipi_tipi").some((item) => item.code === "RFB-TIPI-2026"));
 });
 
 test("catalog includes the key 2026 taxpayer, presumed-profit and IBS governance laws", () => {

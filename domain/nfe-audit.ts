@@ -1,7 +1,7 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import type { FiscalDossierSnapshot } from "./fiscal-dossier";
 
-export const NFE_AUDIT_PROFILE_VERSION = "mc-nfe-structural-2026.1";
+export const NFE_AUDIT_PROFILE_VERSION = "cbshub-nfe-structural-2026.1";
 export const NFE_MAX_XML_BYTES = 5 * 1024 * 1024;
 export const NFE_MAX_ITEMS = 500;
 

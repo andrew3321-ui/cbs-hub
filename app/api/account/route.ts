@@ -123,7 +123,7 @@ async function exportAccountData(request: Request) {
     };
     await recordPrivacyRequest({ request, email: currentUser.email, workspaceId: workspace.id, action: "access_export", status: "completed", details: { scope: canExportWorkspaceData ? "workspace_owner" : "workspace_member" } });
     const download = new URL(request.url).searchParams.get("download") === "1";
-    return new Response(JSON.stringify(exportData, null, 2), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...(download ? { "Content-Disposition": `attachment; filename="margem-clara-dados-${new Date().toISOString().slice(0, 10)}.json"` } : {}) } });
+    return new Response(JSON.stringify(exportData, null, 2), { headers: { "Content-Type": "application/json; charset=utf-8", "Cache-Control": "no-store", ...(download ? { "Content-Disposition": `attachment; filename="cbshub-dados-${new Date().toISOString().slice(0, 10)}.json"` } : {}) } });
   } catch {
     try { await recordPrivacyRequest({ request, email: currentUser.email, workspaceId: trailWorkspaceId, action: "access_export", status: "failed" }); }
     catch { /* A falha primária continua sendo a resposta mais segura. */ }

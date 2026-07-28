@@ -46,7 +46,7 @@ export default function FiscalDossierReportDocument(props: Props) {
 
   return <main className="public-report-shell fiscal-client-report-shell">
     <header className="public-report-nav">
-      <Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link>
+      <Link className="report-brand" href="/"><span>cb</span>CBSHub</Link>
       <div><span>{dossierLabel}</span><small>Snapshot íntegro · #{dossier.inputHash.slice(0, 12)}</small></div>
       {actions}
     </header>
@@ -113,7 +113,7 @@ export default function FiscalDossierReportDocument(props: Props) {
 
       <section className="report-next-actions"><div><span>LIMITES DE USO</span><h2>Antes da entrega definitiva</h2></div><ol><li><b>01</b><span><strong>Conferir produto e documentos</strong><small>{isBeverage ? "Marca, embalagem, volume, CEST e GTIN precisam coincidir exatamente com a pauta." : "O recorte não se estende automaticamente a outros NCM ou CEST."}</small></span></li><li><b>02</b><span><strong>Revisar fontes e vigência</strong><small>Alteração normativa exige uma nova versão do dossiê.</small></span></li><li><b>03</b><span><strong>Registrar responsabilidade</strong><small>O software produz memória técnica; a conclusão do caso concreto permanece com o profissional.</small></span></li></ol></section>
 
-      <footer className="report-document-footer"><span>Preparado por <b>{preparerName}</b>{reviewerName ? <> · revisado por <b>{reviewerName}</b></> : null} no Margem Clara</span><small>Snapshot gerado em {timestamp(snapshot.generatedAt)}{dossier.decidedAt ? ` e aprovado em ${timestamp(dossier.decidedAt)}` : ""}. {snapshot.calculation.disclaimer}</small><Link href="/metodologia">Metodologia e fontes →</Link></footer>
+      <footer className="report-document-footer"><span>Preparado por <b>{preparerName}</b>{reviewerName ? <> · revisado por <b>{reviewerName}</b></> : null} no CBSHub</span><small>Snapshot gerado em {timestamp(snapshot.generatedAt)}{dossier.decidedAt ? ` e aprovado em ${timestamp(dossier.decidedAt)}` : ""}. {snapshot.calculation.disclaimer}</small><Link href="/metodologia">Metodologia e fontes →</Link></footer>
     </article>
   </main>;
 }

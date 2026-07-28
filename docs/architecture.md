@@ -70,7 +70,7 @@ Nunca recalcule silenciosamente um relatório histórico com uma versão nova do
 
 ### Inteligência fiscal determinística
 
-O motor `mc-manual-fiscal-0.1.0` não usa modelo generativo nem embeddings. Ele executa uma sequência verificável:
+O motor `cbshub-manual-fiscal-0.1.0` não usa modelo generativo nem embeddings. Ele executa uma sequência verificável:
 
 1. normaliza a pergunta e reconhece termos da ontologia manual;
 2. extrai rota, tributo, segmento, NCM, CEST e condições declaradas;
@@ -121,7 +121,7 @@ A regra inicial `RTC-BR-2026-TEST@1.0.0` permanece em `reference_only` e `in_rev
 
 ### Livro de apuração assistida
 
-O motor `mc-tax-ledger-0.1.0` modela o saldo líquido em cinco camadas:
+O motor `cbshub-tax-ledger-0.1.0` modela o saldo líquido em cinco camadas:
 
 1. ingestão de DF-e, DeRE, eventos e saldos de abertura com chave única;
 2. classificação explícita de incidência, regime e elegibilidade do crédito;

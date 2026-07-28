@@ -222,7 +222,7 @@ const nationalTopics: NationalFiscalTopic[] = [
 
 export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
   schemaVersion: "manual-fiscal-intelligence.v1",
-  engineVersion: "mc-manual-fiscal-1.0.0",
+  engineVersion: "cbshub-manual-fiscal-1.0.0",
   baseCode: "FISCAL-MANUAL-BR",
   version: "1.0.0",
   name: "Inteligência Fiscal Manual Brasil · V24",

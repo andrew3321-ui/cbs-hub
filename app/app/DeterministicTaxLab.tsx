@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 
-type Module = "simples_annex_i" | "simples_services" | "pis_cofins" | "presumed_profit_2026" | "iss" | "icms_difal" | "rtc_2026";
+type Module = "simples_annex_i" | "simples_services" | "pis_cofins" | "pis_cofins_special" | "presumed_profit_2026" | "real_profit_federal" | "federal_withholdings" | "ipi_tipi" | "iss" | "icms_difal" | "rtc_2026";
 type Calculation = {
   result: {
     title: string; status: "calculated_reference" | "blocked"; summary: string; engineVersion: string; disclaimer: string;
@@ -16,13 +16,17 @@ type Calculation = {
 };
 
 const modules: Array<{ id: Module; short: string; title: string; description: string }> = [
-  { id: "simples_annex_i", short: "SN", title: "Simples · Anexo I", description: "Faixa, alíquota efetiva e DAS de referência." },
-  { id: "simples_services", short: "FATOR R", title: "Simples · III/V", description: "Fator R, folha e anexo de serviços." },
-  { id: "pis_cofins", short: "P/C", title: "PIS e Cofins", description: "Débitos, créditos e saldo por regime." },
-  { id: "presumed_profit_2026", short: "LP", title: "Presumido 2026", description: "IRPJ, adicional, CSLL e nova presunção." },
-  { id: "iss", short: "ISS", title: "ISS municipal", description: "Base, deduções, retenção e taxa confirmada." },
+  { id: "simples_annex_i", short: "SN", title: "Simples - Anexo I", description: "Faixa, aliquota efetiva e DAS de referencia." },
+  { id: "simples_services", short: "FATOR R", title: "Simples - III/V", description: "Fator R, folha e anexo de servicos." },
+  { id: "pis_cofins", short: "P/C", title: "PIS e Cofins", description: "Debitos, creditos e saldo por regime." },
+  { id: "pis_cofins_special", short: "P/C ESP", title: "PIS/Cofins especial", description: "Monofasico, zero, suspensao e exportacao segregados." },
+  { id: "presumed_profit_2026", short: "LP", title: "Presumido 2026", description: "IRPJ, adicional, CSLL e nova presuncao." },
+  { id: "real_profit_federal", short: "LR", title: "Lucro Real", description: "IRPJ, CSLL, LALUR/LACS e compensacao limitada." },
+  { id: "federal_withholdings", short: "RET", title: "Retencoes", description: "IRRF, CSRF, INSS e ISS por hipotese e responsavel." },
+  { id: "ipi_tipi", short: "IPI", title: "IPI/TIPI", description: "NCM, TIPI vigente e operacao industrial/importacao." },
+  { id: "iss", short: "ISS", title: "ISS municipal", description: "Base, deducoes, retencao e taxa confirmada." },
   { id: "icms_difal", short: "ICMS", title: "DIFAL + FCP", description: "Comparativo interestadual parametrizado." },
-  { id: "rtc_2026", short: "RTC", title: "IBS/CBS 2026", description: "Destaque de teste e limite comparável." },
+  { id: "rtc_2026", short: "RTC", title: "IBS/CBS 2026", description: "Destaque de teste e limite comparavel." },
 ];
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -35,7 +39,11 @@ export default function DeterministicTaxLab() {
     rbt12: "1500000", monthlyRevenue: "120000", annexConfirmed: false, revenueSegregated: false, periodClosed: false, noSpecialTreatment: false,
     serviceRbt12: "1500000", fs12: "450000", serviceMonthlyRevenue: "120000", activitySubjectToFactorR: false, payrollReconciled: false, serviceRevenueSegregated: false, serviceNoSpecialTreatment: false,
     regime: "cumulative", taxableRevenue: "100000", creditBase: "0", regimeConfirmed: false, revenueClassified: false, specialTreatmentsExcluded: false, creditsDocumented: false,
+    specialTreatment: "monophase_resale", specialRevenue: "100000", specialTreatmentConfirmed: false, specialProductClassified: false, specialLegalBasisDocumented: false, specialNoMixedRevenue: false,
     presumedQuarter: "2", commerceQuarterRevenue: "1440000", serviceQuarterRevenue: "360000", fullyTaxableAdditions: "0", presumedRegimeConfirmed: false, presumedActivitiesSeparated: false, presumedRevenueReconciled: false, presumedSpecialActivitiesExcluded: false,
+    realQuarter: "3", accountingProfit: "200000", realAdditions: "30000", realExclusions: "10000", lossCompensation: "80000", realRegimeConfirmed: false, lalurReconciled: false, realAdditionsSupported: false, compensationLimitChecked: false,
+    withholdingGross: "100000", irrfApplies: false, csrfApplies: false, inssApplies: false, withholdingIss: false, withholdingIssRate: "3", serviceNatureConfirmed: false, payerResponsible: false, beneficiaryRegimeChecked: false, municipalResponsibilityChecked: false,
+    ipiOperation: "industrial_output", ipiBase: "100000", ipiRate: "6.5", ncmConfirmed: false, tipiRateConfirmed: false, industrializationOrImportConfirmed: false, ipiExemptionsExcluded: false,
     serviceBase: "100000", deductions: "0", municipalRate: "3", withheld: false, serviceItemConfirmed: false, placeConfirmed: false, municipalRateConfirmed: false, municipalLawReference: "",
     icmsBase: "100000", origin: "SP", destination: "MG", importedQualified: false, destinationInternalRate: "18", fcpRate: "2", finalConsumer: false, recipientNonTaxpayer: false, destinationLawReference: "", ratesConfirmed: false,
     rtcBase: "100000", pisCofinsPayable: "3650", yearConfirmed: false, accessoryObligationsConfirmed: false, operationClassified: false,
@@ -53,7 +61,11 @@ export default function DeterministicTaxLab() {
     if (module === "simples_annex_i") return { module, rbt12Cents: asCents(text("rbt12")), monthlySegregatedRevenueCents: asCents(text("monthlyRevenue")), annexConfirmed: yes("annexConfirmed"), revenueSegregated: yes("revenueSegregated"), periodClosed: yes("periodClosed"), noSpecialTreatment: yes("noSpecialTreatment") };
     if (module === "simples_services") return { module, rbt12Cents: asCents(text("serviceRbt12")), fs12Cents: asCents(text("fs12")), monthlySegregatedRevenueCents: asCents(text("serviceMonthlyRevenue")), activitySubjectToFactorR: yes("activitySubjectToFactorR"), payrollReconciled: yes("payrollReconciled"), revenueSegregated: yes("serviceRevenueSegregated"), noSpecialTreatment: yes("serviceNoSpecialTreatment") };
     if (module === "pis_cofins") return { module, regime: text("regime"), taxableRevenueCents: asCents(text("taxableRevenue")), eligibleCreditBaseCents: asCents(text("creditBase")), regimeConfirmed: yes("regimeConfirmed"), revenueClassified: yes("revenueClassified"), specialTreatmentsExcluded: yes("specialTreatmentsExcluded"), creditsDocumented: yes("creditsDocumented") };
+    if (module === "pis_cofins_special") return { module, treatment: text("specialTreatment"), classifiedRevenueCents: asCents(text("specialRevenue")), treatmentConfirmed: yes("specialTreatmentConfirmed"), productOrServiceClassified: yes("specialProductClassified"), legalBasisDocumented: yes("specialLegalBasisDocumented"), noMixedRevenue: yes("specialNoMixedRevenue") };
     if (module === "presumed_profit_2026") return { module, quarter: Number(text("presumedQuarter")), commerceRevenueCents: asCents(text("commerceQuarterRevenue")), serviceRevenueCents: asCents(text("serviceQuarterRevenue")), fullyTaxableAdditionsCents: asCents(text("fullyTaxableAdditions")), regimeConfirmed: yes("presumedRegimeConfirmed"), activitiesSeparated: yes("presumedActivitiesSeparated"), revenueReconciled: yes("presumedRevenueReconciled"), specialActivitiesExcluded: yes("presumedSpecialActivitiesExcluded") };
+    if (module === "real_profit_federal") return { module, quarter: Number(text("realQuarter")), accountingProfitCents: asCents(text("accountingProfit")), additionsCents: asCents(text("realAdditions")), exclusionsCents: asCents(text("realExclusions")), lossCompensationCents: asCents(text("lossCompensation")), regimeConfirmed: yes("realRegimeConfirmed"), lalurReconciled: yes("lalurReconciled"), additionsExclusionsSupported: yes("realAdditionsSupported"), compensationLimitChecked: yes("compensationLimitChecked") };
+    if (module === "federal_withholdings") return { module, grossPaymentCents: asCents(text("withholdingGross")), irrfApplies: yes("irrfApplies"), csrfApplies: yes("csrfApplies"), inssApplies: yes("inssApplies"), issWithheld: yes("withholdingIss"), issRateBps: rateBps(text("withholdingIssRate")), serviceNatureConfirmed: yes("serviceNatureConfirmed"), payerResponsible: yes("payerResponsible"), beneficiaryRegimeChecked: yes("beneficiaryRegimeChecked"), municipalResponsibilityChecked: yes("municipalResponsibilityChecked") };
+    if (module === "ipi_tipi") return { module, operation: text("ipiOperation"), ipiBaseCents: asCents(text("ipiBase")), ipiRateBps: rateBps(text("ipiRate")), ncmConfirmed: yes("ncmConfirmed"), tipiRateConfirmed: yes("tipiRateConfirmed"), industrializationOrImportConfirmed: yes("industrializationOrImportConfirmed"), exemptionsExcluded: yes("ipiExemptionsExcluded") };
     if (module === "iss") return { module, serviceBaseCents: asCents(text("serviceBase")), deductionsCents: asCents(text("deductions")), municipalRateBps: rateBps(text("municipalRate")), withheld: yes("withheld"), serviceItemConfirmed: yes("serviceItemConfirmed"), placeConfirmed: yes("placeConfirmed"), municipalRateConfirmed: yes("municipalRateConfirmed"), municipalLawReference: text("municipalLawReference") };
     if (module === "icms_difal") return { module, baseCents: asCents(text("icmsBase")), origin: text("origin"), destination: text("destination"), importedQualified: yes("importedQualified"), destinationInternalRateBps: rateBps(text("destinationInternalRate")), fcpRateBps: rateBps(text("fcpRate")), finalConsumer: yes("finalConsumer"), recipientNonTaxpayer: yes("recipientNonTaxpayer"), destinationLawReference: text("destinationLawReference"), ratesConfirmed: yes("ratesConfirmed") };
     return { module, taxableOperationCents: asCents(text("rtcBase")), pisCofinsPayableCents: asCents(text("pisCofinsPayable")), yearConfirmed: yes("yearConfirmed"), accessoryObligationsConfirmed: yes("accessoryObligationsConfirmed"), operationClassified: yes("operationClassified") };
@@ -77,7 +89,7 @@ export default function DeterministicTaxLab() {
     <div className="tax-lab page-content">
       <header className="tax-lab-hero">
         <div><span className="eyebrow">MOTOR DETERMINÍSTICO · SEM IA</span><h1>Laboratório Fiscal</h1><p>Transforme fatos confirmados em cálculos reproduzíveis, com fórmula, fonte oficial e trilha de bloqueios.</p></div>
-        <div className="tax-lab-assurance"><strong>7</strong><span>módulos auditáveis</span><small>nenhum custo por consulta</small></div>
+        <div className="tax-lab-assurance"><strong>11</strong><span>módulos auditáveis</span><small>nenhum custo por consulta</small></div>
       </header>
 
       <section className="tax-lab-modules" aria-label="Módulos de cálculo">
@@ -107,6 +119,27 @@ export default function DeterministicTaxLab() {
             <Field label="Ganhos e receitas integralmente tributáveis" value={text("fullyTaxableAdditions")} onChange={(v) => set("fullyTaxableAdditions", v)} prefix="R$" />
             <div className="tax-lab-law-alert"><span>2026</span><p><strong>Coeficientes acima do limite mudaram.</strong> O motor rateia R$ 1,25 milhão entre as atividades e aplica o acréscimo legal apenas à parcela excedente, respeitando o início distinto do IRPJ e da CSLL.</p></div>
             <Checks items={[["presumedRegimeConfirmed", "Opção válida pelo Lucro Presumido"], ["presumedActivitiesSeparated", "Atividades separadas por receita"], ["presumedRevenueReconciled", "Receitas e acréscimos conciliados"], ["presumedSpecialActivitiesExcluded", "Atividades e regimes especiais excluídos"]]} values={values} set={set} />
+          </>}
+          {module === "pis_cofins_special" && <>
+            <label className="tax-lab-field"><span>Tratamento</span><select value={text("specialTreatment")} onChange={(e) => set("specialTreatment", e.target.value)}><option value="monophase_resale">Revenda monofasica</option><option value="zero_rate">Aliquota zero</option><option value="suspension">Suspensao</option><option value="export">Exportacao</option></select></label>
+            <Field label="Receita classificada" value={text("specialRevenue")} onChange={(v) => set("specialRevenue", v)} prefix="R$" />
+            <Checks items={[["specialTreatmentConfirmed", "Tratamento especial confirmado"], ["specialProductClassified", "Produto, NCM, servico ou operacao classificados"], ["specialLegalBasisDocumented", "Base legal e documento registrados"], ["specialNoMixedRevenue", "Sem receita mista no mesmo valor"]]} values={values} set={set} />
+          </>}
+          {module === "real_profit_federal" && <>
+            <label className="tax-lab-field"><span>Trimestre</span><select value={text("realQuarter")} onChange={(e) => set("realQuarter", e.target.value)}><option value="1">1o trimestre</option><option value="2">2o trimestre</option><option value="3">3o trimestre</option><option value="4">4o trimestre</option></select></label>
+            <div className="field-pair"><Field label="Lucro contabil" value={text("accountingProfit")} onChange={(v) => set("accountingProfit", v)} prefix="R$" /><Field label="Adicoes" value={text("realAdditions")} onChange={(v) => set("realAdditions", v)} prefix="R$" /></div>
+            <div className="field-pair"><Field label="Exclusoes" value={text("realExclusions")} onChange={(v) => set("realExclusions", v)} prefix="R$" /><Field label="Compensacao solicitada" value={text("lossCompensation")} onChange={(v) => set("lossCompensation", v)} prefix="R$" /></div>
+            <Checks items={[["realRegimeConfirmed", "Lucro Real confirmado"], ["lalurReconciled", "LALUR/LACS e contabilidade conciliados"], ["realAdditionsSupported", "Adicoes e exclusoes suportadas"], ["compensationLimitChecked", "Limite de 30% conferido"]]} values={values} set={set} />
+          </>}
+          {module === "federal_withholdings" && <>
+            <div className="field-pair"><Field label="Pagamento bruto" value={text("withholdingGross")} onChange={(v) => set("withholdingGross", v)} prefix="R$" /><Field label="Aliquota ISS retido" value={text("withholdingIssRate")} onChange={(v) => set("withholdingIssRate", v)} suffix="%" /></div>
+            <Checks items={[["irrfApplies", "IRRF aplicavel"], ["csrfApplies", "CSRF aplicavel"], ["inssApplies", "INSS aplicavel"], ["withholdingIss", "ISS retido"]]} values={values} set={set} />
+            <Checks items={[["serviceNatureConfirmed", "Natureza do servico confirmada"], ["payerResponsible", "Responsavel pela retencao identificado"], ["beneficiaryRegimeChecked", "Regime e dispensas do beneficiario verificados"], ["municipalResponsibilityChecked", "Responsabilidade municipal do ISS conferida"]]} values={values} set={set} />
+          </>}
+          {module === "ipi_tipi" && <>
+            <label className="tax-lab-field"><span>Operacao</span><select value={text("ipiOperation")} onChange={(e) => set("ipiOperation", e.target.value)}><option value="industrial_output">Saida industrial</option><option value="import">Importacao</option></select></label>
+            <div className="field-pair"><Field label="Base do IPI" value={text("ipiBase")} onChange={(v) => set("ipiBase", v)} prefix="R$" /><Field label="Aliquota TIPI" value={text("ipiRate")} onChange={(v) => set("ipiRate", v)} suffix="%" /></div>
+            <Checks items={[["ncmConfirmed", "NCM e produto classificados"], ["tipiRateConfirmed", "Aliquota TIPI vigente confirmada"], ["industrializationOrImportConfirmed", "Industrializacao ou importacao relevante"], ["ipiExemptionsExcluded", "Beneficios e regimes especiais excluidos"]]} values={values} set={set} />
           </>}
           {module === "iss" && <>
             <div className="field-pair"><Field label="Preço do serviço" value={text("serviceBase")} onChange={(v) => set("serviceBase", v)} prefix="R$" /><Field label="Deduções documentadas" value={text("deductions")} onChange={(v) => set("deductions", v)} prefix="R$" /></div>

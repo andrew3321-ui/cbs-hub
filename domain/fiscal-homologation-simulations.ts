@@ -7,7 +7,7 @@ import {
   type LabSource,
 } from "./deterministic-tax-lab.ts";
 
-export const FISCAL_SIMULATION_SUITE_VERSION = "2026.07.21-v56";
+export const FISCAL_SIMULATION_SUITE_VERSION = "2026.07.27-v57";
 export const FISCAL_SIMULATION_BASE_CODE = "DETERMINISTIC-TAX-LAB-SIMULATIONS";
 export const FISCAL_SIMULATION_REFERENCE_DATE = "2026-07-21T12:00:00.000Z";
 
@@ -564,6 +564,78 @@ export const fiscalSimulationCases: FiscalSimulationCase[] = [
     expected: { status: "blocked", lines: [{ code: "interstate", amountCents: 1_200_000, rateBps: 1200 }, { code: "destination_total", amountCents: 0 }], blockerCount: 1 },
     expectedProfessionalConclusion: "Parâmetros internos incompatíveis devem bloquear a conclusão em vez de produzir DIFAL negativo ou inventado.",
     additionalSources: [municipalSources.minasGerais],
+  },
+  {
+    code: "SIM-PISCOFINS-SPECIAL-MONOPHASE",
+    title: "PIS/Cofins monofasico segregado do saldo geral",
+    moduleLabel: "PIS/Cofins especial",
+    profile: "Revenda ficticia com receita classificada como monofasica",
+    scenario: "Receita de R$ 100 mil classificada e documentada fora do modulo geral.",
+    operationPeriod: "07/2026",
+    kind: "calculated_reference",
+    input: { module: "pis_cofins_special", treatment: "monophase_resale", classifiedRevenueCents: 10_000_000, treatmentConfirmed: true, productOrServiceClassified: true, legalBasisDocumented: true, noMixedRevenue: true },
+    expected: { status: "calculated_reference", lines: [{ code: "classified_revenue", amountCents: 10_000_000 }, { code: "pis_reference", amountCents: 0, rateBps: 0 }, { code: "cofins_reference", amountCents: 0, rateBps: 0 }, { code: "blocked_general_balance", amountCents: null }], blockerCount: 0 },
+    expectedProfessionalConclusion: "Receitas com tratamento especial devem ficar segregadas e nao inflar o saldo padrao de PIS/Cofins.",
+  },
+  {
+    code: "SIM-PISCOFINS-SPECIAL-MISSING-FACTS",
+    title: "PIS/Cofins especial sem fatos obrigatorios",
+    moduleLabel: "PIS/Cofins especial - bloqueio",
+    profile: "Revenda ficticia sem suporte de classificacao",
+    scenario: "O valor existe, mas tratamento, classificacao, base legal e segregacao nao foram confirmados.",
+    operationPeriod: "07/2026",
+    kind: "expected_block",
+    input: { module: "pis_cofins_special", treatment: "zero_rate", classifiedRevenueCents: 10_000_000, treatmentConfirmed: false, productOrServiceClassified: false, legalBasisDocumented: false, noMixedRevenue: false },
+    expected: { status: "blocked", lines: [{ code: "classified_revenue", amountCents: 10_000_000 }, { code: "blocked_general_balance", amountCents: null }], blockerCount: 4 },
+    expectedProfessionalConclusion: "O modulo deve falhar fechado quando a receita especial nao tiver classificacao e fonte especifica.",
+  },
+  {
+    code: "SIM-REAL-PROFIT-IRPJ-CSLL",
+    title: "Lucro Real com compensacao limitada a 30%",
+    moduleLabel: "Lucro Real federal",
+    profile: "Industria ficticia no Lucro Real trimestral",
+    scenario: "Lucro contabil de R$ 200 mil, adicoes de R$ 30 mil, exclusoes de R$ 10 mil e compensacao solicitada acima do limite.",
+    operationPeriod: "3o trimestre/2026",
+    kind: "calculated_reference",
+    input: { module: "real_profit_federal", quarter: 3, accountingProfitCents: 20_000_000, additionsCents: 3_000_000, exclusionsCents: 1_000_000, lossCompensationCents: 8_000_000, regimeConfirmed: true, lalurReconciled: true, additionsExclusionsSupported: true, compensationLimitChecked: true },
+    expected: { status: "calculated_reference", lines: [{ code: "before_compensation", amountCents: 22_000_000 }, { code: "loss_compensation", amountCents: 6_600_000, rateBps: 3000 }, { code: "combined", amountCents: 4_636_000 }], blockerCount: 0 },
+    expectedProfessionalConclusion: "A memoria deve limitar a compensacao a 30% e separar IRPJ, adicional e CSLL em centavos.",
+  },
+  {
+    code: "SIM-FEDERAL-WITHHOLDINGS-SERVICES",
+    title: "Retencoes federais e ISS separadas por hipotese",
+    moduleLabel: "Retencoes",
+    profile: "Tomador ficticio pagando servico sujeito a multiplas retencoes",
+    scenario: "Pagamento bruto de R$ 100 mil com IRRF, CSRF, INSS e ISS parametrizado a 3%.",
+    operationPeriod: "07/2026",
+    kind: "calculated_reference",
+    input: { module: "federal_withholdings", grossPaymentCents: 10_000_000, irrfApplies: true, csrfApplies: true, inssApplies: true, issWithheld: true, issRateBps: 300, serviceNatureConfirmed: true, payerResponsible: true, beneficiaryRegimeChecked: true, municipalResponsibilityChecked: true },
+    expected: { status: "calculated_reference", lines: [{ code: "irrf", amountCents: 150_000, rateBps: 150 }, { code: "csrf", amountCents: 465_000, rateBps: 465 }, { code: "inss", amountCents: 1_100_000, rateBps: 1100 }, { code: "iss", amountCents: 300_000, rateBps: 300 }, { code: "net_payment", amountCents: 7_985_000 }], blockerCount: 0 },
+    expectedProfessionalConclusion: "Cada retencao deve manter base, aliquota, responsavel e impacto liquido separados.",
+  },
+  {
+    code: "SIM-IPI-TIPI-CALCULATED",
+    title: "IPI por NCM e aliquota TIPI confirmada",
+    moduleLabel: "IPI/TIPI",
+    profile: "Industria ficticia com saida tributada",
+    scenario: "Base de R$ 100 mil e aliquota TIPI parametrizada de 6,5%.",
+    operationPeriod: "07/2026",
+    kind: "calculated_reference",
+    input: { module: "ipi_tipi", operation: "industrial_output", ipiBaseCents: 10_000_000, ipiRateBps: 650, ncmConfirmed: true, tipiRateConfirmed: true, industrializationOrImportConfirmed: true, exemptionsExcluded: true },
+    expected: { status: "calculated_reference", lines: [{ code: "tipi_rate", amountCents: null, rateBps: 650 }, { code: "ipi_reference", amountCents: 650_000, rateBps: 650 }], blockerCount: 0 },
+    expectedProfessionalConclusion: "O calculo de IPI deve depender de NCM e aliquota vigente, sem presumir beneficios.",
+  },
+  {
+    code: "SIM-IPI-TIPI-MISSING-FACTS",
+    title: "IPI/TIPI sem NCM e vigencia confirmados",
+    moduleLabel: "IPI/TIPI - bloqueio",
+    profile: "Importacao ficticia com classificacao pendente",
+    scenario: "Base e aliquota foram digitadas, mas NCM, TIPI, operacao e exclusoes nao foram confirmadas.",
+    operationPeriod: "07/2026",
+    kind: "expected_block",
+    input: { module: "ipi_tipi", operation: "import", ipiBaseCents: 10_000_000, ipiRateBps: 650, ncmConfirmed: false, tipiRateConfirmed: false, industrializationOrImportConfirmed: false, exemptionsExcluded: false },
+    expected: { status: "blocked", lines: [{ code: "tipi_rate", amountCents: null, rateBps: 650 }, { code: "ipi_reference", amountCents: 650_000, rateBps: 650 }], blockerCount: 4 },
+    expectedProfessionalConclusion: "Sem classificacao e vigencia, a memoria matematica pode existir, mas a conclusao deve permanecer bloqueada.",
   },
 ];
 

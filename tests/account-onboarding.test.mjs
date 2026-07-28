@@ -115,7 +115,7 @@ test("interface oferece retomada, demonstração isolada e confirmação das aç
   const [onboardingUi, safetyUi, appUi] = await Promise.all([
     readFile(new URL("app/app/AccountOnboarding.tsx", root), "utf8"),
     readFile(new URL("app/app/ActionSafetyDialog.tsx", root), "utf8"),
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
   ]);
   assert.match(onboardingUi, /PROGRESSO RETOMÁVEL/);
   assert.match(onboardingUi, /Fechar e retomar depois/);

@@ -15,9 +15,9 @@ export default async function LandingPage() {
   return (
     <main className="landing-shell">
       <header className="landing-nav">
-        <Link className="landing-brand" href="/" aria-label="Margem Clara — início">
-          <span className="landing-brand-mark">mc</span>
-          <span>margem<strong>clara</strong></span>
+        <Link className="landing-brand" href="/" aria-label="CBSHub — início">
+          <span className="landing-brand-mark">cb</span>
+          <span>CBSHub</span>
         </Link>
         <nav aria-label="Navegação da apresentação">
           <a href="#produto">Produto</a>
@@ -48,12 +48,12 @@ export default async function LandingPage() {
           </div>
         </div>
 
-        <div className="landing-product-stage" aria-label="Prévia do painel Margem Clara">
+        <div className="landing-product-stage" aria-label="Prévia do painel CBSHub">
           <div className="stage-orbit orbit-one" />
           <div className="stage-orbit orbit-two" />
           <div className="landing-product-window">
             <div className="product-window-top">
-              <span className="mini-brand"><i>mc</i> margem<b>clara</b></span>
+              <span className="mini-brand"><i>cb</i> CBSHub</span>
               <span className="window-company">Aurora Consultoria⌄</span>
               <span className="window-avatar">AC</span>
             </div>
@@ -137,14 +137,14 @@ export default async function LandingPage() {
       </section>
 
       <section className="landing-final-cta">
-        <div><span className="landing-eyebrow">MARGEM CLARA PARA CONTADORES</span><h2>Do trabalho técnico à entrega, sem perder a responsabilidade.</h2><p>Comece com um cliente, registre as premissas, revise a versão e entregue um resultado com limites claros.</p></div>
+        <div><span className="landing-eyebrow">CBSHUB PARA CONTADORES</span><h2>Do trabalho técnico à entrega, sem perder a responsabilidade.</h2><p>Comece com um cliente, registre as premissas, revise a versão e entregue um resultado com limites claros.</p></div>
         <Link className="landing-cta light" href={primaryPath}>{user ? "Voltar ao painel" : "Testar tudo por 5 dias"}<span>→</span></Link>
       </section>
 
       <footer className="landing-footer">
-        <Link className="landing-brand" href="/"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link>
+        <Link className="landing-brand" href="/"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link>
         <p>Responsável pela plataforma: <Link href="/responsavel">{platformIdentity.responsibleName}</Link></p>
-        <span><Link href="/responsavel">Responsável</Link> · <Link href="/privacidade">Privacidade</Link> · <Link href="/termos">Termos</Link> · <Link href="/metodologia">Metodologia</Link> · <Link href="/planos">Planos</Link> · © 2026 Margem Clara</span>
+        <span><Link href="/responsavel">Responsável</Link> · <Link href="/privacidade">Privacidade</Link> · <Link href="/termos">Termos</Link> · <Link href="/metodologia">Metodologia</Link> · <Link href="/planos">Planos</Link> · © 2026 CBSHub</span>
       </footer>
     </main>
   );

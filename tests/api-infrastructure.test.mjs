@@ -7,7 +7,7 @@ test("telemetria devolve identificador de correlação sem alterar a resposta", 
   console.info = () => {};
   try {
     const handler = withApiTelemetry("GET /test", async () => Response.json({ ok: true }, { status: 202 }));
-    const response = await handler(new Request("https://margemclara.local/test"));
+    const response = await handler(new Request("https://cbshub.local/test"));
     assert.equal(response.status, 202);
     assert.match(response.headers.get("x-request-id") ?? "", /^[0-9a-f-]{32,36}$/);
     assert.deepEqual(await response.json(), { ok: true });
@@ -21,7 +21,7 @@ test("falha inesperada recebe código seguro e o mesmo identificador no cabeçal
   console.error = () => {};
   try {
     const handler = withApiTelemetry("POST /test", async () => { throw new Error("segredo que não deve vazar"); });
-    const response = await handler(new Request("https://margemclara.local/test", { method: "POST" }));
+    const response = await handler(new Request("https://cbshub.local/test", { method: "POST" }));
     const body = await response.json();
     assert.equal(response.status, 500);
     assert.equal(body.code, "INTERNAL_ERROR");

@@ -371,7 +371,7 @@ const productDemos: ProductDemo[] = [
     steps: [
       { label: "PASSO 1 · PREMISSAS", title: "Confirme a realidade atual", description: "Comece com a alíquota e a estrutura de custos que a empresa já possui hoje.", metricLabel: "MARGEM ATUAL", metric: "24,2%", action: "Avançar" },
       { label: "PASSO 2 · TRANSIÇÃO", title: "Informe a nova carga", description: "Ajuste a alíquota projetada e veja a nova despesa tributária recalculada em tempo real.", metricLabel: "IBS + CBS PROJETADOS", metric: "13,45%", action: "Comparar margens" },
-      { label: "PASSO 3 · RECOMENDAÇÃO", title: "Encontre o ponto de equilíbrio", description: "O Margem Clara calcula quanto o preço precisa subir para preservar o resultado atual.", metricLabel: "REAJUSTE RECOMENDADO", metric: "5,6%", action: "Aplicar reajuste" },
+      { label: "PASSO 3 · RECOMENDAÇÃO", title: "Encontre o ponto de equilíbrio", description: "O CBSHub calcula quanto o preço precisa subir para preservar o resultado atual.", metricLabel: "REAJUSTE RECOMENDADO", metric: "5,6%", action: "Aplicar reajuste" },
       { label: "PASSO 4 · COMPARAÇÃO", title: "Compare duas estratégias", description: "Salve uma alternativa conservadora e outra integral para conduzir a decisão comercial.", metricLabel: "GANHO NO CENÁRIO", metric: "+ R$ 12.940", action: "Gerar resumo" },
     ],
   },
@@ -395,7 +395,7 @@ function formatCnpj(value: string | null) {
   return value.replace(/^(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})$/, "$1.$2.$3/$4-$5");
 }
 
-type MargemAppProps = {
+type CBSHubAppProps = {
   user: { id: number; displayName: string; email: string };
   workspace: { id: number; name: string; type: "individual" | "office"; ownerUserId: number; suggestedPlanKey: "unico"; role: "owner" | "admin" | "preparer" | "reviewer" };
   initialEntitlements: WorkspaceEntitlements;
@@ -403,7 +403,7 @@ type MargemAppProps = {
   isPlatformAdmin: boolean;
 };
 
-export default function MargemApp({ user, workspace, initialEntitlements, signOutPath, isPlatformAdmin }: MargemAppProps) {
+export default function CBSHubApp({ user, workspace, initialEntitlements, signOutPath, isPlatformAdmin }: CBSHubAppProps) {
   const [section, setSection] = useState<Section>("overview");
   const [companies, setCompanies] = useState<Company[]>([]);
   const [entitlements, setEntitlements] = useState(initialEntitlements);
@@ -585,7 +585,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
           setSection("companies");
           setShowCompanyForm(data.entitlements?.canCreateCompany ?? initialEntitlements.canCreateCompany);
         }
-        const storedId = Number(window.localStorage.getItem("margem-clara-company"));
+        const storedId = Number(window.localStorage.getItem("cbshub-company"));
         const selected = rows.find((company) => company.id === storedId)?.id ?? rows[0]?.id ?? null;
         changeActiveCompany(selected);
       })
@@ -594,7 +594,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
 
   useEffect(() => {
     if (!activeCompanyId) return;
-    window.localStorage.setItem("margem-clara-company", String(activeCompanyId));
+    window.localStorage.setItem("cbshub-company", String(activeCompanyId));
     void refreshReportShares(activeCompanyId);
     void refreshAuditEvents(activeCompanyId);
     fetch(`/api/scenarios?companyId=${activeCompanyId}`)
@@ -1115,7 +1115,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
 
   function exportScenarioReport() {
     const rows = [
-      ["Relatório Margem Clara", scenarioName],
+      ["Relatório CBSHub", scenarioName],
       ["Empresa", activeCompany?.name ?? "Não selecionada"],
       ["Regime tributário", activeCompany?.taxRegime ?? "Não informado"],
       ["Ano-alvo", String(targetYear)],
@@ -1143,7 +1143,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
     const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
     const link = document.createElement("a");
     link.href = url;
-    link.download = `margem-clara-${scenarioName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "cenario"}.csv`;
+    link.download = `cbshub-${scenarioName.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "cenario"}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     setMessage("Relatório exportado em CSV.");
@@ -1222,9 +1222,9 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
   return (
     <main className="app-shell">
       <aside className="sidebar">
-        <div className="brand" aria-label="Margem Clara">
-          <span className="brand-mark">mc</span>
-          <span>margem<span>clara</span></span>
+        <div className="brand" aria-label="CBSHub">
+          <span className="brand-mark">cb</span>
+          <span>CBSHub</span>
         </div>
 
         <nav ref={navigationRef} className="main-nav" aria-label="Navegação principal">
@@ -1237,7 +1237,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
           <button title="Análises" className={section === "simulator" ? "active" : ""} onClick={() => setSection("simulator")}>
             <span className="nav-icon">↗</span>Análises
           </button>
-          {workspace.type === "office" && <button title={entitlements.officeCollaborationEnabled ? "Central de revisão" : "Exclusivo do plano Margem Clara"} className={`${section === "reviews" ? "active" : ""} ${!entitlements.officeCollaborationEnabled ? "plan-locked" : ""}`} onClick={() => setSection("reviews")}>
+          {workspace.type === "office" && <button title={entitlements.officeCollaborationEnabled ? "Central de revisão" : "Exclusivo do plano CBSHub"} className={`${section === "reviews" ? "active" : ""} ${!entitlements.officeCollaborationEnabled ? "plan-locked" : ""}`} onClick={() => setSection("reviews")}>
             <span className="nav-icon">✓</span>Central de revisão{!entitlements.officeCollaborationEnabled && <small>PLANO</small>}
           </button>}
           <button title="Documentos" className={section === "documents" ? "active" : ""} onClick={() => setSection("documents")}>
@@ -1246,22 +1246,22 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
           <button title={workspace.type === "office" ? "Equipe" : "Modo de trabalho"} className={section === "team" ? "active" : ""} onClick={() => setSection("team")}>
             <span className="nav-icon">◎</span>{workspace.type === "office" ? "Equipe" : "Modo de trabalho"}
           </button>
-          <button title={entitlements.fiscalIntelligenceEnabled ? "Inteligência fiscal" : "Disponível no plano Margem Clara"} className={`${section === "intelligence" ? "active" : ""} ${!entitlements.fiscalIntelligenceEnabled ? "plan-locked" : ""}`} onClick={() => setSection("intelligence")}>
+          <button title={entitlements.fiscalIntelligenceEnabled ? "Inteligência fiscal" : "Disponível no plano CBSHub"} className={`${section === "intelligence" ? "active" : ""} ${!entitlements.fiscalIntelligenceEnabled ? "plan-locked" : ""}`} onClick={() => setSection("intelligence")}>
             <span className="nav-icon">⌕</span>Inteligência fiscal{!entitlements.fiscalIntelligenceEnabled && <small>PLANO</small>}
           </button>
-          <button title={entitlements.taxLabEnabled ? "Laboratório fiscal" : "Disponível no plano Margem Clara"} className={`${section === "taxlab" ? "active" : ""} ${!entitlements.taxLabEnabled ? "plan-locked" : ""}`} onClick={() => setSection("taxlab")}>
+          <button title={entitlements.taxLabEnabled ? "Laboratório fiscal" : "Disponível no plano CBSHub"} className={`${section === "taxlab" ? "active" : ""} ${!entitlements.taxLabEnabled ? "plan-locked" : ""}`} onClick={() => setSection("taxlab")}>
             <span className="nav-icon">∑</span>Laboratório fiscal{!entitlements.taxLabEnabled && <small>PLANO</small>}
           </button>
-          <button title={entitlements.nationalCoverageEnabled ? "Cobertura nacional" : "Disponível no plano Margem Clara"} className={`${section === "coverage" ? "active" : ""} ${!entitlements.nationalCoverageEnabled ? "plan-locked" : ""}`} onClick={() => setSection("coverage")}>
+          <button title={entitlements.nationalCoverageEnabled ? "Cobertura nacional" : "Disponível no plano CBSHub"} className={`${section === "coverage" ? "active" : ""} ${!entitlements.nationalCoverageEnabled ? "plan-locked" : ""}`} onClick={() => setSection("coverage")}>
             <span className="nav-icon">◇</span>Cobertura nacional{!entitlements.nationalCoverageEnabled && <small>PLANO</small>}
           </button>
-          <button title="Expansão fiscal" aria-label={entitlements.fiscalExpansionEnabled ? "Expansão fiscal" : "Expansão fiscal, disponível no plano Margem Clara"} className={`${section === "expansion" ? "active" : ""} ${!entitlements.fiscalExpansionEnabled ? "plan-locked" : ""}`} onClick={() => setSection("expansion")}>
+          <button title="Expansão fiscal" aria-label={entitlements.fiscalExpansionEnabled ? "Expansão fiscal" : "Expansão fiscal, disponível no plano CBSHub"} className={`${section === "expansion" ? "active" : ""} ${!entitlements.fiscalExpansionEnabled ? "plan-locked" : ""}`} onClick={() => setSection("expansion")}>
             <span className="nav-icon">↟</span>Expansão fiscal{!entitlements.fiscalExpansionEnabled && <small>PLANO</small>}
           </button>
-          <button title={entitlements.fiscalRulesEnabled ? "Regras fiscais" : "Disponível no plano Margem Clara"} className={`${section === "rules" ? "active" : ""} ${!entitlements.fiscalRulesEnabled ? "plan-locked" : ""}`} onClick={() => setSection("rules")}>
+          <button title={entitlements.fiscalRulesEnabled ? "Regras fiscais" : "Disponível no plano CBSHub"} className={`${section === "rules" ? "active" : ""} ${!entitlements.fiscalRulesEnabled ? "plan-locked" : ""}`} onClick={() => setSection("rules")}>
             <span className="nav-icon">§</span>Regras fiscais{!entitlements.fiscalRulesEnabled && <small>PLANO</small>}
           </button>
-          <button title={entitlements.taxDeterminationEnabled ? "Apuração fiscal" : "Disponível no plano Margem Clara"} className={`${section === "determination" ? "active" : ""} ${!entitlements.taxDeterminationEnabled ? "plan-locked" : ""}`} onClick={() => setSection("determination")}>
+          <button title={entitlements.taxDeterminationEnabled ? "Apuração fiscal" : "Disponível no plano CBSHub"} className={`${section === "determination" ? "active" : ""} ${!entitlements.taxDeterminationEnabled ? "plan-locked" : ""}`} onClick={() => setSection("determination")}>
             <span className="nav-icon">≋</span>Apuração fiscal{!entitlements.taxDeterminationEnabled && <small>PLANO</small>}
           </button>
           {isPlatformAdmin && <button title="Central de faturamento" className={section === "billing" ? "active" : ""} onClick={() => setSection("billing")}>
@@ -1525,7 +1525,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
             </section>
 
             <section className="panel executive-panel">
-              <div className="print-only print-brand"><span className="brand-mark">mc</span><strong>margemclara</strong><small>{activeCompany?.name ?? "Resumo executivo"}</small></div>
+              <div className="print-only print-brand"><span className="brand-mark">cb</span><strong>cbshub</strong><small>{activeCompany?.name ?? "Resumo executivo"}</small></div>
               <div className="panel-heading">
                 <div><span className="eyebrow">RESUMO EXECUTIVO</span><h3>Decisão recomendada</h3></div>
                 <button className="text-button print-button" onClick={() => window.print()}>Imprimir resumo</button>
@@ -1698,8 +1698,8 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
             <div className="page-heading"><div><p className="kicker">MODO CONTADOR INDEPENDENTE</p><h1>Seu espaço profissional individual</h1><p>Você prepara, revisa e assume a responsabilidade pelas próprias versões, com esse limite declarado em cada relatório.</p></div><span className="office-plan-badge individual"><small>PLANO ATIVO</small><b>{entitlements.name}</b><em>{companyCapacityLabel}</em></span></div>
             {message && <div className="toast" role="status">{message}</div>}
             <section className="mode-comparison-grid">
-              <article className="current"><span>MODO ATUAL</span><h2>Contador independente</h2><p>Uma conta concentra preparação e revisão responsável. O relatório não chama isso de revisão independente.</p><ul><li>Carteira e versões privadas</li><li>Assinatura do responsável</li><li>Plano Margem Clara sugerido</li></ul></article>
-              <article><span>EVOLUIR PARA</span><h2>Escritório contábil</h2><p>Ative equipe, convide profissionais e passe a exigir outra pessoa na aprovação.</p>{entitlements.officeCollaborationEnabled ? <form onSubmit={(event) => { event.preventDefault(); void upgradeToOffice(); }}><label>Nome do escritório<input required minLength={2} maxLength={120} value={officeUpgradeName} onChange={(event) => setOfficeUpgradeName(event.target.value)} placeholder="Ex.: Horizonte Contabilidade" /></label><button className="primary-button" disabled={upgradingWorkspace || officeUpgradeName.trim().length < 2}>{upgradingWorkspace ? "Ativando…" : "Ativar modo escritório"}</button></form> : <a className="plan-upgrade-link" href="/planos">Assinar plano completo →</a>}<small>A carteira e o histórico atuais serão preservados. O modo colaborativo é incluído no plano Margem Clara.</small></article>
+              <article className="current"><span>MODO ATUAL</span><h2>Contador independente</h2><p>Uma conta concentra preparação e revisão responsável. O relatório não chama isso de revisão independente.</p><ul><li>Carteira e versões privadas</li><li>Assinatura do responsável</li><li>Plano CBSHub sugerido</li></ul></article>
+              <article><span>EVOLUIR PARA</span><h2>Escritório contábil</h2><p>Ative equipe, convide profissionais e passe a exigir outra pessoa na aprovação.</p>{entitlements.officeCollaborationEnabled ? <form onSubmit={(event) => { event.preventDefault(); void upgradeToOffice(); }}><label>Nome do escritório<input required minLength={2} maxLength={120} value={officeUpgradeName} onChange={(event) => setOfficeUpgradeName(event.target.value)} placeholder="Ex.: Horizonte Contabilidade" /></label><button className="primary-button" disabled={upgradingWorkspace || officeUpgradeName.trim().length < 2}>{upgradingWorkspace ? "Ativando…" : "Ativar modo escritório"}</button></form> : <a className="plan-upgrade-link" href="/planos">Assinar plano completo →</a>}<small>A carteira e o histórico atuais serão preservados. O modo colaborativo é incluído no plano CBSHub.</small></article>
             </section>
           </div>
         )}
@@ -1742,7 +1742,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
                   <div className="role-explainer"><b>{inviteRole === "reviewer" ? "Revisor" : inviteRole === "preparer" ? "Preparador" : "Administrador"}</b><span>{inviteRole === "reviewer" ? "Confere e aprova versões preparadas por outras pessoas." : inviteRole === "preparer" ? "Cadastra clientes e cria versões, mas não aprova a própria versão." : "Gerencia equipe, prepara e revisa versões de outras pessoas."}</span></div>
                   <button className="primary-button" disabled={teamLoading || !inviteEmail.trim()}>{teamLoading ? "Criando convite…" : "Gerar convite de 7 dias"}</button>
                   {createdInviteUrl && <div className="created-invite"><span>LINK CRIADO E COPIADO</span><input readOnly value={createdInviteUrl} onFocus={(event) => event.currentTarget.select()} /></div>}
-                </form> : <div className="team-readonly"><span>i</span><p><b>{entitlements.officeCollaborationEnabled ? "Gestão somente para administradores" : "Plano Margem Clara necessário"}</b><small>{entitlements.officeCollaborationEnabled ? "Seu papel permite trabalhar na carteira, mas não convidar novos membros." : "Convites, papéis e revisão por outra pessoa ficam disponíveis no plano completo."}</small>{!entitlements.officeCollaborationEnabled && <a href="/planos">Ver plano completo →</a>}</p></div>}
+                </form> : <div className="team-readonly"><span>i</span><p><b>{entitlements.officeCollaborationEnabled ? "Gestão somente para administradores" : "Plano CBSHub necessário"}</b><small>{entitlements.officeCollaborationEnabled ? "Seu papel permite trabalhar na carteira, mas não convidar novos membros." : "Convites, papéis e revisão por outra pessoa ficam disponíveis no plano completo."}</small>{!entitlements.officeCollaborationEnabled && <a href="/planos">Ver plano completo →</a>}</p></div>}
                 {teamInvitations.length > 0 && <div className="pending-invites"><span>CONVITES PENDENTES</span>{teamInvitations.map((invitation) => <article key={invitation.id}><p><b>{invitation.email}</b><small>{invitation.role} · expira {new Date(invitation.expiresAt).toLocaleDateString("pt-BR")}</small></p>{canManageTeam && <button type="button" onClick={() => void revokeTeamInvitation(invitation)}>Revogar</button>}</article>)}</div>}
               </aside>
             </div>
@@ -1910,7 +1910,7 @@ export default function MargemApp({ user, workspace, initialEntitlements, signOu
                 </div>
 
                 <div className={`demo-player-screen ${activeDemo.accent}`} aria-live="polite">
-                  <div className="demo-screen-top"><span><i>mc</i> margem<b>clara</b></span><small>DEMONSTRAÇÃO GUIADA</small><em>{demoStep + 1}/{activeDemo.steps.length}</em></div>
+                  <div className="demo-screen-top"><span><i>cb</i> CBSHub</span><small>DEMONSTRAÇÃO GUIADA</small><em>{demoStep + 1}/{activeDemo.steps.length}</em></div>
                   <div className="demo-screen-body">
                     <aside>{activeDemo.steps.map((step, index) => <span className={index === demoStep ? "active" : index < demoStep ? "done" : ""} key={step.title}><i>{index < demoStep ? "✓" : index + 1}</i><b>{step.label.replace(/PASSO \d · /, "")}</b></span>)}</aside>
                     <div className="demo-scene" key={`${demoIndex}-${demoStep}`}>

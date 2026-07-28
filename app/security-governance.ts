@@ -31,7 +31,7 @@ async function pseudonymousHash(purpose: string, value: string) {
     false,
     ["sign"],
   );
-  const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`margem-clara:privacy:v1:${purpose}:${value}`));
+  const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`cbshub:privacy:v1:${purpose}:${value}`));
   return bytesToHex(new Uint8Array(digest));
 }
 

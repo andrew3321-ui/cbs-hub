@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const db = getDb();
     const [account] = await db.select().from(billingAccounts).where(eq(billingAccounts.userId, workspace.ownerUserId)).limit(1);
     if (!account || account.planKey !== "unico" || account.status !== "active") {
-      return Response.json({ error: "Contrate o plano Margem Clara antes de alterar a capacidade." }, { status: 409 });
+      return Response.json({ error: "Contrate o plano CBSHub antes de alterar a capacidade." }, { status: 409 });
     }
     if (!account.providerSubscriptionId) {
       return Response.json({
@@ -63,7 +63,7 @@ export async function POST(request: Request) {
     const subscription = await mercadoPagoRequest<MercadoPagoSubscription>(`/preapproval/${encodeURIComponent(account.providerSubscriptionId)}`, {
       method: "PUT",
       body: JSON.stringify({
-        reason: `Margem Clara — até ${targetLimit} empresas`,
+        reason: `CBSHub — até ${targetLimit} empresas`,
         auto_recurring: {
           transaction_amount: amountCents / 100,
           currency_id: "BRL",

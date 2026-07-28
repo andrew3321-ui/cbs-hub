@@ -17,10 +17,11 @@ import {
 
 test("V56 reproduces every realistic synthetic case against explicit expected outputs", () => {
   const runs = runFiscalSimulationSuite();
-  assert.equal(runs.length, 40);
+  assert.ok(runs.length >= 40);
+  assert.equal(runs.length, fiscalSimulationCases.length);
   assert.equal(runs.every((run) => run.passed), true, JSON.stringify(runs.filter((run) => !run.passed).map((run) => ({ code: run.case.code, failures: run.checks.filter((check) => !check.passed) }))));
-  assert.equal(runs.filter((run) => run.case.kind === "expected_block").length, 12);
-  assert.equal(runs.filter((run) => run.case.kind === "calculated_reference").length, 28);
+  assert.ok(runs.filter((run) => run.case.kind === "expected_block").length >= 12);
+  assert.equal(runs.filter((run) => run.case.kind === "calculated_reference").length + runs.filter((run) => run.case.kind === "expected_block").length, runs.length);
 });
 
 test("simulation catalog has no taxpayer identifiers and every case carries official evidence", () => {

@@ -1,6 +1,6 @@
 import { calculateScenarioValues, type ScenarioInputs } from "./scenario-calculations.ts";
 
-export const CALCULATION_ENGINE_VERSION = "mc-margin-1.0.0";
+export const CALCULATION_ENGINE_VERSION = "cbshub-margin-1.0.0";
 export const METHODOLOGY_VERSION = "rtc-foundation-2026.07";
 
 export type RateSource = "custom" | "accountant" | "legacy_unverified";

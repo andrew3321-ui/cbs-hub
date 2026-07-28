@@ -1,9 +1,9 @@
 import { resolveInterstateIcms, type UfCode } from "./national-tax-coverage.ts";
 
-export const DETERMINISTIC_TAX_LAB_VERSION = "2026.07.17-v32";
-export const DETERMINISTIC_TAX_LAB_CHECKED_AT = "2026-07-17";
+export const DETERMINISTIC_TAX_LAB_VERSION = "2026.07.27-v33";
+export const DETERMINISTIC_TAX_LAB_CHECKED_AT = "2026-07-27";
 
-export type LabModule = "simples_annex_i" | "simples_services" | "pis_cofins" | "presumed_profit_2026" | "iss" | "icms_difal" | "rtc_2026";
+export type LabModule = "simples_annex_i" | "simples_services" | "pis_cofins" | "pis_cofins_special" | "presumed_profit_2026" | "real_profit_federal" | "federal_withholdings" | "ipi_tipi" | "iss" | "icms_difal" | "rtc_2026";
 export type LabIssue = { code: string; severity: "blocker" | "warning"; message: string };
 export type LabLine = { code: string; label: string; formula: string; amountCents: number | null; rateBps?: number | null };
 export type LabSource = { code: string; title: string; publisher: string; url: string; checkedAt: string };
@@ -33,6 +33,10 @@ export const labSources = {
   cumulativePisCofinsLaw: { code: "LEI-9718-1998", title: "Lei nº 9.718/1998 — regime cumulativo", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/l9718compilada.htm", checkedAt },
   pisNonCumulativeLaw: { code: "LEI-10637-2002", title: "Lei nº 10.637/2002 — PIS não cumulativo", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/2002/l10637compilado.htm", checkedAt },
   cofinsNonCumulativeLaw: { code: "LEI-10833-2003", title: "Lei nº 10.833/2003 — Cofins não cumulativa", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/2003/l10.833.htm", checkedAt },
+  law9430: { code: "LEI-9430-1996", title: "Lei nº 9.430/1996", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/l9430.htm", checkedAt },
+  rir2018: { code: "D-9580-2018", title: "Decreto nº 9.580/2018", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/decreto/d9580.htm", checkedAt },
+  inssCessao: { code: "LEI-8212-1991", title: "Lei nº 8.212/1991", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/l8212cons.htm", checkedAt },
+  ipi: { code: "RFB-TIPI-2026", title: "TIPI", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/legislacao/tipi-tabela-de-incidencia-do-imposto-sobre-produtos-industrializados", checkedAt },
   iss: { code: "LC-116-2003", title: "Lei Complementar nº 116/2003", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp116.htm", checkedAt },
   difal: { code: "LC-190-2022", title: "Lei Complementar nº 190/2022", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp190.htm", checkedAt },
   rtc: { code: "RFB-RTC-2026", title: "Entenda a Reforma Tributária do Consumo", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/entenda", checkedAt },
@@ -182,6 +186,38 @@ export function calculatePisCofins(input: PisCofinsInput): LabResult {
   ], issues, nonCumulative ? [labSources.pisCofins, labSources.pisNonCumulativeLaw, labSources.cofinsNonCumulativeLaw] : [labSources.pisCofins, labSources.cumulativePisCofinsLaw], verifiedFacts, `${nonCumulative ? "Regime não cumulativo" : "Regime cumulativo"}; separação auditável entre débitos e créditos.`);
 }
 
+export type PisCofinsSpecialInput = {
+  treatment: "monophase_resale" | "zero_rate" | "suspension" | "export";
+  classifiedRevenueCents: number;
+  treatmentConfirmed: boolean;
+  productOrServiceClassified: boolean;
+  legalBasisDocumented: boolean;
+  noMixedRevenue: boolean;
+};
+export function calculatePisCofinsSpecial(input: PisCofinsSpecialInput): LabResult {
+  if (!(["monophase_resale", "zero_rate", "suspension", "export"] as string[]).includes(input.treatment)) throw new Error("invalid_pis_cofins_treatment");
+  const revenue = safeInteger(input.classifiedRevenueCents, "classified_revenue");
+  const verifiedFacts = facts([
+    ["tratamento especial de PIS/Cofins confirmado para a receita", input.treatmentConfirmed],
+    ["produto, NCM, serviço ou operação classificados", input.productOrServiceClassified],
+    ["base legal específica e documento de suporte registrados", input.legalBasisDocumented],
+    ["não há receita mista sem segregação no mesmo valor", input.noMixedRevenue],
+  ]);
+  const issues: LabIssue[] = [...missingFacts(verifiedFacts)];
+  const treatmentLabel = {
+    monophase_resale: "revenda monofásica",
+    zero_rate: "alíquota zero",
+    suspension: "suspensão",
+    export: "exportação",
+  }[input.treatment];
+  return result("pis_cofins_special", "PIS/Cofins — tratamento especial", [
+    { code: "classified_revenue", label: "Receita classificada", formula: "Valor segregado para o tratamento especial", amountCents: revenue },
+    { code: "pis_reference", label: "PIS/Pasep de referência", formula: `${treatmentLabel}: débito não calculado no módulo geral`, amountCents: 0, rateBps: 0 },
+    { code: "cofins_reference", label: "Cofins de referência", formula: `${treatmentLabel}: débito não calculado no módulo geral`, amountCents: 0, rateBps: 0 },
+    { code: "blocked_general_balance", label: "Saldo geral bloqueado para esta receita", formula: "Receita especial exige trilha própria e não entra no PIS/Cofins padrão", amountCents: null },
+  ], issues, [labSources.pisCofins, labSources.cumulativePisCofinsLaw, labSources.pisNonCumulativeLaw, labSources.cofinsNonCumulativeLaw], verifiedFacts, `${treatmentLabel}; a receita fica segregada para não inflar o saldo padrão.`);
+}
+
 export type PresumedProfit2026Input = { quarter: 1 | 2 | 3 | 4; commerceRevenueCents: number; serviceRevenueCents: number; fullyTaxableAdditionsCents: number; regimeConfirmed: boolean; activitiesSeparated: boolean; revenueReconciled: boolean; specialActivitiesExcluded: boolean };
 export function calculatePresumedProfit2026(input: PresumedProfit2026Input): LabResult {
   const quarter = safeInteger(input.quarter, "quarter", 1, 4) as 1 | 2 | 3 | 4;
@@ -218,6 +254,117 @@ export function calculatePresumedProfit2026(input: PresumedProfit2026Input): Lab
     { code: "csll", label: "CSLL trimestral de referência", formula: "Base presumida da CSLL × 9%", amountCents: csll, rateBps: 900 },
     { code: "combined", label: "IRPJ + CSLL de referência", formula: "Soma dos tributos calculados; não inclui PIS/Cofins", amountCents: irpjBaseTax + irpjAdditional + csll },
   ], issues, [labSources.irpj, labSources.csll, labSources.lc224, labSources.decree12808, labSources.presumedFaq2026], verifiedFacts, `Limite trimestral de R$ 1,25 milhão aplicado proporcionalmente; acréscimos de 2026 tratados por tributo e trimestre.`);
+}
+
+export type RealProfitFederalInput = {
+  quarter: 1 | 2 | 3 | 4;
+  accountingProfitCents: number;
+  additionsCents: number;
+  exclusionsCents: number;
+  lossCompensationCents: number;
+  regimeConfirmed: boolean;
+  lalurReconciled: boolean;
+  additionsExclusionsSupported: boolean;
+  compensationLimitChecked: boolean;
+};
+export function calculateRealProfitFederal(input: RealProfitFederalInput): LabResult {
+  safeInteger(input.quarter, "quarter", 1, 4);
+  const profit = safeInteger(input.accountingProfitCents, "accounting_profit");
+  const additions = safeInteger(input.additionsCents, "additions");
+  const exclusions = safeInteger(input.exclusionsCents, "exclusions", 0, profit + additions);
+  const beforeCompensation = Math.max(0, profit + additions - exclusions);
+  const maximumCompensation = multiplyCentsByBps(beforeCompensation, 3000);
+  const requestedCompensation = safeInteger(input.lossCompensationCents, "loss_compensation", 0, beforeCompensation);
+  const acceptedCompensation = Math.min(requestedCompensation, maximumCompensation);
+  const taxableBase = beforeCompensation - acceptedCompensation;
+  const irpj = multiplyCentsByBps(taxableBase, 1500);
+  const additionalBase = Math.max(0, taxableBase - 6_000_000);
+  const irpjAdditional = multiplyCentsByBps(additionalBase, 1000);
+  const csll = multiplyCentsByBps(taxableBase, 900);
+  const verifiedFacts = facts([
+    ["opção ou obrigatoriedade pelo Lucro Real confirmada", input.regimeConfirmed],
+    ["LALUR/LACS e contabilidade conciliados", input.lalurReconciled],
+    ["adições e exclusões possuem suporte documental", input.additionsExclusionsSupported],
+    ["limite de compensação de prejuízo fiscal foi conferido", input.compensationLimitChecked],
+  ]);
+  const issues: LabIssue[] = [...missingFacts(verifiedFacts)];
+  if (requestedCompensation > maximumCompensation) issues.push({ code: "loss_compensation_capped", severity: "warning", message: "A compensação informada excede 30% da base e foi limitada na memória." });
+  return result("real_profit_federal", "Lucro Real — IRPJ/CSLL", [
+    { code: "accounting_profit", label: "Lucro contábil antes dos tributos", formula: "Valor informado", amountCents: profit },
+    { code: "additions", label: "Adições controladas", formula: "Adições LALUR/LACS suportadas", amountCents: additions },
+    { code: "exclusions", label: "Exclusões controladas", formula: "Exclusões LALUR/LACS suportadas", amountCents: exclusions },
+    { code: "before_compensation", label: "Base antes da compensação", formula: "Lucro + adições - exclusões", amountCents: beforeCompensation },
+    { code: "loss_compensation", label: "Compensação aceita", formula: "Menor entre valor informado e 30% da base", amountCents: acceptedCompensation, rateBps: 3000 },
+    { code: "taxable_base", label: "Base tributável IRPJ/CSLL", formula: "Base antes da compensação - compensação aceita", amountCents: taxableBase },
+    { code: "irpj_15", label: "IRPJ à alíquota geral", formula: "Base × 15%", amountCents: irpj, rateBps: 1500 },
+    { code: "irpj_additional", label: "Adicional do IRPJ", formula: "10% sobre a base trimestral que exceder R$ 60.000", amountCents: irpjAdditional, rateBps: 1000 },
+    { code: "csll", label: "CSLL de referência", formula: "Base × 9%", amountCents: csll, rateBps: 900 },
+    { code: "combined", label: "IRPJ + CSLL de referência", formula: "IRPJ 15% + adicional + CSLL", amountCents: irpj + irpjAdditional + csll },
+  ], issues, [labSources.irpj, labSources.csll, labSources.law9430, labSources.rir2018], verifiedFacts, "Recorte trimestral de Lucro Real com adições, exclusões e compensação em centavos.");
+}
+
+export type FederalWithholdingsInput = {
+  grossPaymentCents: number;
+  irrfApplies: boolean;
+  csrfApplies: boolean;
+  inssApplies: boolean;
+  issWithheld: boolean;
+  issRateBps: number;
+  serviceNatureConfirmed: boolean;
+  payerResponsible: boolean;
+  beneficiaryRegimeChecked: boolean;
+  municipalResponsibilityChecked: boolean;
+};
+export function calculateFederalWithholdings(input: FederalWithholdingsInput): LabResult {
+  const gross = safeInteger(input.grossPaymentCents, "gross_payment");
+  const issRate = safeInteger(input.issRateBps, "iss_rate", 0, 500);
+  const irrf = input.irrfApplies ? multiplyCentsByBps(gross, 150) : 0;
+  const csrf = input.csrfApplies ? multiplyCentsByBps(gross, 465) : 0;
+  const inss = input.inssApplies ? multiplyCentsByBps(gross, 1100) : 0;
+  const iss = input.issWithheld ? multiplyCentsByBps(gross, issRate) : 0;
+  const verifiedFacts = facts([
+    ["natureza do serviço e hipótese de retenção confirmadas", input.serviceNatureConfirmed],
+    ["responsável pela retenção identificado", input.payerResponsible],
+    ["regime do beneficiário e dispensas foram verificados", input.beneficiaryRegimeChecked],
+    ["responsabilidade municipal do ISS foi conferida", !input.issWithheld || input.municipalResponsibilityChecked],
+  ]);
+  const issues: LabIssue[] = [...missingFacts(verifiedFacts)];
+  return result("federal_withholdings", "Retenções — IRRF, CSRF, INSS e ISS", [
+    { code: "gross_payment", label: "Valor bruto do pagamento", formula: "Valor informado", amountCents: gross },
+    { code: "irrf", label: "IRRF retido", formula: input.irrfApplies ? "Base × 1,5%" : "Hipótese não marcada", amountCents: irrf, rateBps: input.irrfApplies ? 150 : 0 },
+    { code: "csrf", label: "CSRF retida", formula: input.csrfApplies ? "Base × 4,65%" : "Hipótese não marcada", amountCents: csrf, rateBps: input.csrfApplies ? 465 : 0 },
+    { code: "inss", label: "INSS retido", formula: input.inssApplies ? "Base × 11%" : "Hipótese não marcada", amountCents: inss, rateBps: input.inssApplies ? 1100 : 0 },
+    { code: "iss", label: "ISS retido", formula: input.issWithheld ? "Base × alíquota municipal informada" : "Sem retenção municipal informada", amountCents: iss, rateBps: input.issWithheld ? issRate : 0 },
+    { code: "net_payment", label: "Pagamento líquido de referência", formula: "Bruto - retenções separadas", amountCents: Math.max(0, gross - irrf - csrf - inss - iss) },
+  ], issues, [labSources.rir2018, labSources.law9430, labSources.cofinsNonCumulativeLaw, labSources.inssCessao, labSources.iss], verifiedFacts, "Retenções mantidas por hipótese e responsável; nenhuma dispensa é presumida.");
+}
+
+export type IpiTipiInput = {
+  operation: "industrial_output" | "import";
+  ipiBaseCents: number;
+  ipiRateBps: number;
+  ncmConfirmed: boolean;
+  tipiRateConfirmed: boolean;
+  industrializationOrImportConfirmed: boolean;
+  exemptionsExcluded: boolean;
+};
+export function calculateIpiTipi(input: IpiTipiInput): LabResult {
+  if (!(["industrial_output", "import"] as string[]).includes(input.operation)) throw new Error("invalid_ipi_operation");
+  const base = safeInteger(input.ipiBaseCents, "ipi_base");
+  const rate = safeInteger(input.ipiRateBps, "ipi_rate", 0, 40000);
+  const ipi = multiplyCentsByBps(base, rate);
+  const verifiedFacts = facts([
+    ["NCM e produto foram classificados", input.ncmConfirmed],
+    ["alíquota da TIPI vigente foi confirmada", input.tipiRateConfirmed],
+    ["industrialização ou importação é relevante na operação", input.industrializationOrImportConfirmed],
+    ["isenção, imunidade, suspensão, ZFM e regimes especiais foram excluídos", input.exemptionsExcluded],
+  ]);
+  const issues: LabIssue[] = [...missingFacts(verifiedFacts)];
+  return result("ipi_tipi", "IPI/TIPI — referência por NCM", [
+    { code: "ipi_base", label: "Base do IPI", formula: "Valor da operação/base de importação informada", amountCents: base },
+    { code: "tipi_rate", label: "Alíquota TIPI informada", formula: "Alíquota conferida na TIPI vigente", amountCents: null, rateBps: rate },
+    { code: "ipi_reference", label: "IPI de referência", formula: "Base × alíquota TIPI", amountCents: ipi, rateBps: rate },
+  ], issues, [labSources.ipi], verifiedFacts, `${input.operation === "import" ? "Importação" : "Saída industrial"} com NCM obrigatório e alíquota parametrizada.`);
 }
 
 export type IssInput = { serviceBaseCents: number; deductionsCents: number; municipalRateBps: number; withheld: boolean; serviceItemConfirmed: boolean; placeConfirmed: boolean; municipalRateConfirmed: boolean; municipalLawReference: string };
@@ -282,7 +429,11 @@ export type LabInput =
   | ({ module: "simples_annex_i" } & SimplesAnnexIInput)
   | ({ module: "simples_services" } & SimplesServicesInput)
   | ({ module: "pis_cofins" } & PisCofinsInput)
+  | ({ module: "pis_cofins_special" } & PisCofinsSpecialInput)
   | ({ module: "presumed_profit_2026" } & PresumedProfit2026Input)
+  | ({ module: "real_profit_federal" } & RealProfitFederalInput)
+  | ({ module: "federal_withholdings" } & FederalWithholdingsInput)
+  | ({ module: "ipi_tipi" } & IpiTipiInput)
   | ({ module: "iss" } & IssInput)
   | ({ module: "icms_difal" } & IcmsDifalInput)
   | ({ module: "rtc_2026" } & Rtc2026Input);
@@ -292,7 +443,11 @@ export function calculateTaxLab(input: LabInput): LabResult {
     case "simples_annex_i": return calculateSimplesAnnexI(input);
     case "simples_services": return calculateSimplesServices(input);
     case "pis_cofins": return calculatePisCofins(input);
+    case "pis_cofins_special": return calculatePisCofinsSpecial(input);
     case "presumed_profit_2026": return calculatePresumedProfit2026(input);
+    case "real_profit_federal": return calculateRealProfitFederal(input);
+    case "federal_withholdings": return calculateFederalWithholdings(input);
+    case "ipi_tipi": return calculateIpiTipi(input);
     case "iss": return calculateIss(input);
     case "icms_difal": return calculateIcmsDifal(input);
     case "rtc_2026": return calculateRtc2026(input);

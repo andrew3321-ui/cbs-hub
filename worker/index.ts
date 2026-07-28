@@ -1,4 +1,4 @@
-/** Cloudflare Worker entry point for Margem Clara. */
+/** Cloudflare Worker entry point for CBSHub. */
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { runScheduledBillingReconciliation } from "../app/billing-scheduled-reconciliation";

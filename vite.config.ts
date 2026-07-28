@@ -3,7 +3,7 @@ import { defineConfig } from "vite";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
-const MARGEM_CLARA_PRODUCTION_DATABASE_ID =
+const CBSHUB_PRODUCTION_DATABASE_ID =
   "ce069e8f-9efb-4142-8a76-0721bfb04a1c";
 
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
@@ -15,8 +15,10 @@ const isCloudflareWorkersBuild = process.env.WORKERS_CI === "1";
 const localBindingConfig = {
   ...(isCloudflareWorkersBuild
     ? {
-        name: "margem-clara",
+        name: "cbs-hub",
         compatibility_date: "2026-07-25",
+        workers_dev: false,
+        preview_urls: false,
       }
     : {}),
   main: "./worker/index.ts",
@@ -26,9 +28,9 @@ const localBindingConfig = {
       binding: "DB",
       database_name: isCloudflareWorkersBuild
         ? "margem-clara-production"
-        : "margem-clara-local",
+        : "cbshub-local",
       database_id: isCloudflareWorkersBuild
-        ? MARGEM_CLARA_PRODUCTION_DATABASE_ID
+        ? CBSHUB_PRODUCTION_DATABASE_ID
         : SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
       ...(isCloudflareWorkersBuild ? { migrations_dir: "./drizzle" } : {}),
     },

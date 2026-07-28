@@ -45,7 +45,7 @@ export function companyLimitResponse(entitlements: WorkspaceEntitlements) {
       : entitlements.companyLimitExceeded
         ? `Sua carteira possui ${entitlements.companyCount} empresas, acima do limite de ${limit} do plano ${entitlements.name}. Nenhum dado foi removido, mas novos cadastros estão bloqueados.`
         : entitlements.trialActive
-          ? `O teste profissional permite até ${limit} empresas durante 5 dias. Para ampliar a carteira, contrate o plano Margem Clara.`
+          ? `O teste profissional permite até ${limit} empresas durante 5 dias. Para ampliar a carteira, contrate o plano CBSHub.`
           : `O plano ${entitlements.name} permite até ${limit} ${limit === 1 ? "empresa" : "empresas"}. Contrate mais um bloco de ${entitlements.companyAddonBlockSize} empresas para ampliar a carteira.`,
     code: "PLAN_COMPANY_LIMIT",
     entitlements,
@@ -56,8 +56,8 @@ export function featureRequiredResponse(entitlements: WorkspaceEntitlements, fea
   const officeOnly = feature === "officeCollaborationEnabled";
   return Response.json({
     error: officeOnly
-      ? "Convites, papéis e revisão por outra pessoa exigem o plano Margem Clara ativo."
-      : "Este recurso exige o plano Margem Clara ativo.",
+      ? "Convites, papéis e revisão por outra pessoa exigem o plano CBSHub ativo."
+      : "Este recurso exige o plano CBSHub ativo.",
     code: officeOnly ? "PLAN_OFFICE_REQUIRED" : "PLAN_FEATURE_REQUIRED",
     requiredPlan: "unico",
     feature,

@@ -20,7 +20,7 @@ import {
 } from "./st-cold-beverages-sp-origin.ts";
 
 export const COLD_BEVERAGE_DOSSIER_SCHEMA_VERSION = "cold-beverage-dossier.v2";
-export const COLD_BEVERAGE_DOSSIER_ENGINE_VERSION = "mc-cold-beverage-dossier-1.1.0";
+export const COLD_BEVERAGE_DOSSIER_ENGINE_VERSION = "cbshub-cold-beverage-dossier-1.1.0";
 
 export type ColdBeverageDossierScope = "sp_destination" | "sp_origin";
 export type ColdBeverageCoverageStatus = "supported" | "partial" | "not_supported";

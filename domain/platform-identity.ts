@@ -1,7 +1,7 @@
 export const PLATFORM_IDENTITY_VERSION = "2026.07.18-v37";
 
 export const platformIdentity = Object.freeze({
-  brand: "Margem Clara",
+  brand: "CBSHub",
   holderType: "natural_person" as const,
   responsibleName: "ANDRÉ HUGO SANTOS COELHO",
   declarationStatus: "declared_by_responsible" as const,

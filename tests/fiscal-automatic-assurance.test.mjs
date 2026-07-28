@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  FISCAL_AUTOMATION_INVARIANT_PACKS,
   FISCAL_AUTOMATED_ASSURANCE_VERSION,
   buildFiscalAutomaticAssurance,
 } from "../domain/fiscal-automatic-assurance.ts";
@@ -11,10 +12,12 @@ test("automatic fiscal assurance proves only deterministic controls it can execu
   assert.equal(assurance.version, FISCAL_AUTOMATED_ASSURANCE_VERSION);
   assert.equal(assurance.policy.humanReviewRequired, false);
   assert.equal(assurance.policy.professionalOpinion, false);
-  assert.equal(assurance.metrics.total, 40);
-  assert.equal(assurance.metrics.testPacks, 45);
-  assert.equal(assurance.metrics.automaticallyVerified, 40);
-  assert.equal(assurance.metrics.expectedBlocks, 12);
+  assert.ok(assurance.metrics.total >= 40);
+  assert.equal(assurance.metrics.total, assurance.cases.length);
+  assert.equal(assurance.metrics.testPacks, assurance.cases.length + FISCAL_AUTOMATION_INVARIANT_PACKS.length);
+  assert.equal(assurance.metrics.automaticallyVerified, assurance.cases.length);
+  assert.equal(assurance.metrics.expectedBlocks, assurance.cases.filter((item) => item.kind === "expected_block").length);
+  assert.ok(assurance.metrics.expectedBlocks >= 12);
   assert.match(assurance.baseHash, /^[0-9a-f]{64}$/);
   for (const item of assurance.cases) {
     assert.equal(item.status, "automatically_verified", item.code);

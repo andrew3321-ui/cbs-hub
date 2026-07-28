@@ -162,7 +162,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   if (issuedRecoveryKey) {
     return (
       <main className="auth-shell">
-        <Link className="auth-brand" href="/"><span>mc</span>margem<b>clara</b></Link>
+        <Link className="auth-brand" href="/"><span>cb</span>CBSHub</Link>
         <section className="auth-success-card">
           <span className="auth-success-icon">✓</span>
           <p className="auth-eyebrow">CONTA CRIADA COM SUCESSO</p>
@@ -172,7 +172,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
           <div className="recovery-warning"><b>Importante</b><span>Salve em um gerenciador de senhas ou local seguro. Não compartilhe esta chave.</span></div>
           <div className="auth-plan-suggestion">
             <span>{issuedTrial?.granted ? "TESTE PROFISSIONAL ATIVADO" : "ACESSO BÁSICO ATIVADO"}</span>
-            <b>{issuedTrial?.granted ? `${issuedTrial.days} dias · até ${issuedTrial.companyLimit} empresas` : "Margem Clara"}</b>
+            <b>{issuedTrial?.granted ? `${issuedTrial.days} dias · até ${issuedTrial.companyLimit} empresas` : "CBSHub"}</b>
             <small>{issuedTrial?.granted && issuedTrial.endsAt
               ? `Todos os recursos estão liberados até ${new Date(issuedTrial.endsAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}. Nenhuma cobrança é iniciada automaticamente.`
               : issuedTrial?.reason === "workspace_inherited"
@@ -187,7 +187,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
 
   return (
     <main className="auth-shell">
-      <Link className="auth-brand" href="/"><span>mc</span>margem<b>clara</b></Link>
+      <Link className="auth-brand" href="/"><span>cb</span>CBSHub</Link>
       <section className="auth-layout">
         <div className="auth-story">
           <span className="auth-story-label">DECISÕES FISCAIS. MARGENS PROTEGIDAS.</span>

@@ -254,7 +254,7 @@ export function randomBillingReference(userId: number) {
 }
 
 export async function billingIdempotencyKey(externalReference: string) {
-  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`margem-clara:billing:${externalReference}`)));
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(`cbshub:billing:${externalReference}`)));
   const bytes = digest.slice(0, 16);
   bytes[6] = (bytes[6] & 0x0f) | 0x50;
   bytes[8] = (bytes[8] & 0x3f) | 0x80;
