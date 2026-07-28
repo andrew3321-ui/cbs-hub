@@ -45,7 +45,7 @@ test("subscriptions omit unsupported callback fields and reconcile provider trut
   assert.match(billing, /new AbortController\(\)/);
   assert.match(billing, /redirect: "manual"/);
   assert.doesNotMatch(billing, /AbortSignal\.timeout/);
-  assert.match(billing, /margem-clara:billing:/);
+  assert.match(billing, /cbshub:billing:/);
   assert.match(checkout, /PROVIDER_REQUEST/);
   assert.match(checkout, /ACCOUNT_PERSISTENCE/);
   assert.match(webhook, /validateMercadoPagoWebhook/);

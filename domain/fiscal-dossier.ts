@@ -1,6 +1,6 @@
 import type { FiscalIntelligenceResult } from "./fiscal-intelligence";
 
-export const FISCAL_DOSSIER_ENGINE_VERSION = "mc-fiscal-dossier-0.1.0";
+export const FISCAL_DOSSIER_ENGINE_VERSION = "cbshub-fiscal-dossier-0.1.0";
 export const FISCAL_DOSSIER_SCHEMA_VERSION = "fiscal-dossier.v1";
 
 const MAX_MONEY_CENTS = 100_000_000_000;

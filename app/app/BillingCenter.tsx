@@ -82,7 +82,7 @@ function toDraft(transaction: BillingTransaction | null): FiscalDraft {
     customerTaxId: transaction?.customerTaxId ?? "",
     noteRequested: transaction?.noteRequested ?? false,
     serviceCode: transaction?.serviceCode ?? "",
-    serviceDescription: transaction?.serviceDescription ?? "Assinatura mensal Margem Clara",
+    serviceDescription: transaction?.serviceDescription ?? "Assinatura mensal CBSHub",
     competenceMonth: transaction?.competenceMonth ?? new Date().toISOString().slice(0, 7),
     internalNote: transaction?.internalNote ?? "",
     nfseNumber: transaction?.nfseNumber ?? "",
@@ -207,7 +207,7 @@ export default function BillingCenter() {
 
     <section className="panel billing-transactions-panel">
       <div className="panel-heading"><div><span className="eyebrow">CONTRATOS E CAPACIDADE</span><h3>Assinaturas registradas</h3></div><span className="editable-chip">{data.subscriptions.length} conta(s)</span></div>
-      <div className="table-wrap"><table><thead><tr><th>Cliente</th><th>Contrato</th><th>Capacidade</th><th>Mensalidade</th><th>Estado</th><th>Próximo ciclo</th></tr></thead><tbody>{data.subscriptions.map((item) => <tr key={item.id}><td><b>{item.customerName}</b><small>{item.customerEmail}</small></td><td><b>{item.planKey === "unico" ? "Margem Clara" : `${item.planKey} legado`}</b><small>{item.paymentFlow}</small></td><td><b>{item.companyLimit == null ? "Sem limite" : `${item.companyLimit} empresas`}</b><small>{item.planKey === "unico" ? `${item.companyAddonBlocks} bloco(s) adicional(is)` : "Capacidade histórica"}</small></td><td>{item.monthlyAmountCents == null ? "—" : money.format(item.monthlyAmountCents / 100)}</td><td><span className={`billing-table-status ${item.status}`}>{statusLabels[item.status] ?? item.status}</span></td><td>{item.nextPaymentAt ? new Date(item.nextPaymentAt).toLocaleDateString("pt-BR") : "—"}</td></tr>)}</tbody></table></div>
+      <div className="table-wrap"><table><thead><tr><th>Cliente</th><th>Contrato</th><th>Capacidade</th><th>Mensalidade</th><th>Estado</th><th>Próximo ciclo</th></tr></thead><tbody>{data.subscriptions.map((item) => <tr key={item.id}><td><b>{item.customerName}</b><small>{item.customerEmail}</small></td><td><b>{item.planKey === "unico" ? "CBSHub" : `${item.planKey} legado`}</b><small>{item.paymentFlow}</small></td><td><b>{item.companyLimit == null ? "Sem limite" : `${item.companyLimit} empresas`}</b><small>{item.planKey === "unico" ? `${item.companyAddonBlocks} bloco(s) adicional(is)` : "Capacidade histórica"}</small></td><td>{item.monthlyAmountCents == null ? "—" : money.format(item.monthlyAmountCents / 100)}</td><td><span className={`billing-table-status ${item.status}`}>{statusLabels[item.status] ?? item.status}</span></td><td>{item.nextPaymentAt ? new Date(item.nextPaymentAt).toLocaleDateString("pt-BR") : "—"}</td></tr>)}</tbody></table></div>
     </section>
 
     <section className="billing-fiscal-layout">

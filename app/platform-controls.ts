@@ -78,8 +78,7 @@ function paymentReadinessGates(): ReadinessGate[] {
   ];
 }
 
-export async function getPlatformOperationState() {
-  await ensureScenarioSchema();
+async function readPlatformOperationState() {
   const db = getDb();
   const [setting] = await db.select().from(platformSettings).where(eq(platformSettings.key, BETA_SETTING_KEY)).limit(1);
   const betaEnabled = setting?.value !== "false";
@@ -94,6 +93,15 @@ export async function getPlatformOperationState() {
     readiness: { ready: readinessReady, gates },
     activeSubscriptions,
   };
+}
+
+export async function getPlatformOperationState() {
+  try {
+    return await readPlatformOperationState();
+  } catch {
+    await ensureScenarioSchema();
+    return readPlatformOperationState();
+  }
 }
 
 export async function setBetaMode(admin: AppUser, betaEnabled: boolean) {

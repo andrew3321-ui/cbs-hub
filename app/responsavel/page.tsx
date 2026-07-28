@@ -2,8 +2,8 @@ import Link from "next/link";
 import { platformIdentity } from "../../domain/platform-identity";
 
 export const metadata = {
-  title: "Responsável pela plataforma | Margem Clara",
-  description: "Identificação pública do responsável pela plataforma Margem Clara, com proteção dos documentos pessoais.",
+  title: "Responsável pela plataforma | CBSHub",
+  description: "Identificação pública do responsável pela plataforma CBSHub, com proteção dos documentos pessoais.",
 };
 
 export default function PlatformOwnerPage() {
@@ -18,7 +18,7 @@ export default function PlatformOwnerPage() {
     <main className="ownership-shell">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <header className="ownership-nav">
-        <Link className="landing-brand" href="/"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link>
+        <Link className="landing-brand" href="/"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link>
         <div><Link href="/metodologia">Metodologia</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div>
       </header>
 
@@ -26,7 +26,7 @@ export default function PlatformOwnerPage() {
         <div className="ownership-heading">
           <span>IDENTIFICAÇÃO INSTITUCIONAL · {platformIdentity.version}</span>
           <h1>Responsável pela plataforma</h1>
-          <p>A Margem Clara é atualmente conduzida por pessoa física. Esta página identifica publicamente o responsável sem expor CPF, endereço ou outros documentos pessoais.</p>
+          <p>O CBSHub é atualmente conduzido por pessoa física. Esta página identifica publicamente o responsável sem expor CPF, endereço ou outros documentos pessoais.</p>
         </div>
         <div className="ownership-registration">
           <span>RESPONSÁVEL DECLARADO</span>
@@ -45,7 +45,7 @@ export default function PlatformOwnerPage() {
         <div className="ownership-actions"><a href="/api/public/ownership" target="_blank" rel="noreferrer">Ver registro público estruturado <span>↗</span></a><Link href="/metodologia">Conhecer os controles da plataforma <span>→</span></Link></div>
       </section>
 
-      <footer className="ownership-footer"><span>Margem Clara · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/privacidade">Privacidade</Link> · <Link href="/termos">Termos</Link> · <Link href="/">Voltar ao início</Link></div></footer>
+      <footer className="ownership-footer"><span>CBSHub · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/privacidade">Privacidade</Link> · <Link href="/termos">Termos</Link> · <Link href="/">Voltar ao início</Link></div></footer>
     </main>
   );
 }

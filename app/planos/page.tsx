@@ -12,7 +12,7 @@ export default async function PricingPage() {
   return (
     <main className="pricing-shell">
       <header className="pricing-nav">
-        <Link className="landing-brand" href="/" aria-label="Margem Clara — início"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link>
+        <Link className="landing-brand" href="/" aria-label="CBSHub — início"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link>
         <div><Link href={user ? "/app" : "/entrar"}>{user ? "Voltar ao painel" : "Entrar"}</Link><Link className="landing-cta small" href={user ? "/app" : "/cadastro"}>{user ? "Abrir aplicativo" : "Testar por 5 dias"}<span>→</span></Link></div>
       </header>
       <section className="pricing-hero">
@@ -29,7 +29,7 @@ export default async function PricingPage() {
         <article><strong>Quais meios são aceitos?</strong><p>Cartão de crédito com renovação automática ou Pix mensal com QR Code e Copia e Cola gerados pelo Mercado Pago.</p></article>
         <article><strong>Como aumento minha carteira?</strong><p>Adicione blocos de 10 empresas por R$ 100 mensais. No cartão, o novo valor vai para as próximas cobranças; no Pix, entra na próxima renovação.</p></article>
       </section>
-      <footer className="pricing-footer"><span>Margem Clara · Plataforma fiscal profissional · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/responsavel">Responsável</Link><Link href="/">Voltar ao início</Link></div></footer>
+      <footer className="pricing-footer"><span>CBSHub · Plataforma fiscal profissional · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/responsavel">Responsável</Link><Link href="/">Voltar ao início</Link></div></footer>
     </main>
   );
 }

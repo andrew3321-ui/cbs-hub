@@ -1,4 +1,4 @@
-export const TAX_DETERMINATION_ENGINE_VERSION = "mc-tax-ledger-0.1.0";
+export const TAX_DETERMINATION_ENGINE_VERSION = "cbshub-tax-ledger-0.1.0";
 
 export type TaxKind = "CBS" | "IBS";
 export type TaxLegalEffect = "simulation_2026" | "production";

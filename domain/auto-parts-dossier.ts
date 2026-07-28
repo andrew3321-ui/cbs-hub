@@ -11,7 +11,7 @@ import {
 } from "./st-auto-parts-high-use-corridors.ts";
 
 export const AUTO_PARTS_DOSSIER_SCHEMA_VERSION = "auto-parts-dossier.v2";
-export const AUTO_PARTS_DOSSIER_ENGINE_VERSION = "mc-auto-parts-dossier-1.1.0";
+export const AUTO_PARTS_DOSSIER_ENGINE_VERSION = "cbshub-auto-parts-dossier-1.1.0";
 
 export type AutoPartsCoverageStatus = "supported" | "partial" | "not_supported";
 

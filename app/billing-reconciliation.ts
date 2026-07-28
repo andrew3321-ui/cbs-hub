@@ -136,7 +136,7 @@ export async function recordAuthorizedPaymentFromProvider(dataId: string, expect
     transactionId: transaction.id,
     userId: account.userId,
     customerName: customer?.name ?? "",
-    serviceDescription: `Assinatura mensal Margem Clara${plan ? ` — plano ${plan.name}` : ""}`,
+    serviceDescription: `Assinatura mensal CBSHub${plan ? ` — plano ${plan.name}` : ""}`,
     competenceMonth: /^\d{4}-\d{2}$/.test(competenceMonth) ? competenceMonth : now.slice(0, 7),
     amountCents: grossAmountCents,
     status: fiscalStatus,

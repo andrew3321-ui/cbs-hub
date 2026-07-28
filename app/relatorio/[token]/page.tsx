@@ -14,11 +14,11 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 
 function unavailable() {
-  return <main className="public-report-unavailable"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>LINK INDISPONÍVEL</span><h1>Este relatório não está mais acessível.</h1><p>O link pode ter expirado ou sido revogado por quem preparou a análise.</p><Link href="/">Conhecer o Margem Clara →</Link></section></main>;
+  return <main className="public-report-unavailable"><Link className="report-brand" href="/"><span>cb</span>CBSHub</Link><section><span>LINK INDISPONÍVEL</span><h1>Este relatório não está mais acessível.</h1><p>O link pode ter expirado ou sido revogado por quem preparou a análise.</p><Link href="/">Conhecer o CBSHub →</Link></section></main>;
 }
 
 function integrityBlocked() {
-  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>INTEGRIDADE NÃO CONFIRMADA</span><h1>Este relatório foi bloqueado por segurança.</h1><p>A assinatura criptográfica do registro não confere. Nenhum número será exibido até que uma nova versão íntegra seja criada.</p><Link href="/metodologia">Entender os controles →</Link></section></main>;
+  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>cb</span>CBSHub</Link><section><span>INTEGRIDADE NÃO CONFIRMADA</span><h1>Este relatório foi bloqueado por segurança.</h1><p>A assinatura criptográfica do registro não confere. Nenhum número será exibido até que uma nova versão íntegra seja criada.</p><Link href="/metodologia">Entender os controles →</Link></section></main>;
 }
 
 export default async function PublicReportPage({ params }: { params: Promise<{ token: string }> }) {
@@ -79,7 +79,7 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
   return (
     <main className="public-report-shell">
       <header className="public-report-nav">
-        <Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link>
+        <Link className="report-brand" href="/"><span>cb</span>CBSHub</Link>
         <div><span>RELATÓRIO EXECUTIVO COMPARTILHADO</span><small>Somente leitura · expira em {date.format(new Date(report.expiresAt))}</small></div>
         <ReportActions />
       </header>
@@ -115,7 +115,7 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
 
         <section className="report-next-actions"><div><span>CONTROLES DE ENTREGA</span><h2>Como usar este documento</h2></div><ol><li><b>01</b><span><strong>Confirmar as premissas com o cliente</strong><small>Receita, custos e expectativas comerciais continuam sendo dados declarados.</small></span></li><li><b>02</b><span><strong>Respeitar o escopo da análise</strong><small>A revisão responsável não equivale a homologação da autoridade fiscal.</small></span></li><li><b>03</b><span><strong>Preservar a versão entregue</strong><small>Qualquer correção deve gerar uma nova versão e uma nova revisão.</small></span></li></ol></section>
 
-        <footer className="report-document-footer"><span>Preparado por <b>{preparerName}</b>{officeSecondReview && report.approval ? <> · revisado por <b>{report.approval.reviewerName}</b></> : null} no Margem Clara</span><small>Resultado congelado em {report.calculatedAt ? date.format(new Date(report.calculatedAt)) : "data não registrada"}{approvalVerified && report.approval ? ` e revisado em ${date.format(new Date(report.approval.decidedAt))}` : ""}. Estado: “{reviewLabel}”.</small><Link href="/metodologia">Metodologia e fontes →</Link></footer>
+        <footer className="report-document-footer"><span>Preparado por <b>{preparerName}</b>{officeSecondReview && report.approval ? <> · revisado por <b>{report.approval.reviewerName}</b></> : null} no CBSHub</span><small>Resultado congelado em {report.calculatedAt ? date.format(new Date(report.calculatedAt)) : "data não registrada"}{approvalVerified && report.approval ? ` e revisado em ${date.format(new Date(report.approval.decidedAt))}` : ""}. Estado: “{reviewLabel}”.</small><Link href="/metodologia">Metodologia e fontes →</Link></footer>
       </article>
     </main>
   );

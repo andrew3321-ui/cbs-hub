@@ -11,7 +11,7 @@ test("a experiência publicada contém identidade e rotas comerciais", async () 
     readFile(new URL("app/planos/page.tsx", root), "utf8"),
   ]);
 
-  assert.match(landing, /Margem Clara/);
+  assert.match(landing, /CBSHub/);
   assert.match(landing, /href="\/planos"/);
   assert.match(layout, /Inteligência tributária/);
   assert.match(layout, /og-accountants\.png/);
@@ -81,7 +81,7 @@ test("versão 35 concilia cobranças recorrentes e cria fila fiscal restrita", a
 
 test("análises publicadas expõem versionamento e não afirmam homologação", async () => {
   const [app, report, methodology, scenariosApi, signing] = await Promise.all([
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
     readFile(new URL("app/metodologia/page.tsx", root), "utf8"),
     readFile(new URL("app/api/scenarios/route.ts", root), "utf8"),
@@ -103,7 +103,7 @@ test("análises publicadas expõem versionamento e não afirmam homologação", 
 test("fluxo remodelado trata o contador como usuário principal e exige aprovação antes da entrega", async () => {
   const [landing, client, approveApi, shareApi, approvalCore, registration, schema, report] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/api/scenarios/approve/route.ts", root), "utf8"),
     readFile(new URL("app/api/report-shares/route.ts", root), "utf8"),
     readFile(new URL("app/scenario-approval-core.ts", root), "utf8"),
@@ -134,7 +134,7 @@ test("fluxo remodelado trata o contador como usuário principal e exige aprovaç
 test("cadastro e escritório distinguem plano, papéis e revisão por segunda pessoa", async () => {
   const [auth, client, registerApi, membersApi, approveApi, workspace, schema, report] = await Promise.all([
     readFile(new URL("app/auth-ui/AuthScreen.tsx", root), "utf8"),
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/api/auth/register/route.ts", root), "utf8"),
     readFile(new URL("app/api/office/members/route.ts", root), "utf8"),
     readFile(new URL("app/api/scenarios/approve/route.ts", root), "utf8"),
@@ -163,7 +163,7 @@ test("cadastro e escritório distinguem plano, papéis e revisão por segunda pe
 
 test("central do escritório controla fila, decisões e correções por nova versão", async () => {
   const [client, reviewsApi, reviewRequestApi, approvalApi, scenariosApi, membersApi, accountApi, schema, migration] = await Promise.all([
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/api/reviews/route.ts", root), "utf8"),
     readFile(new URL("app/api/scenarios/review/route.ts", root), "utf8"),
     readFile(new URL("app/api/scenarios/approve/route.ts", root), "utf8"),
@@ -201,7 +201,7 @@ test("infraestrutura escalável evita N+1, duplicidade e falhas sem correlação
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("app/api/health/route.ts", root), "utf8"),
     readFile(new URL("app/api-infrastructure.ts", root), "utf8"),
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
   ]);
 
   assert.match(companiesApi, /latestScenarioIds/);
@@ -218,7 +218,7 @@ test("infraestrutura escalável evita N+1, duplicidade e falhas sem correlação
 
 test("catálogo fiscal exige integridade, regressão e homologação antes da execução", async () => {
   const [client, rulesApi, ruleDefinition, schema] = await Promise.all([
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/api/fiscal-rules/route.ts", root), "utf8"),
     readFile(new URL("domain/fiscal-rules.ts", root), "utf8"),
     readFile(new URL("db/schema.ts", root), "utf8"),
@@ -237,7 +237,7 @@ test("catálogo fiscal exige integridade, regressão e homologação antes da ex
 
 test("apuração líquida mantém 2026 bloqueado e prepara fechamento auditável", async () => {
   const [client, determinationApi, determinationDomain, schema, health] = await Promise.all([
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/api/tax-determination/route.ts", root), "utf8"),
     readFile(new URL("domain/tax-determination.ts", root), "utf8"),
     readFile(new URL("db/schema.ts", root), "utf8"),
@@ -259,7 +259,7 @@ test("apuração líquida mantém 2026 bloqueado e prepara fechamento auditável
 
 test("inteligência manual expõe cobertura, pendências e fontes sem fabricar conclusão", async () => {
   const [app, intelligenceUi, intelligenceApi, intelligenceService, intelligenceDomain, schema, migration] = await Promise.all([
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/app/FiscalIntelligence.tsx", root), "utf8"),
     readFile(new URL("app/api/fiscal-intelligence/route.ts", root), "utf8"),
     readFile(new URL("app/fiscal-intelligence-service.ts", root), "utf8"),
@@ -315,7 +315,7 @@ test("versão 23 audita NF-e no servidor, minimiza dados e reconcilia com o doss
     readFile(new URL("app/app/NfeAuditWorkbench.tsx", root), "utf8"),
     readFile(new URL("app/api/fiscal-documents/route.ts", root), "utf8"),
     readFile(new URL("domain/nfe-audit.ts", root), "utf8"),
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("drizzle/0016_flat_ink.sql", root), "utf8"),
   ]);
@@ -397,7 +397,7 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
     readFile(new URL("app/app/FederalPmeCompliance.tsx", root), "utf8"),
     readFile(new URL("app/api/federal-pme-compliance/route.ts", root), "utf8"),
     readFile(new URL("domain/federal-pme-compliance.ts", root), "utf8"),
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
 
@@ -437,7 +437,8 @@ test("versão 70 publica PMPF de bebidas destinado a São Paulo e nas rotas SP�
     readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
-  assert.match(ui, /VERSÃO 70 · NOVAS ROTAS SP→MG E SP→RJ/);
+  assert.match(ui, /VERSAO 71 · INDICADOR PUBLICO DE COBERTURA/);
+  assert.match(ui, /INDICADOR PUBLICO NORMALIZADO/);
   assert.match(ui, /PMPF vigente com memória em centavos/);
   assert.match(ui, /Novas rotas com PMPF de MG e RJ/);
   assert.match(ui, /ICMS-ST \+ adicional estadual/);
@@ -456,6 +457,8 @@ test("versão 70 publica PMPF de bebidas destinado a São Paulo e nas rotas SP�
   assert.match(publicApi, /stColdBeveragesPriority/);
   assert.match(publicApi, /stColdBeveragesSpDestination/);
   assert.match(publicApi, /stColdBeveragesSpOrigin/);
+  assert.match(publicApi, /coverageIndicator/);
+  assert.match(publicApi, /buildPublicCoverageIndicator/);
   assert.match(beverageApi, /resolveColdBeveragePriorityOperation/);
   assert.match(beverageSpApi, /resolveColdBeverageSpDestinationOperation/);
   assert.match(beverageSpOriginApi, /resolveColdBeverageSpOriginOperation/);
@@ -514,7 +517,7 @@ test("versão 55 cria esteira fiscal sem custo por consulta e com verificação 
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("db/index.ts", root), "utf8"),
     readFile(new URL("app/api/normative-monitor/route.ts", root), "utf8"),
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
   ]);
   assert.match(ui, /VERSÃO 56 · VERIFICAÇÃO FISCAL AUTOMÁTICA/);
@@ -537,7 +540,7 @@ test("versão 55 cria esteira fiscal sem custo por consulta e com verificação 
 
 test("versão 30 mantém toda a navegação acessível e amplia a leitura do aplicativo", async () => {
   const [client, css] = await Promise.all([
-    readFile(new URL("app/app/MargemApp.tsx", root), "utf8"),
+    readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/globals.css", root), "utf8"),
   ]);
   assert.match(client, /navigationRef/);

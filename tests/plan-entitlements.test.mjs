@@ -96,7 +96,7 @@ test("advanced fiscal modules are protected by the same server-side entitlement 
 });
 
 test("the application displays the active plan, usage and limit state", () => {
-  const app = fs.readFileSync(new URL("../app/app/MargemApp.tsx", import.meta.url), "utf8");
+  const app = fs.readFileSync(new URL("../app/app/CBSHubApp.tsx", import.meta.url), "utf8");
   const pricing = fs.readFileSync(new URL("../app/planos/PricingClient.tsx", import.meta.url), "utf8");
   assert.match(app, /plan-usage-banner/);
   assert.match(app, /Plano \{entitlements\.name\}/);

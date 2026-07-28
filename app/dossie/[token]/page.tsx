@@ -11,15 +11,15 @@ import PublicFiscalReportActions from "./PublicFiscalReportActions";
 export const dynamic = "force-dynamic";
 
 function unavailable() {
-  return <main className="public-report-unavailable"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>LINK INDISPONÍVEL</span><h1>Este dossiê não está mais acessível.</h1><p>O link pode ter expirado ou sido revogado pelo profissional responsável.</p><Link href="/">Conhecer o Margem Clara →</Link></section></main>;
+  return <main className="public-report-unavailable"><Link className="report-brand" href="/"><span>cb</span>CBSHub</Link><section><span>LINK INDISPONÍVEL</span><h1>Este dossiê não está mais acessível.</h1><p>O link pode ter expirado ou sido revogado pelo profissional responsável.</p><Link href="/">Conhecer o CBSHub →</Link></section></main>;
 }
 
 function integrityBlocked() {
-  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>INTEGRIDADE NÃO CONFIRMADA</span><h1>Este dossiê foi bloqueado por segurança.</h1><p>O conteúdo armazenado não corresponde ao hash da versão aprovada. Nenhum cálculo será exibido.</p><Link href="/metodologia">Entender os controles →</Link></section></main>;
+  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>cb</span>CBSHub</Link><section><span>INTEGRIDADE NÃO CONFIRMADA</span><h1>Este dossiê foi bloqueado por segurança.</h1><p>O conteúdo armazenado não corresponde ao hash da versão aprovada. Nenhum cálculo será exibido.</p><Link href="/metodologia">Entender os controles →</Link></section></main>;
 }
 
 function normativeReviewBlocked() {
-  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>REVISÃO NORMATIVA EM ANDAMENTO</span><h1>Este dossiê foi temporariamente retirado da entrega.</h1><p>Uma fonte oficial associada ao cálculo mudou. O relatório voltará a ficar disponível somente depois da revisão e, quando necessária, da publicação de uma nova versão da regra.</p><Link href="/metodologia">Entender a governança →</Link></section></main>;
+  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>cb</span>CBSHub</Link><section><span>REVISÃO NORMATIVA EM ANDAMENTO</span><h1>Este dossiê foi temporariamente retirado da entrega.</h1><p>Uma fonte oficial associada ao cálculo mudou. O relatório voltará a ficar disponível somente depois da revisão e, quando necessária, da publicação de uma nova versão da regra.</p><Link href="/metodologia">Entender a governança →</Link></section></main>;
 }
 
 export default async function PublicFiscalDossierPage({ params }: { params: Promise<{ token: string }> }) {

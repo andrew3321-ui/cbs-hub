@@ -46,7 +46,7 @@ test("hash é determinístico e cobre a proveniência", async () => {
 
 test("assinatura aceita registro íntegro e rejeita adulteração de qualquer campo crítico", async () => {
   const snapshotJson = JSON.stringify(buildScenarioSnapshot(storedInput));
-  const record = { ownerUserId: 7, companyId: 11, name: "Cenário assinado", ...storedInput, snapshotJson, calculationVersion: "mc-margin-1.0.0", methodologyVersion: "rtc-foundation-2026.07", calculatedAt: "2026-07-14T19:00:00.000Z", supersedesScenarioId: null };
+  const record = { ownerUserId: 7, companyId: 11, name: "Cenário assinado", ...storedInput, snapshotJson, calculationVersion: "cbshub-margin-1.0.0", methodologyVersion: "rtc-foundation-2026.07", calculatedAt: "2026-07-14T19:00:00.000Z", supersedesScenarioId: null };
   const secret = "chave-de-teste-com-mais-de-trinta-e-dois-caracteres";
   const signature = await signScenarioRecordWithSecret(record, secret);
   assert.equal(await verifyScenarioRecordWithSecret(record, signature, SCENARIO_SIGNATURE_VERSION, secret), true);

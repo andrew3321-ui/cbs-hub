@@ -138,7 +138,7 @@ async function ensureFiscalIssuance(transaction: typeof billingTransactions.$inf
     transactionId: transaction.id,
     userId: account.userId,
     customerName: customer?.name ?? "",
-    serviceDescription: `Assinatura mensal Margem Clara${plan ? ` — plano ${plan.name}` : ""}`,
+    serviceDescription: `Assinatura mensal CBSHub${plan ? ` — plano ${plan.name}` : ""}`,
     competenceMonth,
     amountCents: transaction.grossAmountCents,
     status: preserved ? existing.status : "pending_data",

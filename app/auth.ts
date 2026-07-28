@@ -94,10 +94,10 @@ export function clearSessionCookieHeader(request: Request) {
 }
 
 export async function getCurrentUser(): Promise<AppUser | null> {
-  await ensureScenarioSchema();
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
+  await ensureScenarioSchema();
   const sessionId = await sha256(token);
   const [row] = await getDb()
     .select({ id: users.id, name: users.name, email: users.email })
@@ -115,17 +115,18 @@ export async function requireAppUser(returnTo = "/app") {
 }
 
 export async function destroyCurrentSession() {
-  await ensureScenarioSchema();
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
-  if (token) await getDb().delete(sessions).where(eq(sessions.id, await sha256(token)));
+  if (!token) return;
+  await ensureScenarioSchema();
+  await getDb().delete(sessions).where(eq(sessions.id, await sha256(token)));
 }
 
 export function safeReturnPath(value: string | null | undefined) {
   if (!value || !value.startsWith("/") || value.startsWith("//")) return "/app";
   try {
-    const url = new URL(value, "https://margemclara.local");
-    return url.origin === "https://margemclara.local" ? `${url.pathname}${url.search}${url.hash}` : "/app";
+    const url = new URL(value, "https://cbshub.local");
+    return url.origin === "https://cbshub.local" ? `${url.pathname}${url.search}${url.hash}` : "/app";
   } catch {
     return "/app";
   }

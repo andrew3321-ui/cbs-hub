@@ -3,22 +3,22 @@ import { TAX_DETERMINATION_ENGINE_VERSION } from "../../domain/tax-determination
 import { CALCULATION_ENGINE_VERSION, METHODOLOGY_VERSION } from "../scenario-reliability";
 
 export const metadata = {
-  title: "Metodologia e controles | Margem Clara",
-  description: "Versões, fórmulas, fontes e limites de uso das análises tributárias do Margem Clara.",
+  title: "Metodologia e controles | CBSHub",
+  description: "Versões, fórmulas, fontes e limites de uso das análises tributárias do CBSHub.",
 };
 
 export default function MethodologyPage() {
   return (
     <main className="methodology-shell">
       <header className="methodology-nav">
-        <Link className="landing-brand" href="/"><span className="landing-brand-mark">mc</span><span>margem<strong>clara</strong></span></Link>
+        <Link className="landing-brand" href="/"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link>
         <div><Link href="/responsavel">Responsável</Link><Link href="/">Início</Link><Link className="methodology-cta" href="/app">Abrir plataforma →</Link></div>
       </header>
 
       <section className="methodology-hero">
         <span>CONFIABILIDADE POR CONSTRUÇÃO</span>
         <h1>Metodologia, versões e limites claramente documentados.</h1>
-        <p>O Margem Clara é um ambiente de trabalho para contadores. Esta página separa o que o motor verifica, o que o responsável técnico declara e o que ainda depende de fonte oficial.</p>
+        <p>O CBSHub é um ambiente de trabalho para contadores. Esta página separa o que o motor verifica, o que o responsável técnico declara e o que ainda depende de fonte oficial.</p>
         <div className="methodology-version-grid"><div><small>MOTOR FINANCEIRO</small><strong>{CALCULATION_ENGINE_VERSION}</strong></div><div><small>MOTOR DE APURAÇÃO</small><strong>{TAX_DETERMINATION_ENGINE_VERSION}</strong></div><div><small>METODOLOGIA</small><strong>{METHODOLOGY_VERSION}</strong></div><div><small>GARANTIA DISPONÍVEL</small><strong>Revisão do responsável</strong></div></div>
       </section>
 

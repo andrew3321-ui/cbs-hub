@@ -12,7 +12,7 @@ import FiscalReportActions from "./FiscalReportActions";
 export const dynamic = "force-dynamic";
 
 function unavailable(title: string, detail: string) {
-  return <main className="public-report-unavailable"><Link className="report-brand" href="/"><span>mc</span>margem<b>clara</b></Link><section><span>RELATÓRIO INDISPONÍVEL</span><h1>{title}</h1><p>{detail}</p><Link href="/app">Voltar ao sistema →</Link></section></main>;
+  return <main className="public-report-unavailable"><Link className="report-brand" href="/"><span>cb</span>CBSHub</Link><section><span>RELATÓRIO INDISPONÍVEL</span><h1>{title}</h1><p>{detail}</p><Link href="/app">Voltar ao sistema →</Link></section></main>;
 }
 
 export default async function FiscalReportPage({ params }: { params: Promise<{ id: string }> }) {

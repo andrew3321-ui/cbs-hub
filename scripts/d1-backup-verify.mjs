@@ -34,4 +34,3 @@ try {
 } finally {
   rmSync(backupDirectory, { recursive: true, force: true });
 }
-

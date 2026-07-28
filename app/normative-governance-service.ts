@@ -125,7 +125,7 @@ async function captureSource(source: GovernedNormativeSource): Promise<SourceCap
   try {
     const response = await fetch(source.url, {
       headers: {
-        "User-Agent": "MargemClara-Normative-Monitor/2.0",
+        "User-Agent": "CBSHub-Normative-Monitor/2.0",
         Accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
       },
       redirect: "follow",

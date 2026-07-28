@@ -12,6 +12,7 @@ import { hashStColdBeveragePriority, stColdBeverageApplicabilityMatrix, stColdBe
 import { hashStColdBeverageSpDestination, stColdBeverageSpDestinationMetrics, stColdBeverageSpReferenceRuns, stColdBeverageSpSources, ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD, ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES, ST_COLD_BEVERAGES_SP_DESTINATION_VERSION, ST_COLD_BEVERAGES_SP_FACT_LABELS, ST_COLD_BEVERAGES_SP_PMPF_PROFILES, validateStColdBeverageSpDestination } from "../../../../domain/st-cold-beverages-sp-destination";
 import { hashStColdBeverageSpOrigin, stColdBeverageSpOriginMetrics, stColdBeverageSpOriginReferenceRuns, stColdBeverageSpOriginSources, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD, ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES, ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES, ST_COLD_BEVERAGES_SP_ORIGIN_VERSION, validateStColdBeverageSpOrigin } from "../../../../domain/st-cold-beverages-sp-origin";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
+import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
@@ -33,6 +34,7 @@ async function publicCoverage() {
   const coldBeveragesSpOriginFingerprint = (await hashStColdBeverageSpOrigin()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const regressionReport = await buildFiscalRegressionReport();
+  const coverageIndicator = await buildPublicCoverageIndicator();
   return Response.json({
     version: NATIONAL_COVERAGE_VERSION,
     checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
@@ -42,6 +44,7 @@ async function publicCoverage() {
       fingerprint: automaticAssuranceFingerprint,
     },
     regressionReport,
+    coverageIndicator,
     metrics: coverageMetrics(),
     states: stateCoverage,
     cities: cityCoverage,

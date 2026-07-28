@@ -322,7 +322,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
 
         <article className="pricing-card featured">
           <span className="pricing-popular">PLANO COMPLETO</span>
-          <span className="pricing-label">MARGEM CLARA</span>
+          <span className="pricing-label">CBSHUB</span>
           <h2>Operação fiscal completa</h2>
           <div className="pricing-value"><strong>{formatMoney(billingPlans.unico.priceCents)}</strong><small>/mês</small></div>
           <p>Um único plano para contadores independentes e escritórios, com toda a plataforma e capacidade ajustável.</p>
@@ -346,7 +346,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
         </article>
       </div>
 
-      <p className="pricing-safety"><span>✓</span> Cartão e Pix são processados pelo Mercado Pago. O Margem Clara não recebe números de cartão nem armazena sua chave Pix.</p>
+      <p className="pricing-safety"><span>✓</span> Cartão e Pix são processados pelo Mercado Pago. O CBSHub não recebe números de cartão nem armazena sua chave Pix.</p>
     </>
   );
 }
