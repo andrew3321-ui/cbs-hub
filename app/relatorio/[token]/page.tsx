@@ -7,6 +7,7 @@ import { approvalRecordFromStored } from "../../scenario-approval-core";
 import { parseScenarioSnapshot, rateSourceLabel, valuesFromSnapshot, type RateSource } from "../../scenario-reliability";
 import { signedRecordFromScenario, verifyScenarioApprovalRecord, verifyScenarioRecord } from "../../scenario-signing";
 import ReportActions from "./ReportActions";
+import BrandMark from "../../BrandMark";
 
 export const dynamic = "force-dynamic";
 
@@ -14,11 +15,11 @@ const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL
 const date = new Intl.DateTimeFormat("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
 
 function unavailable() {
-  return <main className="public-report-unavailable"><Link className="report-brand" href="/"><span>cb</span>CBSHub</Link><section><span>LINK INDISPONÍVEL</span><h1>Este relatório não está mais acessível.</h1><p>O link pode ter expirado ou sido revogado por quem preparou a análise.</p><Link href="/">Conhecer o CBSHub →</Link></section></main>;
+  return <main className="public-report-unavailable"><Link className="report-brand" href="/"><BrandMark />CBSHub</Link><section><span>LINK INDISPONÍVEL</span><h1>Este relatório não está mais acessível.</h1><p>O link pode ter expirado ou sido revogado por quem preparou a análise.</p><Link href="/">Conhecer o CBSHub →</Link></section></main>;
 }
 
 function integrityBlocked() {
-  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><span>cb</span>CBSHub</Link><section><span>INTEGRIDADE NÃO CONFIRMADA</span><h1>Este relatório foi bloqueado por segurança.</h1><p>A assinatura criptográfica do registro não confere. Nenhum número será exibido até que uma nova versão íntegra seja criada.</p><Link href="/metodologia">Entender os controles →</Link></section></main>;
+  return <main className="public-report-unavailable integrity-blocked"><Link className="report-brand" href="/"><BrandMark />CBSHub</Link><section><span>INTEGRIDADE NÃO CONFIRMADA</span><h1>Este relatório foi bloqueado por segurança.</h1><p>A assinatura criptográfica do registro não confere. Nenhum número será exibido até que uma nova versão íntegra seja criada.</p><Link href="/metodologia">Entender os controles →</Link></section></main>;
 }
 
 export default async function PublicReportPage({ params }: { params: Promise<{ token: string }> }) {
@@ -79,7 +80,7 @@ export default async function PublicReportPage({ params }: { params: Promise<{ t
   return (
     <main className="public-report-shell">
       <header className="public-report-nav">
-        <Link className="report-brand" href="/"><span>cb</span>CBSHub</Link>
+        <Link className="report-brand" href="/"><BrandMark />CBSHub</Link>
         <div><span>RELATÓRIO EXECUTIVO COMPARTILHADO</span><small>Somente leitura · expira em {date.format(new Date(report.expiresAt))}</small></div>
         <ReportActions />
       </header>

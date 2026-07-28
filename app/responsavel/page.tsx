@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { platformIdentity } from "../../domain/platform-identity";
+import BrandMark from "../BrandMark";
 
 export const metadata = {
   title: "Responsável pela plataforma | CBSHub",
@@ -18,7 +19,7 @@ export default function PlatformOwnerPage() {
     <main className="ownership-shell">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
       <header className="ownership-nav">
-        <Link className="landing-brand" href="/"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link>
+        <Link className="landing-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
         <div><Link href="/metodologia">Metodologia</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div>
       </header>
 

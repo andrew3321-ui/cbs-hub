@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BrandMark from "../BrandMark";
 import { getPlatformOperationState, publicLegalSupplierIdentity } from "../platform-controls";
 
 export const dynamic = "force-dynamic";
@@ -8,7 +9,7 @@ export default async function TermsPage() {
   const operation = await getPlatformOperationState();
   const supplier = await publicLegalSupplierIdentity();
   return <main className="legal-shell">
-    <header className="legal-nav"><Link className="landing-brand" href="/"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link><div><Link href="/privacidade">Privacidade</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div></header>
+    <header className="legal-nav"><Link className="landing-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link><div><Link href="/privacidade">Privacidade</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div></header>
     <section className="legal-hero"><span>TERMOS DE USO · V2</span><h1>Contratação clara, capacidade previsível.</h1><p>Estes termos registram o período gratuito, a renovação, os limites do produto, o cancelamento e a responsabilidade profissional.</p></section>
     <section className={`terms-mode ${operation.paymentsEnabled ? "live" : "beta"}`}><span>{operation.paymentsEnabled ? "PAGAMENTOS ATIVOS" : "PAGAMENTOS BLOQUEADOS"}</span><strong>{operation.paymentsEnabled ? "O checkout pode criar assinaturas no Mercado Pago." : "Nenhuma nova assinatura paga pode ser criada pelo servidor."}</strong></section>
     {supplier ? <section className="supplier-identity"><span>IDENTIFICAÇÃO DO FORNECEDOR</span><h2>{supplier.name}</h2><p>CPF {supplier.cpf}</p><p>{supplier.address}</p><a href={`mailto:${supplier.email}`}>{supplier.email}</a></section> : <section className="supplier-identity pending"><span>IDENTIFICAÇÃO COMERCIAL</span><h2>Ainda não publicada</h2><p>A operação paga só poderá ser ativada depois que CPF, endereço, canal de atendimento e credenciais de produção forem configurados.</p></section>}

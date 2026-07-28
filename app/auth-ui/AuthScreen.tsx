@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import BrandMark from "../BrandMark";
 
 type AuthMode = "login" | "register" | "recover";
 type AccountType = "individual" | "office";
@@ -162,7 +163,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   if (issuedRecoveryKey) {
     return (
       <main className="auth-shell">
-        <Link className="auth-brand" href="/"><span>cb</span>CBSHub</Link>
+        <Link className="auth-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
         <section className="auth-success-card">
           <span className="auth-success-icon">✓</span>
           <p className="auth-eyebrow">CONTA CRIADA COM SUCESSO</p>
@@ -187,7 +188,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
 
   return (
     <main className="auth-shell">
-      <Link className="auth-brand" href="/"><span>cb</span>CBSHub</Link>
+      <Link className="auth-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
       <section className="auth-layout">
         <div className="auth-story">
           <span className="auth-story-label">DECISÕES FISCAIS. MARGENS PROTEGIDAS.</span>

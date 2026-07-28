@@ -15,6 +15,7 @@ import BillingCenter from "./BillingCenter";
 import TaxReformImpact from "./TaxReformImpact";
 import AccountOnboarding from "./AccountOnboarding";
 import ActionSafetyDialog from "./ActionSafetyDialog";
+import BrandMark from "../BrandMark";
 import { onboardingActionWarnings } from "../../domain/account-onboarding";
 import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
 import type { PlanFeatureKey, WorkspaceEntitlements } from "../../domain/plan-entitlements";
@@ -1223,8 +1224,8 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
     <main className="app-shell">
       <aside className="sidebar">
         <div className="brand" aria-label="CBSHub">
-          <span className="brand-mark">cb</span>
-          <span>CBSHub</span>
+          <BrandMark className="brand-mark" />
+          <span><strong>CBS</strong>Hub</span>
         </div>
 
         <nav ref={navigationRef} className="main-nav" aria-label="Navegação principal">
@@ -1525,7 +1526,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
             </section>
 
             <section className="panel executive-panel">
-              <div className="print-only print-brand"><span className="brand-mark">cb</span><strong>cbshub</strong><small>{activeCompany?.name ?? "Resumo executivo"}</small></div>
+              <div className="print-only print-brand"><BrandMark className="brand-mark" /><strong>CBSHub</strong><small>{activeCompany?.name ?? "Resumo executivo"}</small></div>
               <div className="panel-heading">
                 <div><span className="eyebrow">RESUMO EXECUTIVO</span><h3>Decisão recomendada</h3></div>
                 <button className="text-button print-button" onClick={() => window.print()}>Imprimir resumo</button>
@@ -1910,7 +1911,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
                 </div>
 
                 <div className={`demo-player-screen ${activeDemo.accent}`} aria-live="polite">
-                  <div className="demo-screen-top"><span><i>cb</i> CBSHub</span><small>DEMONSTRAÇÃO GUIADA</small><em>{demoStep + 1}/{activeDemo.steps.length}</em></div>
+                  <div className="demo-screen-top"><span><BrandMark /> CBSHub</span><small>DEMONSTRAÇÃO GUIADA</small><em>{demoStep + 1}/{activeDemo.steps.length}</em></div>
                   <div className="demo-screen-body">
                     <aside>{activeDemo.steps.map((step, index) => <span className={index === demoStep ? "active" : index < demoStep ? "done" : ""} key={step.title}><i>{index < demoStep ? "✓" : index + 1}</i><b>{step.label.replace(/PASSO \d · /, "")}</b></span>)}</aside>
                     <div className="demo-scene" key={`${demoIndex}-${demoStep}`}>

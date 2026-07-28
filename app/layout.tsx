@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./cbshub-landing.css";
 import "./homologation.css";
 import "./homologation-simulations.css";
 import "./federal-pme.css";
@@ -13,12 +14,12 @@ import "./account-onboarding.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://cbshub.com.br"),
-  title: "CBSHub — Inteligência tributária para escritórios contábeis",
-  description: "Organize clientes, revise versões e entregue análises tributárias rastreáveis com responsabilidade explícita.",
+  title: "CBSHub — Inteligência tributária rastreável",
+  description: "Pesquise normas, estruture operações, execute cálculos determinísticos e entregue dossiês fiscais com fonte, memória e versão.",
   openGraph: {
-    title: "CBSHub — Do cálculo à entrega revisada",
-    description: "Fluxo técnico para contadores organizarem clientes, revisarem versões e entregarem análises rastreáveis.",
-    images: [{ url: "/og-accountants.png", width: 1736, height: 909, alt: "CBSHub — do cálculo à entrega revisada para escritórios contábeis" }],
+    title: "CBSHub — Da regra fiscal à decisão defendível",
+    description: "Inteligência tributária, cálculo determinístico e dossiês versionados para contadores e tributaristas.",
+    images: [{ url: "/og-cbshub.png", width: 1734, height: 907, alt: "CBSHub — da regra fiscal à decisão defendível" }],
     locale: "pt_BR",
     type: "website",
   },
@@ -26,7 +27,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "CBSHub",
     description: "Inteligência tributária e revisão responsável para escritórios contábeis.",
-    images: ["/og-accountants.png"],
+    images: ["/og-cbshub.png"],
   },
 };
 

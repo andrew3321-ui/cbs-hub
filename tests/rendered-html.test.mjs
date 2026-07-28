@@ -14,7 +14,7 @@ test("a experiência publicada contém identidade e rotas comerciais", async () 
   assert.match(landing, /CBSHub/);
   assert.match(landing, /href="\/planos"/);
   assert.match(layout, /Inteligência tributária/);
-  assert.match(layout, /og-accountants\.png/);
+  assert.match(layout, /og-cbshub\.png/);
   assert.match(pricing, /OPERAÇÃO FISCAL PROFISSIONAL/);
   assert.match(pricing, /PricingClient/);
   assert.doesNotMatch(`${landing}\n${layout}`, /codex-preview|_sites-preview|Your site is taking shape/i);
@@ -112,7 +112,7 @@ test("fluxo remodelado trata o contador como usuário principal e exige aprovaç
     readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
   ]);
 
-  assert.match(landing, /Inteligência tributária para escritórios contábeis/);
+  assert.match(landing, /Central de inteligência tributária/);
   assert.match(client, /CLIENTE ATIVO DO ESCRITÓRIO/);
   assert.match(client, /Aprovar como responsável/);
   assert.match(client, /não será apresentado como revisão independente/);
@@ -503,7 +503,7 @@ test("versão 70 publica PMPF de bebidas destinado a São Paulo e nas rotas SP�
   assert.match(schema, /fiscalRuleApprovals/);
   assert.doesNotMatch(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_rule_approvals/);
   assert.match(approvalService, /ensureFiscalRuleApprovalSchema/);
-  assert.match(landing, /landing-coverage-strip/);
+  assert.match(landing, /cbs-coverage-section/);
   assert.match(layout, /national-coverage\.css/);
   assert.match(layout, /national-coverage-v64\.css/);
 });
