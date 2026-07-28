@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { TAX_DETERMINATION_ENGINE_VERSION } from "../../domain/tax-determination";
 import { CALCULATION_ENGINE_VERSION, METHODOLOGY_VERSION } from "../scenario-reliability";
+import BrandMark from "../BrandMark";
 
 export const metadata = {
   title: "Metodologia e controles | CBSHub",
@@ -11,7 +12,7 @@ export default function MethodologyPage() {
   return (
     <main className="methodology-shell">
       <header className="methodology-nav">
-        <Link className="landing-brand" href="/"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link>
+        <Link className="landing-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
         <div><Link href="/responsavel">Responsável</Link><Link href="/">Início</Link><Link className="methodology-cta" href="/app">Abrir plataforma →</Link></div>
       </header>
 

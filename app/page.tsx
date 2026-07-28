@@ -1,4 +1,5 @@
 import Link from "next/link";
+import BrandMark from "./BrandMark";
 import { getCurrentUser } from "./auth";
 import { coverageMetrics } from "../domain/national-tax-coverage";
 import { platformIdentity } from "../domain/platform-identity";
@@ -13,138 +14,279 @@ export default async function LandingPage() {
   const demoPath = user ? "/app?view=academy" : "/cadastro";
 
   return (
-    <main className="landing-shell">
-      <header className="landing-nav">
-        <Link className="landing-brand" href="/" aria-label="CBSHub — início">
-          <span className="landing-brand-mark">cb</span>
-          <span>CBSHub</span>
+    <main className="cbs-landing">
+      <header className="cbs-landing-nav">
+        <Link className="cbs-lockup" href="/" aria-label="CBSHub — início">
+          <BrandMark />
+          <span className="cbs-wordmark"><strong>CBS</strong>Hub</span>
         </Link>
-        <nav aria-label="Navegação da apresentação">
-          <a href="#produto">Produto</a>
-          <a href="#como-funciona">Como funciona</a>
-          <a href="#demonstracoes">Demonstrações</a>
-          <Link href="/metodologia">Metodologia</Link>
+
+        <nav aria-label="Navegação principal">
+          <a href="#plataforma">Plataforma</a>
+          <a href="#fluxo">Como funciona</a>
+          <a href="#cobertura">Cobertura</a>
+          <a href="#confiabilidade">Confiabilidade</a>
           <Link href="/planos">Planos</Link>
         </nav>
-        <div className="landing-nav-actions">
-          <Link className="landing-login" href={loginPath}>{user ? "Ir para o painel" : "Entrar"}</Link>
-          <Link className="landing-cta small" href={primaryPath}>{user ? "Continuar análise" : "Testar por 5 dias"}<span>→</span></Link>
+
+        <div className="cbs-nav-actions">
+          <Link className="cbs-text-link" href={loginPath}>{user ? "Abrir painel" : "Entrar"}</Link>
+          <Link className="cbs-button cbs-button-small" href={primaryPath}>
+            {user ? "Continuar" : "Teste por 5 dias"} <span>→</span>
+          </Link>
         </div>
       </header>
 
-      <section className="landing-hero">
-        <div className="landing-hero-copy">
-          <span className="landing-pill"><i /> Inteligência tributária para escritórios contábeis</span>
-          <h1>Da premissa do cliente à entrega <em>revisada</em> pelo contador.</h1>
-          <p>Organize a carteira, preserve cada versão e transforme dados fiscais em análises rastreáveis para as empresas atendidas pelo seu escritório.</p>
-          <div className="landing-hero-actions">
-            <Link className="landing-cta" href={primaryPath}>{user ? "Abrir meu painel" : "Iniciar teste de 5 dias"}<span>→</span></Link>
-            <a className="landing-watch" href="#demonstracoes"><span className="play-dot">▶</span> Ver como funciona</a>
+      <section className="cbs-hero">
+        <div className="cbs-hero-copy">
+          <span className="cbs-kicker"><i /> Central de inteligência tributária</span>
+          <h1>Da regra fiscal à decisão <em>defendível.</em></h1>
+          <p>
+            Pesquise normas, estruture os fatos da operação, execute cálculos determinísticos
+            e entregue dossiês com fonte, memória e versão — em um único ambiente.
+          </p>
+
+          <div className="cbs-hero-actions">
+            <Link className="cbs-button" href={primaryPath}>
+              {user ? "Abrir meu workspace" : "Começar teste completo"} <span>→</span>
+            </Link>
+            <a className="cbs-secondary-action" href="#plataforma">
+              Explorar a plataforma <span>↓</span>
+            </a>
           </div>
-          <div className="landing-trust">
-            <span><b>01</b> 10 empresas no teste</span>
-            <span><b>02</b> Todos os recursos</span>
-            <span><b>03</b> Sem cartão</span>
+
+          <div className="cbs-trial-proof" aria-label="Condições do teste">
+            <span><b>5 dias</b><small>acesso completo</small></span>
+            <span><b>10 empresas</b><small>para validar o fluxo</small></span>
+            <span><b>Sem cartão</b><small>cadastro direto</small></span>
           </div>
         </div>
 
-        <div className="landing-product-stage" aria-label="Prévia do painel CBSHub">
-          <div className="stage-orbit orbit-one" />
-          <div className="stage-orbit orbit-two" />
-          <div className="landing-product-window">
-            <div className="product-window-top">
-              <span className="mini-brand"><i>cb</i> CBSHub</span>
-              <span className="window-company">Aurora Consultoria⌄</span>
-              <span className="window-avatar">AC</span>
+        <div className="cbs-product-preview" aria-label="Prévia da inteligência fiscal CBSHub">
+          <div className="cbs-preview-glow" />
+          <div className="cbs-preview-window">
+            <div className="cbs-preview-topbar">
+              <span className="cbs-preview-lockup"><BrandMark /><b>CBSHub</b></span>
+              <span className="cbs-preview-context">Almeida &amp; Torres Tributário</span>
+              <span className="cbs-preview-user">AT</span>
             </div>
-            <div className="product-window-body">
-              <aside>
-                <span className="active">⌂ <b>Visão geral</b></span>
-                <span>▦ <b>Empresas</b></span>
-                <span>↗ <b>Simulador</b></span>
-                <span>▤ <b>Documentos</b></span>
+
+            <div className="cbs-preview-body">
+              <aside className="cbs-preview-sidebar">
+                <span className="active"><i>⌕</i> Inteligência</span>
+                <span><i>∑</i> Laboratório</span>
+                <span><i>◇</i> Cobertura</span>
+                <span><i>≡</i> Dossiês</span>
               </aside>
-              <div className="window-content">
-                <p className="window-kicker">EMPRESA ATIVA · SIMPLES NACIONAL</p>
-                <h2>Aurora Consultoria Ltda.</h2>
-                <div className="window-alert"><span>↘</span><div><small>ALERTA DE MARGEM</small><b>Margem pode cair 4,8 p.p.</b></div><button>Simular reajuste</button></div>
-                <div className="window-metrics">
-                  <article><small>Receita analisada</small><b>R$ 284.650</b><em>cenário atualizado</em></article>
-                  <article><small>Projeção informada · 2027</small><b>R$ 38.288</b><em className="risk">+ R$ 13.665</em></article>
-                  <article><small>Margem projetada</small><b>19,4%</b><em className="risk">↓ 4,8 p.p.</em></article>
+
+              <div className="cbs-preview-content">
+                <div className="cbs-preview-heading">
+                  <div><small>INTELIGÊNCIA FISCAL</small><b>Analise uma operação</b></div>
+                  <span>Base V71</span>
                 </div>
-                <div className="window-lower">
-                  <div className="fake-chart"><span style={{height:"28%"}} /><span style={{height:"45%"}} /><span style={{height:"38%"}} /><span style={{height:"67%"}} /><span style={{height:"54%"}} /><span style={{height:"82%"}} /><span style={{height:"69%"}} /></div>
-                  <div className="window-decision"><small>PRÓXIMA DECISÃO</small><b>Reajuste recomendado</b><strong>5,6%</strong><p>Protege a margem atual no cenário projetado.</p></div>
+
+                <div className="cbs-query-box">
+                  <small>DESCREVA A OPERAÇÃO</small>
+                  <p>Qual o tratamento de ICMS-ST para autopeças de SP para MG?</p>
+                  <button aria-label="Pesquisar regra demonstrativa">Pesquisar regras <span>→</span></button>
+                </div>
+
+                <div className="cbs-case-facts">
+                  <span><small>ORIGEM</small><b>SP</b></span>
+                  <span><small>DESTINO</small><b>MG</b></span>
+                  <span><small>SEGMENTO</small><b>Autopeças</b></span>
+                  <span><small>OPERAÇÃO</small><b>Revenda</b></span>
+                </div>
+
+                <div className="cbs-result-card">
+                  <div className="cbs-result-status">
+                    <span><i /> SUPORTADO NO RECORTE</span>
+                    <small>Fatos mínimos 9/9</small>
+                  </div>
+                  <div className="cbs-result-main">
+                    <div>
+                      <small>TRATAMENTO IDENTIFICADO</small>
+                      <b>ICMS interestadual + trilha de ST</b>
+                      <p>A conclusão final permanece vinculada ao NCM, CEST e período da operação.</p>
+                    </div>
+                    <strong>12%<small>referência interestadual</small></strong>
+                  </div>
+                  <div className="cbs-source-line">
+                    <span>FONTE OFICIAL</span>
+                    <b>Protocolo ICMS 41/2008</b>
+                    <em>Vigência conferida ↗</em>
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-          <div className="floating-proof proof-risk"><span>Margem protegida</span><b>+ R$ 12.940</b></div>
-          <div className="floating-proof proof-time"><span>Tempo de análise</span><b>03 min</b></div>
+
+          <div className="cbs-floating-card cbs-floating-tests">
+            <span>GARANTIA AUTOMÁTICA</span>
+            <b>914 casos determinísticos</b>
+            <small>reexecutados a cada versão</small>
+          </div>
+          <div className="cbs-floating-card cbs-floating-version">
+            <span>MEMÓRIA VERSIONADA</span>
+            <b>#938cf478fdf5</b>
+            <small>integridade verificável</small>
+          </div>
         </div>
       </section>
 
-      <section className="landing-proof-strip" aria-label="Benefícios principais">
-        <p>Feito para o contador que precisa <strong>explicar, revisar e entregar</strong>, não apenas calcular.</p>
-        <div><span>Escritórios contábeis</span><i /> <span>Contadores consultivos</span><i /> <span>Responsáveis técnicos</span><i /> <span>Carteiras multiempresa</span></div>
-      </section>
-
-      <section className="landing-coverage-strip" aria-label="Cobertura tributária pública">
-        <div><span>COBERTURA PÚBLICA · V27</span><strong>Saiba exatamente o que é suportado</strong><small>Nenhum cenário parcial é apresentado como conclusão.</small><br /><a href="/api/public/coverage" target="_blank" rel="noreferrer">Abrir indicador público ↗</a></div>
-        <div><span>ICMS</span><strong>{coverage.states}/27</strong><small>UFs mapeadas</small></div>
-        <div><span>ISS</span><strong>{coverage.cities}</strong><small>cidades prioritárias</small></div>
-        <div><span>ST</span><strong>{coverage.stSegments}</strong><small>segmentos controlados</small></div>
-        <div><span>FONTES</span><strong>{coverage.sourceCount}</strong><small>primárias nacionais</small></div>
-      </section>
-
-      <section className="landing-section product-section" id="produto">
-        <div className="section-heading">
-          <span className="landing-eyebrow">DO DADO À DECISÃO</span>
-          <h2>Uma visão que a planilha não consegue entregar.</h2>
-          <p>Concentre a carteira, compare cenários e traduza a mudança tributária em ações comerciais objetivas.</p>
-        </div>
-        <div className="benefit-grid">
-          <article className="benefit-card featured"><span className="benefit-number">01</span><div className="benefit-icon">▦</div><h3>Carteira priorizada por risco</h3><p>Veja quais empresas estão protegidas, pendentes ou com margem ameaçada antes de abrir cada análise.</p><div className="risk-list"><span><i className="red" /> Horizonte Digital <b>Em risco</b></span><span><i className="green" /> Aurora Consultoria <b>Protegida</b></span><span><i /> Norte Logística <b>Sem análise</b></span></div></article>
-          <article className="benefit-card"><span className="benefit-number">02</span><div className="benefit-icon">↗</div><h3>Simulação em linguagem de negócio</h3><p>Teste alíquotas, custos e reajustes. O sistema mostra o efeito em reais e a decisão recomendada.</p><div className="mini-result"><small>REAJUSTE PARA PROTEGER A MARGEM</small><strong>5,6%</strong><span>Aplicar ao cenário →</span></div></article>
-          <article className="benefit-card"><span className="benefit-number">03</span><div className="benefit-icon">XML</div><h3>Receita extraída dos documentos</h3><p>Leia XMLs localmente, reconheça os valores e leve a base identificada direto para a simulação.</p><div className="document-line"><span>XML</span><div><b>42 documentos lidos</b><small>R$ 284.650 identificados</small></div><em>✓</em></div></article>
+      <section className="cbs-audience-bar" aria-label="Público do CBSHub">
+        <p>Um workspace fiscal para quem precisa <strong>pesquisar, calcular, revisar e responder.</strong></p>
+        <div>
+          <span>Escritórios contábeis</span><i />
+          <span>Contadores consultivos</span><i />
+          <span>Tributaristas</span><i />
+          <span>Responsáveis técnicos</span>
         </div>
       </section>
 
-      <section className="landing-section steps-section" id="como-funciona">
-        <div className="section-heading left">
-          <span className="landing-eyebrow">SIMPLES DE COMEÇAR</span>
-          <h2>Da primeira empresa ao plano de ação.</h2>
+      <section className="cbs-section cbs-platform-section" id="plataforma">
+        <div className="cbs-section-heading">
+          <span className="cbs-eyebrow">UM HUB, QUATRO CAMADAS</span>
+          <h2>Mais do que encontrar uma alíquota.</h2>
+          <p>O CBSHub transforma uma dúvida fiscal em um processo documentado, com limites explícitos em cada etapa.</p>
         </div>
-        <div className="steps-grid">
-          <article><span>1</span><small>ORGANIZE</small><h3>Cadastre a empresa</h3><p>Registre regime, setor e CNPJ para manter cada cliente em seu próprio contexto.</p></article>
-          <article><span>2</span><small>SIMULE</small><h3>Informe as premissas</h3><p>Receita, carga atual, projeção e custos viram um cenário comparável em segundos.</p></article>
-          <article><span>3</span><small>REVISE E ENTREGUE</small><h3>Assuma a responsabilidade</h3><p>Conclua a revisão do responsável, preserve a assinatura e entregue um relatório rastreável ao cliente.</p></article>
+
+        <div className="cbs-capability-grid">
+          <article className="cbs-capability-card cbs-capability-featured">
+            <span className="cbs-card-index">01</span>
+            <div className="cbs-card-icon">⌕</div>
+            <h3>Inteligência fiscal estruturada</h3>
+            <p>Faça a pergunta em linguagem natural. O motor identifica tributo, rota, produto e os fatos que ainda faltam — sem IA e sem inventar conclusões.</p>
+            <div className="cbs-search-sample">
+              <span>ICMS-ST · SP → MG · autopeças</span>
+              <b>9 fatos identificados</b>
+            </div>
+          </article>
+
+          <article className="cbs-capability-card">
+            <span className="cbs-card-index">02</span>
+            <div className="cbs-card-icon">∑</div>
+            <h3>Cálculo determinístico</h3>
+            <p>Fórmulas em centavos, parâmetros versionados e bloqueio automático quando um dado jurídico essencial não está confirmado.</p>
+            <div className="cbs-memory-sample">
+              <span>Base da operação</span><b>R$ 10.000,00</b>
+              <span>Memória</span><b>6 etapas</b>
+              <span>Arredondamento</span><b>Verificado</b>
+            </div>
+          </article>
+
+          <article className="cbs-capability-card">
+            <span className="cbs-card-index">03</span>
+            <div className="cbs-card-icon">≡</div>
+            <h3>Dossiê fiscal versionado</h3>
+            <p>Resultado, premissas, fontes oficiais, vigência, pendências e hash reunidos em uma entrega rastreável para o cliente.</p>
+            <div className="cbs-dossier-sample">
+              <i>✓</i><span><b>Versão íntegra</b><small>Pronta para revisão responsável</small></span>
+            </div>
+          </article>
+
+          <article className="cbs-capability-card">
+            <span className="cbs-card-index">04</span>
+            <div className="cbs-card-icon">◇</div>
+            <h3>Cobertura sem maquiagem</h3>
+            <p>Cada cenário é classificado como suportado, parcial ou não suportado. O que falta para concluir aparece antes de qualquer número.</p>
+            <div className="cbs-coverage-sample">
+              <span className="supported">Suportado</span>
+              <span className="partial">Parcial</span>
+              <span className="blocked">Não suportado</span>
+            </div>
+          </article>
         </div>
       </section>
 
-      <section className="landing-section demo-section" id="demonstracoes">
-        <div className="section-heading demo-heading">
-          <div><span className="landing-eyebrow">APRENDA VENDO</span><h2>Demonstrações que acompanham você dentro do produto.</h2></div>
-          <p>Vídeos interativos, curtos e com capítulos mostram o caminho completo sem tirar você da plataforma.</p>
+      <section className="cbs-coverage-section" id="cobertura">
+        <div className="cbs-coverage-copy">
+          <span className="cbs-eyebrow">COBERTURA PÚBLICA E VERSIONADA</span>
+          <h2>Você sabe onde pode confiar — e onde precisa conferir.</h2>
+          <p>
+            A matriz pública separa mapeamento nacional, recortes profundos e cenários ainda
+            incompletos. Nenhuma meta interna é apresentada como regra pronta.
+          </p>
+          <a href="/api/public/coverage" target="_blank" rel="noreferrer">Consultar indicador público <span>↗</span></a>
         </div>
-        <div className="demo-teaser-grid">
-          <article><div className="teaser-screen teal"><span className="teaser-play">▶</span><small>COMECE AQUI</small><b>Da empresa ao diagnóstico</b><em>1:48</em></div><h3>Primeira análise completa</h3><p>Cadastre um cliente e crie um cenário base.</p></article>
-          <article><div className="teaser-screen lime"><span className="teaser-play">▶</span><small>SIMULADOR</small><b>Teste o reajuste ideal</b><em>2:12</em></div><h3>Proteção de margem</h3><p>Entenda o cálculo e aplique a recomendação.</p></article>
-          <article><div className="teaser-screen coral"><span className="teaser-play">▶</span><small>CARTEIRA</small><b>Priorize quem precisa agir</b><em>1:35</em></div><h3>Gestão multiempresa</h3><p>Use o risco para organizar a próxima conversa.</p></article>
+        <div className="cbs-coverage-metrics">
+          <article><small>ICMS GERAL</small><b>{coverage.states}<em>/27</em></b><span>UFs mapeadas</span></article>
+          <article><small>ISS PROFUNDO</small><b>{coverage.cities}</b><span>cidades prioritárias</span></article>
+          <article><small>ST PRIORITÁRIA</small><b>{coverage.stSegments}</b><span>segmentos controlados</span></article>
+          <article><small>FONTES</small><b>{coverage.sourceCount}</b><span>referências primárias</span></article>
         </div>
-        <Link className="landing-cta centered" href={demoPath}>{user ? "Abrir central de demonstrações" : "Entrar e assistir gratuitamente"}<span>→</span></Link>
       </section>
 
-      <section className="landing-final-cta">
-        <div><span className="landing-eyebrow">CBSHUB PARA CONTADORES</span><h2>Do trabalho técnico à entrega, sem perder a responsabilidade.</h2><p>Comece com um cliente, registre as premissas, revise a versão e entregue um resultado com limites claros.</p></div>
-        <Link className="landing-cta light" href={primaryPath}>{user ? "Voltar ao painel" : "Testar tudo por 5 dias"}<span>→</span></Link>
+      <section className="cbs-section cbs-workflow-section" id="fluxo">
+        <div className="cbs-section-heading cbs-section-heading-left">
+          <span className="cbs-eyebrow">DO QUESTIONAMENTO À ENTREGA</span>
+          <h2>Um fluxo que acompanha o raciocínio técnico.</h2>
+        </div>
+        <div className="cbs-workflow-grid">
+          <article><span>01</span><div><small>PERGUNTE</small><h3>Descreva a operação</h3><p>Rota, produto, regime, finalidade e período entram no mesmo contexto.</p></div></article>
+          <article><span>02</span><div><small>ESTRUTURE</small><h3>Complete os fatos</h3><p>O sistema mostra exatamente o que falta antes de liberar uma conclusão.</p></div></article>
+          <article><span>03</span><div><small>REVISE</small><h3>Confira regra e memória</h3><p>Fonte, vigência, fórmula e versão ficam lado a lado para conferência.</p></div></article>
+          <article><span>04</span><div><small>ENTREGUE</small><h3>Compartilhe o dossiê</h3><p>O cliente recebe um resultado congelado, rastreável e com limites claros.</p></div></article>
+        </div>
       </section>
 
-      <footer className="landing-footer">
-        <Link className="landing-brand" href="/"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link>
+      <section className="cbs-assurance-section" id="confiabilidade">
+        <div className="cbs-assurance-copy">
+          <span className="cbs-eyebrow">CONFIABILIDADE OPERACIONAL</span>
+          <h2>O sistema prefere bloquear a adivinhar.</h2>
+          <p>
+            Regras fiscais mudam. Por isso, cada resposta depende de fatos mínimos, fonte oficial,
+            período de vigência e testes regressivos. Se um elo não confere, o resultado não é liberado.
+          </p>
+          <Link href="/metodologia">Conhecer a metodologia <span>→</span></Link>
+        </div>
+        <div className="cbs-assurance-board">
+          <div><span>01</span><p><b>Fontes oficiais</b><small>Links, dispositivos e datas de conferência</small></p><em>ATIVO</em></div>
+          <div><span>02</span><p><b>Reexecução automática</b><small>Casos de referência a cada mudança</small></p><em>914 CASOS</em></div>
+          <div><span>03</span><p><b>Integridade de versão</b><small>Hash identifica qualquer alteração</small></p><em>SHA-256</em></div>
+          <div><span>04</span><p><b>Revisão responsável</b><small>Autoria e decisão preservadas na entrega</small></p><em>RASTREÁVEL</em></div>
+        </div>
+      </section>
+
+      <section className="cbs-section cbs-personas-section">
+        <div className="cbs-section-heading">
+          <span className="cbs-eyebrow">FEITO PARA O TRABALHO FISCAL REAL</span>
+          <h2>Cada profissional entra pelo problema que precisa resolver.</h2>
+        </div>
+        <div className="cbs-persona-grid">
+          <article><small>CONTADOR CONSULTIVO</small><h3>Responda clientes com mais contexto.</h3><p>Transforme dúvidas recorrentes em análises documentadas, comparáveis e prontas para explicar.</p></article>
+          <article><small>TRIBUTARISTA</small><h3>Concentre regra, cálculo e evidência.</h3><p>Reduza o tempo gasto procurando fontes e reconstruindo memórias em arquivos separados.</p></article>
+          <article><small>ESCRITÓRIO CONTÁBIL</small><h3>Padronize a qualidade da equipe.</h3><p>Separe preparação, revisão e entrega sem perder autoria, histórico ou controle da carteira.</p></article>
+        </div>
+      </section>
+
+      <section className="cbs-final-cta">
+        <div>
+          <span className="cbs-eyebrow">TESTE O FLUXO COMPLETO</span>
+          <h2>Comece com uma dúvida fiscal real.</h2>
+          <p>Cinco dias, até 10 empresas e todos os módulos liberados. Sem cartão no cadastro.</p>
+        </div>
+        <div className="cbs-final-actions">
+          <Link className="cbs-button cbs-button-light" href={primaryPath}>
+            {user ? "Voltar ao workspace" : "Criar meu acesso"} <span>→</span>
+          </Link>
+          <Link href={demoPath}>{user ? "Ver demonstrações" : "Conhecer por dentro"}</Link>
+        </div>
+      </section>
+
+      <footer className="cbs-footer">
+        <Link className="cbs-lockup" href="/">
+          <BrandMark />
+          <span className="cbs-wordmark"><strong>CBS</strong>Hub</span>
+        </Link>
         <p>Responsável pela plataforma: <Link href="/responsavel">{platformIdentity.responsibleName}</Link></p>
-        <span><Link href="/responsavel">Responsável</Link> · <Link href="/privacidade">Privacidade</Link> · <Link href="/termos">Termos</Link> · <Link href="/metodologia">Metodologia</Link> · <Link href="/planos">Planos</Link> · © 2026 CBSHub</span>
+        <nav aria-label="Links institucionais">
+          <Link href="/privacidade">Privacidade</Link>
+          <Link href="/termos">Termos</Link>
+          <Link href="/metodologia">Metodologia</Link>
+          <Link href="/planos">Planos</Link>
+        </nav>
+        <small>© 2026 CBSHub</small>
       </footer>
     </main>
   );

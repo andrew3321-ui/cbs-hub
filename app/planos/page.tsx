@@ -3,6 +3,7 @@ import { platformIdentity } from "../../domain/platform-identity";
 import { getCurrentUser } from "../auth";
 import PricingClient from "./PricingClient";
 import { getPlatformOperationState } from "../platform-controls";
+import BrandMark from "../BrandMark";
 
 export const dynamic = "force-dynamic";
 
@@ -12,7 +13,7 @@ export default async function PricingPage() {
   return (
     <main className="pricing-shell">
       <header className="pricing-nav">
-        <Link className="landing-brand" href="/" aria-label="CBSHub — início"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link>
+        <Link className="landing-brand" href="/" aria-label="CBSHub — início"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
         <div><Link href={user ? "/app" : "/entrar"}>{user ? "Voltar ao painel" : "Entrar"}</Link><Link className="landing-cta small" href={user ? "/app" : "/cadastro"}>{user ? "Abrir aplicativo" : "Testar por 5 dias"}<span>→</span></Link></div>
       </header>
       <section className="pricing-hero">

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getCurrentUser } from "../auth";
+import BrandMark from "../BrandMark";
 import PrivacyActions from "./PrivacyActions";
 import { privacyContactEmail } from "../platform-controls";
 import { personalDataInventory, PRIVACY_GOVERNANCE_VERSION } from "../../domain/privacy-governance";
@@ -11,7 +12,7 @@ export default async function PrivacyPage() {
   const user = await getCurrentUser();
   const privacyEmail = privacyContactEmail();
   return <main className="legal-shell">
-    <header className="legal-nav"><Link className="landing-brand" href="/"><span className="landing-brand-mark">cb</span><span>CBSHub</span></Link><div><Link href="/termos">Termos</Link><Link className="ownership-app-link" href={user ? "/app" : "/entrar"}>{user ? "Abrir plataforma" : "Entrar"} →</Link></div></header>
+    <header className="legal-nav"><Link className="landing-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link><div><Link href="/termos">Termos</Link><Link className="ownership-app-link" href={user ? "/app" : "/entrar"}>{user ? "Abrir plataforma" : "Entrar"} →</Link></div></header>
     <section className="legal-hero"><span>PRIVACIDADE · LGPD · V1</span><h1>Dados mínimos, finalidade clara e controle do titular.</h1><p>O CBSHub trata informações necessárias para contas, escritórios, análises fiscais, segurança, prevenção de abuso do teste gratuito e cobrança. Esta página descreve os controles implementados.</p></section>
     <section className="legal-grid">
       <article><span>01</span><h2>Dados tratados</h2><p>Nome, e-mail, perfil profissional, empresas atendidas, premissas, cenários, decisões, documentos fiscais minimizados e, quando houver teste ou contratação, registros técnicos, financeiros e fiscais necessários.</p></article>

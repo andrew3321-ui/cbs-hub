@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 import Link from "next/link";
 import type { AutoPartsDossierSnapshot } from "../../domain/auto-parts-dossier";
 import type { ColdBeverageDossierSnapshot } from "../../domain/cold-beverage-dossier";
+import BrandMark from "../BrandMark";
 
 type ReportDossier = {
   id: string;
@@ -46,7 +47,7 @@ export default function FiscalDossierReportDocument(props: Props) {
 
   return <main className="public-report-shell fiscal-client-report-shell">
     <header className="public-report-nav">
-      <Link className="report-brand" href="/"><span>cb</span>CBSHub</Link>
+      <Link className="report-brand" href="/"><BrandMark />CBSHub</Link>
       <div><span>{dossierLabel}</span><small>Snapshot íntegro · #{dossier.inputHash.slice(0, 12)}</small></div>
       {actions}
     </header>
