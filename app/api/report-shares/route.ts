@@ -6,6 +6,8 @@ import { approvalRecordFromStored } from "../../scenario-approval-core";
 import { signedRecordFromScenario, verifyScenarioApprovalRecord, verifyScenarioRecord } from "../../scenario-signing";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { canPrepareScenarios, getWorkspaceContext } from "../../workspace";
+import { publicAppOrigin, publicAppUrl } from "../../public-url";
+import { env } from "cloudflare:workers";
 
 function secureToken() {
   const bytes = new Uint8Array(24);
@@ -27,7 +29,8 @@ async function getReportShares(request: Request) {
     if (!ownedCompany) return Response.json({ error: "Empresa não encontrada." }, { status: 404 });
 
     const rows = await db.select({ id: reportShares.id, token: reportShares.token, scenarioId: reportShares.scenarioId, scenarioName: scenarios.name, companyId: reportShares.companyId, note: reportShares.note, expiresAt: reportShares.expiresAt, revokedAt: reportShares.revokedAt, views: reportShares.views, lastViewedAt: reportShares.lastViewedAt, createdAt: reportShares.createdAt }).from(reportShares).innerJoin(scenarios, eq(reportShares.scenarioId, scenarios.id)).where(and(eq(reportShares.companyId, companyId), eq(reportShares.ownerUserId, workspace.ownerUserId))).orderBy(desc(reportShares.createdAt)).limit(30);
-    const origin = new URL(request.url).origin;
+    const runtime = env as unknown as Record<string, unknown>;
+    const origin = publicAppOrigin(request, runtime.PUBLIC_APP_URL);
     return Response.json({ shares: rows.map((row) => ({ ...row, url: `${origin}/relatorio/${row.token}` })) });
   } catch {
     return Response.json({ error: "Não foi possível carregar os links compartilhados." }, { status: 500 });
@@ -68,7 +71,8 @@ async function createReportShare(request: Request) {
     ]);
     const share = shareRows[0];
     if (!share) throw new Error("report_share_insert_failed");
-    return Response.json({ share: { ...share, url: `${new URL(request.url).origin}/relatorio/${share.token}` }, scenarioReviewStatus: "delivered" }, { status: 201 });
+    const runtime = env as unknown as Record<string, unknown>;
+    return Response.json({ share: { ...share, url: publicAppUrl(`/relatorio/${share.token}`, request, runtime.PUBLIC_APP_URL) }, scenarioReviewStatus: "delivered" }, { status: 201 });
   } catch {
     return Response.json({ error: "Não foi possível gerar o link agora." }, { status: 500 });
   }

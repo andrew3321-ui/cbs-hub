@@ -7,6 +7,7 @@ import { fiscalDossierShares, fiscalDossiers } from "../../../db/schema";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { canPrepareScenarios, getWorkspaceContext, sha256Hex } from "../../workspace";
+import { publicAppOrigin, publicAppUrl } from "../../public-url";
 
 function secureToken() {
   const bytes = new Uint8Array(24);
@@ -40,7 +41,8 @@ async function getFiscalDossierShares(request: Request) {
     const [dossier] = await db.select({ id: fiscalDossiers.id }).from(fiscalDossiers).where(and(eq(fiscalDossiers.id, dossierId), eq(fiscalDossiers.workspaceId, workspace.id))).limit(1);
     if (!dossier) return Response.json({ error: "Dossiê não encontrado." }, { status: 404 });
     const shares = await db.select().from(fiscalDossierShares).where(and(eq(fiscalDossierShares.dossierId, dossierId), eq(fiscalDossierShares.workspaceId, workspace.id))).orderBy(desc(fiscalDossierShares.createdAt), desc(fiscalDossierShares.id)).limit(20);
-    const origin = new URL(request.url).origin;
+    const runtime = env as unknown as Record<string, unknown>;
+    const origin = publicAppOrigin(request, runtime.PUBLIC_APP_URL);
     const now = Date.now();
     return Response.json({ shares: shares.map((share) => ({ ...share, active: !share.revokedAt && new Date(share.expiresAt).getTime() > now, url: `${origin}/dossie/${share.token}` })) }, { headers: { "Cache-Control": "no-store" } });
   } catch {
@@ -96,7 +98,8 @@ async function createFiscalDossierShare(request: Request) {
     if (results[1].meta.changes !== 1 || results[2].meta.changes !== 1) return Response.json({ error: "O compartilhamento não foi persistido integralmente." }, { status: 409 });
     const [share] = await db.select().from(fiscalDossierShares).where(eq(fiscalDossierShares.token, token)).limit(1);
     if (!share) throw new Error("fiscal_dossier_share_insert_failed");
-    return Response.json({ share: { ...share, active: true, url: `${new URL(request.url).origin}/dossie/${token}` } }, { status: 201, headers: { "Cache-Control": "no-store" } });
+    const runtime = env as unknown as Record<string, unknown>;
+    return Response.json({ share: { ...share, active: true, url: publicAppUrl(`/dossie/${token}`, request, runtime.PUBLIC_APP_URL) } }, { status: 201, headers: { "Cache-Control": "no-store" } });
   } catch {
     return Response.json({ error: "Não foi possível gerar o link do dossiê agora." }, { status: 500, headers: { "Cache-Control": "no-store" } });
   }

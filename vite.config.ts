@@ -23,6 +23,9 @@ const localBindingConfig = {
     : {}),
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
+  version_metadata: {
+    binding: "CF_VERSION_METADATA",
+  },
   d1_databases: [
     {
       binding: "DB",

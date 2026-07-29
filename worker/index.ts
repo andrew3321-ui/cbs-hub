@@ -8,6 +8,13 @@ interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   SECURITY_HASH_KEY?: string;
+  PUBLIC_APP_URL?: string;
+  OBSERVABILITY_SLOW_REQUEST_MS?: string;
+  CF_VERSION_METADATA?: {
+    id: string;
+    tag?: string;
+    timestamp?: string;
+  };
   IMAGES: {
     input(stream: ReadableStream): {
       transform(options: Record<string, unknown>): {
@@ -26,6 +33,7 @@ type RateLimitRule = { scope: string; limit: number; windowSeconds: number };
 type ScheduledController = { scheduledTime: number; cron: string };
 
 const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
+const defaultSlowRequestMs = 2_500;
 const contentSecurityPolicy = [
   "default-src 'self'",
   "base-uri 'self'",
@@ -43,6 +51,18 @@ const contentSecurityPolicy = [
 function edgeRequestId() {
   if (typeof crypto.randomUUID === "function") return crypto.randomUUID();
   return Array.from(crypto.getRandomValues(new Uint8Array(16)), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+function releaseMetadata(env: Env) {
+  return {
+    versionId: env.CF_VERSION_METADATA?.id ?? "local",
+    versionTag: env.CF_VERSION_METADATA?.tag ?? "unversioned",
+  };
+}
+
+function slowRequestThreshold(env: Env) {
+  const configured = Number(env.OBSERVABILITY_SLOW_REQUEST_MS);
+  return Number.isFinite(configured) && configured >= 250 ? Math.floor(configured) : defaultSlowRequestMs;
 }
 
 function jsonError(status: number, error: string, code: string, headers: HeadersInit = {}) {
@@ -156,9 +176,25 @@ const worker = {
     request = new Request(request, { headers: instrumentedHeaders });
     const url = new URL(request.url);
     const finalize = (response: Response) => {
+      const durationMs = Date.now() - startedAt;
+      const release = releaseMetadata(env);
       const secured = secureResponse(response, request);
       secured.headers.set("X-Request-Id", requestId);
-      console.info(JSON.stringify({ event: "edge.request", requestId, method: request.method, route: url.pathname, status: secured.status, durationMs: Date.now() - startedAt }));
+      secured.headers.set("X-CBSHub-Version", release.versionId);
+      console.info(JSON.stringify({ event: "edge.request", requestId, method: request.method, route: url.pathname, status: secured.status, durationMs, ...release }));
+      if (secured.status >= 500 || durationMs >= slowRequestThreshold(env)) {
+        console.warn(JSON.stringify({
+          event: secured.status >= 500 ? "edge.alert.error" : "edge.alert.latency",
+          severity: secured.status >= 500 ? "critical" : "warning",
+          requestId,
+          method: request.method,
+          route: url.pathname,
+          status: secured.status,
+          durationMs,
+          thresholdMs: slowRequestThreshold(env),
+          ...release,
+        }));
+      }
       return secured;
     };
 
@@ -190,7 +226,7 @@ const worker = {
       }
       return finalize(await handler.fetch(request, env, ctx));
     } catch (error) {
-      console.error(JSON.stringify({ event: "edge.error", requestId, method: request.method, route: url.pathname, status: 500, durationMs: Date.now() - startedAt, error: error instanceof Error ? error.name : "UnknownError" }));
+      console.error(JSON.stringify({ event: "edge.error", requestId, method: request.method, route: url.pathname, status: 500, durationMs: Date.now() - startedAt, ...releaseMetadata(env), error: error instanceof Error ? error.name : "UnknownError" }));
       return finalize(jsonError(500, "Falha interna. Informe o código de atendimento se persistir.", "INTERNAL_ERROR"));
     }
   },

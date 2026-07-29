@@ -9,12 +9,12 @@ const restoreRequested = process.argv.includes("--restore-test");
 const config = process.env.WRANGLER_CONFIG ?? "wrangler.migrations.jsonc";
 const backupDirectory = resolve(process.env.D1_BACKUP_TEMP_DIR ?? ".backup-verification");
 const backupFile = join(backupDirectory, `d1-${Date.now()}.sql`);
-const wrangler = resolve("node_modules", ".bin", process.platform === "win32" ? "wrangler.cmd" : "wrangler");
+const wrangler = resolve("node_modules", "wrangler", "bin", "wrangler.js");
 const requiredTables = ["users", "accounting_workspaces", "companies", "scenarios", "privacy_request_events", "security_incidents"];
 
 mkdirSync(backupDirectory, { recursive: true });
 try {
-  execFileSync(wrangler, ["d1", "export", database, "--remote", "--skip-confirmation", "--config", config, "--output", backupFile], { stdio: "inherit" });
+  execFileSync(process.execPath, [wrangler, "d1", "export", database, "--remote", "--skip-confirmation", "--config", config, "--output", backupFile], { stdio: "inherit" });
   const sql = readFileSync(backupFile, "utf8");
   if (sql.length < 500 || !sql.includes("CREATE TABLE")) throw new Error("backup estruturalmente vazio");
   const missing = requiredTables.filter((table) => !sql.includes(table));
@@ -25,8 +25,8 @@ try {
   if (restoreRequested) {
     if (!restoreDatabase || process.env.D1_RESTORE_CONFIRM !== "RESTORE_DEDICATED_TEST_DATABASE") throw new Error("restauração exige banco dedicado e confirmação explícita");
     if (restoreDatabase === database) throw new Error("o banco de restauração nunca pode ser o banco de produção");
-    execFileSync(wrangler, ["d1", "execute", restoreDatabase, "--remote", "--yes", "--config", config, "--file", backupFile], { stdio: "inherit" });
-    const result = execFileSync(wrangler, ["d1", "execute", restoreDatabase, "--remote", "--yes", "--json", "--config", config, "--command", "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table'"], { encoding: "utf8" });
+    execFileSync(process.execPath, [wrangler, "d1", "execute", restoreDatabase, "--remote", "--yes", "--config", config, "--file", backupFile], { stdio: "inherit" });
+    const result = execFileSync(process.execPath, [wrangler, "d1", "execute", restoreDatabase, "--remote", "--yes", "--json", "--config", config, "--command", "SELECT COUNT(*) AS table_count FROM sqlite_master WHERE type='table'"], { encoding: "utf8" });
     const parsed = JSON.parse(result);
     if (!JSON.stringify(parsed).includes("table_count")) throw new Error("banco restaurado não respondeu à verificação");
     console.log(JSON.stringify({ event: "backup.restore_test_passed", sourceDatabase: database, restoreDatabase }));
