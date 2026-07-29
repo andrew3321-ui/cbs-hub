@@ -1141,3 +1141,29 @@ tbody tr:last-child td { border-bottom: 0; }
   .scenario-grid { grid-template-columns: 1fr; }.scenario-grid article { min-height: 0; }.intelligence-workbench { display: flex; flex-direction: column; }.intelligence-result-column { width: 100%; }.intelligence-fact-form { width: 100%; position: static; order: -1; }.fact-grid { grid-template-columns: 1fr 1fr; }.finding-list article { grid-template-columns: 32px 1fr; }.finding-list code { grid-column: 2; }.intelligence-source-grid { grid-template-columns: 1fr; }.intelligence-disclaimer { grid-template-columns: 1fr; gap: 6px; }.knowledge-catalog-note { align-items: flex-start; flex-direction: column; gap: 5px; }
   .dossier-heading { flex-direction: column; }.dossier-assurance { max-width: none; }.dossier-metrics { grid-template-columns: 1fr 1fr; }.dossier-metrics > div:nth-child(2) { border-right: 0; }.dossier-metrics > div:nth-child(-n+2) { border-bottom: 1px solid #dfe8e4; }.dossier-create-grid,.dossier-memory,.dossier-review { padding: 15px; }.dossier-field-grid,.dossier-field-grid.compact { grid-template-columns: 1fr 1fr; }.dossier-memory-summary { grid-template-columns: 1fr; }.calculation-lines article { grid-template-columns: 22px 1fr; }.calculation-lines article > strong { grid-column: 2; text-align: left; }.dossier-queue { grid-template-columns: 1fr; }.dossier-error { margin-right: 15px; margin-left: 15px; }
 }
+
+/* Billing issuance governance */
+.billing-fiscal-provider-card { margin-bottom: 13px; }
+.billing-queue-list .billing-fiscal-reason { grid-column: 2/-1; margin-top: 0; line-height: 1.4; }
+.billing-fiscal-dot.failed,.billing-fiscal-dot.canceled { background: #c65a47; }
+.billing-fiscal-status.failed,.billing-fiscal-status.canceled,.billing-table-status.failed,.billing-table-status.canceled { background: #fff0ea; color: #a64d3b; }
+.billing-fiscal-reason-box { margin-bottom: 14px; padding: 11px 13px; border: 1px solid #dbe5e0; border-radius: 8px; background: #f7faf8; }
+.billing-fiscal-reason-box b,.billing-fiscal-reason-box p,.billing-fiscal-reason-box small { display: block; }
+.billing-fiscal-reason-box b { font-size: 10px; }
+.billing-fiscal-reason-box p { margin: 4px 0; color: #4f6862; font-size: 10px; }
+.billing-fiscal-reason-box small { color: #81908c; font-size: 8px; }
+.billing-fiscal-reason-box.failed,.billing-fiscal-reason-box.canceled { border-color: #efc7bf; background: #fff7f4; }
+.billing-fiscal-actions { flex-wrap: wrap; }
+.billing-nfse-evidence { grid-template-columns: repeat(3,minmax(0,1fr)); }
+.billing-nfse-evidence label.wide,.billing-nfse-evidence > button { grid-column: 1/-1; }
+.billing-nfse-evidence > button { justify-self: end; }
+.billing-fiscal-exception { margin-top: 12px; padding: 12px; display: grid; grid-template-columns: minmax(0,1fr) auto; align-items: end; gap: 8px; border: 1px solid #e4ddd0; border-radius: 9px; background: #fffcf5; }
+.billing-fiscal-exception.danger { border-color: #efc7bf; background: #fff7f4; }
+.billing-fiscal-exception label { color: #60746f; font-size: 9px; font-weight: 800; }
+.billing-fiscal-exception textarea { width: 100%; min-height: 66px; margin-top: 5px; padding: 10px; border: 1px solid #d3ded9; border-radius: 7px; background: white; color: var(--ink); font: inherit; font-size: 11px; resize: vertical; }
+
+@media (max-width: 720px) {
+  .billing-nfse-evidence,.billing-fiscal-exception { grid-template-columns: 1fr; }
+  .billing-nfse-evidence label.wide,.billing-nfse-evidence > button { grid-column: auto; }
+  .billing-nfse-evidence > button { width: 100%; justify-self: stretch; }
+}

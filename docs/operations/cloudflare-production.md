@@ -35,6 +35,11 @@ Variáveis de runtime ficam em **Worker > Settings > Variables and Secrets**. Se
 | `SCENARIO_SIGNING_KEY_V1` | runtime | sim | assinatura de cenários e decisões |
 | `MERCADO_PAGO_ACCESS_TOKEN` | runtime | sim | conciliação e cobrança |
 | `MERCADO_PAGO_WEBHOOK_SECRET` | runtime | sim | autenticação HMAC do webhook |
+| `FISCAL_ISSUER_ADAPTER` | runtime | não | `manual` até a seleção de um emissor oficial/provedor |
+| `FISCAL_ISSUER_MUNICIPALITY_CODE` | runtime | não | código do município do prestador |
+| `FISCAL_ISSUER_MUNICIPAL_REGISTRATION` | runtime | sim | inscrição municipal do prestador; exibida somente mascarada |
+| `FISCAL_ISSUER_SERVICE_CODE` | runtime | não | código padrão conferido no emissor oficial |
+| `FISCAL_ISSUER_SERVICE_DESCRIPTION` | runtime | não | descrição padrão da assinatura |
 | `SMOKE_TEST_EMAIL` | build | sim | conta técnica dedicada |
 | `SMOKE_TEST_PASSWORD` | build | sim | credencial da conta técnica |
 | `SMOKE_REPORT_TOKEN` | build | sim | relatório estável e não sensível da conta técnica |

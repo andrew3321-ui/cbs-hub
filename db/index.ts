@@ -172,21 +172,53 @@ export function ensureScenarioSchema() {
           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
           transaction_id INTEGER NOT NULL,
           user_id INTEGER NOT NULL,
+          request_key TEXT,
           customer_type TEXT DEFAULT 'unknown' NOT NULL,
           customer_name TEXT DEFAULT '' NOT NULL,
           customer_tax_id TEXT,
+          customer_tax_id_masked TEXT,
+          customer_tax_id_hash TEXT,
           note_requested INTEGER DEFAULT 0 NOT NULL,
           service_code TEXT,
           service_description TEXT NOT NULL,
           competence_month TEXT NOT NULL,
           amount_cents INTEGER NOT NULL,
           status TEXT DEFAULT 'pending_data' NOT NULL,
+          adapter_code TEXT DEFAULT 'manual' NOT NULL,
+          provider_document_id TEXT,
           nfse_number TEXT,
           nfse_key TEXT,
+          verification_url TEXT,
+          pdf_reference TEXT,
+          pdf_sha256 TEXT,
+          xml_reference TEXT,
+          xml_sha256 TEXT,
+          failure_code TEXT,
+          failure_reason TEXT,
           issued_at TEXT,
+          canceled_at TEXT,
+          cancel_reason TEXT,
+          last_attempt_at TEXT,
+          attempt_count INTEGER DEFAULT 0 NOT NULL,
           internal_note TEXT DEFAULT '' NOT NULL,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
           updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_issuance_events (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          issuance_id INTEGER NOT NULL,
+          transaction_id INTEGER NOT NULL,
+          actor_user_id INTEGER,
+          event_type TEXT NOT NULL,
+          from_status TEXT,
+          to_status TEXT,
+          reason_code TEXT,
+          note TEXT DEFAULT '' NOT NULL,
+          adapter_code TEXT DEFAULT 'manual' NOT NULL,
+          event_data_json TEXT DEFAULT '{}' NOT NULL,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
         )
       `),
       env.DB.prepare(`
@@ -715,6 +747,33 @@ export function ensureScenarioSchema() {
       }
     }
 
+    const fiscalIssuanceColumns = [
+      "ALTER TABLE fiscal_issuances ADD COLUMN request_key TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN customer_tax_id_masked TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN customer_tax_id_hash TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN adapter_code TEXT DEFAULT 'manual' NOT NULL",
+      "ALTER TABLE fiscal_issuances ADD COLUMN provider_document_id TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN verification_url TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN pdf_reference TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN pdf_sha256 TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN xml_reference TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN xml_sha256 TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN failure_code TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN failure_reason TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN canceled_at TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN cancel_reason TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN last_attempt_at TEXT",
+      "ALTER TABLE fiscal_issuances ADD COLUMN attempt_count INTEGER DEFAULT 0 NOT NULL",
+    ];
+    for (const statement of fiscalIssuanceColumns) {
+      try {
+        await env.DB.prepare(statement).run();
+      } catch (error) {
+        if (!String(error).toLowerCase().includes("duplicate column")) throw error;
+      }
+    }
+    await env.DB.prepare("UPDATE fiscal_issuances SET request_key = 'fiscal:' || transaction_id WHERE request_key IS NULL").run();
+
     try {
       await env.DB.prepare("ALTER TABLE users ADD COLUMN password_iterations INTEGER DEFAULT 100000 NOT NULL").run();
     } catch (error) {
@@ -773,8 +832,12 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_transactions_user_status_idx ON billing_transactions (user_id, status, approved_at)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS billing_transactions_account_created_idx ON billing_transactions (billing_account_id, created_at, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_issuances_transaction_idx ON fiscal_issuances (transaction_id)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_issuances_request_key_idx ON fiscal_issuances (request_key) WHERE request_key IS NOT NULL"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_issuances_provider_document_idx ON fiscal_issuances (adapter_code, provider_document_id) WHERE provider_document_id IS NOT NULL"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_issuances_status_competence_idx ON fiscal_issuances (status, competence_month, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_issuances_user_created_idx ON fiscal_issuances (user_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_issuance_events_issuance_created_idx ON fiscal_issuance_events (issuance_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_issuance_events_transaction_created_idx ON fiscal_issuance_events (transaction_id, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_owner_user_id_idx ON audit_events (owner_user_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_company_id_idx ON audit_events (company_id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS audit_events_scenario_id_idx ON audit_events (scenario_id)"),

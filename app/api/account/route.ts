@@ -18,6 +18,7 @@ import {
   fiscalDocuments,
   fiscalImportBatches,
   fiscalImportItems,
+  fiscalIssuanceEvents,
   fiscalDossierEvents,
   fiscalDossiers,
   fiscalDossierShares,
@@ -85,6 +86,10 @@ async function exportAccountData(request: Request) {
       canExportWorkspaceData ? db.select({ status: trialDeviceClaims.status, startedAt: trialDeviceClaims.startedAt, endsAt: trialDeviceClaims.endsAt, createdAt: trialDeviceClaims.createdAt }).from(trialDeviceClaims).where(eq(trialDeviceClaims.workspaceId, workspace.id)) : [],
     ]);
     const [account] = await db.select({ id: users.id, name: users.name, email: users.email, accountType: users.accountType, suggestedPlanKey: users.suggestedPlanKey, createdAt: users.createdAt }).from(users).where(eq(users.id, currentUser.id)).limit(1);
+    const fiscalIssuanceIds = fiscalRows.map((item) => item.id);
+    const fiscalIssuanceEventRows = fiscalIssuanceIds.length
+      ? await db.select().from(fiscalIssuanceEvents).where(inArray(fiscalIssuanceEvents.issuanceId, fiscalIssuanceIds))
+      : [];
     const workspaceQuery = <T>(query: PromiseLike<T>) => canExportWorkspaceData ? Promise.resolve(query) : Promise.resolve([] as T);
     const [ruleApprovalRows, expansionProgressRows, expansionEventRows, dossierRows, dossierEventRows, documentRows, documentEventRows, homologationRows, homologationEventRows, taxPeriodRows, taxLedgerRows, reconciliationRows, closureRows] = await Promise.all([
       workspaceQuery(db.select().from(fiscalRuleApprovals).where(eq(fiscalRuleApprovals.workspaceId, workspace.id))),
@@ -117,6 +122,7 @@ async function exportAccountData(request: Request) {
       billingAccounts: billingRows,
       billingTransactions: transactionRows,
       fiscalIssuances: fiscalRows,
+      fiscalIssuanceEvents: fiscalIssuanceEventRows,
       trial: trialRows,
       fiscalControl: { ruleApprovals: ruleApprovalRows, expansionProgress: expansionProgressRows, expansionEvents: expansionEventRows, dossiers: dossierRows, dossierEvents: dossierEventRows, documents: documentRows, documentEvents: documentEventRows, homologations: homologationRows, homologationEvents: homologationEventRows, taxPeriods: taxPeriodRows, taxLedgerEntries: taxLedgerRows, reconciliations: reconciliationRows, closures: closureRows },
       safeguards: { passwordHashesExcluded: true, recoveryKeysExcluded: true, sessionTokensExcluded: true, providerPayloadsExcluded: true, rawFiscalXmlStored: false, rawDeviceSignalsStored: false, memberWorkspaceDataExcluded: !canExportWorkspaceData },
@@ -200,6 +206,8 @@ async function deleteAccount(request: Request) {
       trailStarted = true;
       await anonymizeIncidentActor(user.id);
       await db.delete(workspaceMembers).where(eq(workspaceMembers.userId, user.id));
+      const issuanceRows = await db.select({ id: fiscalIssuances.id }).from(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
+      if (issuanceRows.length) await db.delete(fiscalIssuanceEvents).where(inArray(fiscalIssuanceEvents.issuanceId, issuanceRows.map((item) => item.id)));
       await db.delete(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
       await db.delete(billingTransactions).where(eq(billingTransactions.userId, user.id));
       await db.delete(billingAccounts).where(eq(billingAccounts.userId, user.id));
@@ -214,6 +222,8 @@ async function deleteAccount(request: Request) {
     const ownedCompanies = await db.select({ id: companies.id }).from(companies).where(eq(companies.workspaceId, workspace.id));
     const companyIds = ownedCompanies.map((company) => company.id);
     await anonymizeIncidentActor(user.id);
+    const issuanceRows = await db.select({ id: fiscalIssuances.id }).from(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
+    if (issuanceRows.length) await db.delete(fiscalIssuanceEvents).where(inArray(fiscalIssuanceEvents.issuanceId, issuanceRows.map((item) => item.id)));
     await db.delete(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
     await db.delete(billingTransactions).where(eq(billingTransactions.userId, user.id));
     await db.delete(billingAccounts).where(eq(billingAccounts.userId, user.id));

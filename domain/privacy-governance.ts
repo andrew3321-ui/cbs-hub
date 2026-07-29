@@ -8,7 +8,7 @@ export type PersonalDataInventoryItem = {
   deletionBehavior: string;
 };
 
-export const PRIVACY_GOVERNANCE_VERSION = "2026.07.26-v1";
+export const PRIVACY_GOVERNANCE_VERSION = "2026.07.29-v2";
 
 export const personalDataInventory: PersonalDataInventoryItem[] = [
   {
@@ -49,12 +49,12 @@ export const personalDataInventory: PersonalDataInventoryItem[] = [
   },
   {
     category: "Cobrança e registros fiscais",
-    examples: ["referência da assinatura", "resumo do pagamento", "dados necessários à NFS-e"],
+    examples: ["referência da assinatura", "resumo do pagamento", "identificador fiscal mascarado", "número e link da NFS-e", "referências e hashes de PDF/XML"],
     purposes: ["cobrar", "conciliar pagamento", "cumprir obrigações fiscais e contábeis"],
     legalBases: ["execução de contrato (LGPD, art. 7º, V)", "cumprimento de obrigação legal (LGPD, art. 7º, II)"],
-    stores: ["billing_accounts", "billing_transactions", "fiscal_issuances"],
+    stores: ["billing_accounts", "billing_transactions", "fiscal_issuances", "fiscal_issuance_events"],
     retention: "durante a relação e pelo prazo legal fiscal aplicável, quando houver obrigação de conservação",
-    deletionBehavior: "dados sem obrigação de conservação são excluídos; eventual retenção legal deve ser limitada e justificada",
+    deletionBehavior: "o identificador integral do tomador é removido após o registro da emissão; referências, hashes e trilha ficam limitados à finalidade fiscal e são excluídos quando não houver obrigação de conservação",
   },
   {
     category: "Prevenção de fraude e abuso",

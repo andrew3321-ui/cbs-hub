@@ -1,6 +1,6 @@
 import { and, eq, or } from "drizzle-orm";
 import { getDb } from "../db";
-import { billingAccounts, billingTransactions, fiscalIssuances, users } from "../db/schema";
+import { billingAccounts, billingTransactions, fiscalIssuanceEvents, fiscalIssuances, users } from "../db/schema";
 import {
   billingAmountForAccount,
   billingPlans,
@@ -129,12 +129,13 @@ export async function recordAuthorizedPaymentFromProvider(dataId: string, expect
   const [customer] = await getDb().select({ name: users.name }).from(users).where(eq(users.id, account.userId)).limit(1);
   const [existingIssuance] = await getDb().select().from(fiscalIssuances).where(eq(fiscalIssuances.transactionId, transaction.id)).limit(1);
   const settled = status === "approved";
-  const preserved = existingIssuance && ["issued", "not_required"].includes(existingIssuance.status);
+  const preserved = existingIssuance && ["issued", "canceled", "failed", "not_required"].includes(existingIssuance.status);
   const fiscalStatus = preserved ? existingIssuance.status : settled ? "pending_data" : "awaiting_payment";
   const competenceMonth = String(approvedAt ?? invoice.debit_date ?? now).slice(0, 7);
   await getDb().insert(fiscalIssuances).values({
     transactionId: transaction.id,
     userId: account.userId,
+    requestKey: `fiscal:${transaction.id}`,
     customerName: customer?.name ?? "",
     serviceDescription: `Assinatura mensal CBSHub${plan ? ` — plano ${plan.name}` : ""}`,
     competenceMonth: /^\d{4}-\d{2}$/.test(competenceMonth) ? competenceMonth : now.slice(0, 7),
@@ -145,6 +146,18 @@ export async function recordAuthorizedPaymentFromProvider(dataId: string, expect
     target: fiscalIssuances.transactionId,
     set: { amountCents: grossAmountCents, status: fiscalStatus, updatedAt: now },
   });
+  if (!existingIssuance) {
+    const [created] = await getDb().select().from(fiscalIssuances).where(eq(fiscalIssuances.transactionId, transaction.id)).limit(1);
+    if (created) await getDb().insert(fiscalIssuanceEvents).values({
+      issuanceId: created.id,
+      transactionId: transaction.id,
+      eventType: "queue_created",
+      toStatus: created.status,
+      reasonCode: settled ? "card_payment_approved" : "payment_not_settled",
+      adapterCode: created.adapterCode,
+      eventDataJson: JSON.stringify({ paymentProvider: transaction.provider }),
+    });
+  }
 
   if (settled) {
     await getDb().update(billingAccounts).set({ status: "active", lastSyncedAt: now, updatedAt: now }).where(eq(billingAccounts.id, account.id));

@@ -1,6 +1,6 @@
 import { and, desc, eq, or } from "drizzle-orm";
 import { getDb } from "../db";
-import { billingAccounts, billingTransactions, fiscalIssuances, users } from "../db/schema";
+import { billingAccounts, billingTransactions, fiscalIssuanceEvents, fiscalIssuances, users } from "../db/schema";
 import {
   billingAmountForAccount,
   billingIdempotencyKey,
@@ -132,11 +132,12 @@ async function ensureFiscalIssuance(transaction: typeof billingTransactions.$inf
   const db = getDb();
   const [customer] = await db.select({ name: users.name }).from(users).where(eq(users.id, account.userId)).limit(1);
   const [existing] = await db.select().from(fiscalIssuances).where(eq(fiscalIssuances.transactionId, transaction.id)).limit(1);
-  const preserved = existing && ["issued", "not_required"].includes(existing.status);
+  const preserved = existing && ["issued", "canceled", "failed", "not_required"].includes(existing.status);
   const competenceMonth = /^\d{4}-\d{2}$/.test(approvedAt.slice(0, 7)) ? approvedAt.slice(0, 7) : new Date().toISOString().slice(0, 7);
   await db.insert(fiscalIssuances).values({
     transactionId: transaction.id,
     userId: account.userId,
+    requestKey: `fiscal:${transaction.id}`,
     customerName: customer?.name ?? "",
     serviceDescription: `Assinatura mensal CBSHub${plan ? ` — plano ${plan.name}` : ""}`,
     competenceMonth,
@@ -147,6 +148,18 @@ async function ensureFiscalIssuance(transaction: typeof billingTransactions.$inf
     target: fiscalIssuances.transactionId,
     set: { amountCents: transaction.grossAmountCents, status: preserved ? existing.status : "pending_data", updatedAt: new Date().toISOString() },
   });
+  if (!existing) {
+    const [created] = await db.select().from(fiscalIssuances).where(eq(fiscalIssuances.transactionId, transaction.id)).limit(1);
+    if (created) await db.insert(fiscalIssuanceEvents).values({
+      issuanceId: created.id,
+      transactionId: transaction.id,
+      eventType: "queue_created",
+      toStatus: created.status,
+      reasonCode: "pix_payment_approved",
+      adapterCode: created.adapterCode,
+      eventDataJson: JSON.stringify({ paymentProvider: transaction.provider }),
+    });
+  }
 }
 
 type NormalizedPixSnapshot = {

@@ -27,12 +27,26 @@ type BillingTransaction = {
   competenceMonth: string | null;
   nfseNumber: string | null;
   nfseKey: string | null;
+  adapterCode: string | null;
+  providerDocumentId: string | null;
+  verificationUrl: string | null;
+  pdfReference: string | null;
+  pdfSha256: string | null;
+  xmlReference: string | null;
+  xmlSha256: string | null;
+  failureCode: string | null;
+  failureReason: string | null;
+  cancelReason: string | null;
+  pendingReason: string;
+  attemptCount: number | null;
+  lastAttemptAt: string | null;
   issuedAt: string | null;
   internalNote: string | null;
 };
 
 type BillingPayload = {
   configuration: { accessToken: boolean; webhookSecret: boolean; reconciliationEnabled: boolean; pricingMode: "single_plan_capacity"; adminAccess: boolean; mode: "test" | "production" | "disabled"; webhookUrl: string; requiredEvents: string[] };
+  fiscalIssuer: { adapterCode: string; adapterMode: "manual" | "automatic"; configured: boolean; legalName: string; taxIdMasked: string; municipalityCode: string; municipalRegistrationMasked: string; defaultServiceCode: string; defaultServiceDescription: string; missing: string[]; credentialsSeparatedFromPayments: boolean };
   operation: {
     betaEnabled: boolean;
     paymentsEnabled: boolean;
@@ -57,6 +71,15 @@ type FiscalDraft = {
   internalNote: string;
   nfseNumber: string;
   nfseKey: string;
+  providerDocumentId: string;
+  verificationUrl: string;
+  pdfReference: string;
+  pdfSha256: string;
+  xmlReference: string;
+  xmlSha256: string;
+  failureCode: string;
+  failureReason: string;
+  cancelReason: string;
 };
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -71,6 +94,8 @@ const statusLabels: Record<string, string> = {
   pending_data: "Faltam dados fiscais",
   pending_issue: "Pronta para emissão",
   issued: "NFS-e emitida",
+  failed: "Falha na emissão",
+  canceled: "NFS-e cancelada",
   not_required: "Dispensada · pessoa física",
   awaiting_payment: "Aguardando pagamento",
 };
@@ -87,6 +112,15 @@ function toDraft(transaction: BillingTransaction | null): FiscalDraft {
     internalNote: transaction?.internalNote ?? "",
     nfseNumber: transaction?.nfseNumber ?? "",
     nfseKey: transaction?.nfseKey ?? "",
+    providerDocumentId: transaction?.providerDocumentId ?? "",
+    verificationUrl: transaction?.verificationUrl ?? "",
+    pdfReference: transaction?.pdfReference ?? "",
+    pdfSha256: transaction?.pdfSha256 ?? "",
+    xmlReference: transaction?.xmlReference ?? "",
+    xmlSha256: transaction?.xmlSha256 ?? "",
+    failureCode: transaction?.failureCode ?? "",
+    failureReason: transaction?.failureReason ?? "",
+    cancelReason: transaction?.cancelReason ?? "",
   };
 }
 
@@ -205,6 +239,20 @@ export default function BillingCenter() {
       <div className="billing-webhook-box"><span>WEBHOOK OPCIONAL</span><code>{data.configuration.webhookUrl}</code><button type="button" onClick={() => void navigator.clipboard.writeText(data.configuration.webhookUrl)}>Copiar</button><small>{data.configuration.webhookSecret ? `HMAC oficial preparado para os eventos ${data.configuration.requiredEvents.join(" e ")}.` : "Ainda não configurado no painel do Mercado Pago. Isso não bloqueia o teste: o retorno do checkout consulta a API oficial diretamente."}</small></div>
     </section>
 
+    <section className="panel billing-fiscal-provider-card">
+      <div className="panel-heading">
+        <div><span className="eyebrow">PRESTADOR E ADAPTADOR FISCAL</span><h3>{data.fiscalIssuer.legalName}</h3></div>
+        <span className={`billing-mode ${data.fiscalIssuer.configured ? "production" : "disabled"}`}>{data.fiscalIssuer.adapterMode === "automatic" ? "Automático" : "Manual controlado"}</span>
+      </div>
+      <div className="billing-config-grid">
+        <div className={data.fiscalIssuer.taxIdMasked ? "ready" : "pending"}><span>{data.fiscalIssuer.taxIdMasked ? "✓" : "1"}</span><p><b>IDENTIDADE DO PRESTADOR</b><small>{data.fiscalIssuer.taxIdMasked || "CPF/CNPJ fiscal ainda não configurado."}</small></p></div>
+        <div className={data.fiscalIssuer.municipalityCode && data.fiscalIssuer.municipalRegistrationMasked ? "ready" : "pending"}><span>{data.fiscalIssuer.municipalityCode ? "✓" : "2"}</span><p><b>CADASTRO MUNICIPAL</b><small>{data.fiscalIssuer.municipalityCode ? `Município ${data.fiscalIssuer.municipalityCode} · IM ${data.fiscalIssuer.municipalRegistrationMasked}` : "Município e inscrição municipal pendentes."}</small></p></div>
+        <div className={data.fiscalIssuer.defaultServiceCode ? "ready" : "pending"}><span>{data.fiscalIssuer.defaultServiceCode ? "✓" : "3"}</span><p><b>SERVIÇO PADRÃO</b><small>{data.fiscalIssuer.defaultServiceCode ? `${data.fiscalIssuer.defaultServiceCode} · ${data.fiscalIssuer.defaultServiceDescription}` : "Código padrão precisa ser conferido no emissor oficial."}</small></p></div>
+      </div>
+      <div className="billing-fiscal-warning"><b>Configuração fiscal separada do Mercado Pago.</b><p>O adaptador atual é <code>{data.fiscalIssuer.adapterCode}</code>. Credenciais de pagamento nunca são reutilizadas para emissão; um provedor fiscal futuro entra por adaptador próprio.</p></div>
+      {!data.fiscalIssuer.configured && <div className="platform-mode-warning"><b>Cadastro fiscal incompleto.</b><p>Configure no servidor: {data.fiscalIssuer.missing.join(", ")}. A fila continua utilizável no modo manual, sem prometer emissão automática.</p></div>}
+    </section>
+
     <section className="panel billing-transactions-panel">
       <div className="panel-heading"><div><span className="eyebrow">CONTRATOS E CAPACIDADE</span><h3>Assinaturas registradas</h3></div><span className="editable-chip">{data.subscriptions.length} conta(s)</span></div>
       <div className="table-wrap"><table><thead><tr><th>Cliente</th><th>Contrato</th><th>Capacidade</th><th>Mensalidade</th><th>Estado</th><th>Próximo ciclo</th></tr></thead><tbody>{data.subscriptions.map((item) => <tr key={item.id}><td><b>{item.customerName}</b><small>{item.customerEmail}</small></td><td><b>{item.planKey === "unico" ? "CBSHub" : `${item.planKey} legado`}</b><small>{item.paymentFlow}</small></td><td><b>{item.companyLimit == null ? "Sem limite" : `${item.companyLimit} empresas`}</b><small>{item.planKey === "unico" ? `${item.companyAddonBlocks} bloco(s) adicional(is)` : "Capacidade histórica"}</small></td><td>{item.monthlyAmountCents == null ? "—" : money.format(item.monthlyAmountCents / 100)}</td><td><span className={`billing-table-status ${item.status}`}>{statusLabels[item.status] ?? item.status}</span></td><td>{item.nextPaymentAt ? new Date(item.nextPaymentAt).toLocaleDateString("pt-BR") : "—"}</td></tr>)}</tbody></table></div>
@@ -219,6 +267,7 @@ export default function BillingCenter() {
             <p><b>{item.customerName}</b><small>{item.customerEmail} · competência {item.competenceMonth ?? "—"}</small></p>
             <strong>{money.format(item.grossAmountCents / 100)}</strong>
             <em>{statusLabels[item.fiscalStatus ?? ""] ?? item.fiscalStatus}</em>
+            <small className="billing-fiscal-reason">{item.pendingReason}</small>
           </button>)}
           {!fiscalQueue.length && <div className="billing-empty"><span>✓</span><b>Nenhum pagamento confirmado na fila</b><p>Quando a conciliação confirmar a primeira cobrança aprovada, a pendência aparecerá aqui.</p></div>}
         </div>
@@ -228,6 +277,7 @@ export default function BillingCenter() {
         {active ? <>
           <div className="panel-heading"><div><span className="eyebrow">PREPARAÇÃO DA NFS-e</span><h3>{active.customerName}</h3></div><span className={`billing-fiscal-status ${active.fiscalStatus}`}>{statusLabels[active.fiscalStatus ?? ""] ?? active.fiscalStatus}</span></div>
           <div className="billing-fiscal-warning"><b>A nota continua manual.</b><p>O painel organiza os dados e registra a emissão; não escolhe um código de serviço por você e não envia nada à Receita ou prefeitura.</p></div>
+          <div className={`billing-fiscal-reason-box ${active.fiscalStatus}`}><b>Motivo operacional</b><p>{active.pendingReason}</p><small>Adaptador {active.adapterCode ?? "manual"} · {active.attemptCount ?? 0} tentativa(s){active.lastAttemptAt ? ` · última em ${new Date(active.lastAttemptAt).toLocaleString("pt-BR")}` : ""}</small></div>
           <div className="billing-fiscal-form">
             <label>Tipo do cliente<select value={draft.customerType} onChange={(event) => update("customerType", event.target.value)}><option value="unknown">Não confirmado</option><option value="individual">Pessoa física</option><option value="legal_entity">Pessoa jurídica</option></select></label>
             <label>CPF/CNPJ<input inputMode="numeric" maxLength={18} value={draft.customerTaxId} onChange={(event) => update("customerTaxId", event.target.value.replace(/\D/g, "").slice(0, 14))} placeholder="Somente números" /></label>
@@ -238,8 +288,24 @@ export default function BillingCenter() {
             <label className="wide billing-note-request"><input type="checkbox" checked={draft.noteRequested} onChange={(event) => update("noteRequested", event.target.checked)} /><span>Cliente pessoa física solicitou NFS-e</span></label>
             <label className="wide">Nota interna<textarea maxLength={500} value={draft.internalNote} onChange={(event) => update("internalNote", event.target.value)} placeholder="Pendências, conferências ou observações" /></label>
           </div>
-          <div className="billing-fiscal-actions"><button type="button" className="secondary-button" disabled={Boolean(busy) || active.fiscalStatus === "issued"} onClick={() => void mutate("save_fiscal_data")}>{busy === "save_fiscal_data" ? "Salvando…" : "Salvar e classificar"}</button>{active.fiscalStatus === "not_required" && <button type="button" className="secondary-button" onClick={() => void mutate("reopen")}>Reabrir</button>}</div>
-          {(active.fiscalStatus === "pending_issue" || active.fiscalStatus === "issued") && <div className="billing-nfse-confirmation"><label>Número da NFS-e<input value={draft.nfseNumber} onChange={(event) => update("nfseNumber", event.target.value)} placeholder="Obrigatório" /></label><label>Chave/código de verificação<input value={draft.nfseKey} onChange={(event) => update("nfseKey", event.target.value)} placeholder="Opcional" /></label><button type="button" className="primary-button" disabled={Boolean(busy) || active.fiscalStatus === "issued" || !draft.nfseNumber.trim()} onClick={() => void mutate("mark_issued")}>{active.fiscalStatus === "issued" ? "Emissão registrada" : busy === "mark_issued" ? "Registrando…" : "Registrar NFS-e emitida"}</button></div>}
+          <div className="billing-fiscal-actions">
+            <button type="button" className="secondary-button" disabled={Boolean(busy) || ["issued", "canceled"].includes(active.fiscalStatus ?? "")} onClick={() => void mutate("save_fiscal_data")}>{busy === "save_fiscal_data" ? "Salvando…" : "Salvar e classificar"}</button>
+            {(active.fiscalStatus === "pending_issue" || active.fiscalStatus === "failed") && <button type="button" className="secondary-button" disabled={Boolean(busy)} onClick={() => void mutate("request_issuance")}>{busy === "request_issuance" ? "Processando…" : data.fiscalIssuer.adapterMode === "automatic" ? "Solicitar emissão" : "Registrar tentativa manual"}</button>}
+            {["not_required", "failed", "canceled"].includes(active.fiscalStatus ?? "") && <button type="button" className="secondary-button" disabled={Boolean(busy)} onClick={() => void mutate("reopen")}>Reabrir</button>}
+          </div>
+          {(active.fiscalStatus === "pending_issue" || active.fiscalStatus === "failed" || active.fiscalStatus === "issued" || active.fiscalStatus === "canceled") && <div className="billing-nfse-confirmation billing-nfse-evidence">
+            <label>Número da NFS-e<input value={draft.nfseNumber} onChange={(event) => update("nfseNumber", event.target.value)} placeholder="Obrigatório" /></label>
+            <label>Chave/código de verificação<input value={draft.nfseKey} onChange={(event) => update("nfseKey", event.target.value)} placeholder="Opcional" /></label>
+            <label>ID no emissor<input value={draft.providerDocumentId} onChange={(event) => update("providerDocumentId", event.target.value)} placeholder="Evita duplicidade" /></label>
+            <label className="wide">Link oficial HTTPS<input type="url" value={draft.verificationUrl} onChange={(event) => update("verificationUrl", event.target.value)} placeholder="https://…" /></label>
+            <label>Referência segura do PDF<input value={draft.pdfReference} onChange={(event) => update("pdfReference", event.target.value)} placeholder="objeto ou URL HTTPS" /></label>
+            <label>SHA-256 do PDF<input value={draft.pdfSha256} onChange={(event) => update("pdfSha256", event.target.value)} placeholder="64 caracteres hexadecimais" /></label>
+            <label>Referência segura do XML<input value={draft.xmlReference} onChange={(event) => update("xmlReference", event.target.value)} placeholder="objeto ou URL HTTPS" /></label>
+            <label>SHA-256 do XML<input value={draft.xmlSha256} onChange={(event) => update("xmlSha256", event.target.value)} placeholder="64 caracteres hexadecimais" /></label>
+            <button type="button" className="primary-button" disabled={Boolean(busy) || active.fiscalStatus === "issued" || active.fiscalStatus === "canceled" || !draft.nfseNumber.trim()} onClick={() => void mutate("mark_issued")}>{active.fiscalStatus === "issued" ? "Emissão registrada" : busy === "mark_issued" ? "Registrando…" : "Registrar NFS-e emitida"}</button>
+          </div>}
+          {active.fiscalStatus !== "issued" && active.fiscalStatus !== "canceled" && <div className="billing-fiscal-exception"><label>Motivo de falha<textarea maxLength={500} value={draft.failureReason} onChange={(event) => update("failureReason", event.target.value)} placeholder="Erro retornado pelo emissor ou impedimento conferido" /></label><button type="button" className="secondary-button" disabled={Boolean(busy) || draft.failureReason.trim().length < 8} onClick={() => void mutate("mark_failed")}>Registrar falha</button></div>}
+          {active.fiscalStatus === "issued" && <div className="billing-fiscal-exception danger"><label>Motivo confirmado do cancelamento<textarea maxLength={500} value={draft.cancelReason} onChange={(event) => update("cancelReason", event.target.value)} placeholder="Cancele primeiro no emissor oficial e registre o motivo" /></label><button type="button" className="secondary-button" disabled={Boolean(busy) || draft.cancelReason.trim().length < 8} onClick={() => void mutate("mark_canceled")}>Registrar cancelamento</button></div>}
         </> : <div className="billing-empty editor"><span>↗</span><b>Selecione um pagamento</b><p>Os dados fiscais e o controle da NFS-e aparecerão aqui.</p></div>}
       </article>
     </section>
