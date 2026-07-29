@@ -8,7 +8,7 @@ export type PersonalDataInventoryItem = {
   deletionBehavior: string;
 };
 
-export const PRIVACY_GOVERNANCE_VERSION = "2026.07.29-v2";
+export const PRIVACY_GOVERNANCE_VERSION = "2026.07.29-v3";
 
 export const personalDataInventory: PersonalDataInventoryItem[] = [
   {
@@ -64,6 +64,15 @@ export const personalDataInventory: PersonalDataInventoryItem[] = [
     stores: ["trial_device_claims", "security_rate_limits"],
     retention: "rate limits por até 2 dias; marcadores do trial por até 365 dias",
     deletionBehavior: "vínculo com usuário e workspace é removido; somente marcadores pseudonimizados permanecem até o fim do prazo",
+  },
+  {
+    category: "Suporte e feedback",
+    examples: ["categoria do chamado", "módulo", "empresa relacionada", "descrição minimizada", "código de rastreio", "versão da aplicação"],
+    purposes: ["prestar suporte", "investigar divergências", "corrigir falhas sem alterar regras automaticamente"],
+    legalBases: ["execução de contrato (LGPD, art. 7º, V)", "legítimo interesse em segurança e melhoria do serviço (LGPD, art. 7º, IX)"],
+    stores: ["support_tickets", "support_ticket_events"],
+    retention: "enquanto a conta ou o espaço existir, com exclusão junto ao titular ou ao espaço",
+    deletionBehavior: "o formulário bloqueia identificadores pessoais e credenciais comuns; chamados do titular são exportados e excluídos com a conta",
   },
   {
     category: "Direitos do titular e incidentes",

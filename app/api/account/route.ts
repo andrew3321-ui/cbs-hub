@@ -40,6 +40,8 @@ import {
   securityIncidentEvents,
   securityIncidents,
   sessions,
+  supportTicketEvents,
+  supportTickets,
   taxLedgerEntries,
   taxPeriodClosures,
   taxPeriods,
@@ -90,6 +92,10 @@ async function exportAccountData(request: Request) {
     const fiscalIssuanceEventRows = fiscalIssuanceIds.length
       ? await db.select().from(fiscalIssuanceEvents).where(inArray(fiscalIssuanceEvents.issuanceId, fiscalIssuanceIds))
       : [];
+    const supportRows = await db.select().from(supportTickets).where(eq(supportTickets.reporterUserId, currentUser.id));
+    const supportEventRows = supportRows.length
+      ? await db.select().from(supportTicketEvents).where(inArray(supportTicketEvents.ticketId, supportRows.map((item) => item.id)))
+      : [];
     const workspaceQuery = <T>(query: PromiseLike<T>) => canExportWorkspaceData ? Promise.resolve(query) : Promise.resolve([] as T);
     const [ruleApprovalRows, expansionProgressRows, expansionEventRows, dossierRows, dossierEventRows, documentRows, documentEventRows, homologationRows, homologationEventRows, taxPeriodRows, taxLedgerRows, reconciliationRows, closureRows] = await Promise.all([
       workspaceQuery(db.select().from(fiscalRuleApprovals).where(eq(fiscalRuleApprovals.workspaceId, workspace.id))),
@@ -123,6 +129,7 @@ async function exportAccountData(request: Request) {
       billingTransactions: transactionRows,
       fiscalIssuances: fiscalRows,
       fiscalIssuanceEvents: fiscalIssuanceEventRows,
+      support: { tickets: supportRows, events: supportEventRows },
       trial: trialRows,
       fiscalControl: { ruleApprovals: ruleApprovalRows, expansionProgress: expansionProgressRows, expansionEvents: expansionEventRows, dossiers: dossierRows, dossierEvents: dossierEventRows, documents: documentRows, documentEvents: documentEventRows, homologations: homologationRows, homologationEvents: homologationEventRows, taxPeriods: taxPeriodRows, taxLedgerEntries: taxLedgerRows, reconciliations: reconciliationRows, closures: closureRows },
       safeguards: { passwordHashesExcluded: true, recoveryKeysExcluded: true, sessionTokensExcluded: true, providerPayloadsExcluded: true, rawFiscalXmlStored: false, rawDeviceSignalsStored: false, memberWorkspaceDataExcluded: !canExportWorkspaceData },
@@ -181,6 +188,13 @@ async function anonymizeIncidentActor(userId: number) {
   await db.update(securityIncidentEvents).set({ actorUserId: null }).where(eq(securityIncidentEvents.actorUserId, userId));
 }
 
+async function deleteSupportTickets(filter: ReturnType<typeof eq>) {
+  const db = getDb();
+  const rows = await db.select({ id: supportTickets.id }).from(supportTickets).where(filter);
+  if (rows.length) await db.delete(supportTicketEvents).where(inArray(supportTicketEvents.ticketId, rows.map((item) => item.id)));
+  await db.delete(supportTickets).where(filter);
+}
+
 async function deleteAccount(request: Request) {
   const currentUser = await getCurrentUser();
   if (!currentUser) return Response.json({ error: "Faça login para excluir sua conta." }, { status: 401 });
@@ -205,6 +219,7 @@ async function deleteAccount(request: Request) {
       await recordPrivacyRequest({ request, email: user.email, workspaceId: workspace.id, action: "account_deletion", status: "started", details: { scope: "workspace_member" } });
       trailStarted = true;
       await anonymizeIncidentActor(user.id);
+      await deleteSupportTickets(eq(supportTickets.reporterUserId, user.id));
       await db.delete(workspaceMembers).where(eq(workspaceMembers.userId, user.id));
       const issuanceRows = await db.select({ id: fiscalIssuances.id }).from(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
       if (issuanceRows.length) await db.delete(fiscalIssuanceEvents).where(inArray(fiscalIssuanceEvents.issuanceId, issuanceRows.map((item) => item.id)));
@@ -222,6 +237,7 @@ async function deleteAccount(request: Request) {
     const ownedCompanies = await db.select({ id: companies.id }).from(companies).where(eq(companies.workspaceId, workspace.id));
     const companyIds = ownedCompanies.map((company) => company.id);
     await anonymizeIncidentActor(user.id);
+    await deleteSupportTickets(eq(supportTickets.workspaceId, workspace.id));
     const issuanceRows = await db.select({ id: fiscalIssuances.id }).from(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
     if (issuanceRows.length) await db.delete(fiscalIssuanceEvents).where(inArray(fiscalIssuanceEvents.issuanceId, issuanceRows.map((item) => item.id)));
     await db.delete(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));

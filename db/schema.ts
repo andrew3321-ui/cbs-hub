@@ -979,3 +979,41 @@ export const securityIncidentEvents = sqliteTable("security_incident_events", {
 }, (table) => [
   index("security_incident_events_incident_created_idx").on(table.incidentId, table.createdAt, table.id),
 ]);
+
+export const supportTickets = sqliteTable("support_tickets", {
+  id: text("id").primaryKey(),
+  protocol: text("protocol").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  reporterUserId: integer("reporter_user_id").notNull(),
+  companyId: integer("company_id"),
+  category: text("category").notNull(),
+  moduleCode: text("module_code").notNull(),
+  releaseId: text("release_id").notNull(),
+  releaseTag: text("release_tag").notNull(),
+  traceCode: text("trace_code"),
+  subject: text("subject").notNull(),
+  description: text("description").notNull(),
+  consentVersion: text("consent_version").notNull(),
+  status: text("status").notNull().default("open"),
+  responseDueAt: text("response_due_at").notNull(),
+  resolvedAt: text("resolved_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("support_tickets_protocol_idx").on(table.protocol),
+  index("support_tickets_workspace_status_idx").on(table.workspaceId, table.status, table.createdAt, table.id),
+  index("support_tickets_reporter_created_idx").on(table.reporterUserId, table.createdAt, table.id),
+]);
+
+export const supportTicketEvents = sqliteTable("support_ticket_events", {
+  id: text("id").primaryKey(),
+  ticketId: text("ticket_id").notNull(),
+  actorUserId: integer("actor_user_id"),
+  eventType: text("event_type").notNull(),
+  fromStatus: text("from_status"),
+  toStatus: text("to_status"),
+  requestId: text("request_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("support_ticket_events_ticket_created_idx").on(table.ticketId, table.createdAt, table.id),
+]);

@@ -15,12 +15,14 @@ import BillingCenter from "./BillingCenter";
 import TaxReformImpact from "./TaxReformImpact";
 import AccountOnboarding from "./AccountOnboarding";
 import ActionSafetyDialog from "./ActionSafetyDialog";
+import SupportCenter from "./SupportCenter";
 import BrandMark from "../BrandMark";
 import { onboardingActionWarnings } from "../../domain/account-onboarding";
 import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
 import type { PlanFeatureKey, WorkspaceEntitlements } from "../../domain/plan-entitlements";
+import type { SupportModule } from "../../domain/support-tickets";
 
-type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "billing" | "academy";
+type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "billing" | "academy" | "support";
 
 const sectionPlanFeatures: Partial<Record<Section, PlanFeatureKey>> = {
   reviews: "officeCollaborationEnabled",
@@ -406,6 +408,7 @@ type CBSHubAppProps = {
 
 export default function CBSHubApp({ user, workspace, initialEntitlements, signOutPath, isPlatformAdmin }: CBSHubAppProps) {
   const [section, setSection] = useState<Section>("overview");
+  const [supportContextModule, setSupportContextModule] = useState<SupportModule>("overview");
   const [companies, setCompanies] = useState<Company[]>([]);
   const [entitlements, setEntitlements] = useState(initialEntitlements);
   const [activeCompanyId, setActiveCompanyId] = useState<number | null>(null);
@@ -486,6 +489,10 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
   const canManageTeam = entitlements.officeCollaborationEnabled && (workspace.role === "owner" || workspace.role === "admin");
   const canPrepare = workspace.role !== "reviewer";
   const canAddCompany = canPrepare && entitlements.canCreateCompany;
+  const openSupport = () => {
+    if (section !== "support") setSupportContextModule(section as SupportModule);
+    setSection("support");
+  };
   const filteredReviews = useMemo(() => reviewQueue.filter((review) => {
     if (reviewFilter === "all") return true;
     if (reviewFilter === "mine") return review.status === "pending" && review.assignedReviewerUserId === user.id;
@@ -1271,6 +1278,9 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
           <button title="Demonstrações" className={section === "academy" ? "active" : ""} onClick={() => setSection("academy")}>
             <span className="nav-icon">▷</span>Demonstrações
           </button>
+          <button title="Suporte e feedback" className={section === "support" ? "active" : ""} onClick={openSupport}>
+            <span className="nav-icon">?</span>Suporte
+          </button>
         </nav>
 
         <div className="sidebar-insight">
@@ -1281,7 +1291,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
         </div>
 
         <a className="support-button methodology-link" href="/metodologia"><span>✓</span> Metodologia</a>
-        <button className="support-button" onClick={() => setSection("academy")}><span>?</span> Central de ajuda</button>
+        <button className="support-button" onClick={openSupport}><span>?</span> Central de ajuda</button>
       </aside>
 
       <section className="workspace">
@@ -1895,6 +1905,8 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
         )}
 
         {section === "billing" && isPlatformAdmin && <BillingCenter />}
+
+        {section === "support" && <SupportCenter companies={companies} activeCompanyId={activeCompanyId} initialModule={supportContextModule} isPlatformAdmin={isPlatformAdmin} />}
 
         {section === "academy" && (
           <div className="page-content academy-page">
