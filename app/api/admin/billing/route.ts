@@ -4,6 +4,8 @@ import { billingAccounts, billingTransactions, fiscalIssuances, users } from "..
 import { billingAmountForAccount, billingLimitForAccount, billingPricingMode, mercadoPagoConfigurationStatus } from "../../../billing";
 import { getPlatformAdminUser, platformAdminIsConfigured } from "../../../platform-admin";
 import { getPlatformOperationState, PlatformModeError, setBetaMode } from "../../../platform-controls";
+import { publicAppUrl } from "../../../public-url";
+import { env } from "cloudflare:workers";
 
 function cleanText(value: unknown, maximum: number) {
   return typeof value === "string" ? value.trim().replace(/\s+/g, " ").slice(0, maximum) : "";
@@ -84,6 +86,7 @@ async function payloadFor(request: Request) {
   const netThisMonthCents = approvedThisMonth.reduce((sum, item) => sum + (item.netAmountCents ?? item.grossAmountCents - (item.feeAmountCents ?? 0)), 0);
   const provider = mercadoPagoConfigurationStatus();
   const operation = await getPlatformOperationState();
+  const runtime = env as unknown as Record<string, unknown>;
 
   return {
     configuration: {
@@ -91,7 +94,7 @@ async function payloadFor(request: Request) {
       reconciliationEnabled: provider.accessToken,
       pricingMode: billingPricingMode,
       adminAccess: platformAdminIsConfigured(),
-      webhookUrl: `${new URL(request.url).origin}/api/billing/webhook`,
+      webhookUrl: publicAppUrl("/api/billing/webhook", request, runtime.PUBLIC_APP_URL),
       requiredEvents: ["payment", "subscription_preapproval", "subscription_authorized_payment"],
     },
     operation,

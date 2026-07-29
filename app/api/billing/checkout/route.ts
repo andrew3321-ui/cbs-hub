@@ -5,7 +5,9 @@ import { getCurrentUser } from "../../../auth";
 import { billingAmountCents, billingIdempotencyKey, billingPlans, isPurchasablePlanKey, mercadoPagoApiErrorDetails, mercadoPagoRequest, MercadoPagoSubscription, mercadoPagoTransportErrorCode, normalizeBillingStatus, normalizeCompanyAddonBlocks, randomBillingReference } from "../../../billing";
 import { cancelPixTransactionAtProvider, latestPixTransaction } from "../../../billing-pix";
 import { getPlatformOperationState } from "../../../platform-controls";
+import { publicAppUrl } from "../../../public-url";
 import { getWorkspaceContext } from "../../../workspace";
+import { env } from "cloudflare:workers";
 
 export async function POST(request: Request) {
   const user = await getCurrentUser();
@@ -55,7 +57,7 @@ export async function POST(request: Request) {
       return Response.json({ mode: "checkout", checkoutUrl: existing.checkoutUrl });
     }
 
-    const origin = new URL(request.url).origin;
+    const runtime = env as unknown as Record<string, unknown>;
     checkoutStage = "PROVIDER_REQUEST";
     const subscription = await mercadoPagoRequest<MercadoPagoSubscription>("/preapproval", {
       method: "POST",
@@ -65,7 +67,7 @@ export async function POST(request: Request) {
         external_reference: reference,
         payer_email: user.email,
         auto_recurring: { frequency: 1, frequency_type: "months", transaction_amount: amountCents / 100, currency_id: "BRL" },
-        back_url: `${origin}/planos?retorno=mercado-pago`,
+        back_url: publicAppUrl("/planos?retorno=mercado-pago", request, runtime.PUBLIC_APP_URL),
         status: "pending",
       }),
     });
