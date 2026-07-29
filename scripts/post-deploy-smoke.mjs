@@ -26,6 +26,18 @@ function requireStatus(label, response, allowed) {
   }
 }
 
+async function requestUntilStatus(label, pathname, init, allowed) {
+  const attempts = Number(process.env.SMOKE_SURFACE_ATTEMPTS ?? 3);
+  const intervalMs = Number(process.env.SMOKE_SURFACE_INTERVAL_MS ?? 4_000);
+  let response;
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    response = await request(pathname, init);
+    if (allowed.includes(response.status)) return response;
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  requireStatus(label, response, allowed);
+}
+
 async function waitForPublishedRelease() {
   const attempts = Number(process.env.SMOKE_RELEASE_ATTEMPTS ?? 12);
   const intervalMs = Number(process.env.SMOKE_RELEASE_INTERVAL_MS ?? 5_000);
@@ -67,12 +79,11 @@ if (email && password) {
   if (!cookie) throw new Error("login: cookie de sessão ausente.");
 } else {
   if (strict) throw new Error("SMOKE_STRICT exige SMOKE_TEST_EMAIL e SMOKE_TEST_PASSWORD.");
-  const loginBoundary = await request("/api/auth/login", {
+  await requestUntilStatus("login-boundary", "/api/auth/login", {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: baseUrl },
     body: JSON.stringify({ email: `smoke-${Date.now()}@invalid.cbshub.local`, password: "invalid-smoke-password" }),
-  });
-  requireStatus("login-boundary", loginBoundary, [401]);
+  }, [401]);
 }
 
 const calculation = await request("/api/deterministic-tax-lab", {

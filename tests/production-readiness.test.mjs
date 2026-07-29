@@ -55,6 +55,8 @@ test("release metadata, structured alerts and smoke coverage are declared", () =
   assert.match(vite, /version_metadata/);
   assert.match(smoke, /waitForPublishedRelease/);
   assert.match(smoke, /SMOKE_RELEASE_ATTEMPTS/);
+  assert.match(smoke, /requestUntilStatus/);
+  assert.match(smoke, /SMOKE_SURFACE_ATTEMPTS/);
   for (const surface of ["/api/auth/login", "/api/deterministic-tax-lab", "/api/billing", "/relatorio/"]) {
     assert.match(smoke, new RegExp(surface.replaceAll("/", "\\/")));
   }
