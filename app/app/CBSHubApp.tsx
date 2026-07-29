@@ -1769,7 +1769,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
 
             <FederalPmeCompliance />
 
-            {rulesError && <div className="toast" role="alert">{rulesError}</div>}
+            {rulesError && <div className="toast retry-toast" role="alert"><span>{rulesError}</span><button type="button" onClick={() => setRulesError("")}>Tentar novamente</button></div>}
             {!fiscalCatalog && !rulesError && <section className="panel rules-loading"><span className="loading-spinner" /><div><b>Verificando regras e casos de referência…</b><p>O conteúdo armazenado está sendo comparado ao hash registrado.</p></div></section>}
 
             {fiscalCatalog && <>
@@ -1822,7 +1822,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
               <span className="determination-lock-badge"><i /> Cálculo produtivo bloqueado</span>
             </div>
 
-            {determinationError && <div className="toast" role="alert">{determinationError}</div>}
+            {determinationError && <div className="toast retry-toast" role="alert"><span>{determinationError}</span><button type="button" onClick={() => setDeterminationError("")}>Tentar novamente</button></div>}
             {!taxDetermination && !determinationError && <section className="panel rules-loading"><span className="loading-spinner" /><div><b>Verificando o livro fiscal e os portões de fechamento…</b><p>Casos adversos, segregação dos tributos e evidências estão sendo conferidos.</p></div></section>}
 
             {taxDetermination && <>

@@ -159,6 +159,7 @@ export default function FiscalIntelligence() {
   const [loading, setLoading] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [error, setError] = useState("");
+  const [catalogRetry, setCatalogRetry] = useState(0);
   const searchSequence = useRef(0);
   const searchController = useRef<AbortController | null>(null);
 
@@ -180,7 +181,7 @@ export default function FiscalIntelligence() {
       .catch((cause: Error) => !cancelled && setError(cause.message))
       .finally(() => !cancelled && setCatalogLoading(false));
     return () => { cancelled = true; };
-  }, []);
+  }, [catalogRetry]);
 
   useEffect(() => () => searchController.current?.abort(), []);
 
@@ -233,6 +234,16 @@ export default function FiscalIntelligence() {
   function submit(event: FormEvent) {
     event.preventDefault();
     void search();
+  }
+
+  function retry() {
+    if (knowledge) {
+      void search();
+      return;
+    }
+    setError("");
+    setCatalogLoading(true);
+    setCatalogRetry((current) => current + 1);
   }
 
   function runExample(example: string) {
@@ -294,7 +305,7 @@ export default function FiscalIntelligence() {
         <div className="intelligence-examples"><span>TESTAR PERGUNTA:</span>{examples.map((example) => <button type="button" onClick={() => runExample(example)} key={example}>{example}</button>)}<button className="complete-case-button" type="button" onClick={runCompleteReferenceCase}>Preencher caso demonstrativo · 100% dos fatos</button></div>
       </form>
 
-      {error && <div className="intelligence-error" role="alert"><b>Consulta interrompida</b><span>{error}</span></div>}
+      {error && <div className="intelligence-error" role="alert"><b>{knowledge ? "Consulta interrompida" : "Base fiscal indisponível"}</b><span>{error}</span><button type="button" onClick={retry}>Tentar novamente</button></div>}
       {catalogLoading && <section className="panel rules-loading"><span className="loading-spinner" /><div><b>Verificando a base manual…</b><p>Conteúdo, versão e hash estão sendo comparados antes de liberar a pesquisa.</p></div></section>}
 
       {!catalogLoading && !result && !error && (

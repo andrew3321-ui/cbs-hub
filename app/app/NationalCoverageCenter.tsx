@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Status = "supported" | "partial" | "not_supported";
 type StateRow = { uf: string; name: string; region: string; status: Status; officialPortal: string; supported: string[]; blockers: string[] };
@@ -267,6 +267,9 @@ export default function NationalCoverageCenter() {
   const [beverageCompanyId, setBeverageCompanyId] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
+  const [loadError, setLoadError] = useState("");
+  const [initialLoading, setInitialLoading] = useState(true);
+  const initialLoadController = useRef<AbortController | null>(null);
   const [files, setFiles] = useState<File[]>([]);
   const [batch, setBatch] = useState<BatchResult | null>(null);
   const [batchKey, setBatchKey] = useState("");
@@ -281,17 +284,44 @@ export default function NationalCoverageCenter() {
     declarationAccepted: false,
   });
 
-  useEffect(() => {
-    void Promise.all([
-      json<Coverage>("/api/public/coverage?schema=automatic-assurance-v1", { cache: "no-store" }).then(setCoverage),
-      json<Governance>("/api/rule-governance").then(setGovernance),
-      json<Monitor>("/api/normative-monitor").then((payload) => {
-        setMonitor(payload);
-        setGovernanceReview((current) => ({ ...current, eventId: current.eventId || payload.queue[0]?.id || "" }));
-      }),
-      json<{ companies: CompanyOption[] }>("/api/companies", { cache: "no-store" }).then((payload) => setCompanies(payload.companies.map(({ id, name }) => ({ id, name })))),
-    ]).catch((cause: Error) => setError(cause.message));
+  const loadCoverage = useCallback(async () => {
+    initialLoadController.current?.abort();
+    const controller = new AbortController();
+    initialLoadController.current = controller;
+    setInitialLoading(true);
+    setLoadError("");
+    const requests = await Promise.allSettled([
+      json<Coverage>("/api/public/coverage?schema=automatic-assurance-v1", { cache: "no-store", signal: controller.signal }),
+      json<Governance>("/api/rule-governance", { signal: controller.signal }),
+      json<Monitor>("/api/normative-monitor", { cache: "no-store", signal: controller.signal }),
+      json<{ companies: CompanyOption[] }>("/api/companies", { cache: "no-store", signal: controller.signal }),
+    ]);
+    if (controller.signal.aborted) return;
+    const [coverageRequest, governanceRequest, monitorRequest, companiesRequest] = requests;
+    if (coverageRequest.status === "rejected") {
+      setLoadError(coverageRequest.reason instanceof Error ? coverageRequest.reason.message : "A base nacional não respondeu.");
+      setInitialLoading(false);
+      return;
+    }
+    setCoverage(coverageRequest.value);
+    if (governanceRequest.status === "fulfilled") setGovernance(governanceRequest.value);
+    if (monitorRequest.status === "fulfilled") {
+      setMonitor(monitorRequest.value);
+      setGovernanceReview((current) => ({ ...current, eventId: current.eventId || monitorRequest.value.queue[0]?.id || "" }));
+    }
+    if (companiesRequest.status === "fulfilled") setCompanies(companiesRequest.value.companies.map(({ id, name }) => ({ id, name })));
+    const optionalFailures = requests.slice(1).filter((request) => request.status === "rejected").length;
+    if (optionalFailures) setError(`${optionalFailures} painel(is) auxiliar(es) não responderam. A cobertura principal continua disponível.`);
+    setInitialLoading(false);
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => void loadCoverage(), 0);
+    return () => {
+      window.clearTimeout(timer);
+      initialLoadController.current?.abort();
+    };
+  }, [loadCoverage]);
 
   const cities = useMemo(() => coverage?.cities.filter((item) => `${item.city} ${item.uf}`.toLocaleLowerCase("pt-BR").includes(cityQuery.toLocaleLowerCase("pt-BR"))) ?? [], [coverage, cityQuery]);
   const issDeepProfiles = useMemo(() => new Map(coverage?.issDeep.profiles.map((item) => [item.ibgeCode, item]) ?? []), [coverage]);
@@ -511,7 +541,8 @@ export default function NationalCoverageCenter() {
     }
   };
 
-  if (!coverage) return <section className="coverage-loading"><span className="loading-spinner" /><div><b>Montando o mapa tributário nacional…</b><p>As regras e os limites estão sendo conferidos.</p></div></section>;
+  if (!coverage && loadError) return <section className="coverage-load-failure" role="alert"><span>!</span><div><b>Não foi possível montar a cobertura nacional.</b><p>{loadError}</p><button type="button" onClick={() => void loadCoverage()} disabled={initialLoading}>{initialLoading ? "Tentando novamente…" : "Tentar novamente"}</button></div></section>;
+  if (!coverage) return <section className="coverage-loading" aria-live="polite"><span className="loading-spinner" /><div><b>Montando o mapa tributário nacional…</b><p>As regras e os limites estão sendo conferidos.</p></div></section>;
   const automaticAssurance = compatibleAutomaticAssurance(coverage);
   const selectedBeverageSpProfile = coverage.stColdBeveragesSpDestination.profiles.find((profile) => profile.code === beverageSpProfile);
   const beverageSpOriginProfiles = coverage.stColdBeveragesSpOrigin.profiles.filter((profile) => `SP-${profile.destination}` === beverageSpOriginRoute);
@@ -570,7 +601,7 @@ export default function NationalCoverageCenter() {
           <span>→</span>
           <label>Destino<select value={destination} onChange={(event) => setDestination(event.target.value)}>{coverage.states.map((item) => <option key={item.uf}>{item.uf}</option>)}</select></label>
           <label className="qualified-import"><input type="checkbox" checked={importedQualified} onChange={(event) => setImportedQualified(event.target.checked)} />Mercadoria cumpre os requisitos da Resolução 13/2012</label>
-          <button disabled={busy === "icms"}>{busy === "icms" ? "Conferindo…" : "Obter referência"}</button>
+          <button disabled={busy === "icms"} title={busy === "icms" ? "Aguarde a conferência da rota selecionada." : "Obtém apenas a referência interestadual; não calcula DIFAL, ST ou FCP."}>{busy === "icms" ? "Conferindo…" : "Obter referência"}</button>
         </form>
         {icmsResult && <div className="icms-reference-result"><span>REFERÊNCIA INTERESTADUAL</span><strong>{icmsResult.rateBps === null ? "Bloqueada" : `${(icmsResult.rateBps / 100).toFixed(0)}%`}</strong><p>{icmsResult.reason}</p><small>Não calcula DIFAL, ST, FCP ou imposto líquido.</small></div>}
         <div className="state-matrix">{coverage.states.map((item) => <a href={item.officialPortal} target="_blank" rel="noreferrer" key={item.uf}><b>{item.uf}</b><span>{item.name}</span><StatusPill status={item.status} /><i>↗</i></a>)}</div>
@@ -599,7 +630,7 @@ export default function NationalCoverageCenter() {
             </div>
             <label className="auto-parts-imported"><input type="checkbox" checked={beverageSpImported} onChange={(event) => { setBeverageSpImported(event.target.checked); clearSpDestinationBeverageResult(); }} />Mercadoria importada que cumpre integralmente a Resolução do Senado 13/2012 (4%); desmarcada, a rota usa 12%</label>
             <fieldset><legend>Confirme os nove fatos documentados</legend>{(Object.entries(coverage.stColdBeveragesSpDestination.factLabels) as Array<[ColdBeverageSpFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={beverageSpFacts[key]} onChange={(event) => { setBeverageSpFacts((current) => ({ ...current, [key]: event.target.checked })); clearSpDestinationBeverageResult(); }} />{label}</label>)}</fieldset>
-            <button disabled={busy === "beverages-sp" || !beverageSpDate || !beverageSpQuantity || !beverageSpOperationValue || !beverageSpOwnBase}>{busy === "beverages-sp" ? "Reproduzindo memória…" : "Calcular PMPF condicionado"}</button>
+            <button disabled={busy === "beverages-sp" || !beverageSpDate || !beverageSpQuantity || !beverageSpOperationValue || !beverageSpOwnBase} title={!beverageSpDate || !beverageSpQuantity || !beverageSpOperationValue || !beverageSpOwnBase ? "Preencha data, quantidade, valor da operação e base própria." : busy === "beverages-sp" ? "A memória está sendo reproduzida." : "Executa o cálculo condicionado aos fatos confirmados."}>{busy === "beverages-sp" ? "Reproduzindo memória…" : "Calcular PMPF condicionado"}</button>
           </form>
           {beverageSpResult && <section className={`auto-parts-calculator-result beverage-sp-result ${beverageSpResult.status}`}>
             {beverageSpResult.status === "calculated_reference" && beverageSpResult.output && beverageSpResult.parameters ? <><header><span>MEMÓRIA PAULISTA CONDICIONAL · {beverageSpResult.route}</span><strong>{(beverageSpResult.output.destinationTotalCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong><small>ICMS-ST; FCP igual a zero neste recorte de bebidas não alcoólicas</small></header><div><span>Base PMPF<b>{(beverageSpResult.output.stBaseCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>PMPF unitário<b>{(beverageSpResult.parameters.pmpfUnitCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS próprio<b>{(beverageSpResult.output.ownIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS presumido<b>{(beverageSpResult.output.presumedInternalIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS-ST<b>{(beverageSpResult.output.icmsStCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span></div><p>Interestadual {(beverageSpResult.parameters.interstateRateBps / 100).toFixed(0)}% · interna {(beverageSpResult.parameters.internalRateBps / 100).toFixed(0)}% · limite de 90% do PMPF: {(beverageSpResult.parameters.pmpfLimitCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.</p></> : <><header><span>{beverageSpResult.status === "pmpf_fallback_required" ? "PMPF LEGALMENTE AFASTADO" : "CÁLCULO BLOQUEADO"}</span><strong>{beverageSpResult.status === "pmpf_fallback_required" ? "Exige IVA-ST de fallback" : "Sem valor exibido"}</strong></header><ul>{beverageSpResult.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></>}
@@ -647,7 +678,7 @@ export default function NationalCoverageCenter() {
             </div>
             <label className="auto-parts-imported"><input type="checkbox" checked={beverageSpOriginImported} onChange={(event) => { setBeverageSpOriginImported(event.target.checked); clearSpOriginBeverageResult(); }} />Mercadoria importada que cumpre integralmente a Resolução do Senado 13/2012 (4%); desmarcada, a rota usa 12%</label>
             <fieldset><legend>Confirme os nove fatos documentados</legend>{(Object.entries(coverage.stColdBeveragesSpOrigin.factLabels) as Array<[ColdBeverageSpOriginFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={beverageSpOriginFacts[key]} onChange={(event) => { setBeverageSpOriginFacts((current) => ({ ...current, [key]: event.target.checked })); clearSpOriginBeverageResult(); }} />{label}</label>)}</fieldset>
-            <button disabled={busy === "beverages-sp-origin" || !beverageSpOriginDate || !beverageSpOriginQuantity || !beverageSpOriginOperationValue || !beverageSpOriginOwnBase}>{busy === "beverages-sp-origin" ? "Reproduzindo memória…" : `Calcular ${beverageSpOriginRoute}`}</button>
+            <button disabled={busy === "beverages-sp-origin" || !beverageSpOriginDate || !beverageSpOriginQuantity || !beverageSpOriginOperationValue || !beverageSpOriginOwnBase} title={!beverageSpOriginDate || !beverageSpOriginQuantity || !beverageSpOriginOperationValue || !beverageSpOriginOwnBase ? "Preencha data, quantidade, valor da operação e base própria." : busy === "beverages-sp-origin" ? "A memória está sendo reproduzida." : "Executa o cálculo condicionado aos fatos confirmados."}>{busy === "beverages-sp-origin" ? "Reproduzindo memória…" : `Calcular ${beverageSpOriginRoute}`}</button>
           </form>
           {beverageSpOriginResult && <section className={`auto-parts-calculator-result beverage-sp-result ${beverageSpOriginResult.status}`}>
             {beverageSpOriginResult.status === "calculated_reference" && beverageSpOriginResult.output && beverageSpOriginResult.parameters ? <><header><span>MEMÓRIA DO DESTINO CONDICIONAL · {beverageSpOriginResult.route}</span><strong>{(beverageSpOriginResult.output.destinationTotalCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong><small>ICMS-ST + adicional estadual; valores exibidos separadamente abaixo</small></header><div><span>Base PMPF<b>{(beverageSpOriginResult.output.stBaseCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>PMPF unitário<b>{(beverageSpOriginResult.parameters.pmpfUnitCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS próprio<b>{(beverageSpOriginResult.output.ownIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS presumido<b>{(beverageSpOriginResult.output.presumedInternalIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS-ST<b>{(beverageSpOriginResult.output.icmsStCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>FCP/FEM<b>{(beverageSpOriginResult.output.fcpCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span></div><p>Interestadual {(beverageSpOriginResult.parameters.interstateRateBps / 100).toFixed(0)}% · interna {(beverageSpOriginResult.parameters.internalRateBps / 100).toFixed(0)}% · adicional {(beverageSpOriginResult.parameters.fcpRateBps / 100).toFixed(0)}% · limite de 80%: {(beverageSpOriginResult.parameters.pmpfLimitCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}.</p></> : <><header><span>{beverageSpOriginResult.status === "pmpf_fallback_required" ? "PMPF LEGALMENTE AFASTADO" : "CÁLCULO BLOQUEADO"}</span><strong>{beverageSpOriginResult.status === "pmpf_fallback_required" ? "Exige MVA do destino" : "Sem valor exibido"}</strong></header><ul>{beverageSpOriginResult.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></>}
@@ -670,7 +701,7 @@ export default function NationalCoverageCenter() {
               <label>Data da operação<input type="date" min={coverage.stColdBeveragesPriority.supportedPeriod.from} max={coverage.stColdBeveragesPriority.supportedPeriod.to} value={beverageDate} onChange={(event) => { setBeverageDate(event.target.value); setBeverageResult(null); }} required /></label>
             </div>
             <fieldset><legend>Oito fatos que precisam existir no dossiê</legend>{(Object.entries(coverage.stColdBeveragesPriority.operationFactLabels) as Array<[ColdBeverageFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={beverageFacts[key]} onChange={(event) => setBeverageFacts((current) => ({ ...current, [key]: event.target.checked }))} />{label}</label>)}</fieldset>
-            <button disabled={busy === "beverages" || !beverageDate}>{busy === "beverages" ? "Conferindo regra…" : "Conferir enquadramento"}</button>
+            <button disabled={busy === "beverages" || !beverageDate} title={!beverageDate ? "Informe a data da operação para conferir a vigência." : busy === "beverages" ? "A regra está sendo conferida." : "Confere o enquadramento sem presumir fatos ausentes."}>{busy === "beverages" ? "Conferindo regra…" : "Conferir enquadramento"}</button>
           </form>
           {beverageResult && <section className={`beverage-result ${beverageResult.status}`}><header><span>{beverageResult.status === "scoped_parameters_pending" ? "PROTOCOLO ALCANÇA A ROTA" : beverageResult.status === "protocol_not_applicable" ? "EXCEÇÃO LEGAL IDENTIFICADA" : "DADOS INSUFICIENTES"}</span><strong>{beverageResult.status === "scoped_parameters_pending" ? "PMPF/MVA ainda bloqueia o valor" : beverageResult.status === "protocol_not_applicable" ? "Usar tratamento próprio do destino" : "Sem conclusão"}</strong></header><ul>{beverageResult.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}{beverageResult.nextChecks.map((check) => <li key={check}>{check}</li>)}</ul><small>{beverageResult.limitation}</small></section>}
           <details className="beverage-route-details" open><summary>Ver os 24 sentidos para o produto selecionado</summary><div className="beverage-route-grid">{coverage.stColdBeveragesPriority.routes.map((route) => { const cell = coverage.stColdBeveragesPriority.applicability.find((item) => item.route === route.route && item.productCode === beverageProduct); return <article key={route.route} className={cell?.status ?? "protocol_not_applicable"}><header><b>{route.origin}→{route.destination}</b><span>PRIORIDADE {String(route.corridorRank).padStart(2, "0")} · {route.direction === "outbound" ? "IDA" : "VOLTA"}</span></header><em>{cell?.status === "protocol_scoped_parameters_pending" ? "ESCOPO PROTOCOLAR" : "EXCEÇÃO / TRATAMENTO PRÓPRIO"}</em><strong>{route.pricingGate === "official_price_first_then_destination_mva" ? `PMPF → MVA de ${route.destination}` : "PMPF → MVA protocolar"}</strong><p>{cell?.reason}</p></article>; })}</div></details>
@@ -693,7 +724,7 @@ export default function NationalCoverageCenter() {
             </div>
             <label className="auto-parts-imported"><input type="checkbox" checked={autoPartsImported} onChange={(event) => { setAutoPartsImported(event.target.checked); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null); }} />Mercadoria importada qualificada na Resolução do Senado 13/2012 (alíquota interestadual de 4%)</label>
             <fieldset><legend>Confirme os nove fatos documentados</legend>{(Object.entries(coverage.stAutoPartsHighUseCorridors.operationFactLabels) as Array<[AutoPartsFactKey, string]>).map(([key, label]) => <label key={key}><input type="checkbox" checked={autoPartsFacts[key]} onChange={(event) => { setAutoPartsFacts((current) => ({ ...current, [key]: event.target.checked })); setAutoPartsResult(null); setAutoPartsDossierPreview(null); setAutoPartsDossier(null); }} />{label}</label>)}</fieldset>
-            <button disabled={busy === "auto-parts" || !autoPartsDate || !autoPartsCondition || !autoPartsValue || !autoPartsOwnBase}>{busy === "auto-parts" ? "Reproduzindo memória…" : "Calcular referência condicionada"}</button>
+            <button disabled={busy === "auto-parts" || !autoPartsDate || !autoPartsCondition || !autoPartsValue || !autoPartsOwnBase} title={!autoPartsDate || !autoPartsCondition || !autoPartsValue || !autoPartsOwnBase ? "Informe data, condição comercial, valor e base própria para liberar a referência." : busy === "auto-parts" ? "A memória está sendo reproduzida." : "Executa somente o recorte jurídico controlado."}>{busy === "auto-parts" ? "Reproduzindo memória…" : "Calcular referência condicionada"}</button>
           </form>
           {autoPartsResult && <section className={`auto-parts-calculator-result ${autoPartsResult.status}`}>
             {autoPartsResult.status === "calculated_reference" && autoPartsResult.output && autoPartsResult.parameters ? <><header><span>MEMÓRIA CONDICIONAL · {autoPartsResult.route}</span><strong>{(autoPartsResult.output.destinationTotalCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</strong><small>ICMS-ST + FCP estimados pelo motor determinístico</small></header><div><span>Base ST<b>{(autoPartsResult.output.stBaseCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>MVA aplicada<b>{(autoPartsResult.output.mvaAppliedBps / 100).toFixed(2).replace(".", ",")}%</b></span><span>ICMS próprio<b>{(autoPartsResult.output.ownIcmsCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>ICMS-ST<b>{(autoPartsResult.output.icmsStCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span><span>FCP<b>{(autoPartsResult.output.fcpCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</b></span></div><p>Interestadual {(autoPartsResult.parameters.interstateRateBps / 100).toFixed(0)}% · interna {(autoPartsResult.parameters.internalRateBps / 100).toFixed(2).replace(".", ",")}% · MVA original {(autoPartsResult.parameters.mvaOriginalBps / 100).toFixed(2).replace(".", ",")}%.</p></> : <><header><span>{autoPartsResult.status === "st_not_applicable_after_state_exclusion" ? "TRANSIÇÃO LEGAL" : "CÁLCULO BLOQUEADO"}</span><strong>{autoPartsResult.status === "st_not_applicable_after_state_exclusion" ? "ST paulista não aplicável" : "Sem valor exibido"}</strong></header><ul>{autoPartsResult.blockers.map((blocker) => <li key={blocker}>{blocker}</li>)}</ul></>}
@@ -807,7 +838,7 @@ export default function NationalCoverageCenter() {
 
     {tab === "documents" && <section className="batch-import-area">
       <div className="coverage-section-heading"><span>NF-e · NFS-e · SPED</span><h2>Importação em lote auditável e retomável</h2><p>Envie até 25 arquivos. Cada documento é processado isoladamente, o progresso fica registrado e o XML/TXT bruto é descartado imediatamente. A importação nunca altera um cálculo final.</p></div>
-      <form className="batch-drop" onSubmit={importBatch}><label><input type="file" multiple accept=".xml,.txt" onChange={(event) => { setFiles(Array.from(event.target.files ?? []).slice(0, 25)); setBatchKey(""); setBatch(null); }} /><span>＋</span><b>Selecionar documentos fiscais</b><small>XML NF-e/NFS-e ou TXT SPED · 5 MB por arquivo · 30 MB por lote</small></label>{files.length > 0 && <div className="batch-selection"><span>{files.length} arquivo(s) selecionado(s)</span><small>{(files.reduce((sum, file) => sum + file.size, 0) / 1_000_000).toFixed(2)} MB</small></div>}{batch && <div className="batch-progress" aria-live="polite"><span><i style={{ width: `${batch.progress.percentage}%` }} /></span><b>{batch.progress.processed} de {batch.progress.total} · {batch.progress.percentage}%</b></div>}<button disabled={!files.length || busy === "batch"}>{busy === "batch" ? `Processando ${batch?.progress.processed ?? 0} de ${files.length}…` : batch?.status === "completed" ? "Validar novamente com idempotência" : "Importar e validar lote"}</button></form>
+      <form className="batch-drop" onSubmit={importBatch}><label><input type="file" multiple accept=".xml,.txt" onChange={(event) => { setFiles(Array.from(event.target.files ?? []).slice(0, 25)); setBatchKey(""); setBatch(null); }} /><span>＋</span><b>Selecionar documentos fiscais</b><small>XML NF-e/NFS-e ou TXT SPED · 5 MB por arquivo · 30 MB por lote</small></label>{files.length > 0 && <div className="batch-selection"><span>{files.length} arquivo(s) selecionado(s)</span><small>{(files.reduce((sum, file) => sum + file.size, 0) / 1_000_000).toFixed(2)} MB</small></div>}{batch && <div className="batch-progress" aria-live="polite"><span><i style={{ width: `${batch.progress.percentage}%` }} /></span><b>{batch.progress.processed} de {batch.progress.total} · {batch.progress.percentage}%</b></div>}<button disabled={!files.length || busy === "batch"} title={!files.length ? "Selecione ao menos um XML ou TXT para liberar a importação." : busy === "batch" ? "O lote selecionado está sendo processado." : "Importa no máximo 25 arquivos dentro dos limites informados."}>{busy === "batch" ? `Processando ${batch?.progress.processed ?? 0} de ${files.length}…` : batch?.status === "completed" ? "Validar novamente com idempotência" : "Importar e validar lote"}</button></form>
       {batch && <div className="batch-result"><header><div><span>{batch.status === "completed" ? "LOTE CONCLUÍDO" : "LOTE EM PROCESSAMENTO"}</span><h3>{batch.metrics.total} documentos processados</h3><p>{batch.message}</p></div><div><b>{batch.metrics.accepted}</b><small>aceitos</small><b>{batch.metrics.warning}</b><small>revisar</small><b>{batch.metrics.blocked}</b><small>bloqueados</small></div></header><div>{batch.items.map((item) => <article key={`${item.ordinal}-${item.sourceHash}`} className={item.status}><span>{item.documentType.toUpperCase()}</span><p><b>{item.filename}</b><small>fonte #{item.sourceHash} · evidência #{item.evidenceHash}</small></p><strong>{item.status === "accepted" ? "Aceito" : item.status === "warning" ? "Revisar" : "Bloqueado"}</strong><details><summary>Auditoria e pendências</summary><small><b>Adaptador:</b> {item.adapterCode ?? "não identificado"} · cobertura {item.coverageStatus}</small>{item.issueDetails.map((entry) => <small key={entry.code}><b>{entry.code}</b> · {entry.message}</small>)}<small className="calculation-gate"><b>Não alimenta cálculo final</b> · {item.calculationBlockers[0]}</small></details></article>)}</div></div>}
     </section>}
 
@@ -847,7 +878,7 @@ export default function NationalCoverageCenter() {
             <label>Resumo da versão<textarea value={governanceReview.releaseSummary} onChange={(event) => setGovernanceReview({ ...governanceReview, releaseSummary: event.target.value })} minLength={20} maxLength={4000} required /></label>
           </div>}
           <label className="approval-declaration"><input type="checkbox" checked={governanceReview.declarationAccepted} onChange={(event) => setGovernanceReview({ ...governanceReview, declarationAccepted: event.target.checked })} />Confirmo a responsabilidade profissional pela decisão e pela evidência registrada nesta trilha.</label>
-          <button disabled={busy === "governance-review" || !governanceReview.declarationAccepted}>{busy === "governance-review" ? "Assinando…" : "Registrar decisão"}</button>
+          <button disabled={busy === "governance-review" || !governanceReview.declarationAccepted} title={!governanceReview.declarationAccepted ? "Leia e aceite a declaração de responsabilidade para registrar a decisão." : busy === "governance-review" ? "A decisão está sendo assinada." : "Registra a decisão e sua trilha de auditoria."}>{busy === "governance-review" ? "Assinando…" : "Registrar decisão"}</button>
         </form>}
         <section className="governance-subsection">
           <header><div><span>SAÚDE DAS REGRAS</span><h3>Vigência, fonte e fingerprint</h3></div><b>{monitor.rules.length} versões</b></header>
