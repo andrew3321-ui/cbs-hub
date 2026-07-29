@@ -26,13 +26,29 @@ function requireStatus(label, response, allowed) {
   }
 }
 
-const health = await request("/api/health");
-requireStatus("health", health, [200]);
-const healthBody = await health.json();
-if (healthBody.status !== "healthy" || healthBody.checks?.database !== "up") {
-  throw new Error("health: banco ou assinatura indisponível.");
+async function waitForPublishedRelease() {
+  const attempts = Number(process.env.SMOKE_RELEASE_ATTEMPTS ?? 12);
+  const intervalMs = Number(process.env.SMOKE_RELEASE_INTERVAL_MS ?? 5_000);
+  let lastReason = "versão ainda não observada";
+  for (let attempt = 1; attempt <= attempts; attempt += 1) {
+    try {
+      const health = await request("/api/health");
+      if (health.status !== 200) {
+        lastReason = `HTTP ${health.status}`;
+      } else {
+        const body = await health.json();
+        if (body.status === "healthy" && body.checks?.database === "up" && body.release?.id) return body;
+        lastReason = "banco, assinatura ou versão ainda indisponível";
+      }
+    } catch (error) {
+      lastReason = error instanceof Error ? error.message : "falha desconhecida";
+    }
+    if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, intervalMs));
+  }
+  throw new Error(`health: ${lastReason} após ${attempts} tentativas.`);
 }
-if (!healthBody.release?.id) throw new Error("health: versão do Worker ausente.");
+
+const healthBody = await waitForPublishedRelease();
 
 for (const [label, pathname] of [["login-page", "/entrar"], ["plans-page", "/planos"]]) {
   const response = await request(pathname);

@@ -224,7 +224,7 @@ export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
   schemaVersion: "manual-fiscal-intelligence.v1",
   engineVersion: "cbshub-manual-fiscal-1.0.0",
   baseCode: "FISCAL-MANUAL-BR",
-  version: "1.0.0",
+  version: "1.1.0",
   name: "Inteligência Fiscal Manual Brasil · V24",
   assuranceLevel: "pilot_conditional",
   coverage: { tax: "ICMS", originState: "SP", destinationState: "MG", segment: "auto_parts" },
