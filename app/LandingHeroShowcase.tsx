@@ -36,7 +36,7 @@ export default function LandingHeroShowcase() {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     if (reducedMotion) return;
 
-    const timer = window.setTimeout(() => setActiveSlide("tour"), 5200);
+    const timer = window.setTimeout(() => setActiveSlide("tour"), 2000);
     return () => window.clearTimeout(timer);
   }, []);
 

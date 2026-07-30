@@ -383,7 +383,7 @@
 .cbs-showcase-video-copy {
   max-width: 430px;
   position: absolute;
-  top: 28px;
+  top: 10px;
   left: 30px;
   z-index: 2;
   color: white;
@@ -1252,7 +1252,7 @@
   .cbs-preview-glow { width: 430px; height: 430px; }
   .cbs-preview-window { width: 760px; max-width: 148%; min-height: 430px; transform: scale(.72); }
   .cbs-showcase-video-shell { width: 760px; max-width: 122%; border-radius: 15px; }
-  .cbs-showcase-video-copy { top: 18px; left: 19px; max-width: 62%; }
+  .cbs-showcase-video-copy { top: 7px; left: 19px; max-width: 62%; }
   .cbs-showcase-video-copy strong { margin-top: 6px; font-size: 18px; letter-spacing: -.7px; }
   .cbs-showcase-video-copy p { display: none; }
   .cbs-showcase-video-proof { top: 15px; right: 16px; min-width: 0; padding: 8px 9px; }
