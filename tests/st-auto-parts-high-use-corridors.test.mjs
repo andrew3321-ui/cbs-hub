@@ -2,24 +2,34 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  ST_AUTO_PARTS_PRODUCT_CATALOG,
+  findControlledAutoPartsProduct,
   hashStAutoPartsHighUseCorridors,
   resolveAutoPartsPriorityOperation,
   stAutoPartsHighUseCorridorMetrics,
+  stAutoPartsProductRouteCells,
   stAutoPartsHighUseRouteByKey,
   stAutoPartsHighUseRoutes,
   stAutoPartsHighUseSources,
   validateStAutoPartsHighUseCorridors,
 } from "../domain/st-auto-parts-high-use-corridors.ts";
 
-test("V67 audits twelve priority corridors and closes ten temporal references", () => {
+test("V76 audits seven products across the twelve priority corridors", () => {
   assert.deepEqual(validateStAutoPartsHighUseCorridors(), { passed: true, errors: [] });
   assert.deepEqual(stAutoPartsHighUseCorridorMetrics(), {
     corridors: 12,
     directedRoutes: 24,
+    controlledProducts: 7,
+    newlyControlledProducts: 6,
+    productRouteCells: 168,
+    supportedProductRouteCells: 70,
+    partialProductRouteCells: 98,
+    notSupportedProductRouteCells: 0,
+    deterministicProductRouteMemories: 70,
     activeAgreementRoutes: 10,
     outsideProtocolRoutes: 14,
-    protocolMvaRoutes: 5,
-    destinationMvaRoutes: 5,
+    protocolMvaRoutes: 4,
+    destinationMvaRoutes: 6,
     syntheticReferencesReproduced: 10,
     safelyBlocked: 14,
     scheduledLegalReviews: 7,
@@ -44,11 +54,11 @@ test("only the ten directions between current protocol parties are active", () =
 });
 
 test("the destination controls which MVA source each active direction uses", () => {
-  for (const key of ["MG-SP", "RJ-SP", "PR-SP", "BA-SP", "SP-PR"]) {
+  for (const key of ["MG-SP", "RJ-SP", "PR-SP", "BA-SP", "SP-PR", "SP-BA"]) {
     assert.equal(stAutoPartsHighUseRouteByKey.get(key)?.parameterMethod, "destination_internal_mva");
     assert.equal(typeof stAutoPartsHighUseRouteByKey.get(key)?.mvaOriginalBps, "number");
   }
-  for (const key of ["SP-MG", "SP-RJ", "SP-BA", "MG-RJ", "RJ-MG"]) {
+  for (const key of ["SP-MG", "SP-RJ", "MG-RJ", "RJ-MG"]) {
     assert.equal(stAutoPartsHighUseRouteByKey.get(key)?.parameterMethod, "protocol_mva");
     assert.equal(stAutoPartsHighUseRouteByKey.get(key)?.mvaOriginalBps, 7_178);
   }
@@ -91,6 +101,49 @@ test("missing facts, unknown products and outside routes fail closed without val
   assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, ncm: "8707" }).output, null);
   assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, route: "SP-SC" }).output, null);
   assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, operationDate: "" }).output, null);
+});
+
+test("the ranked product catalog freezes legal identity, scope and exclusions", () => {
+  assert.deepEqual(ST_AUTO_PARTS_PRODUCT_CATALOG.map((product) => product.cest), [
+    "01.075.00", "01.014.00", "01.037.00", "01.041.00", "01.049.00", "01.053.00", "01.054.00",
+  ]);
+  assert.equal(new Set(ST_AUTO_PARTS_PRODUCT_CATALOG.map((product) => product.code)).size, 7);
+  assert.equal(ST_AUTO_PARTS_PRODUCT_CATALOG.every((product) => product.legalConditions.length >= 3 && product.exclusions.length >= 1), true);
+  assert.equal(findControlledAutoPartsProduct("01.037.00", "8421.23.00")?.code, "ENGINE_OIL_FILTER");
+  assert.equal(findControlledAutoPartsProduct("01.049.00", "84821010")?.code, "BEARINGS");
+  assert.equal(findControlledAutoPartsProduct("01.037.00", "84213100"), null);
+});
+
+test("all six added products reproduce cents in every active route", () => {
+  const activeRoutes = stAutoPartsHighUseRoutes.filter((route) => route.agreementStatus === "protocol_41_active");
+  const additions = ST_AUTO_PARTS_PRODUCT_CATALOG.filter((product) => product.rank > 0);
+  let reproduced = 0;
+  for (const product of additions) {
+    for (const route of activeRoutes) {
+      const result = resolveAutoPartsPriorityOperation({
+        ...completeInput,
+        route: route.route,
+        cest: product.cest,
+        ncm: product.ncmPatterns[0],
+      });
+      assert.equal(result.status, "calculated_reference", `${product.code}:${route.route}`);
+      assert.equal(Number.isSafeInteger(result.output?.destinationTotalCents), true, `${product.code}:${route.route}`);
+      reproduced += 1;
+    }
+  }
+  assert.equal(reproduced, 60);
+  assert.equal(stAutoPartsProductRouteCells.filter((cell) => cell.status === "supported" && cell.syntheticReference).length, 70);
+});
+
+test("added products cover imported, expired, exception and missing-data paths", () => {
+  const oilFilter = ST_AUTO_PARTS_PRODUCT_CATALOG.find((product) => product.code === "ENGINE_OIL_FILTER");
+  assert.ok(oilFilter);
+  const imported = resolveAutoPartsPriorityOperation({ ...completeInput, route: "SP-BA", cest: oilFilter.cest, ncm: oilFilter.ncmPatterns[0], importedQualified: true });
+  assert.equal(imported.parameters?.interstateRateBps, 400);
+  assert.equal(imported.output?.destinationTotalCents, 38_523);
+  assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, cest: oilFilter.cest, ncm: "84213100" }).status, "blocked");
+  assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, cest: oilFilter.cest, ncm: oilFilter.ncmPatterns[0], operationDate: "2025-12-31" }).status, "blocked");
+  assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, cest: oilFilter.cest, ncm: oilFilter.ncmPatterns[0], facts: { ...confirmedFacts, productIdentityConfirmed: false } }).status, "blocked");
 });
 
 test("fidelity and qualified import paths use explicit deterministic parameters", () => {

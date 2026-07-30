@@ -7,7 +7,7 @@ import { hashStSpCalculationRuns, stSpCalculationRuns, stSpCalculationValidation
 import { hashStCementSpRoutes, stCementSpRouteMetrics, stCementSpRoutes, ST_CEMENT_PRODUCT_SOURCE, ST_CEMENT_PROTOCOL_SOURCE, ST_CEMENT_SP_ROUTES_VERSION, validateStCementSpRoutes } from "../../../../domain/st-cement-sp-routes";
 import { hashStCementPriorityBatch, stCementPriorityBatchMetrics, stCementPrioritySources, stCementPriorityStates, ST_CEMENT_PRIORITY_BATCH_VERSION, validateStCementPriorityBatch } from "../../../../domain/st-cement-priority-batch";
 import { hashStAutoPartsPriorityBatch, stAutoPartsPriorityBatchMetrics, stAutoPartsPriorityRoutes, stAutoPartsPrioritySources, ST_AUTO_PARTS_PRIORITY_BATCH_VERSION, validateStAutoPartsPriorityBatch } from "../../../../domain/st-auto-parts-priority-batch";
-import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, stAutoPartsHighUseRoutes, stAutoPartsHighUseSources, ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION, ST_AUTO_PARTS_OPERATION_FACT_LABELS, ST_AUTO_PARTS_SP_EXCLUSION_FROM, ST_AUTO_PARTS_SUPPORTED_PERIOD, validateStAutoPartsHighUseCorridors } from "../../../../domain/st-auto-parts-high-use-corridors";
+import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, stAutoPartsHighUseRoutes, stAutoPartsHighUseSources, stAutoPartsProductRouteCells, ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION, ST_AUTO_PARTS_OPERATION_FACT_LABELS, ST_AUTO_PARTS_PRODUCT_CATALOG, ST_AUTO_PARTS_SP_EXCLUSION_FROM, ST_AUTO_PARTS_SUPPORTED_PERIOD, validateStAutoPartsHighUseCorridors } from "../../../../domain/st-auto-parts-high-use-corridors";
 import { hashStColdBeveragePriority, stColdBeverageApplicabilityMatrix, stColdBeverageMetrics, stColdBeverageRoutes, stColdBeverageSources, ST_COLD_BEVERAGE_OPERATION_FACT_LABELS, ST_COLD_BEVERAGE_PRODUCTS, ST_COLD_BEVERAGES_PRIORITY_VERSION, ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM, ST_COLD_BEVERAGES_SUPPORTED_PERIOD, validateStColdBeveragePriority } from "../../../../domain/st-cold-beverages-priority";
 import { hashStColdBeverageSpDestination, stColdBeverageSpDestinationMetrics, stColdBeverageSpReferenceRuns, stColdBeverageSpSources, ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD, ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES, ST_COLD_BEVERAGES_SP_DESTINATION_VERSION, ST_COLD_BEVERAGES_SP_FACT_LABELS, ST_COLD_BEVERAGES_SP_PMPF_PROFILES, validateStColdBeverageSpDestination } from "../../../../domain/st-cold-beverages-sp-destination";
 import { hashStColdBeverageSpOrigin, stColdBeverageSpOriginMetrics, stColdBeverageSpOriginReferenceRuns, stColdBeverageSpOriginSources, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD, ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES, ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES, ST_COLD_BEVERAGES_SP_ORIGIN_VERSION, validateStColdBeverageSpOrigin } from "../../../../domain/st-cold-beverages-sp-origin";
@@ -128,9 +128,11 @@ async function publicCoverage() {
       supportedPeriod: ST_AUTO_PARTS_SUPPORTED_PERIOD,
       spExclusionFrom: ST_AUTO_PARTS_SP_EXCLUSION_FROM,
       operationFactLabels: ST_AUTO_PARTS_OPERATION_FACT_LABELS,
+      products: ST_AUTO_PARTS_PRODUCT_CATALOG,
+      productRouteCells: stAutoPartsProductRouteCells,
       sources: stAutoPartsHighUseSources,
       routes: stAutoPartsHighUseRoutes,
-      policy: "Os 12 corredores prioritários são avaliados nos dois sentidos, totalizando 24 decisões independentes. Dez rotas ativas têm memória condicional reproduzível; fatos ausentes bloqueiam o número e o destino São Paulo deixa de calcular esta ST a partir de 01/10/2026.",
+      policy: "Sete identidades fiscais são cruzadas com 24 sentidos, formando 168 células versionadas. As 70 células das dez rotas ativas têm memória condicional reproduzível; as demais permanecem parciais e sem valor. Fatos ausentes bloqueiam o número e o destino São Paulo deixa de calcular esta ST a partir de 01/10/2026.",
     },
     stColdBeveragesPriority: {
       version: ST_COLD_BEVERAGES_PRIORITY_VERSION,

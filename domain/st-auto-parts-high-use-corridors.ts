@@ -1,7 +1,7 @@
 import { calculateRepresentativeStMemory } from "./st-sp-mg-legal.ts";
 
-export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION = "2026.07.22-v67";
-export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT = "2026-07-22";
+export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION = "2026.07.29-v76";
+export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT = "2026-07-29";
 export const ST_AUTO_PARTS_SUPPORTED_PERIOD = { from: "2026-01-01", to: "2026-12-31" } as const;
 export const ST_AUTO_PARTS_SP_EXCLUSION_FROM = "2026-10-01" as const;
 
@@ -26,7 +26,7 @@ export const ST_AUTO_PARTS_PROTOCOL_41_CURRENT_PARTIES = [
   "AC", "AL", "AP", "AM", "BA", "DF", "MA", "MG", "MT", "PA", "PB", "PI", "PR", "RJ", "RR", "SP",
 ] as const;
 
-export const ST_AUTO_PARTS_PROTOCOL_41_DESTINATION_MVA_UFS = ["AL", "MT", "PI", "PR", "SP"] as const;
+export const ST_AUTO_PARTS_PROTOCOL_41_DESTINATION_MVA_UFS = ["AL", "BA", "MT", "PI", "PR", "SP"] as const;
 
 export type StAutoPartsHighUseSource = {
   code: string;
@@ -48,7 +48,7 @@ export const stAutoPartsHighUseSources: StAutoPartsHighUseSource[] = [
       "unidades federadas atualmente alcançadas pelo protocolo",
       "uso especificamente automotivo e sujeição interna no destino",
       "MVA original de 36,56% em fidelidade ou 71,78% nos demais casos",
-      "MVA definida pela legislação interna de AL, MT, PI, PR e SP",
+      "MVA definida pela legislação interna de AL, BA, MT, PI, PR e SP",
       "denúncias de GO e SC e exclusão do RS",
       "exceções de destinatário e do CEST 01.015.00 quando São Paulo é origem ou destino",
     ],
@@ -59,7 +59,7 @@ export const stAutoPartsHighUseSources: StAutoPartsHighUseSource[] = [
     publisher: "CONFAZ",
     url: "https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18",
     checkedAt: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT,
-    proves: ["identidade nacional do segmento", "CEST 01.075.00", "NCM 8708", "descrição do produto representativo"],
+    proves: ["identidade nacional do segmento", "NCM, CEST e descrição legal dos sete produtos controlados", "vigência nacional do Anexo II"],
   },
   {
     code: "MG-RICMS-2023-ANNEX-VII-AUTO-PARTS",
@@ -179,15 +179,147 @@ const sourceByCode = new Map(stAutoPartsHighUseSources.map((source) => [source.c
 const currentPartySet = new Set<string>(ST_AUTO_PARTS_PROTOCOL_41_CURRENT_PARTIES);
 const destinationMvaSet = new Set<string>(ST_AUTO_PARTS_PROTOCOL_41_DESTINATION_MVA_UFS);
 
-const representativeProduct = {
-  cest: "01.075.00" as const,
-  ncm: "8708" as const,
-  description: "Partes e acessórios dos veículos automóveis das posições 8701 a 8705",
-  scope: "representative_identity_only" as const,
+export type StAutoPartsProduct = {
+  rank: number;
+  code: string;
+  cest: string;
+  ncmPatterns: readonly string[];
+  description: string;
+  commercialLabel: string;
+  scope: "controlled_product_identity";
+  effectiveFrom: "2019-01-01";
+  priorityBasis: "internal_editorial_priority";
+  priorityReason: string;
+  legalConditions: readonly string[];
+  exclusions: readonly string[];
+  sourceCodes: readonly ["CONFAZ-CONV-142-2018-ANNEX-II", "CONFAZ-PROTOCOL-41-2008"];
 };
 
+export const ST_AUTO_PARTS_PRODUCT_CATALOG: readonly StAutoPartsProduct[] = [
+  {
+    rank: 0,
+    code: "GENERAL_VEHICLE_PARTS_8708",
+    cest: "01.075.00",
+    ncmPatterns: ["8708"],
+    description: "Partes e acessórios dos veículos automóveis das posições 8701 a 8705",
+    commercialLabel: "Partes e acessórios de veículos",
+    scope: "controlled_product_identity",
+    effectiveFrom: "2019-01-01",
+    priorityBasis: "internal_editorial_priority",
+    priorityReason: "produto-base já controlado pelo motor",
+    legalConditions: ["descrição legal prevalece sobre o código isolado", "uso especificamente automotivo", "ST interna no destino"],
+    exclusions: ["CESTs 01.019.00, 01.062.01, 01.112.00, 01.127.00, 01.128.00 e 01.999.00 não integram o Protocolo 41/08"],
+    sourceCodes: ["CONFAZ-CONV-142-2018-ANNEX-II", "CONFAZ-PROTOCOL-41-2008"],
+  },
+  {
+    rank: 1,
+    code: "FRICTION_LININGS",
+    cest: "01.014.00",
+    ncmPatterns: ["6813"],
+    description: "Guarnições de fricção (por exemplo, placas, rolos, tiras, segmentos, discos, anéis, pastilhas), não montadas, para freios, embreagens ou qualquer outro mecanismo de fricção, à base de amianto, de outras substâncias minerais ou de celulose, mesmo combinadas com têxteis ou outras matérias",
+    commercialLabel: "Pastilhas e guarnições de freio",
+    scope: "controlled_product_identity",
+    effectiveFrom: "2019-01-01",
+    priorityBasis: "internal_editorial_priority",
+    priorityReason: "item de reposição recorrente priorizado editorialmente",
+    legalConditions: ["a mercadoria deve corresponder à descrição legal completa", "uso especificamente automotivo", "ST interna no destino"],
+    exclusions: ["produto montado ou sem correspondência com a descrição do CEST"],
+    sourceCodes: ["CONFAZ-CONV-142-2018-ANNEX-II", "CONFAZ-PROTOCOL-41-2008"],
+  },
+  {
+    rank: 2,
+    code: "ENGINE_OIL_FILTER",
+    cest: "01.037.00",
+    ncmPatterns: ["84212300"],
+    description: "Aparelhos para filtrar óleos minerais nos motores de ignição por centelha ou por compressão",
+    commercialLabel: "Filtro de óleo do motor",
+    scope: "controlled_product_identity",
+    effectiveFrom: "2019-01-01",
+    priorityBasis: "internal_editorial_priority",
+    priorityReason: "item de manutenção periódica priorizado editorialmente",
+    legalConditions: ["NCM e descrição legal devem coincidir", "uso especificamente automotivo", "ST interna no destino"],
+    exclusions: ["filtros enquadrados em outro NCM ou CEST"],
+    sourceCodes: ["CONFAZ-CONV-142-2018-ANNEX-II", "CONFAZ-PROTOCOL-41-2008"],
+  },
+  {
+    rank: 3,
+    code: "ENGINE_AIR_FILTER",
+    cest: "01.041.00",
+    ncmPatterns: ["84213100"],
+    description: "Filtros de entrada de ar para motores de ignição por centelha ou por compressão",
+    commercialLabel: "Filtro de ar do motor",
+    scope: "controlled_product_identity",
+    effectiveFrom: "2019-01-01",
+    priorityBasis: "internal_editorial_priority",
+    priorityReason: "item de manutenção periódica priorizado editorialmente",
+    legalConditions: ["NCM e descrição legal devem coincidir", "uso especificamente automotivo", "ST interna no destino"],
+    exclusions: ["filtro de cabine ou de pólen, classificado separadamente"],
+    sourceCodes: ["CONFAZ-CONV-142-2018-ANNEX-II", "CONFAZ-PROTOCOL-41-2008"],
+  },
+  {
+    rank: 4,
+    code: "BEARINGS",
+    cest: "01.049.00",
+    ncmPatterns: ["8482"],
+    description: "Rolamentos",
+    commercialLabel: "Rolamentos",
+    scope: "controlled_product_identity",
+    effectiveFrom: "2019-01-01",
+    priorityBasis: "internal_editorial_priority",
+    priorityReason: "componente de reposição priorizado editorialmente",
+    legalConditions: ["a descrição e a posição NCM devem coincidir", "uso especificamente automotivo", "ST interna no destino"],
+    exclusions: ["rolamento sem uso especificamente automotivo na operação"],
+    sourceCodes: ["CONFAZ-CONV-142-2018-ANNEX-II", "CONFAZ-PROTOCOL-41-2008"],
+  },
+  {
+    rank: 5,
+    code: "STARTER_BATTERY",
+    cest: "01.053.00",
+    ncmPatterns: ["850710"],
+    description: "Acumuladores elétricos de chumbo, do tipo utilizado para o arranque dos motores de pistão, exceto os classificados no CEST 01.053.01",
+    commercialLabel: "Bateria de partida",
+    scope: "controlled_product_identity",
+    effectiveFrom: "2019-01-01",
+    priorityBasis: "internal_editorial_priority",
+    priorityReason: "item de reposição de alto giro priorizado editorialmente",
+    legalConditions: ["NCM, capacidade, tensão e descrição devem ser conferidos", "uso especificamente automotivo", "ST interna no destino"],
+    exclusions: ["CEST 01.053.01: capacidade inferior ou igual a 20 Ah e tensão inferior ou igual a 12 V"],
+    sourceCodes: ["CONFAZ-CONV-142-2018-ANNEX-II", "CONFAZ-PROTOCOL-41-2008"],
+  },
+  {
+    rank: 6,
+    code: "IGNITION_AND_STARTING_DEVICES",
+    cest: "01.054.00",
+    ncmPatterns: ["8511"],
+    description: "Aparelhos e dispositivos elétricos de ignição ou de arranque para motores de ignição por centelha ou por compressão (por exemplo, magnetos, dínamos-magnetos, bobinas de ignição, velas de ignição ou de aquecimento, motores de arranque); geradores (dínamos e alternadores, por exemplo) e conjuntores-disjuntores utilizados com estes motores",
+    commercialLabel: "Ignição, partida e alternadores",
+    scope: "controlled_product_identity",
+    effectiveFrom: "2019-01-01",
+    priorityBasis: "internal_editorial_priority",
+    priorityReason: "família elétrica de reposição priorizada editorialmente",
+    legalConditions: ["a descrição e a posição NCM devem coincidir", "uso especificamente automotivo", "ST interna no destino"],
+    exclusions: ["aparelho elétrico sem correspondência com a descrição do CEST"],
+    sourceCodes: ["CONFAZ-CONV-142-2018-ANNEX-II", "CONFAZ-PROTOCOL-41-2008"],
+  },
+] as const;
+
+const representativeProduct = ST_AUTO_PARTS_PRODUCT_CATALOG[0];
+
+function normalizeFiscalCode(value: string) {
+  return value.replace(/\D/g, "");
+}
+
+export function findControlledAutoPartsProduct(cest: string, ncm: string) {
+  const normalizedCest = normalizeFiscalCode(cest);
+  const normalizedNcm = normalizeFiscalCode(ncm);
+  return ST_AUTO_PARTS_PRODUCT_CATALOG.find((product) =>
+    normalizeFiscalCode(product.cest) === normalizedCest
+    && product.ncmPatterns.some((pattern) => normalizedNcm.startsWith(normalizeFiscalCode(pattern))),
+  ) ?? null;
+}
+
 export const ST_AUTO_PARTS_OPERATION_FACT_LABELS = {
-  productIdentityConfirmed: "descrição, NCM 8708 e CEST 01.075.00 conferidos",
+  productIdentityConfirmed: "descrição legal, NCM e CEST do produto conferidos",
   automotiveUseConfirmed: "uso especificamente automotivo confirmado",
   destinationInternalStConfirmed: "sujeição interna à ST no destino confirmada",
   taxpayerRolesConfirmed: "papéis e regimes do remetente e destinatário confirmados",
@@ -238,7 +370,7 @@ export type AutoPartsOperationResult = {
   status: "calculated_reference" | "blocked" | "st_not_applicable_after_state_exclusion";
   route: string;
   operationDate: string;
-  product: typeof representativeProduct;
+  product: StAutoPartsProduct | null;
   missingFacts: string[];
   blockers: string[];
   parameters: null | {
@@ -300,13 +432,14 @@ function stateSourceCodes(origin: StAutoPartsHighUseUf, destination: StAutoParts
 
 export function resolveAutoPartsPriorityOperation(input: AutoPartsOperationInput): AutoPartsOperationResult {
   const route = stAutoPartsHighUseRouteByKey.get(input.route);
+  const product = findControlledAutoPartsProduct(input.cest, input.ncm);
   const missingFacts = Object.entries(ST_AUTO_PARTS_OPERATION_FACT_LABELS)
     .filter(([key]) => input.facts?.[key as keyof AutoPartsOperationFacts] !== true)
     .map(([, label]) => label);
   const blockers: string[] = [];
   if (!route || route.agreementStatus !== "protocol_41_active") blockers.push("rota fora das dez direções prioritárias com Protocolo 41/08 ativo");
   if (!isIsoDate(input.operationDate) || input.operationDate < ST_AUTO_PARTS_SUPPORTED_PERIOD.from || input.operationDate > ST_AUTO_PARTS_SUPPORTED_PERIOD.to) blockers.push("data da operação fora do período controlado de 2026");
-  if (input.cest !== representativeProduct.cest || input.ncm !== representativeProduct.ncm) blockers.push("identidade fiscal diferente do CEST 01.075.00 / NCM 8708 controlado");
+  if (!product) blockers.push("combinação NCM/CEST fora dos sete produtos de autopeças controlados");
   if (!Number.isSafeInteger(input.operationCents) || input.operationCents <= 0 || input.operationCents > 100_000_000_000) blockers.push("valor da operação inválido ou acima do limite controlado");
   if (!Number.isSafeInteger(input.ownIcmsBaseCents) || input.ownIcmsBaseCents <= 0 || input.ownIcmsBaseCents > 100_000_000_000) blockers.push("base do ICMS próprio inválida");
   if (input.commercialCondition !== "fidelity" && input.commercialCondition !== "standard") blockers.push("condição comercial de fidelidade não informada");
@@ -314,10 +447,10 @@ export function resolveAutoPartsPriorityOperation(input: AutoPartsOperationInput
   const baseResult = {
     route: input.route,
     operationDate: input.operationDate,
-    product: representativeProduct,
+    product,
     missingFacts,
     sourceCodes: route?.sourceCodes ?? ["CONFAZ-PROTOCOL-41-2008", "CONFAZ-CONV-142-2018-ANNEX-II"],
-    limitation: "Memória determinística condicional do produto representativo. Não substitui a classificação fiscal, a escrituração nem a responsabilidade técnica sobre a operação real.",
+    limitation: "Memória determinística condicional do produto controlado. Não substitui a classificação fiscal, a escrituração nem a responsabilidade técnica sobre a operação real.",
   };
   if (blockers.length > 0 || !route) return { ...baseResult, status: "blocked", blockers, parameters: null, output: null };
   if (route.destination === "SP" && input.operationDate >= ST_AUTO_PARTS_SP_EXCLUSION_FROM) {
@@ -449,10 +582,64 @@ export const stAutoPartsHighUseRoutes: StAutoPartsHighUseRoute[] = ST_AUTO_PARTS
 
 export const stAutoPartsHighUseRouteByKey = new Map(stAutoPartsHighUseRoutes.map((route) => [route.route, route]));
 
+export type StAutoPartsProductRouteCell = {
+  key: string;
+  productCode: string;
+  cest: string;
+  ncmPatterns: readonly string[];
+  route: string;
+  status: "supported" | "partial" | "not_supported";
+  effectiveFrom: "2026-01-01";
+  effectiveTo: "2026-09-30" | "2026-12-31";
+  parameterVersion: typeof ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION;
+  sourceCodes: string[];
+  blockers: string[];
+  syntheticReference: null | ReturnType<typeof calculateRepresentativeStMemory>;
+};
+
+export const stAutoPartsProductRouteCells: StAutoPartsProductRouteCell[] = ST_AUTO_PARTS_PRODUCT_CATALOG.flatMap((product) =>
+  stAutoPartsHighUseRoutes.map((route) => ({
+    key: `${product.code}:${route.route}`,
+    productCode: product.code,
+    cest: product.cest,
+    ncmPatterns: product.ncmPatterns,
+    route: route.route,
+    status: route.agreementStatus === "protocol_41_active" && route.syntheticReference
+      ? "supported" as const
+      : route.agreementStatus === "outside_protocol_41"
+        ? "partial" as const
+        : "not_supported" as const,
+    effectiveFrom: ST_AUTO_PARTS_SUPPORTED_PERIOD.from,
+    effectiveTo: route.destination === "SP" ? "2026-09-30" as const : ST_AUTO_PARTS_SUPPORTED_PERIOD.to,
+    parameterVersion: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION,
+    sourceCodes: [...new Set([...product.sourceCodes, ...route.sourceCodes])],
+    blockers: route.agreementStatus === "protocol_41_active"
+      ? [
+          "confirmar identidade fiscal e uso especificamente automotivo",
+          "confirmar ST interna no destino e os fatos documentais da operação",
+          ...(route.destination === "SP" ? ["não utilizar a memória em operações a partir de 01/10/2026"] : []),
+        ]
+      : [...route.remainingBlockers],
+    syntheticReference: route.syntheticReference,
+  })),
+);
+
 export function stAutoPartsHighUseCorridorMetrics() {
+  const cellStatuses = {
+    supported: stAutoPartsProductRouteCells.filter((cell) => cell.status === "supported").length,
+    partial: stAutoPartsProductRouteCells.filter((cell) => cell.status === "partial").length,
+    notSupported: stAutoPartsProductRouteCells.filter((cell) => cell.status === "not_supported").length,
+  };
   return {
     corridors: ST_AUTO_PARTS_HIGH_USE_CORRIDORS.length,
     directedRoutes: stAutoPartsHighUseRoutes.length,
+    controlledProducts: ST_AUTO_PARTS_PRODUCT_CATALOG.length,
+    newlyControlledProducts: ST_AUTO_PARTS_PRODUCT_CATALOG.filter((product) => product.rank > 0).length,
+    productRouteCells: stAutoPartsProductRouteCells.length,
+    supportedProductRouteCells: cellStatuses.supported,
+    partialProductRouteCells: cellStatuses.partial,
+    notSupportedProductRouteCells: cellStatuses.notSupported,
+    deterministicProductRouteMemories: stAutoPartsProductRouteCells.filter((cell) => cell.syntheticReference !== null).length,
     activeAgreementRoutes: stAutoPartsHighUseRoutes.filter((route) => route.agreementStatus === "protocol_41_active").length,
     outsideProtocolRoutes: stAutoPartsHighUseRoutes.filter((route) => route.agreementStatus === "outside_protocol_41").length,
     protocolMvaRoutes: stAutoPartsHighUseRoutes.filter((route) => route.parameterMethod === "protocol_mva").length,
@@ -481,7 +668,7 @@ export function validateStAutoPartsHighUseCorridors() {
     if (route.directionalSymmetryAssumed !== false) errors.push(`directional_symmetry_forbidden:${route.route}`);
     if (route.sourceCodes.some((code) => !sourceByCode.has(code))) errors.push(`unknown_priority_source:${route.route}`);
     if (route.remainingBlockers.length === 0) errors.push(`real_operation_gate_required:${route.route}`);
-    if (route.product.cest !== "01.075.00" || route.product.ncm !== "8708") errors.push(`representative_identity_changed:${route.route}`);
+    if (route.product.cest !== "01.075.00" || !route.product.ncmPatterns.includes("8708")) errors.push(`representative_identity_changed:${route.route}`);
     if (route.agreementStatus === "outside_protocol_41" && (route.mvaOriginalBps !== null || route.syntheticReference !== null || route.calculationStatus !== "blocked_protocol_not_applicable")) errors.push(`outside_route_leaked_value:${route.route}`);
     if (route.agreementStatus === "protocol_41_active" && (!currentPartySet.has(route.origin) || !currentPartySet.has(route.destination))) errors.push(`active_route_has_nonparty:${route.route}`);
     if (route.destination === "SP" && route.scheduledReview?.effectiveFrom !== "2026-10-01") errors.push(`sp_destination_transition_missing:${route.route}`);
@@ -489,8 +676,22 @@ export function validateStAutoPartsHighUseCorridors() {
   }
   const metrics = stAutoPartsHighUseCorridorMetrics();
   if (metrics.activeAgreementRoutes !== 10 || metrics.outsideProtocolRoutes !== 14) errors.push("priority_protocol_partition_changed");
-  if (metrics.protocolMvaRoutes !== 5 || metrics.destinationMvaRoutes !== 5) errors.push("priority_mva_partition_changed");
+  if (metrics.protocolMvaRoutes !== 4 || metrics.destinationMvaRoutes !== 6) errors.push("priority_mva_partition_changed");
   if (metrics.syntheticReferencesReproduced !== 10 || metrics.safelyBlocked !== 14) errors.push("priority_reference_partition_changed");
+  if (metrics.controlledProducts !== 7 || metrics.newlyControlledProducts !== 6) errors.push("priority_product_catalog_changed");
+  if (metrics.productRouteCells !== 168 || metrics.supportedProductRouteCells !== 70 || metrics.partialProductRouteCells !== 98 || metrics.notSupportedProductRouteCells !== 0) errors.push("priority_product_route_partition_changed");
+  if (metrics.deterministicProductRouteMemories !== 70) errors.push("priority_product_route_memories_changed");
+  if (new Set(ST_AUTO_PARTS_PRODUCT_CATALOG.map((product) => product.cest)).size !== ST_AUTO_PARTS_PRODUCT_CATALOG.length) errors.push("priority_product_cest_must_be_unique");
+  for (const product of ST_AUTO_PARTS_PRODUCT_CATALOG) {
+    if (product.sourceCodes.some((code) => !sourceByCode.has(code))) errors.push(`unknown_product_source:${product.code}`);
+    if (product.legalConditions.length === 0 || product.exclusions.length === 0) errors.push(`product_legal_scope_incomplete:${product.code}`);
+    if (!findControlledAutoPartsProduct(product.cest, product.ncmPatterns[0])) errors.push(`product_identity_not_resolvable:${product.code}`);
+  }
+  for (const cell of stAutoPartsProductRouteCells) {
+    if (cell.sourceCodes.some((code) => !sourceByCode.has(code))) errors.push(`unknown_product_route_source:${cell.key}`);
+    if (cell.status === "supported" && (!cell.syntheticReference || cell.blockers.length === 0)) errors.push(`supported_product_route_incomplete:${cell.key}`);
+    if (cell.status !== "supported" && cell.syntheticReference !== null) errors.push(`blocked_product_route_leaked_value:${cell.key}`);
+  }
   for (const key of ["SP-MG", "RJ-MG"]) {
     const reference = stAutoPartsHighUseRouteByKey.get(key)?.syntheticReference;
     if (reference?.destinationTotalCents !== 21_183) errors.push(`mg_reference_did_not_reproduce:${key}`);
@@ -536,6 +737,8 @@ export async function hashStAutoPartsHighUseCorridors() {
     corridors: ST_AUTO_PARTS_HIGH_USE_CORRIDORS,
     sources: stAutoPartsHighUseSources,
     routes: stAutoPartsHighUseRoutes,
+    products: ST_AUTO_PARTS_PRODUCT_CATALOG,
+    productRouteCells: stAutoPartsProductRouteCells,
   });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");

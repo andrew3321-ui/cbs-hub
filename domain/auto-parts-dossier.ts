@@ -4,6 +4,7 @@ import {
   ST_AUTO_PARTS_OPERATION_FACT_LABELS,
   ST_AUTO_PARTS_SP_EXCLUSION_FROM,
   ST_AUTO_PARTS_SUPPORTED_PERIOD,
+  findControlledAutoPartsProduct,
   stAutoPartsHighUseRouteByKey,
   stAutoPartsHighUseSources,
   type AutoPartsOperationInput,
@@ -132,10 +133,10 @@ function classifyCoverage(input: AutoPartsOperationInput, result: AutoPartsOpera
     };
   }
   const route = stAutoPartsHighUseRouteByKey.get(input.route);
+  const product = findControlledAutoPartsProduct(input.cest, input.ncm);
   const outsideControlledScope = !route
     || route.agreementStatus !== "protocol_41_active"
-    || input.cest !== "01.075.00"
-    || input.ncm !== "8708"
+    || !product
     || input.operationDate < ST_AUTO_PARTS_SUPPORTED_PERIOD.from
     || input.operationDate > ST_AUTO_PARTS_SUPPORTED_PERIOD.to
     || result.status === "st_not_applicable_after_state_exclusion";
@@ -288,7 +289,7 @@ export async function createAutoPartsDossierSnapshot(
       ? "not_applicable" as const
       : "needs_information" as const;
   const warnings = [
-    "O recorte cobre exclusivamente o CEST 01.075.00 / NCM 8708 e não representa todo o segmento de autopeças.",
+    "O recorte cobre sete identidades fiscais controladas e não representa todo o segmento de autopeças.",
     "Valores são arredondados em centavos pelo motor determinístico.",
     "A memória não substitui classificação fiscal, escrituração, emissão de documento ou responsabilidade profissional.",
   ];
@@ -309,7 +310,9 @@ export async function createAutoPartsDossierSnapshot(
       status: coverage.status,
       label: statusLabels[coverage.status],
       reason: coverage.reason,
-      representativeScope: "CEST 01.075.00 · NCM 8708 · partes e acessórios dos veículos automóveis das posições 8701 a 8705",
+      representativeScope: result.product
+        ? `CEST ${result.product.cest} · NCM ${input.ncm} · ${result.product.description}`
+        : "Combinação NCM/CEST fora do catálogo controlado",
     },
     assurance: {
       level: "professional_review_required",
@@ -340,7 +343,7 @@ export async function createAutoPartsDossierSnapshot(
       ownIcmsBaseCents: input.ownIcmsBaseCents,
       cest: input.cest,
       ncm: input.ncm,
-      productDescription: result.product.description,
+      productDescription: result.product?.description ?? "Produto fora do catálogo controlado",
       importedQualified: input.importedQualified,
       commercialCondition: input.commercialCondition,
       confirmedFacts: facts,
