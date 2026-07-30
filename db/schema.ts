@@ -503,6 +503,28 @@ export const fiscalKnowledgeBases = sqliteTable("fiscal_knowledge_bases", {
   index("fiscal_knowledge_bases_status_checked_idx").on(table.status, table.checkedAt, table.id),
 ]);
 
+export const fiscalIntelligenceMetrics = sqliteTable("fiscal_intelligence_metrics", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  workspaceId: integer("workspace_id").notNull(),
+  actorUserId: integer("actor_user_id").notNull(),
+  eventType: text("event_type").notNull(),
+  outcome: text("outcome").notNull(),
+  coverageStatus: text("coverage_status").notNull(),
+  topicCode: text("topic_code"),
+  baseVersion: text("base_version"),
+  durationMs: integer("duration_ms").notNull(),
+  questionLengthBucket: text("question_length_bucket").notNull(),
+  factCount: integer("fact_count").notNull().default(0),
+  sourceCount: integer("source_count").notNull().default(0),
+  clarificationCount: integer("clarification_count").notNull().default(0),
+  errorCode: text("error_code"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("fiscal_intelligence_metrics_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+  index("fiscal_intelligence_metrics_workspace_coverage_idx").on(table.workspaceId, table.coverageStatus, table.createdAt, table.id),
+  index("fiscal_intelligence_metrics_outcome_created_idx").on(table.outcome, table.createdAt, table.id),
+]);
+
 export const fiscalDossiers = sqliteTable("fiscal_dossiers", {
   id: text("id").primaryKey(),
   workspaceId: integer("workspace_id").notNull(),

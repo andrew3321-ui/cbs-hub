@@ -399,6 +399,25 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS fiscal_intelligence_metrics (
+          id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
+          workspace_id INTEGER NOT NULL,
+          actor_user_id INTEGER NOT NULL,
+          event_type TEXT NOT NULL,
+          outcome TEXT NOT NULL,
+          coverage_status TEXT NOT NULL,
+          topic_code TEXT,
+          base_version TEXT,
+          duration_ms INTEGER NOT NULL,
+          question_length_bucket TEXT NOT NULL,
+          fact_count INTEGER DEFAULT 0 NOT NULL,
+          source_count INTEGER DEFAULT 0 NOT NULL,
+          clarification_count INTEGER DEFAULT 0 NOT NULL,
+          error_code TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS fiscal_dossiers (
           id TEXT PRIMARY KEY NOT NULL,
           workspace_id INTEGER NOT NULL,
@@ -883,6 +902,9 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_reference_cases_rule_set_idx ON fiscal_reference_cases (rule_set_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_knowledge_bases_code_version_idx ON fiscal_knowledge_bases (code, version)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_knowledge_bases_status_checked_idx ON fiscal_knowledge_bases (status, checked_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_intelligence_metrics_workspace_created_idx ON fiscal_intelligence_metrics (workspace_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_intelligence_metrics_workspace_coverage_idx ON fiscal_intelligence_metrics (workspace_id, coverage_status, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_intelligence_metrics_outcome_created_idx ON fiscal_intelligence_metrics (outcome, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossiers_workspace_status_created_idx ON fiscal_dossiers (workspace_id, status, created_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossiers_reviewer_status_due_idx ON fiscal_dossiers (assigned_reviewer_user_id, status, due_at, id)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_dossiers_company_created_idx ON fiscal_dossiers (company_id, created_at, id)"),

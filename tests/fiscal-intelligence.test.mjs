@@ -128,3 +128,34 @@ test("impressão digital da base muda quando uma fonte ou regra muda", async () 
   assert.match(original, /^[0-9a-f]{64}$/);
   assert.notEqual(original, changed);
 });
+
+test("variacoes usuais de linguagem preservam os fatos fiscais objetivos", () => {
+  const questions = [
+    "Qual o tratamento do ICMS sobre pecas automotivas saindo de Sao Paulo para Minas Gerais, NCM 8708 e CEST 01.075.00, para revenda?",
+    "Na venda de autopecas SP para MG, NCM 8708 CEST 01.075.00, qual e o ICMS?",
+    "ICMS: peca automotiva com origem em SP e entrega em MG; NCM 8708; CEST 01.075.00; finalidade revenda.",
+  ];
+  for (const question of questions) {
+    const facts = extractFiscalFacts(question);
+    assert.equal(facts.tax, "ICMS", question);
+    assert.equal(facts.segment, "auto_parts", question);
+    assert.equal(facts.originState, "SP", question);
+    assert.equal(facts.destinationState, "MG", question);
+    assert.equal(facts.ncm, "8708", question);
+    assert.equal(facts.cest, "01.075.00", question);
+    assert.equal(facts.operationType, "goods", question);
+  }
+});
+
+test("perguntas fora da base nao recebem achado nem calculo emprestado", () => {
+  const questions = [
+    "Qual a aliquota definitiva de ITCMD para uma doacao no exterior?",
+    "Qual o ICMS-ST de cosmeticos do Amazonas para o Acre?",
+  ];
+  for (const question of questions) {
+    const result = evaluateFiscalQuestion(question);
+    assert.equal(result.findings.length, 0, question);
+    assert.equal(result.calculationEligible, false, question);
+    assert.ok(["needs_information", "out_of_scope"].includes(result.status), question);
+  }
+});

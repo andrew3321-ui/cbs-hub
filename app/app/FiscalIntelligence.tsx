@@ -33,6 +33,20 @@ type KnowledgeMeta = {
 
 type TopicMeta = { code: string; tax: string; title: string; coverageLevel: "operational_reference" | "structured_triage"; supportedOutputs: string[]; hardStops: string[]; examples: string[] };
 
+type FiscalObservability = {
+  windowDays: number;
+  measuredQueries: number;
+  averageDurationMs: number;
+  maximumDurationMs: number;
+  failedQueries: number;
+  rejectedQueries: number;
+  withoutCoverage: number;
+  partialCoverage: number;
+  supportedCoverage: number;
+  lastMeasuredAt: string | null;
+  dataPolicy: string;
+};
+
 type FiscalResult = {
   status: "out_of_scope" | "needs_information" | "conditional";
   statusLabel: string;
@@ -89,6 +103,7 @@ type FactForm = {
   payerType: string;
   paymentRecipientType: string;
   serviceNature: string;
+  referenceDate: string;
 };
 
 const emptyFacts: FactForm = {
@@ -116,6 +131,7 @@ const emptyFacts: FactForm = {
   payerType: "",
   paymentRecipientType: "",
   serviceNature: "",
+  referenceDate: "",
 };
 
 const completeReferenceFacts: FactForm = {
@@ -155,6 +171,7 @@ export default function FiscalIntelligence() {
   const [catalogSources, setCatalogSources] = useState<KnowledgeSource[]>([]);
   const [examples, setExamples] = useState<string[]>([]);
   const [topics, setTopics] = useState<TopicMeta[]>([]);
+  const [observability, setObservability] = useState<FiscalObservability | null>(null);
   const [result, setResult] = useState<FiscalResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [catalogLoading, setCatalogLoading] = useState(true);
@@ -167,7 +184,7 @@ export default function FiscalIntelligence() {
     let cancelled = false;
     fetch("/api/fiscal-intelligence")
       .then(async (response) => {
-        const data = await response.json() as { error?: string; knowledge?: KnowledgeMeta; sources?: KnowledgeSource[]; examples?: string[]; topics?: TopicMeta[] };
+        const data = await response.json() as { error?: string; knowledge?: KnowledgeMeta; sources?: KnowledgeSource[]; examples?: string[]; topics?: TopicMeta[]; observability?: FiscalObservability | null };
         if (!response.ok || !data.knowledge) throw new Error(data.error ?? "Base indisponível");
         return data;
       })
@@ -177,6 +194,7 @@ export default function FiscalIntelligence() {
         setCatalogSources(data.sources ?? []);
         setExamples(data.examples ?? []);
         setTopics(data.topics ?? []);
+        setObservability(data.observability ?? null);
       })
       .catch((cause: Error) => !cancelled && setError(cause.message))
       .finally(() => !cancelled && setCatalogLoading(false));
@@ -290,6 +308,15 @@ export default function FiscalIntelligence() {
         <div><span>GARANTIA</span><strong>Condicional · revisão humana</strong></div>
       </section>
 
+      {observability && <section className="intelligence-observability" aria-label="Métricas técnicas da pesquisa fiscal nos últimos 30 dias">
+        <div><span>CONSULTAS MEDIDAS</span><strong>{observability.measuredQueries}</strong><small>últimos {observability.windowDays} dias</small></div>
+        <div><span>TEMPO MÉDIO</span><strong>{observability.averageDurationMs} ms</strong><small>máximo {observability.maximumDurationMs} ms</small></div>
+        <div><span>SEM COBERTURA</span><strong>{observability.withoutCoverage}</strong><small>não suportadas</small></div>
+        <div><span>PARCIAIS</span><strong>{observability.partialCoverage}</strong><small>exigem fatos ou regra</small></div>
+        <div className={observability.failedQueries ? "attention" : ""}><span>FALHAS TÉCNICAS</span><strong>{observability.failedQueries}</strong><small>{observability.rejectedQueries} entradas rejeitadas</small></div>
+        <p>{observability.dataPolicy}</p>
+      </section>}
+
       {!catalogLoading && topics.length > 0 && <section className="v24-topic-grid" aria-label="Módulos da inteligência fiscal">
         {topics.map((topic) => <button type="button" onClick={() => runTopic(topic)} key={topic.code} className={result?.topicCode === topic.code ? "active" : ""}>
           <span>{topic.tax}</span><strong>{topic.title}</strong><small>{topic.coverageLevel === "operational_reference" ? "Referência operacional" : "Triagem estruturada"}</small><p>{topic.supportedOutputs[0]}</p>
@@ -331,7 +358,7 @@ export default function FiscalIntelligence() {
             <div className="intelligence-result-column">
               {result.findings.length > 0 && <section className="panel intelligence-findings"><div className="panel-heading"><div><span className="eyebrow">ACHADOS ESTRUTURADOS</span><h3>Faixas, referências e bloqueios sem mistura de conceitos</h3></div><span>{result.findings.length}</span></div><div className="finding-list">{result.findings.map((finding) => <article className={finding.nature} key={finding.code}><span>{finding.nature === "own_rate" ? "%" : finding.nature === "st_scope" ? "ST" : finding.nature === "table_parameter" ? "MVA" : finding.nature === "legal_range" ? "↔" : finding.nature === "regime_reference" ? "§" : finding.nature === "compliance_gate" ? "✓" : "+"}</span><div><small>{finding.label}</small><strong>{finding.value}</strong><p>{finding.detail}</p></div><code>{finding.code}</code></article>)}</div></section>}
 
-              <section className="panel intelligence-facts"><div className="panel-heading"><div><span className="eyebrow">FATOS DA OPERAÇÃO</span><h3>O que o motor realmente considerou</h3></div></div><div className="fact-grid">{result.factViews.filter((fact) => fact.key !== "referenceDate").map((fact) => <article className={fact.source === "unknown" ? "unknown" : ""} key={fact.key}><span>{fact.label}</span><b>{fact.value}</b><small>{sourceLabels[fact.source]}</small></article>)}</div></section>
+              <section className="panel intelligence-facts"><div className="panel-heading"><div><span className="eyebrow">FATOS DA OPERAÇÃO</span><h3>O que o motor realmente considerou</h3></div></div><div className="fact-grid">{result.factViews.map((fact) => <article className={fact.source === "unknown" ? "unknown" : ""} key={fact.key}><span>{fact.label}</span><b>{fact.value}</b><small>{sourceLabels[fact.source]}</small></article>)}</div></section>
 
               <section className="panel decision-trace"><div className="panel-heading"><div><span className="eyebrow">TRILHA DE DECISÃO</span><h3>Regras aplicadas e bloqueadas</h3></div></div>{result.decisionTrace.length ? <div>{result.decisionTrace.map((trace) => <article key={`${trace.ruleCode}-${trace.result}`}><span className={trace.result}>{trace.result === "applied" ? "✓" : trace.result === "blocked" ? "!" : "—"}</span><div><b>{trace.ruleCode}</b><p>{trace.detail}</p></div></article>)}</div> : <p className="empty-trace">Nenhuma regra aplicada fora da cobertura.</p>}</section>
             </div>
@@ -340,6 +367,7 @@ export default function FiscalIntelligence() {
               <div className="fact-form-heading"><span>FICHA DE CONFIRMAÇÃO</span><h3>Complete o que a pergunta não disse</h3><p>Os dados abaixo substituem a extração textual e ficam marcados como confirmação manual.</p></div>
               {result.clarifications.length > 0 && <div className="clarification-summary"><b>{result.clarifications.length} pendência{result.clarifications.length > 1 ? "s" : ""}</b>{result.clarifications.slice(0, 4).map((item) => <span key={item.field}>{item.question}</span>)}</div>}
               <label>Módulo tributário<select value={form.tax || activeTax} onChange={(event) => updateFact("tax", event.target.value)}><option value="">Selecione</option><option value="ICMS">ICMS</option><option value="ISS">ISS</option><option value="IPI">IPI</option><option value="PIS_COFINS">PIS/Cofins</option><option value="SIMPLES">Simples Nacional</option><option value="IRPJ_CSLL">IRPJ/CSLL</option><option value="IBS_CBS">IBS/CBS</option><option value="WITHHOLDINGS">Retenções de serviços</option></select></label>
+              <label>Data da operação<input type="date" value={form.referenceDate} onChange={(event) => updateFact("referenceDate", event.target.value)} min="2000-01-01" max="2100-12-31" /><small>Se ficar vazia, o sistema usa a data atual e identifica essa origem na resposta.</small></label>
 
               {(activeTax === "ICMS" || activeTax === "IPI" || activeTax === "PIS_COFINS" || activeTax === "SIMPLES" || activeTax === "IRPJ_CSLL" || activeTax === "WITHHOLDINGS") && <label>Descrição da operação<input value={form.productDescription} onChange={(event) => updateFact("productDescription", event.target.value)} maxLength={160} placeholder="Mercadoria, serviço ou atividade analisada" /></label>}
 
