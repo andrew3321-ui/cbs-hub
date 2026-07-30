@@ -16,6 +16,9 @@ test("public coverage indicator exposes normalized matrix with sources and regre
   assert.ok(indicator.matrix.length >= 100);
   assert.ok(indicator.matrix.some((item) => item.dimension === "uf" && item.uf === "SP"));
   assert.ok(indicator.matrix.some((item) => item.dimension === "municipality" && item.code === "MUN-3550308"));
+  assert.ok(indicator.matrix.some((item) => item.code === "ISS-SERVICE-ISS-DF-17.01-PJ-STANDARD" && item.status === "supported"));
+  assert.ok(indicator.matrix.some((item) => item.code === "ISS-SERVICE-ISS-REC-17.01-PJ-STANDARD" && item.status === "supported"));
+  assert.ok(indicator.matrix.some((item) => item.code === "ISS-SERVICE-ISS-BEL-17.01-STANDARD" && item.status === "supported"));
   assert.ok(indicator.matrix.some((item) => item.dimension === "product" && item.code === "ST-AUTO_PARTS"));
   assert.ok(indicator.matrix.some((item) => item.dimension === "scenario" && item.code === "FED-IPI-TIPI"));
   assert.ok(indicator.matrix.every((item) => ["supported", "partial", "not_supported"].includes(item.status)));

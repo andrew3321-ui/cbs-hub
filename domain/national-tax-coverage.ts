@@ -1,7 +1,7 @@
 import { issDeepCityProfiles, issDeepProfileByIbge, issDeepServiceCoverage, issDeepSources } from "./iss-deep-coverage.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.28-v71";
-export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-28";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.29-v75";
+export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-29";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
 export type UfCode = "AC" | "AL" | "AP" | "AM" | "BA" | "CE" | "DF" | "ES" | "GO" | "MA" | "MT" | "MS" | "MG" | "PA" | "PB" | "PR" | "PE" | "PI" | "RJ" | "RN" | "RS" | "RO" | "RR" | "SC" | "SP" | "SE" | "TO";

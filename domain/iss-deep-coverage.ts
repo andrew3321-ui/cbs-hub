@@ -1,5 +1,5 @@
-export const ISS_DEEP_VERSION = "2026.07.27-v72";
-export const ISS_DEEP_CHECKED_AT = "2026-07-27";
+export const ISS_DEEP_VERSION = "2026.07.29-v75";
+export const ISS_DEEP_CHECKED_AT = "2026-07-29";
 
 export const ISS_DEEP_TECHNICAL_CHECKS = [
   "unique_profile_and_ibge",
@@ -45,7 +45,7 @@ export type IssDeepCityProfile = {
   city: string;
   uf: string;
   stage: "structured";
-  supportStatus: "partial";
+  supportStatus: IssCoverageStatus;
   checkedAt: string;
   sourceCodes: string[];
   serviceCoverageCodes: string[];
@@ -135,15 +135,18 @@ export type IssDeepTechnicalEvidence = IssDeepCityProfile["technicalReview"] & {
 };
 
 const verifiedHttpsSourceCodes = new Set([
-  "ISS-SP-L13701", "ISS-SP-TABELA", "ISS-SP-SC004", "ISS-RJ-ALIQUOTAS",
+  "ISS-SP-L13701", "ISS-SP-TABELA", "ISS-SP-SC004", "ISS-RJ-ALIQUOTAS", "ISS-RJ-CODIGOS",
   "ISS-DF-D25508", "ISS-BH-CONSULTAS", "ISS-CWB-LC40", "ISS-CWB-GUIA",
-  "ISS-SSA-LEGIS", "ISS-FOR-CTM", "ISS-MAO-CTM", "ISS-REC-NFSE",
+  "ISS-SSA-LEGIS", "ISS-FOR-CTM", "ISS-FOR-GUIA", "ISS-MAO-CTM", "ISS-REC-CTM",
+  "ISS-REC-L17240", "ISS-REC-L19365", "ISS-REC-NFSE",
   "ISS-POA-LEGIS", "ISS-GYN-LC344", "ISS-GYN-SGISS", "ISS-BEL-LEIS",
   "ISS-BEL-CTM", "ISS-CPS-TABELA", "ISS-CPS-GUIA", "ISS-SLZ-CTM",
   "ISS-SLZ-RET", "ISS-JPA-CTM", "ISS-JPA-LEGIS", "ISS-NAT-CTM",
-  "ISS-NAT-RET", "ISS-MCZ-PORTAL", "ISS-CGR-LC59", "ISS-CGB-ALIQUOTA",
-  "ISS-SBC-GUIA", "ISS-SBC-FIN", "ISS-SA-PORTAL", "ISS-SG-LEGIS",
-  "ISS-VIX-PORTAL", "ISS-VIX-CNAE", "ISS-FLN-NFSE", "ISS-AJU-CTM",
+  "ISS-NAT-RET", "ISS-MCZ-PORTAL", "ISS-MCZ-CTM", "ISS-CGR-LC59", "ISS-CGR-NFSE",
+  "ISS-CGB-CTM", "ISS-CGB-ALIQUOTA", "ISS-SBC-GUIA", "ISS-SBC-FIN", "ISS-SBC-TABELA",
+  "ISS-SA-PORTAL", "ISS-SA-TABELA", "ISS-SG-LEGIS", "ISS-SG-CTM",
+  "ISS-VIX-PORTAL", "ISS-VIX-CNAE", "ISS-FLN-LC7", "ISS-FLN-CAMARA", "ISS-FLN-NFSE",
+  "ISS-BEL-ATUAL-2026", "ISS-AJU-CTM",
   "ISS-AJU-DESON",
 ]);
 
@@ -173,25 +176,29 @@ export const issDeepSources: IssDeepSource[] = [
   source({ code: "ISS-SP-TABELA", title: "Tabela de códigos de serviço e alíquotas — IN SF/SUREM nº 19/2021", publisher: "Prefeitura de São Paulo", url: "https://legislacao.prefeitura.sp.gov.br/leis/instrucao-normativa-secretaria-municipal-da-fazenda-sf-surem-19-de-22-de-dezembro-de-2021/anexo/61f1544a1411920679f880ac/Anexo%20da%20Instru%C3%A7%C3%A3o%20Normativa%20SF-SUREM%20n%C2%BA%2019_2021.pdf", kind: "rate_table", legalReference: "Anexo 1, código 03115, item 17.01" }),
   source({ code: "ISS-SP-SC004", title: "Solução de Consulta SF/DEJUG nº 4/2014", publisher: "Prefeitura de São Paulo", url: "https://drive.prefeitura.sp.gov.br/cidade/secretarias/upload/arquivos/secretarias/financas/consultas/SC004-2014.pdf", kind: "operational_guidance", legalReference: "item 17.01, código 03115, incidência e responsabilidade" }),
   source({ code: "ISS-RJ-ALIQUOTAS", title: "ISS — alíquotas, base de cálculo e códigos de atividade", publisher: "Secretaria Municipal de Fazenda do Rio de Janeiro", url: "https://fazenda.prefeitura.rio/aliquota-base-calculo-codigo-atividades/", kind: "rate_table", legalReference: "consulta municipal de códigos e alíquotas" }),
-  source({ code: "ISS-DF-D25508", title: "Decreto nº 25.508/2005 — RISS/DF consolidado", publisher: "Sistema Integrado de Normas Jurídicas do Distrito Federal", url: "https://www.sinj.df.gov.br/sinj/Norma/46110/Decreto_25508_19_01_2005.html", kind: "municipal_law", legalReference: "regulamento do ISS do Distrito Federal" }),
-  source({ code: "ISS-BH-CONSULTAS", title: "Tabela de alíquotas e correlação CTISS × CNAE", publisher: "Prefeitura de Belo Horizonte", url: "https://prefeitura.pbh.gov.br/fazenda/bhissdigital/consultas", kind: "rate_table", legalReference: "consulta CTISS, CNAE e alíquota" }),
+  source({ code: "ISS-RJ-CODIGOS", title: "Relação municipal de atividades fiscalizadas pelo ISS", publisher: "Prefeitura do Rio de Janeiro", url: "https://www.rio.rj.gov.br/dlstatic/10112/140488/DLFE-249623.pdf/ISSrelacaoGerenciasAtividades.pdf", kind: "operational_guidance", legalReference: "atividade Consultoria para Empresas, código 227315" }),
+  source({ code: "ISS-DF-D25508", title: "Decreto nº 25.508/2005 — RISS/DF consolidado", publisher: "Sistema Integrado de Normas Jurídicas do Distrito Federal", url: "https://www.sinj.df.gov.br/sinj/Norma/46110/exec_dec_25508_2005_rep.html", kind: "municipal_law", legalReference: "arts. 5º, 7º, 8º e 38; Anexo I, subitem 17.01" }),
+  source({ code: "ISS-BH-CONSULTAS", title: "Consultas formais do ISSQN — exercício 2016", publisher: "Prefeitura de Belo Horizonte", url: "https://fazenda.pbh.gov.br/PDA/ConsultasFormais.asp?ano=2016", kind: "rate_table", legalReference: "Consulta formal nº 057/2016; item 17.01, CTISS 1701-0/02-88 e alíquota de 5%" }),
   source({ code: "ISS-BH-BHISS", title: "BHISS — legislação, códigos, retenções e NFS-e", publisher: "Prefeitura de Belo Horizonte", url: "https://prefeitura.pbh.gov.br/fazenda/bhiss", kind: "operational_guidance", legalReference: "orientações operacionais do BHISS" }),
   source({ code: "ISS-CWB-LC40", title: "Lei Complementar nº 40/2001 — Código Tributário Municipal", publisher: "Prefeitura de Curitiba", url: "https://legisladocexterno.curitiba.pr.gov.br/VisualizarHTML.aspx?id=41", kind: "municipal_law", legalReference: "disposições municipais do ISS" }),
   source({ code: "ISS-CWB-GUIA", title: "ISS com inscrição municipal — empresas", publisher: "Prefeitura de Curitiba", url: "https://www.curitiba.pr.gov.br/conteudo/iss-com-inscricao-municipal-para-empresas/357", kind: "operational_guidance", legalReference: "cadastro, apuração e recolhimento" }),
   source({ code: "ISS-SSA-CTM", title: "Código Tributário e de Rendas de Salvador — consolidado", publisher: "SEFAZ Salvador", url: "https://www2.sefaz.salvador.ba.gov.br/storage/9761/CTRMS---CONSOLIDADO---ate-9.877-2025-e-Dec.-41.304.2025---COM-ATUALIZA%C3%87%C3%83O-ISEN%C3%87%C3%83O.pdf", kind: "municipal_law", legalReference: "ISS, lista de serviços e benefícios" }),
   source({ code: "ISS-SSA-LEGIS", title: "ISS — legislação e alterações do CTISS", publisher: "SEFAZ Salvador", url: "https://www2.sefaz.salvador.ba.gov.br/legislacao/decreto/ISS-Demais-assuntos", kind: "rate_table", legalReference: "atos municipais do ISS e CTISS" }),
   source({ code: "ISS-FOR-CTM", title: "Lei Complementar nº 159/2013 — Código Tributário de Fortaleza", publisher: "Procuradoria-Geral do Município de Fortaleza", url: "https://legislacao.pgm.fortaleza.ce.gov.br/index.php/Lei_Complementar_n%C2%B0_0159%2C_de_23_de_dezembro_de_2013", kind: "municipal_law", legalReference: "arts. 223 a 259 e lista municipal de serviços" }),
-  source({ code: "ISS-FOR-GUIA", title: "ISSQN — legislação, alíquotas e lista de serviços", publisher: "SEFIN Fortaleza", url: "https://www.sefin.fortaleza.ce.gov.br/Canal/16/Generico/18/Ler", kind: "rate_table", legalReference: "consulta oficial de alíquotas e serviços" }),
+  source({ code: "ISS-FOR-GUIA", title: "Lista de serviços e alíquotas do ISSQN", publisher: "SEFIN Fortaleza", url: "https://www.sefin.fortaleza.ce.gov.br/anexoCT/27/f3igvsra5.c0h247/pdf/LISTA%20DE%20SERVI%C3%87OS%20%28anexo%20I%20do%20Regulamento%20do%20ISSQN%29", kind: "rate_table", legalReference: "Anexo I do Regulamento do ISSQN, item 17.1 e alíquota de 5%" }),
   source({ code: "ISS-MAO-CTM", title: "Código Tributário do Município de Manaus", publisher: "Prefeitura de Manaus", url: "https://sisleg.manaus.am.gov.br/semefatende/consulta/visualizarPdf/id/572", kind: "municipal_law", legalReference: "ISS e lista de serviços municipal" }),
-  source({ code: "ISS-MAO-TABELA", title: "Lista de serviços e alíquotas do ISS", publisher: "Prefeitura de Manaus", url: "https://manausatende.manaus.am.gov.br/pagina-inicial/acesse-aqui-a-lista-de-servicos-e-suas-aliquotas/141", kind: "rate_table", legalReference: "lista municipal de serviços e alíquotas" }),
+  source({ code: "ISS-MAO-TABELA", title: "Tabela municipal de serviços, CNAE e alíquotas do ISS", publisher: "Prefeitura de Manaus", url: "https://nfse-prd.manaus.am.gov.br/nfse/temp/DOC_119.PDF", kind: "rate_table", legalReference: "item 17.01 e alíquota de 5% para atividades de consultoria mapeadas" }),
   source({ code: "ISS-REC-CTM", title: "Lei nº 15.563/1991 — Código Tributário Municipal", publisher: "Prefeitura do Recife", url: "https://www.legiscidade.recife.pe.gov.br/lei/15563/", kind: "municipal_law", legalReference: "ISS e lista municipal de serviços" }),
+  source({ code: "ISS-REC-L17240", title: "Lei Municipal nº 17.240/2006 — alíquotas do ISS", publisher: "Prefeitura do Recife", url: "https://www.legiscidade.recife.pe.gov.br/lei/17240/", kind: "rate_table", legalReference: "art. 2º: art. 116, V, da Lei nº 15.563/1991" }),
+  source({ code: "ISS-REC-L19365", title: "Lei Municipal nº 19.365/2025 — alíquota do subitem 4.02", publisher: "Diário Oficial do Recife", url: "https://dome.recife.pe.gov.br/upload_dome/DO_.42_03.04.25-assinado.pdf", kind: "rate_table", legalReference: "art. 2º: nova redação do art. 116, I, da Lei nº 15.563/1991" }),
   source({ code: "ISS-REC-NFSE", title: "NFS-e Recife — legislação municipal", publisher: "Prefeitura do Recife", url: "https://nfse.recife.pe.gov.br/legislacao.aspx", kind: "operational_guidance", legalReference: "atos da NFS-e e retenção" }),
   source({ code: "ISS-POA-LC7", title: "Lei Complementar nº 7/1973 — Código Tributário Municipal", publisher: "Prefeitura de Porto Alegre", url: "https://prefeitura.poa.br/sites/default/files/usu_doc/hotsites/smf/iptu/Lei%20Complementar%20n%C2%BA%20007%2C%20de%201973.pdf", kind: "municipal_law", legalReference: "ISS e lista municipal de serviços" }),
-  source({ code: "ISS-POA-LEGIS", title: "ISSQN — incidência, alíquotas e legislação", publisher: "Prefeitura de Porto Alegre", url: "https://www.prefeitura.poa.br/carta-de-servicos/issqn-imposto-sobre-servicos-de-qualquer-natureza", kind: "operational_guidance", legalReference: "orientações oficiais do ISSQN" }),
+  source({ code: "ISS-POA-LEGIS", title: "Coletânea da legislação do ISSQN — 2024", publisher: "Prefeitura de Porto Alegre", url: "https://prefeitura.poa.br/sites/default/files/usu_doc/sites/smf/Colet%C3%A2nea%20da%20legisla%C3%A7%C3%A3o%20do%20ISS%20-%202024%20v10_04_2024%20VF.pdf", kind: "operational_guidance", legalReference: "item 17.01 e Anexo VI, alíquota geral de 5%" }),
   source({ code: "ISS-GYN-LC344", title: "Lei Complementar nº 344/2021 — Código Tributário Municipal", publisher: "Prefeitura de Goiânia", url: "https://www.goiania.go.gov.br/html/gabinete_civil/sileg/dados/legis/2021/lc_20210930_000000344.html", kind: "municipal_law", legalReference: "ISS e lista municipal de serviços" }),
   source({ code: "ISS-GYN-SGISS", title: "Decreto nº 2.824/2025 — sistema de gestão do ISS", publisher: "Prefeitura de Goiânia", url: "https://www.goiania.go.gov.br/html/gabinete_civil/sileg/dados/legis/2025/dc_20250825_000002824.html", kind: "operational_guidance", legalReference: "gestão e obrigações do ISS" }),
   source({ code: "ISS-BEL-LEIS", title: "Repositório oficial de leis municipais de Belém", publisher: "Câmara Municipal de Belém", url: "https://cmb.pa.gov.br/portal-da-transparencia/leis-municipais/", kind: "municipal_law", legalReference: "pesquisa oficial de legislação municipal" }),
   source({ code: "ISS-BEL-CTM", title: "Lei Municipal nº 7.056/1977 — Código Tributário de Belém", publisher: "Controladoria-Geral do Estado do Pará", url: "https://cge.pa.gov.br/sites/default/files/2023-01/lei-municipal-no-7056-de-30-de-dezembro-de-1977-livro-segundo_0.pdf", kind: "municipal_law", legalReference: "livro do ISS municipal" }),
+  source({ code: "ISS-BEL-ATUAL-2026", title: "Lei Ordinária nº 10.338/2026 — alteração mais recente do Código Tributário", publisher: "Câmara Municipal de Belém", url: "https://drive.google.com/open?id=1-KlxsJexY-Qptqx1ARX1JxYvNy1vchfd&usp=drive_copy", kind: "municipal_law", legalReference: "documento oficial vinculado pela Câmara; arts. 160-A a 160-E, sem modificação dos arts. 21, 29, 32 e 48 do ISS" }),
   source({ code: "ISS-CPS-TABELA", title: "Consulta à lista de serviços, alíquota e classificadores", publisher: "Prefeitura de Campinas", url: "https://campinas.sp.gov.br/secretaria/financas/pagina/consulta-lista-de-servicos-aliquota-e-atividade-cbo-cnae-nbs-", kind: "rate_table", legalReference: "consulta de serviço e alíquota" }),
   source({ code: "ISS-CPS-GUIA", title: "ISSQN — orientação oficial sobre alíquotas", publisher: "Prefeitura de Campinas", url: "https://portal-adm.campinas.sp.gov.br/node/51731", kind: "operational_guidance", legalReference: "orientação municipal sobre alíquotas" }),
   source({ code: "ISS-SLZ-CTM", title: "Lei nº 6.289/2017 — Código Tributário Municipal", publisher: "SEMFAZ São Luís", url: "https://semfaz.saoluis.ma.gov.br/arquivos/1560868523.pdf", kind: "municipal_law", legalReference: "ISS e lista municipal de serviços" }),
@@ -201,16 +208,22 @@ export const issDeepSources: IssDeepSource[] = [
   source({ code: "ISS-NAT-CTM", title: "Lei nº 3.882/1989 — Código Tributário de Natal consolidado em 2024", publisher: "Prefeitura do Natal", url: "https://www.natal.rn.gov.br/semut/legislacao/lei/LEI3882-1989_2024.pdf", kind: "municipal_law", legalReference: "arts. 60 a 64 e lista de serviços" }),
   source({ code: "ISS-NAT-RET", title: "Nota Natalense — incidência territorial e retenção", publisher: "Prefeitura do Natal", url: "https://www.natal.rn.gov.br/semut/noticia.php?id=21994", kind: "operational_guidance", legalReference: "arts. 61 e 64, § 5º, da Lei nº 3.882/1989" }),
   source({ code: "ISS-MCZ-PORTAL", title: "Emissão de NFS-e e legislação do ISS de Maceió", publisher: "Prefeitura de Maceió", url: "https://www.servicos.maceio.al.gov.br/", kind: "operational_guidance", legalReference: "Lei Municipal nº 6.685/2017" }),
+  source({ code: "ISS-MCZ-CTM", title: "Lei nº 6.685/2017 — Código Tributário do Município de Maceió", publisher: "Câmara Municipal de Maceió", url: "https://www.maceio.al.leg.br/leis&pagina=41", kind: "municipal_law", legalReference: "arts. 8º, 11, 19 e 49; item 17.01" }),
   source({ code: "ISS-CGR-LC59", title: "Lei Complementar nº 59/2003 — ISSQN de Campo Grande", publisher: "Prefeitura de Campo Grande", url: "https://cdn.campogrande.ms.gov.br/portal/prod/uploads/sites/29/2017/02/20140711143137.pdf", kind: "municipal_law", legalReference: "ISSQN e Anexo I — lista de serviços" }),
   source({ code: "ISS-CGR-NFSE", title: "Guia do Emissor Municipal Web da NFS-e v1", publisher: "Prefeitura de Campo Grande", url: "https://cdn.campogrande.ms.gov.br/portal/prod/uploads/sites/29/2026/07/Manual-de-Contribuintes-Guia-do-Emissor-Municipal-Web-da-NFS-e-V1.pdf", kind: "operational_guidance", legalReference: "código de tributação, incidência, regime especial, base e alíquota" }),
+  source({ code: "ISS-CGB-CTM", title: "Lei Complementar nº 43/1997 — Código Tributário de Cuiabá consolidado", publisher: "Prefeitura de Cuiabá", url: "https://portalfazenda.cuiaba.mt.gov.br/portalfazenda/Assets/Documentos/LeisIptu/01%20-%20LC%20043%20DE%2031%20DE%20DEZEMBRO%20DE%201997.pdf", kind: "municipal_law", legalReference: "arts. 239, 256-A e 260; subitem 17.01" }),
   source({ code: "ISS-CGB-ALIQUOTA", title: "Esclarecimento oficial sobre alíquota e incentivos do ISS", publisher: "Prefeitura de Cuiabá", url: "https://www.cuiaba.mt.gov.br/noticias/-28", kind: "operational_guidance", legalReference: "alíquota geral e incentivos municipais em 2026" }),
   source({ code: "ISS-SBC-GUIA", title: "Guia oficial do ISSQN", publisher: "Prefeitura de São Bernardo do Campo", url: "https://www.saobernardo.sp.gov.br/web/sbc/guia-issqn", kind: "operational_guidance", legalReference: "Lei Municipal nº 1.802/1969 e Decreto nº 17.419/2011" }),
   source({ code: "ISS-SBC-FIN", title: "Portal de finanças e legislação municipal", publisher: "Prefeitura de São Bernardo do Campo", url: "https://www.saobernardo.sp.gov.br/portal-financas", kind: "municipal_law", legalReference: "Tabela nº 1 da Lei Municipal nº 1.802/1969" }),
+  source({ code: "ISS-SBC-TABELA", title: "Tabela de ISSQN — exercício de 2025, versão 1.14", publisher: "Prefeitura de São Bernardo do Campo", url: "https://www.saobernardo.sp.gov.br/documents/10181/336048/TABELA_ISSQN_2025.V1.14.pdf/fda4ab19-7fd0-b8f4-7cb6-a038c51af63d?version=1.0", kind: "rate_table", legalReference: "item 17.01, atividade 1.021.04-4, código 1232, alíquota de 2%, local P e retenção N" }),
   source({ code: "ISS-SA-PORTAL", title: "ISSQN — legislação e lista de serviços", publisher: "Prefeitura de Santo André", url: "https://web.santoandre.sp.gov.br/issqn/", kind: "rate_table", legalReference: "Leis nº 7.614/1997, nº 8.581/2003 e legislação relacionada" }),
+  source({ code: "ISS-SA-TABELA", title: "Lista municipal de serviços atualizada pela Lei nº 10.000/2017", publisher: "Prefeitura de Santo André", url: "https://web.santoandre.sp.gov.br/arquivos/copia_de_lista_de_servicos_-_lei_10_000_27083357.pdf", kind: "rate_table", legalReference: "item 17.01, alíquota de 2%, estabelecimento prestador e sem dedução" }),
   source({ code: "ISS-SG-LEGIS", title: "NFS-e — legislação oficial", publisher: "Prefeitura de São Gonçalo", url: "https://www.saogoncalo.rj.gov.br/fazenda/nota-fiscal-eletronica-nfs-e-bkp/legislacao/", kind: "municipal_law", legalReference: "legislação municipal da NFS-e e do ISS" }),
+  source({ code: "ISS-SG-CTM", title: "Lei nº 41/2003 — Código Tributário de São Gonçalo consolidado", publisher: "Prefeitura de São Gonçalo", url: "https://www.saogoncalo.rj.gov.br/wp-content/uploads/2023/12/Lei-041-03-Consolidado-ate-29-12-2023.pdf", kind: "municipal_law", legalReference: "arts. 153, 159, 169 e 181; item 17.01 e alíquota geral de 5%" }),
   source({ code: "ISS-VIX-PORTAL", title: "ISSQN — incidência, alíquotas e benefícios", publisher: "Prefeitura de Vitória", url: "https://www.vitoria.es.gov.br/prefeitura/issqn", kind: "rate_table", legalReference: "Lei Municipal nº 6.075/2003 e alíquotas de 2% e 5%" }),
   source({ code: "ISS-VIX-CNAE", title: "Correlação CNAE, lista de serviços e NBS", publisher: "Prefeitura de Vitória", url: "https://www.vitoria.es.gov.br/semfa/busca_cnae", kind: "operational_guidance", legalReference: "subitens da Lei Municipal nº 6.075/2003" }),
   source({ code: "ISS-FLN-LC7", title: "Lei Complementar Municipal nº 7/1997 — consolidação tributária", publisher: "Prefeitura de Florianópolis", url: "https://redeplanejamento.pmf.sc.gov.br/pt-BR/legislacoes/lei-complementar-municipal-007-1997", kind: "municipal_law", legalReference: "consolidação das leis tributárias municipais" }),
+  source({ code: "ISS-FLN-CAMARA", title: "Lei Complementar nº 7/1997 — texto e alterações catalogadas", publisher: "Câmara Municipal de Florianópolis", url: "https://www.cmf.sc.gov.br/proposicoes/Leis-Complementares/0/1/0/75248", kind: "municipal_law", legalReference: "arts. 247, 250 e 256; item 17.01 e nove alterações catalogadas" }),
   source({ code: "ISS-FLN-NFSE", title: "NFPS-e — códigos e grade de validação tributária", publisher: "Prefeitura de Florianópolis", url: "https://nfps-e.pmf.sc.gov.br/faq/", kind: "operational_guidance", legalReference: "CNAE, CFPS, CST e grade municipal de validação" }),
   source({ code: "ISS-AJU-CTM", title: "Código Tributário de Aracaju — atualizado em 2025", publisher: "Prefeitura de Aracaju", url: "https://transparencia.aracaju.se.gov.br/wp-content/uploads/desoneracoes/CTMA_ATUALIZADO_2025.pdf", kind: "municipal_law", legalReference: "arts. 98 a 131 e lista de serviços" }),
   source({ code: "ISS-AJU-DESON", title: "Desonerações e benefícios fiscais municipais", publisher: "Prefeitura de Aracaju", url: "https://transparencia.aracaju.se.gov.br/prefeitura/prestacao-de-contas/", kind: "operational_guidance", legalReference: "benefícios de ISS e respectivos instrumentos legais" }),
@@ -246,31 +259,80 @@ const sourceByCode = new Map(issDeepSources.map((item) => [item.code, item]));
 
 const citySeeds = [
   { code: "ISS-DEEP-SP-SAO-PAULO", ibgeCode: "3550308", city: "São Paulo", uf: "SP", sourceCodes: ["ISS-SP-L13701", "ISS-SP-TABELA", "ISS-SP-SC004"] },
-  { code: "ISS-DEEP-RJ-RIO", ibgeCode: "3304557", city: "Rio de Janeiro", uf: "RJ", sourceCodes: ["ISS-RJ-ALIQUOTAS"] },
+  { code: "ISS-DEEP-RJ-RIO", ibgeCode: "3304557", city: "Rio de Janeiro", uf: "RJ", sourceCodes: ["ISS-RJ-ALIQUOTAS", "ISS-RJ-CODIGOS"] },
   { code: "ISS-DEEP-DF-BRASILIA", ibgeCode: "5300108", city: "Brasília", uf: "DF", sourceCodes: ["ISS-DF-D25508"] },
   { code: "ISS-DEEP-MG-BELO-HORIZONTE", ibgeCode: "3106200", city: "Belo Horizonte", uf: "MG", sourceCodes: ["ISS-BH-CONSULTAS", "ISS-BH-BHISS"] },
   { code: "ISS-DEEP-PR-CURITIBA", ibgeCode: "4106902", city: "Curitiba", uf: "PR", sourceCodes: ["ISS-CWB-LC40", "ISS-CWB-GUIA"] },
   { code: "ISS-DEEP-BA-SALVADOR", ibgeCode: "2927408", city: "Salvador", uf: "BA", sourceCodes: ["ISS-SSA-CTM", "ISS-SSA-LEGIS"] },
   { code: "ISS-DEEP-CE-FORTALEZA", ibgeCode: "2304400", city: "Fortaleza", uf: "CE", sourceCodes: ["ISS-FOR-CTM", "ISS-FOR-GUIA"] },
   { code: "ISS-DEEP-AM-MANAUS", ibgeCode: "1302603", city: "Manaus", uf: "AM", sourceCodes: ["ISS-MAO-CTM", "ISS-MAO-TABELA"] },
-  { code: "ISS-DEEP-PE-RECIFE", ibgeCode: "2611606", city: "Recife", uf: "PE", sourceCodes: ["ISS-REC-CTM", "ISS-REC-NFSE"] },
+  { code: "ISS-DEEP-PE-RECIFE", ibgeCode: "2611606", city: "Recife", uf: "PE", sourceCodes: ["ISS-REC-CTM", "ISS-REC-L17240", "ISS-REC-L19365", "ISS-REC-NFSE"] },
   { code: "ISS-DEEP-RS-PORTO-ALEGRE", ibgeCode: "4314902", city: "Porto Alegre", uf: "RS", sourceCodes: ["ISS-POA-LC7", "ISS-POA-LEGIS"] },
   { code: "ISS-DEEP-GO-GOIANIA", ibgeCode: "5208707", city: "Goiânia", uf: "GO", sourceCodes: ["ISS-GYN-LC344", "ISS-GYN-SGISS"] },
-  { code: "ISS-DEEP-PA-BELEM", ibgeCode: "1501402", city: "Belém", uf: "PA", sourceCodes: ["ISS-BEL-LEIS", "ISS-BEL-CTM"], rateReferenceStatus: "pending_exact_table" as const },
+  { code: "ISS-DEEP-PA-BELEM", ibgeCode: "1501402", city: "Belém", uf: "PA", sourceCodes: ["ISS-BEL-LEIS", "ISS-BEL-CTM", "ISS-BEL-ATUAL-2026"] },
   { code: "ISS-DEEP-SP-CAMPINAS", ibgeCode: "3509502", city: "Campinas", uf: "SP", sourceCodes: ["ISS-CPS-TABELA", "ISS-CPS-GUIA"] },
   { code: "ISS-DEEP-MA-SAO-LUIS", ibgeCode: "2111300", city: "São Luís", uf: "MA", sourceCodes: ["ISS-SLZ-CTM", "ISS-SLZ-RET"] },
   { code: "ISS-DEEP-PB-JOAO-PESSOA", ibgeCode: "2507507", city: "João Pessoa", uf: "PB", sourceCodes: ["ISS-JPA-CTM", "ISS-JPA-LEGIS"] },
   { code: "ISS-DEEP-RN-NATAL", ibgeCode: "2408102", city: "Natal", uf: "RN", sourceCodes: ["ISS-NAT-CTM", "ISS-NAT-RET"] },
-  { code: "ISS-DEEP-AL-MACEIO", ibgeCode: "2704302", city: "Maceió", uf: "AL", sourceCodes: ["ISS-MCZ-PORTAL"], rateReferenceStatus: "pending_exact_table" as const },
+  { code: "ISS-DEEP-AL-MACEIO", ibgeCode: "2704302", city: "Maceió", uf: "AL", sourceCodes: ["ISS-MCZ-PORTAL", "ISS-MCZ-CTM"] },
   { code: "ISS-DEEP-MS-CAMPO-GRANDE", ibgeCode: "5002704", city: "Campo Grande", uf: "MS", sourceCodes: ["ISS-CGR-LC59", "ISS-CGR-NFSE"] },
-  { code: "ISS-DEEP-MT-CUIABA", ibgeCode: "5103403", city: "Cuiabá", uf: "MT", sourceCodes: ["ISS-CGB-ALIQUOTA"] },
-  { code: "ISS-DEEP-SP-SAO-BERNARDO", ibgeCode: "3548708", city: "São Bernardo do Campo", uf: "SP", sourceCodes: ["ISS-SBC-GUIA", "ISS-SBC-FIN"] },
-  { code: "ISS-DEEP-SP-SANTO-ANDRE", ibgeCode: "3547809", city: "Santo André", uf: "SP", sourceCodes: ["ISS-SA-PORTAL"] },
-  { code: "ISS-DEEP-RJ-SAO-GONCALO", ibgeCode: "3304904", city: "São Gonçalo", uf: "RJ", sourceCodes: ["ISS-SG-LEGIS"], rateReferenceStatus: "pending_exact_table" as const },
+  { code: "ISS-DEEP-MT-CUIABA", ibgeCode: "5103403", city: "Cuiabá", uf: "MT", sourceCodes: ["ISS-CGB-CTM", "ISS-CGB-ALIQUOTA"] },
+  { code: "ISS-DEEP-SP-SAO-BERNARDO", ibgeCode: "3548708", city: "São Bernardo do Campo", uf: "SP", sourceCodes: ["ISS-SBC-GUIA", "ISS-SBC-FIN", "ISS-SBC-TABELA"] },
+  { code: "ISS-DEEP-SP-SANTO-ANDRE", ibgeCode: "3547809", city: "Santo André", uf: "SP", sourceCodes: ["ISS-SA-PORTAL", "ISS-SA-TABELA"] },
+  { code: "ISS-DEEP-RJ-SAO-GONCALO", ibgeCode: "3304904", city: "São Gonçalo", uf: "RJ", sourceCodes: ["ISS-SG-LEGIS", "ISS-SG-CTM"] },
   { code: "ISS-DEEP-ES-VITORIA", ibgeCode: "3205309", city: "Vitória", uf: "ES", sourceCodes: ["ISS-VIX-PORTAL", "ISS-VIX-CNAE"] },
-  { code: "ISS-DEEP-SC-FLORIANOPOLIS", ibgeCode: "4205407", city: "Florianópolis", uf: "SC", sourceCodes: ["ISS-FLN-LC7", "ISS-FLN-NFSE"] },
+  { code: "ISS-DEEP-SC-FLORIANOPOLIS", ibgeCode: "4205407", city: "Florianópolis", uf: "SC", sourceCodes: ["ISS-FLN-LC7", "ISS-FLN-CAMARA", "ISS-FLN-NFSE"] },
   { code: "ISS-DEEP-SE-ARACAJU", ibgeCode: "2800308", city: "Aracaju", uf: "SE", sourceCodes: ["ISS-AJU-CTM", "ISS-AJU-DESON"] },
 ] as const;
+
+type StandardConsultingSeedInput = {
+  code: string;
+  ibgeCode: string;
+  city: string;
+  municipalServiceCode: string;
+  rateBps: number;
+  effectiveFrom: string;
+  version: string;
+  sourceCodes: string[];
+  exactReferences: string[];
+};
+
+function standardConsultingSeed(
+  input: StandardConsultingSeedInput,
+): Omit<IssDeepServiceCoverage, "profileCode" | "checkedAt" | "audit"> {
+  return {
+    code: input.code,
+    ibgeCode: input.ibgeCode,
+    lc116Item: "17.01",
+    municipalServiceCode: input.municipalServiceCode,
+    description: "Assessoria ou consultoria de qualquer natureza, não contida em outros itens",
+    coverageStatus: "supported",
+    rate: { status: "exact", bps: input.rateBps, rangeBps: [input.rateBps, input.rateBps] },
+    placeOfIncidence: {
+      status: "supported_in_controlled_scenario",
+      conclusion: `${input.city}, município do estabelecimento prestador, exclusivamente no cenário controlado da regra geral municipal.`,
+    },
+    withholding: {
+      status: "supported_in_controlled_scenario",
+      responsible: "provider",
+      conclusion: "O prestador recolhe no cenário controlado somente após confirmar que o tomador privado não integra hipótese municipal de retenção ou substituição.",
+    },
+    controlledScenario: `Prestador PJ estabelecido em ${input.city}, regime normal, tomador PJ privada em outro município e não designado responsável tributário, serviço 17.01, resultado no Brasil, sem benefício, sociedade profissional, retenção ou regime especial.`,
+    exceptions: [
+      "tomador público, substituto ou responsável tributário",
+      "serviço enquadrável em item mais específico",
+      "exportação, sociedade profissional, Simples Nacional, benefício ou regime especial",
+    ],
+    benefits: ["nenhum benefício, redução ou regime fixo é presumido"],
+    effectiveFrom: input.effectiveFrom,
+    effectiveTo: null,
+    version: input.version,
+    sourceCodes: input.sourceCodes,
+    exactReferences: input.exactReferences,
+    calculationSupported: true,
+    blockers: [],
+  };
+}
 
 const exactServiceSeeds: Array<Omit<IssDeepServiceCoverage, "profileCode" | "checkedAt" | "audit">> = [
   {
@@ -291,6 +353,48 @@ const exactServiceSeeds: Array<Omit<IssDeepServiceCoverage, "profileCode" | "che
     version: "IN-SF-SUREM-19-2021+L13701-CONSOLIDADA",
     sourceCodes: ["ISS-SP-L13701", "ISS-SP-TABELA", "ISS-SP-SC004"],
     exactReferences: ["Lei nº 13.701/2003, item 17.01", "IN SF/SUREM nº 19/2021, Anexo 1, código 03115, alíquota 5%", "Solução de Consulta SF/DEJUG nº 4/2014"],
+    calculationSupported: true,
+    blockers: [],
+  },
+  {
+    code: "ISS-DF-17.01-PJ-STANDARD",
+    ibgeCode: "5300108",
+    lc116Item: "17.01",
+    municipalServiceCode: "17.01",
+    description: "Assessoria ou consultoria de qualquer natureza, não contida em outros itens",
+    coverageStatus: "supported",
+    rate: { status: "exact", bps: 500, rangeBps: [500, 500] },
+    placeOfIncidence: { status: "supported_in_controlled_scenario", conclusion: "Distrito Federal, local do estabelecimento prestador, no cenário controlado do art. 5º do RISS/DF." },
+    withholding: { status: "supported_in_controlled_scenario", responsible: "provider", conclusion: "Prestador recolhe o ISS no cenário controlado somente após confirmar que o tomador não pertence às classes responsáveis do art. 8º." },
+    controlledScenario: "Prestador PJ estabelecido no Distrito Federal, regime normal, tomador PJ privada fora do DF e não enquadrado no art. 8º, resultado no Brasil, sem exportação, benefício, sociedade profissional, retenção ou regime especial.",
+    exceptions: ["tomador pertencente às classes responsáveis do art. 8º", "central de atendimento com redução de base condicionada", "serviço enquadrável em item mais específico"],
+    benefits: ["a redução do art. 27-A para fornecimento de informações só é analisada separadamente quando cumpridos os requisitos de call center"],
+    effectiveFrom: "2005-01-19",
+    effectiveTo: null,
+    version: "DEC-25508-2005-CONSOLIDADO-2026",
+    sourceCodes: ["ISS-DF-D25508"],
+    exactReferences: ["Decreto nº 25.508/2005, arts. 5º, 7º, 8º e 38, II", "Anexo I do Decreto nº 25.508/2005, subitem 17.01"],
+    calculationSupported: true,
+    blockers: [],
+  },
+  {
+    code: "ISS-REC-17.01-PJ-STANDARD",
+    ibgeCode: "2611606",
+    lc116Item: "17.01",
+    municipalServiceCode: "17.01",
+    description: "Assessoria ou consultoria de qualquer natureza, não contida em outros itens",
+    coverageStatus: "supported",
+    rate: { status: "exact", bps: 500, rangeBps: [500, 500] },
+    placeOfIncidence: { status: "supported_in_controlled_scenario", conclusion: "Recife, local do estabelecimento prestador, no cenário controlado da regra geral municipal." },
+    withholding: { status: "supported_in_controlled_scenario", responsible: "provider", conclusion: "Prestador recolhe o ISS no cenário controlado após confirmar que o tomador não é responsável por retenção." },
+    controlledScenario: "Prestador PJ estabelecido no Recife, regime normal, tomador PJ privada fora do Recife, serviço 17.01, resultado no Brasil, sem benefício, sociedade profissional, retenção ou regime especial.",
+    exceptions: ["tomador substituto ou responsável tributário", "serviço enquadrável em item mais específico", "sociedade profissional ou regime especial"],
+    benefits: ["nenhum benefício é presumido"],
+    effectiveFrom: "2006-07-08",
+    effectiveTo: null,
+    version: "LM-17240-2006+CTMR-15563-CONSOLIDADO",
+    sourceCodes: ["ISS-REC-CTM", "ISS-REC-L17240"],
+    exactReferences: ["Lei nº 15.563/1991, art. 102, subitem 17.01", "Lei Municipal nº 17.240/2006, art. 2º: art. 116, V, alíquota de 5% para os demais serviços"],
     calculationSupported: true,
     blockers: [],
   },
@@ -336,6 +440,300 @@ const exactServiceSeeds: Array<Omit<IssDeepServiceCoverage, "profileCode" | "che
     calculationSupported: true,
     blockers: [],
   },
+  standardConsultingSeed({
+    code: "ISS-BH-17.01-1701-0-02-88-STANDARD",
+    ibgeCode: "3106200",
+    city: "Belo Horizonte",
+    municipalServiceCode: "1701-0/02-88",
+    rateBps: 500,
+    effectiveFrom: "2016-01-01",
+    version: "PBH-CONSULTA-057-2016+LM-8725-2003",
+    sourceCodes: ["ISS-BH-CONSULTAS", "ISS-BH-BHISS"],
+    exactReferences: [
+      "Consulta formal nº 057/2016: item 17.01, incidência no estabelecimento prestador",
+      "Lei Municipal nº 8.725/2003, art. 14, III: alíquota de 5%; CTISS 1701-0/02-88",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-SSA-17.01-STANDARD",
+    ibgeCode: "2927408",
+    city: "Salvador",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2026-01-01",
+    version: "CTRMS-CONSOLIDADO-9877-2025+TABELA-II-2026",
+    sourceCodes: ["ISS-SSA-CTM", "ISS-SSA-LEGIS"],
+    exactReferences: [
+      "Lei Municipal nº 7.186/2006, lista de serviços, subitem 17.01 e regra geral de incidência",
+      "Tabela de Receita nº II atualizada para 2026, código 18.0: 5% para os demais serviços",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-MAO-17.01-STANDARD",
+    ibgeCode: "1302603",
+    city: "Manaus",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2026-01-01",
+    version: "CTM-MANAUS+TABELA-NFSE-2026",
+    sourceCodes: ["ISS-MAO-CTM", "ISS-MAO-TABELA"],
+    exactReferences: [
+      "Código Tributário do Município de Manaus, lista municipal, subitem 17.01",
+      "Tabela municipal NFS-e de serviços e CNAE: alíquota de 5% para consultoria do item 17.01",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-POA-17.01-STANDARD",
+    ibgeCode: "4314902",
+    city: "Porto Alegre",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2024-01-01",
+    version: "LC-7-1973+COLETANEA-ISS-2024",
+    sourceCodes: ["ISS-POA-LC7", "ISS-POA-LEGIS"],
+    exactReferences: [
+      "Lei Complementar Municipal nº 7/1973, lista de serviços, item 17.01",
+      "Coletânea da legislação do ISSQN 2024, Anexo VI: alíquota de 5% para o item 17.01",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-GYN-17.01-STANDARD",
+    ibgeCode: "5208707",
+    city: "Goiânia",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2022-01-01",
+    version: "LC-344-2021-VIGENCIA-2022",
+    sourceCodes: ["ISS-GYN-LC344"],
+    exactReferences: [
+      "Lei Complementar Municipal nº 344/2021, Anexo I, subitem 17.01",
+      "Lei Complementar Municipal nº 344/2021, art. 226, § 1º, VIII: 5% para as demais atividades empresariais",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-CPS-17.01-STANDARD",
+    ibgeCode: "3509502",
+    city: "Campinas",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2006-01-01",
+    version: "LM-12392-2005+TABELA-MUNICIPAL-2026",
+    sourceCodes: ["ISS-CPS-TABELA", "ISS-CPS-GUIA"],
+    exactReferences: [
+      "Lei Municipal nº 12.392/2005, lista municipal, subitem 17.01 e art. 27",
+      "Orientação oficial do ISSQN: alíquota geral de 5%, ressalvadas as atividades expressamente reduzidas",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-NAT-17.01-STANDARD",
+    ibgeCode: "2408102",
+    city: "Natal",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2003-12-29",
+    version: "LC-50-2003+CTM-CONSOLIDADO-2024",
+    sourceCodes: ["ISS-NAT-CTM", "ISS-NAT-RET"],
+    exactReferences: [
+      "Lei nº 3.882/1989 consolidada, arts. 60 e 61: subitem 17.01 e incidência no estabelecimento prestador",
+      "Lei nº 3.882/1989 consolidada, art. 74, II: alíquota de 5% para os demais serviços",
+      "Acórdão TATM nº 266/2022: serviço 17.01 devido pelo prestador fora das exceções dos arts. 61 e 64",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-RJ-17.01-227315-STANDARD",
+    ibgeCode: "3304557",
+    city: "Rio de Janeiro",
+    municipalServiceCode: "227315",
+    rateBps: 500,
+    effectiveFrom: "2003-11-28",
+    version: "LM-3691-2003+ATIVIDADE-227315",
+    sourceCodes: ["ISS-RJ-ALIQUOTAS", "ISS-RJ-CODIGOS"],
+    exactReferences: [
+      "Lei Municipal nº 691/1984, art. 8º, subitem 17.01 e regra geral de incidência",
+      "Lei Municipal nº 3.691/2003, art. 33: alíquota genérica de 5% para serviços não especificados",
+      "Relação oficial de atividades do ISS: Consultoria para Empresas, código 227315",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-CWB-17.01-STANDARD",
+    ibgeCode: "4106902",
+    city: "Curitiba",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2018-01-01",
+    version: "LC-40-2001-CONSOLIDADA-LC112-2018",
+    sourceCodes: ["ISS-CWB-LC40", "ISS-CWB-GUIA"],
+    exactReferences: [
+      "Lei Complementar Municipal nº 40/2001, Anexo I, item 17.01",
+      "Lei Complementar Municipal nº 40/2001, art. 4º, IV: 5% para as demais atividades",
+      "Lei Complementar Municipal nº 40/2001, art. 6º-B: regra geral do estabelecimento prestador",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-JPA-17.01-STANDARD",
+    ibgeCode: "2507507",
+    city: "João Pessoa",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2025-02-12",
+    version: "LC-53-2008-CONSOLIDADA-2025",
+    sourceCodes: ["ISS-JPA-CTM", "ISS-JPA-LEGIS"],
+    exactReferences: [
+      "Lei Complementar Municipal nº 53/2008 consolidada, Anexo I, subitem 17.01",
+      "Lei Complementar Municipal nº 53/2008 consolidada, art. 177: alíquota de 5% para quaisquer atividades",
+      "Lei Complementar Municipal nº 53/2008, regras de incidência e responsabilidade dos arts. 160 a 162",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-FOR-17.01-STANDARD",
+    ibgeCode: "2304400",
+    city: "Fortaleza",
+    municipalServiceCode: "17.1",
+    rateBps: 500,
+    effectiveFrom: "2026-01-01",
+    version: "LC-159-2013+RISSQN-ANEXO-I-2026",
+    sourceCodes: ["ISS-FOR-CTM", "ISS-FOR-GUIA"],
+    exactReferences: [
+      "Lei Complementar Municipal nº 159/2013, lista municipal, subitem 17.1",
+      "Anexo I do Regulamento do ISSQN publicado pela SEFIN: item 17.1 e alíquota de 5%",
+      "Lei Complementar Municipal nº 159/2013, regra geral do estabelecimento prestador e responsabilidade tributária",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-BEL-17.01-STANDARD",
+    ibgeCode: "1501402",
+    city: "Belém",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2026-07-02",
+    version: "LM-7056-1977+LM-9330-2017+LM-10338-2026",
+    sourceCodes: ["ISS-BEL-LEIS", "ISS-BEL-CTM", "ISS-BEL-ATUAL-2026"],
+    exactReferences: [
+      "Lei Municipal nº 7.056/1977, arts. 21, 32 e 48: item 17.01, alíquota de 5% e incidência no estabelecimento prestador",
+      "Lei Municipal nº 7.056/1977, art. 29: retenção por classes e operações expressas; o cenário controlado exclui essas hipóteses",
+      "Lei nº 10.338/2026, arts. 1º a 5º: alteração mais recente restrita a parcelamento e isenção, sem modificar o recorte do ISS publicado",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-SLZ-17.01-STANDARD",
+    ibgeCode: "2111300",
+    city: "São Luís",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2018-01-01",
+    version: "LM-6289-2017+RETENCAO-SEMFAZ-2026",
+    sourceCodes: ["ISS-SLZ-CTM", "ISS-SLZ-RET"],
+    exactReferences: [
+      "Lei nº 6.289/2017, lista municipal e art. 391: item 17.01 devido no estabelecimento prestador",
+      "Lei nº 6.289/2017, art. 414, II: alíquota de 5% para empresas no recorte publicado",
+      "Orientação SEMFAZ sobre substituição tributária: o tomador privado externo e não designado não retém no cenário controlado",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-MCZ-17.01-STANDARD",
+    ibgeCode: "2704302",
+    city: "Maceió",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2024-01-18",
+    version: "LM-6685-2017+LM-6715-2017+LM-7506-2024",
+    sourceCodes: ["ISS-MCZ-CTM", "ISS-MCZ-PORTAL"],
+    exactReferences: [
+      "Lei nº 6.685/2017, arts. 8º e 19: item 17.01 e regra do estabelecimento prestador",
+      "Lei nº 6.685/2017, art. 49, V, a: alíquota de 5% para os demais itens, incluindo 17.01",
+      "Lei nº 6.685/2017, art. 11: retenção limitada às classes e situações expressas, excluídas no cenário controlado",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-CGR-17.01-STANDARD",
+    ibgeCode: "5002704",
+    city: "Campo Grande",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2026-07-01",
+    version: "LC-59-2003+GUIA-NFSE-V1-2026",
+    sourceCodes: ["ISS-CGR-LC59", "ISS-CGR-NFSE"],
+    exactReferences: [
+      "Lei Complementar nº 59/2003, Anexo I e art. 52: item 17.01 devido no estabelecimento prestador",
+      "Lei Complementar nº 59/2003, art. 67: alíquota de 5% para os demais prestadores",
+      "Lei Complementar nº 59/2003, art. 37, e Guia NFS-e v1/2026: responsabilidade depende de designação e fatos excluídos no cenário controlado",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-CGB-17.01-STANDARD",
+    ibgeCode: "5103403",
+    city: "Cuiabá",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2026-01-12",
+    version: "LC-43-1997-CONSOLIDADA-2022+PREFEITURA-2026",
+    sourceCodes: ["ISS-CGB-CTM", "ISS-CGB-ALIQUOTA"],
+    exactReferences: [
+      "Lei Complementar nº 43/1997 consolidada, arts. 239 e 256-A: item 17.01 e incidência no estabelecimento prestador",
+      "Esclarecimento oficial da Prefeitura de Cuiabá de 12/01/2026: alíquota real do ISS mantida em 5%",
+      "Lei Complementar nº 43/1997, art. 260: substituição depende de designação, ausente no cenário controlado",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-SBC-17.01-1232-STANDARD",
+    ibgeCode: "3548708",
+    city: "São Bernardo do Campo",
+    municipalServiceCode: "1232",
+    rateBps: 200,
+    effectiveFrom: "2025-07-31",
+    version: "TABELA-ISSQN-2025-V1.14+LM-1802-1969",
+    sourceCodes: ["ISS-SBC-TABELA", "ISS-SBC-GUIA", "ISS-SBC-FIN"],
+    exactReferences: [
+      "Tabela de ISSQN 2025 v1.14: item 17.01, atividade 1.021.04-4, código 1232 e alíquota de 2%",
+      "Tabela de ISSQN 2025 v1.14: local P (estabelecimento prestador) e RF N para o recorte da atividade",
+      "Lei Municipal nº 1.802/1969 e Decreto nº 17.419/2011, referenciados pelo guia oficial do ISSQN",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-SA-17.01-STANDARD",
+    ibgeCode: "3547809",
+    city: "Santo André",
+    municipalServiceCode: "17.01",
+    rateBps: 200,
+    effectiveFrom: "2017-09-29",
+    version: "LM-8581-2003+LM-10000-2017",
+    sourceCodes: ["ISS-SA-TABELA", "ISS-SA-PORTAL"],
+    exactReferences: [
+      "Lista oficial atualizada pela Lei nº 10.000/2017: item municipal e LC 116 nº 17.01, alíquota de 2%",
+      "Lista oficial: ISS devido no estabelecimento prestador (EP) e sem dedução para o item 17.01",
+      "Portal ISSQN e Decreto nº 17.012/2017: substituição depende de enquadramento específico, ausente no cenário controlado",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-SG-17.01-STANDARD",
+    ibgeCode: "3304904",
+    city: "São Gonçalo",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2023-12-29",
+    version: "LM-41-2003-CONSOLIDADA-2023",
+    sourceCodes: ["ISS-SG-CTM", "ISS-SG-LEGIS"],
+    exactReferences: [
+      "Lei nº 41/2003 consolidada, arts. 153 e 181: item 17.01 devido no estabelecimento prestador",
+      "Lei nº 41/2003 consolidada, art. 169, III, c: alíquota de 5% para as demais atividades",
+      "Lei nº 41/2003 consolidada, art. 159: retenção depende de classe ou serviço expresso, ausente no cenário controlado",
+    ],
+  }),
+  standardConsultingSeed({
+    code: "ISS-FLN-17.01-STANDARD",
+    ibgeCode: "4205407",
+    city: "Florianópolis",
+    municipalServiceCode: "17.01",
+    rateBps: 500,
+    effectiveFrom: "2025-10-01",
+    version: "LC-7-1997-CAMARA-CONSOLIDADA-2025",
+    sourceCodes: ["ISS-FLN-CAMARA", "ISS-FLN-LC7", "ISS-FLN-NFSE"],
+    exactReferences: [
+      "Lei Complementar nº 7/1997, art. 247: item 17.01 da lista municipal",
+      "Lei Complementar nº 7/1997, art. 256, V: alíquota de 5% para os demais serviços, incluindo 17.01",
+      "Lei Complementar nº 7/1997, regras de incidência e art. 250: retenção depende de hipótese municipal, excluída no cenário controlado",
+    ],
+  }),
 ];
 
 const exactSeedByIbge = new Map(exactServiceSeeds.map((item) => [item.ibgeCode, item]));
@@ -398,6 +796,69 @@ export const issDeepServiceCoverage: IssDeepServiceCoverage[] = citySeeds.map((c
 });
 
 const serviceCoverageByCode = new Map(issDeepServiceCoverage.map((item) => [item.code, item]));
+
+export type IssDeepPartialPriorityItem = {
+  rank: number;
+  profileCode: string;
+  ibgeCode: string;
+  city: string;
+  uf: string;
+  originStatus: "partial_at_v72";
+  currentStatus: "supported_slice_added" | "partial";
+  priorityServiceItems: string[];
+  sourceCodes: string[];
+  remainingBlockers: string[];
+};
+
+const partialPrioritySeeds = [
+  ["5300108", ["17.01", "1.07", "17.02"]],
+  ["3304557", ["17.01", "1.07", "14.01"]],
+  ["3106200", ["17.01", "1.07", "14.01"]],
+  ["4106902", ["17.01", "1.07", "14.01"]],
+  ["2611606", ["17.01", "1.07", "4.02"]],
+  ["2927408", ["17.01", "1.07", "14.01"]],
+  ["2304400", ["17.01", "1.07", "14.01"]],
+  ["4314902", ["17.01", "1.07", "14.01"]],
+  ["5208707", ["17.01", "1.07", "14.01"]],
+  ["1302603", ["17.01", "1.07", "14.01"]],
+  ["3509502", ["17.01", "1.07", "14.01"]],
+  ["2111300", ["17.01", "1.07", "14.01"]],
+  ["2507507", ["17.01", "1.07", "14.01"]],
+  ["2408102", ["17.01", "1.07", "4.02"]],
+  ["2704302", ["17.01", "1.07", "4.02"]],
+  ["5002704", ["17.01", "1.07", "14.01"]],
+  ["5103403", ["17.01", "1.07", "14.01"]],
+  ["3548708", ["17.01", "1.07", "14.01"]],
+  ["3547809", ["17.01", "1.07", "14.01"]],
+  ["3304904", ["17.01", "1.07", "14.01"]],
+  ["4205407", ["17.01", "1.07", "14.01"]],
+  ["1501402", ["17.01", "1.07", "14.01"]],
+] as const;
+
+const remainingMunicipalBlockers = [
+  "código municipal exato para cada serviço priorizado",
+  "alíquota e vigência exatas por serviço",
+  "hipóteses de retenção e responsável por tipo de tomador",
+  "exceções, benefícios e regimes especiais aplicáveis",
+];
+
+export const issDeepPartialPriorityQueue: IssDeepPartialPriorityItem[] = partialPrioritySeeds.map(([ibgeCode, priorityServiceItems], index) => {
+  const city = citySeeds.find((item) => item.ibgeCode === ibgeCode);
+  if (!city) throw new Error(`iss_deep_priority_city_not_found:${ibgeCode}`);
+  const supportedSlice = issDeepServiceCoverage.some((item) => item.ibgeCode === ibgeCode && item.coverageStatus === "supported");
+  return {
+    rank: index + 1,
+    profileCode: city.code,
+    ibgeCode: city.ibgeCode,
+    city: city.city,
+    uf: city.uf,
+    originStatus: "partial_at_v72",
+    currentStatus: supportedSlice ? "supported_slice_added" : "partial",
+    priorityServiceItems: [...priorityServiceItems],
+    sourceCodes: [...city.sourceCodes],
+    remainingBlockers: [...remainingMunicipalBlockers],
+  };
+});
 
 function specialTreatments(sourceCodes: string[]): IssDeepCityProfile["specialTreatments"] {
   return {
@@ -503,11 +964,17 @@ export function resolveIssDeepServiceCoverage(ibgeCode: string, lc116Item: strin
   );
   if (exact) return { coverageStatus: "supported" as const, profile, service: exact, blockers: [] };
   const mapped = issDeepServiceCoverage.find((entry) => entry.ibgeCode === profile.ibgeCode && normalizedServiceCode(entry.lc116Item) === item) ?? null;
+  const mismatchBlockers = mapped?.coverageStatus === "supported"
+    ? [
+        "código municipal exato do serviço",
+        "código municipal idêntico à regra versionada",
+      ]
+    : null;
   return {
     coverageStatus: "partial" as const,
     profile,
     service: mapped,
-    blockers: mapped?.blockers ?? ["item da LC 116 e código municipal ainda não possuem regra versionada"],
+    blockers: mismatchBlockers ?? mapped?.blockers ?? ["item da LC 116 e código municipal ainda não possuem regra versionada"],
   };
 }
 

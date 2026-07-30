@@ -1,4 +1,5 @@
 import { buildFiscalRegressionReport } from "./fiscal-regression-assurance.ts";
+import { issDeepServiceCoverage } from "./iss-deep-coverage.ts";
 import {
   cityCoverage,
   coverageSources,
@@ -11,8 +12,8 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.28-v1";
-export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-28";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.29-v4";
+export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-29";
 
 export type PublicCoverageMaturity = {
   catalogued: boolean;
@@ -183,6 +184,30 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       objectiveReason: item.blockers[0] ?? "Aliquota exata e responsabilidade dependem do municipio e do servico.",
       blockers: item.blockers,
     })),
+    ...issDeepServiceCoverage.map((item) => {
+      const city = cityCoverage.find((candidate) => candidate.ibgeCode === item.ibgeCode);
+      return entry({
+        code: `ISS-SERVICE-${item.code}`,
+        tax: "ISS",
+        title: `${city?.city ?? item.ibgeCode}/${city?.uf ?? "--"} - serviço ${item.lc116Item}`,
+        dimension: "municipality" as const,
+        jurisdiction: `${city?.city ?? item.ibgeCode}/${city?.uf ?? "--"}`,
+        uf: city?.uf ?? null,
+        municipality: city?.city ?? null,
+        route: null,
+        product: item.description,
+        version: item.version,
+        status: item.coverageStatus,
+        maturity: maturity({ catalogued: true, structured: true, tested: true }),
+        checkedAt: item.checkedAt,
+        officialSources: sourceByCode(item.sourceCodes),
+        regression: { cases: regressionCases, failures: regressionFailures },
+        objectiveReason: item.coverageStatus === "supported"
+          ? `Recorte exato versionado para o item ${item.lc116Item}; somente o cenário controlado publicado pode calcular.`
+          : item.blockers[0] ?? "O serviço municipal permanece bloqueado por regra exata ausente.",
+        blockers: item.blockers,
+      });
+    }),
     ...stSegments.map((item) => entry({
       code: `ST-${item.code}`,
       tax: "ICMS/ST",
@@ -247,6 +272,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "iss-deep-v75-25-exact-slices",
+        changedAt: "2026-07-29T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "Os 25 municípios prioritários passaram a publicar um recorte exato e controlado de consultoria 17.01; nenhuma linha parcial é convertida em cálculo.",
+        affectedCodes: issDeepServiceCoverage.map((item) => `ISS-SERVICE-${item.code}`),
+        clientDataExposed: false,
+      },
       {
         id: "coverage-indicator-v1",
         changedAt: "2026-07-28T00:00:00.000Z",

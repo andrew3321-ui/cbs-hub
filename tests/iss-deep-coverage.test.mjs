@@ -7,6 +7,7 @@ import {
   evaluateIssDeepGate,
   issDeepCityProfiles,
   issDeepMetrics,
+  issDeepPartialPriorityQueue,
   issDeepServiceCoverage,
   issDeepSources,
   resolveIssDeepServiceCoverage,
@@ -14,7 +15,7 @@ import {
   sourcesForIssServiceCoverage,
 } from "../domain/iss-deep-coverage.ts";
 
-test("V72 structures the 25 priority ISS municipalities without claiming professional homologation", () => {
+test("V75 structures the 25 priority ISS municipalities with sourced exact controlled slices", () => {
   assert.equal(issDeepCityProfiles.length, 25);
   assert.equal(new Set(issDeepCityProfiles.map((item) => item.ibgeCode)).size, 25);
   assert.ok(issDeepCityProfiles.every((item) => item.stage === "structured"));
@@ -30,13 +31,24 @@ test("V72 structures the 25 priority ISS municipalities without claiming profess
   assert.equal(issDeepMetrics.structuredCities, 25);
   assert.equal(issDeepMetrics.sourceCatalogReviewedCities, 25);
   assert.equal(issDeepMetrics.technicalGateValidatedCities, 25);
-  assert.equal(issDeepMetrics.rateReferenceLocatedCities, 22);
+  assert.equal(issDeepMetrics.rateReferenceLocatedCities, 25);
   assert.equal(issDeepMetrics.testedCities, 25);
   assert.equal(issDeepMetrics.serviceCoverageRows, 25);
-  assert.equal(issDeepMetrics.supportedServiceRules, 3);
-  assert.equal(issDeepMetrics.partialServiceRules, 22);
+  assert.equal(issDeepMetrics.supportedServiceRules, 25);
+  assert.equal(issDeepMetrics.partialServiceRules, 0);
   assert.equal(issDeepMetrics.professionallyApprovedCities, 0);
   assert.equal(issDeepMetrics.automaticHomologation, false);
+});
+
+test("the 22-city expansion queue preserves the original partial backlog and prioritizes recurring services", () => {
+  assert.equal(issDeepPartialPriorityQueue.length, 22);
+  assert.deepEqual(issDeepPartialPriorityQueue.map((item) => item.rank), Array.from({ length: 22 }, (_, index) => index + 1));
+  assert.equal(new Set(issDeepPartialPriorityQueue.map((item) => item.ibgeCode)).size, 22);
+  assert.ok(issDeepPartialPriorityQueue.every((item) => item.originStatus === "partial_at_v72"));
+  assert.ok(issDeepPartialPriorityQueue.every((item) => item.priorityServiceItems.length >= 3));
+  assert.ok(issDeepPartialPriorityQueue.every((item) => item.sourceCodes.length >= 1));
+  assert.ok(issDeepPartialPriorityQueue.every((item) => item.remainingBlockers.length >= 4));
+  assert.ok(issDeepPartialPriorityQueue.every((item) => item.currentStatus === "supported_slice_added"));
 });
 
 test("technical review produces one unique SHA-256 evidence record per city", async () => {
@@ -60,21 +72,11 @@ test("every priority municipality exposes an explicit service status and fail-cl
     assert.ok(service.audit.conclusion.length >= 40);
     const resolved = resolveIssDeepServiceCoverage(profile.ibgeCode, service.lc116Item, service.municipalServiceCode);
     assert.equal(resolved.coverageStatus, service.coverageStatus);
-    if (service.coverageStatus === "partial") {
-      assert.equal(service.rate.bps, null);
-      assert.equal(service.calculationSupported, false);
-      assert.equal(service.audit.municipalClassifierStatus, "pending_exact_classifier");
-      assert.equal(service.audit.rateEvidenceStatus, "pending_exact_municipal_table");
-      assert.equal(service.audit.effectiveRuleStatus, "pending_exact_effective_rule");
-      assert.equal(service.audit.withholdingResponsibilityStatus, "requires_operation_facts");
-      assert.ok(service.blockers.includes("vigência municipal exata"));
-      assert.ok(service.blockers.length >= 5);
-    } else {
-      assert.equal(service.audit.municipalClassifierStatus, "exact");
-      assert.equal(service.audit.rateEvidenceStatus, "exact_municipal_rule");
-      assert.equal(service.audit.effectiveRuleStatus, "exact");
-      assert.equal(service.audit.withholdingResponsibilityStatus, "exact");
-    }
+    assert.equal(service.coverageStatus, "supported");
+    assert.equal(service.audit.municipalClassifierStatus, "exact");
+    assert.equal(service.audit.rateEvidenceStatus, "exact_municipal_rule");
+    assert.equal(service.audit.effectiveRuleStatus, "exact");
+    assert.equal(service.audit.withholdingResponsibilityStatus, "exact");
   }
 });
 
@@ -118,21 +120,22 @@ test("all 25 municipal service dossiers satisfy the auditable acceptance structu
   }
 });
 
-test("deep ISS gate blocks unknown cities, partial services and user supplied rates outside the catalog", () => {
+test("deep ISS gate blocks unknown cities, mismatched municipal codes and user supplied rates outside the catalog", () => {
   const unknown = evaluateIssDeepGate({ ibgeCode: "9999999" });
   assert.equal(unknown.status, "blocked");
 
-  const partial = evaluateIssDeepGate({
-    ibgeCode: "3304557",
+  const mismatchedCode = evaluateIssDeepGate({
+    ibgeCode: "1501402",
     lc116Item: "17.01",
-    municipalServiceCode: "17.01",
+    municipalServiceCode: "9999",
     operationDate: ISS_DEEP_CHECKED_AT,
     municipalRateBps: 500,
-    rateSourceCode: "ISS-RJ-ALIQUOTAS",
+    rateSourceCode: "ISS-BEL-CTM",
     rateEvidenceReference: "user supplied reference",
   });
-  assert.equal(partial.status, "blocked");
-  assert.ok(partial.missingFacts.includes("código municipal exato do serviço"));
+  assert.equal(mismatchedCode.status, "blocked");
+  assert.ok(mismatchedCode.missingFacts.includes("código municipal exato do serviço"));
+  assert.ok(mismatchedCode.missingFacts.includes("código municipal idêntico à regra versionada"));
 
   const wrongRate = evaluateIssDeepGate({
     ibgeCode: "3550308",
@@ -217,6 +220,111 @@ test("supported ISS calculation returns a reproducible integer-cent memory and o
   assert.equal(halfCent.calculation.issCents, 1);
 });
 
+test("Distrito Federal and Recife exact slices calculate in cents and reject dates before their versioned rule", () => {
+  const df = calculateIssDeep({
+    ...exactCalculation,
+    ibgeCode: "5300108",
+    municipalServiceCode: "17.01",
+    providerEstablishmentIbgeCode: "5300108",
+    incidenceMunicipalityIbgeCode: "5300108",
+  });
+  assert.equal(df.status, "calculated");
+  assert.equal(df.calculation.issCents, 5_000);
+  assert.deepEqual(df.service.exactReferences, [
+    "Decreto nº 25.508/2005, arts. 5º, 7º, 8º e 38, II",
+    "Anexo I do Decreto nº 25.508/2005, subitem 17.01",
+  ]);
+
+  const recife = calculateIssDeep({
+    ...exactCalculation,
+    ibgeCode: "2611606",
+    municipalServiceCode: "17.01",
+    providerEstablishmentIbgeCode: "2611606",
+    incidenceMunicipalityIbgeCode: "2611606",
+  });
+  assert.equal(recife.status, "calculated");
+  assert.equal(recife.calculation.issCents, 5_000);
+  assert.ok(recife.sources.some((source) => source.code === "ISS-REC-L17240"));
+
+  const beforeDfRule = calculateIssDeep({
+    ...exactCalculation,
+    ibgeCode: "5300108",
+    municipalServiceCode: "17.01",
+    operationDate: "2005-01-18",
+    providerEstablishmentIbgeCode: "5300108",
+    incidenceMunicipalityIbgeCode: "5300108",
+  });
+  assert.equal(beforeDfRule.status, "blocked");
+  assert.ok(beforeDfRule.missingFacts.includes("data igual ou posterior a 2005-01-19"));
+
+  const beforeRecifeRule = calculateIssDeep({
+    ...exactCalculation,
+    ibgeCode: "2611606",
+    municipalServiceCode: "17.01",
+    operationDate: "2006-07-07",
+    providerEstablishmentIbgeCode: "2611606",
+    incidenceMunicipalityIbgeCode: "2611606",
+  });
+  assert.equal(beforeRecifeRule.status, "blocked");
+  assert.ok(beforeRecifeRule.missingFacts.includes("data igual ou posterior a 2006-07-08"));
+});
+
+test("the twenty V75 municipal consulting slices calculate deterministically and reject pre-version dates", () => {
+  const cases = [
+    { ibgeCode: "3106200", municipalServiceCode: "1701-0/02-88", rateBps: 500, effectiveFrom: "2016-01-01" },
+    { ibgeCode: "2927408", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2026-01-01" },
+    { ibgeCode: "2304400", municipalServiceCode: "17.1", rateBps: 500, effectiveFrom: "2026-01-01" },
+    { ibgeCode: "1302603", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2026-01-01" },
+    { ibgeCode: "4314902", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2024-01-01" },
+    { ibgeCode: "5208707", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2022-01-01" },
+    { ibgeCode: "3509502", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2006-01-01" },
+    { ibgeCode: "2408102", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2003-12-29" },
+    { ibgeCode: "3304557", municipalServiceCode: "227315", rateBps: 500, effectiveFrom: "2003-11-28" },
+    { ibgeCode: "4106902", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2018-01-01" },
+    { ibgeCode: "2507507", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2025-02-12" },
+    { ibgeCode: "1501402", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2026-07-02" },
+    { ibgeCode: "2111300", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2018-01-01" },
+    { ibgeCode: "2704302", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2024-01-18" },
+    { ibgeCode: "5002704", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2026-07-01" },
+    { ibgeCode: "5103403", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2026-01-12" },
+    { ibgeCode: "3548708", municipalServiceCode: "1232", rateBps: 200, effectiveFrom: "2025-07-31" },
+    { ibgeCode: "3547809", municipalServiceCode: "17.01", rateBps: 200, effectiveFrom: "2017-09-29" },
+    { ibgeCode: "3304904", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2023-12-29" },
+    { ibgeCode: "4205407", municipalServiceCode: "17.01", rateBps: 500, effectiveFrom: "2025-10-01" },
+  ];
+
+  for (const item of cases) {
+    const calculated = calculateIssDeep({
+      ...exactCalculation,
+      ibgeCode: item.ibgeCode,
+      municipalServiceCode: item.municipalServiceCode,
+      providerEstablishmentIbgeCode: item.ibgeCode,
+      recipientMunicipalityIbgeCode: item.ibgeCode === "3304557" ? "3550308" : "3304557",
+      incidenceMunicipalityIbgeCode: item.ibgeCode,
+    });
+    assert.equal(calculated.status, "calculated", item.ibgeCode);
+    assert.equal(calculated.calculation.rateBps, item.rateBps);
+    assert.equal(calculated.calculation.issCents, Math.round(100_000 * item.rateBps / 10_000));
+    assert.equal(calculated.calculation.responsibility, "provider");
+    assert.ok(calculated.sources.length >= 1);
+    assert.ok(calculated.service.exactReferences.length >= 2);
+
+    const dayBefore = new Date(`${item.effectiveFrom}T00:00:00.000Z`);
+    dayBefore.setUTCDate(dayBefore.getUTCDate() - 1);
+    const blocked = calculateIssDeep({
+      ...exactCalculation,
+      ibgeCode: item.ibgeCode,
+      municipalServiceCode: item.municipalServiceCode,
+      operationDate: dayBefore.toISOString().slice(0, 10),
+      providerEstablishmentIbgeCode: item.ibgeCode,
+      recipientMunicipalityIbgeCode: item.ibgeCode === "3304557" ? "3550308" : "3304557",
+      incidenceMunicipalityIbgeCode: item.ibgeCode,
+    });
+    assert.equal(blocked.status, "blocked", item.ibgeCode);
+    assert.ok(blocked.missingFacts.includes(`data igual ou posterior a ${item.effectiveFrom}`));
+  }
+});
+
 test("supported rule remains fail-closed for a different establishment, tomador, regime or special treatment", () => {
   for (const changed of [
     { providerEstablishmentIbgeCode: "3304557" },
@@ -237,16 +345,17 @@ test("supported rule remains fail-closed for a different establishment, tomador,
   }
 });
 
-test("structured but partial municipality never converts the national range into a final calculation", () => {
+test("known municipality with an unmatched municipal code remains fail-closed", () => {
   const result = calculateIssDeep({
     ...exactCalculation,
-    ibgeCode: "3304557",
-    providerEstablishmentIbgeCode: "3304557",
-    municipalServiceCode: "17.01",
-    incidenceMunicipalityIbgeCode: "3304557",
+    ibgeCode: "1501402",
+    providerEstablishmentIbgeCode: "1501402",
+    municipalServiceCode: "9999",
+    incidenceMunicipalityIbgeCode: "1501402",
   });
   assert.equal(result.status, "blocked");
   assert.equal(result.coverageStatus, "partial");
   assert.equal(result.calculation, null);
-  assert.ok(result.missingFacts.includes("alíquota municipal versionada"));
+  assert.ok(result.missingFacts.includes("código municipal exato do serviço"));
+  assert.ok(result.missingFacts.includes("código municipal idêntico à regra versionada"));
 });
