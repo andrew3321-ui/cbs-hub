@@ -44,7 +44,7 @@ test("P0 exact auto-parts scope has nine explicit facts and ten reproducible rou
   assertOfficialEvidence(stAutoPartsHighUseSources);
 });
 
-test("P0 exact beverage scope has explicit operation facts and 45 reproducible memories", () => {
+test("P0 exact beverage scope has explicit operation facts and 80 reproducible memories", () => {
   for (const labels of [ST_COLD_BEVERAGES_SP_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS]) {
     const combined = Object.values(labels).join(" ");
     assert.match(combined, /regime normal/);
@@ -54,7 +54,7 @@ test("P0 exact beverage scope has explicit operation facts and 45 reproducible m
     assert.match(combined, /redução/);
   }
 
-  assert.equal(stColdBeverageSpReferenceRuns.length, 35);
+  assert.equal(stColdBeverageSpReferenceRuns.length, 70);
   assert.equal(stColdBeverageSpOriginReferenceRuns.length, 10);
   for (const run of [...stColdBeverageSpReferenceRuns, ...stColdBeverageSpOriginReferenceRuns]) {
     assert.equal(run.status, "calculated_reference");

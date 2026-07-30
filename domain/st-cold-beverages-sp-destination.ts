@@ -3,8 +3,8 @@ import {
   type ColdBeverageProductCode,
 } from "./st-cold-beverages-priority.ts";
 
-export const ST_COLD_BEVERAGES_SP_DESTINATION_VERSION = "2026.07.25-v69";
-export const ST_COLD_BEVERAGES_SP_DESTINATION_CHECKED_AT = "2026-07-25";
+export const ST_COLD_BEVERAGES_SP_DESTINATION_VERSION = "2026.07.30-v77";
+export const ST_COLD_BEVERAGES_SP_DESTINATION_CHECKED_AT = "2026-07-30";
 export const ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD = {
   from: "2026-07-01",
   to: "2026-12-31",
@@ -32,16 +32,27 @@ export type ColdBeverageSpProfileCode =
   | "UNLISTED_SOFT_DRINK_CAN_311_360"
   | "UNLISTED_ENERGY_CAN_311_360"
   | "UNLISTED_ENERGY_PET_ABOVE_1500"
-  | "UNLISTED_ISOTONIC_PET_401_660";
+  | "UNLISTED_ISOTONIC_PET_401_660"
+  | "COCA_COLA_PET_1751_2000"
+  | "COCA_COLA_CAN_311_360"
+  | "COCA_COLA_ZERO_PET_1751_2000"
+  | "FANTA_PET_1751_2000"
+  | "COCA_COLA_PACK_6_CAN_350";
 
 export type ColdBeverageSpProfile = {
   code: ColdBeverageSpProfileCode;
   productCode: Exclude<ColdBeverageProductCode, "WATER_GLASS">;
   label: string;
   cest: string;
-  brandRule: "demais_marcas_nao_listadas";
+  ncms: readonly string[];
+  legalDescription: string;
+  brandRule: "demais_marcas_nao_listadas" | "marca_exata_listada";
   packageType: "PET" | "LATA";
   volumeRange: string;
+  commercialUnit: "individual_unit" | "integral_pack";
+  commercialUnitUnits: number;
+  priorityRank: number;
+  priorityBasis: "internal_operational_heuristic";
   pmpfCents: number;
   legalTableItem: string;
   effectiveFrom: typeof ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from;
@@ -54,9 +65,15 @@ export const ST_COLD_BEVERAGES_SP_PMPF_PROFILES: ColdBeverageSpProfile[] = [
     productCode: "SOFT_DRINK_PET",
     label: "Refrigerante de marca não listada · PET de 1.751 a 2.000 ml",
     cest: "03.010.01",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em embalagem PET",
     brandRule: "demais_marcas_nao_listadas",
     packageType: "PET",
     volumeRange: "1.751 a 2.000 ml",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
+    priorityRank: 6,
+    priorityBasis: "internal_operational_heuristic",
     pmpfCents: 939,
     legalTableItem: "Anexo I, Capítulo I, item 3.509",
     effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
@@ -67,9 +84,15 @@ export const ST_COLD_BEVERAGES_SP_PMPF_PROFILES: ColdBeverageSpProfile[] = [
     productCode: "SOFT_DRINK_CAN",
     label: "Refrigerante de marca não listada · lata de 311 a 360 ml",
     cest: "03.010.02",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em lata",
     brandRule: "demais_marcas_nao_listadas",
     packageType: "LATA",
     volumeRange: "311 a 360 ml",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
+    priorityRank: 7,
+    priorityBasis: "internal_operational_heuristic",
     pmpfCents: 454,
     legalTableItem: "Anexo I, Capítulo I, item 3.515",
     effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
@@ -80,9 +103,15 @@ export const ST_COLD_BEVERAGES_SP_PMPF_PROFILES: ColdBeverageSpProfile[] = [
     productCode: "ENERGY_CAN",
     label: "Energético de marca não listada · lata de 311 a 360 ml",
     cest: "03.013.00",
+    ncms: ["2106.90", "2202.99.00"],
+    legalDescription: "Bebida energética em lata",
     brandRule: "demais_marcas_nao_listadas",
     packageType: "LATA",
     volumeRange: "311 a 360 ml",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
+    priorityRank: 8,
+    priorityBasis: "internal_operational_heuristic",
     pmpfCents: 1_445,
     legalTableItem: "Anexo II, Capítulo I, Tabela 2, item 2.131",
     effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
@@ -93,9 +122,15 @@ export const ST_COLD_BEVERAGES_SP_PMPF_PROFILES: ColdBeverageSpProfile[] = [
     productCode: "ENERGY_PET",
     label: "Energético de marca não listada · PET acima de 1.500 ml",
     cest: "03.013.01",
+    ncms: ["2106.90", "2202.99.00"],
+    legalDescription: "Bebida energética em embalagem PET",
     brandRule: "demais_marcas_nao_listadas",
     packageType: "PET",
     volumeRange: "acima de 1.500 ml",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
+    priorityRank: 9,
+    priorityBasis: "internal_operational_heuristic",
     pmpfCents: 1_055,
     legalTableItem: "Anexo II, Capítulo I, Tabela 2, item 2.135",
     effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
@@ -106,11 +141,112 @@ export const ST_COLD_BEVERAGES_SP_PMPF_PROFILES: ColdBeverageSpProfile[] = [
     productCode: "ISOTONIC",
     label: "Isotônico de marca não listada · PET de 401 a 660 ml",
     cest: "03.015.00",
+    ncms: ["2106.90", "2202.99.00"],
+    legalDescription: "Bebida hidroeletrolítica",
     brandRule: "demais_marcas_nao_listadas",
     packageType: "PET",
     volumeRange: "401 a 660 ml",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
+    priorityRank: 10,
+    priorityBasis: "internal_operational_heuristic",
     pmpfCents: 599,
     legalTableItem: "Anexo II, Capítulo I, Tabela 1, item 1.12",
+    effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
+    effectiveTo: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.to,
+  },
+  {
+    code: "COCA_COLA_PET_1751_2000",
+    productCode: "SOFT_DRINK_PET",
+    label: "Coca-Cola original / Menos Açúcar · PET de 1.751 a 2.000 ml",
+    cest: "03.010.01",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em embalagem PET",
+    brandRule: "marca_exata_listada",
+    packageType: "PET",
+    volumeRange: "1.751 a 2.000 ml",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
+    priorityRank: 1,
+    priorityBasis: "internal_operational_heuristic",
+    pmpfCents: 1_238,
+    legalTableItem: "Anexo I, Capítulo I, Tabela 1, item 1.13",
+    effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
+    effectiveTo: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.to,
+  },
+  {
+    code: "COCA_COLA_CAN_311_360",
+    productCode: "SOFT_DRINK_CAN",
+    label: "Coca-Cola original / Menos Açúcar · lata de 311 a 360 ml",
+    cest: "03.010.02",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em lata",
+    brandRule: "marca_exata_listada",
+    packageType: "LATA",
+    volumeRange: "311 a 360 ml",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
+    priorityRank: 2,
+    priorityBasis: "internal_operational_heuristic",
+    pmpfCents: 492,
+    legalTableItem: "Anexo I, Capítulo I, Tabela 1, item 1.19",
+    effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
+    effectiveTo: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.to,
+  },
+  {
+    code: "COCA_COLA_ZERO_PET_1751_2000",
+    productCode: "SOFT_DRINK_PET",
+    label: "Coca-Cola Zero / Sem Açúcar · PET de 1.751 a 2.000 ml",
+    cest: "03.010.01",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em embalagem PET",
+    brandRule: "marca_exata_listada",
+    packageType: "PET",
+    volumeRange: "1.751 a 2.000 ml",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
+    priorityRank: 3,
+    priorityBasis: "internal_operational_heuristic",
+    pmpfCents: 1_241,
+    legalTableItem: "Anexo I, Capítulo I, Tabela 1, item 1.35",
+    effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
+    effectiveTo: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.to,
+  },
+  {
+    code: "FANTA_PET_1751_2000",
+    productCode: "SOFT_DRINK_PET",
+    label: "Fanta (todos os sabores do recorte legal) · PET de 1.751 a 2.000 ml",
+    cest: "03.010.01",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em embalagem PET",
+    brandRule: "marca_exata_listada",
+    packageType: "PET",
+    volumeRange: "1.751 a 2.000 ml",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
+    priorityRank: 4,
+    priorityBasis: "internal_operational_heuristic",
+    pmpfCents: 1_024,
+    legalTableItem: "Anexo I, Capítulo I, Tabela 1, item 1.54 e nota (3)",
+    effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
+    effectiveTo: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.to,
+  },
+  {
+    code: "COCA_COLA_PACK_6_CAN_350",
+    productCode: "SOFT_DRINK_CAN",
+    label: "Coca-Cola original / Menos Açúcar · pack integral com 6 latas de 350 ml",
+    cest: "03.010.02",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em lata comercializado exclusivamente em pack integral",
+    brandRule: "marca_exata_listada",
+    packageType: "LATA",
+    volumeRange: "6 unidades de 350 ml",
+    commercialUnit: "integral_pack",
+    commercialUnitUnits: 6,
+    priorityRank: 5,
+    priorityBasis: "internal_operational_heuristic",
+    pmpfCents: 2_657,
+    legalTableItem: "Anexo I, Capítulo I, Tabela 1, item 1.23 e nota de pack integral",
     effectiveFrom: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from,
     effectiveTo: ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.to,
   },
@@ -118,7 +254,7 @@ export const ST_COLD_BEVERAGES_SP_PMPF_PROFILES: ColdBeverageSpProfile[] = [
 
 export const ST_COLD_BEVERAGES_SP_FACT_LABELS = {
   exactProfileConfirmed: "marca, embalagem, volume, descrição e CEST coincidem com o perfil selecionado",
-  unlistedBrandEligibilityConfirmed: "a marca não possui preço próprio na pauta e pode usar “Demais marcas não listadas”",
+  unlistedBrandEligibilityConfirmed: "o enquadramento de marca foi conferido: preço próprio exato quando listado ou perfil genérico somente quando legalmente permitido",
   normalTaxRegimeConfirmed: "remetente está no regime normal e o débito próprio segue a alíquota interestadual informada",
   taxpayerResaleOperationConfirmed: "operação interestadual entre contribuintes destinada à revenda; uso, consumo, ativo e consumidor final afastados",
   substituteResponsibilityConfirmed: "responsabilidade pela retenção em favor de São Paulo confirmada",
@@ -131,6 +267,14 @@ export const ST_COLD_BEVERAGES_SP_FACT_LABELS = {
 export type ColdBeverageSpFacts = Record<keyof typeof ST_COLD_BEVERAGES_SP_FACT_LABELS, boolean>;
 
 export const stColdBeverageSpSources = [
+  {
+    code: "CONFAZ-CONV-142-2018-ANNEX-IV",
+    title: "Convênio ICMS 142/2018 — Anexo IV",
+    publisher: "CONFAZ",
+    url: "https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18",
+    checkedAt: ST_COLD_BEVERAGES_SP_DESTINATION_CHECKED_AT,
+    proves: ["NCM, CEST e descrição legal de refrigerantes PET/lata, energéticos e bebidas hidroeletrolíticas"],
+  },
   {
     code: "CONFAZ-PROTOCOL-11-1991",
     title: "Protocolo ICMS 11/91 — bebidas frias",
@@ -145,7 +289,7 @@ export const stColdBeverageSpSources = [
     publisher: "SEFAZ-SP",
     url: "https://legislacao.fazenda.sp.gov.br/Paginas/Portaria-SRE-27-de-2026.aspx",
     checkedAt: ST_COLD_BEVERAGES_SP_DESTINATION_CHECKED_AT,
-    proves: ["PMPF de 01/07/2026 a 31/12/2026", "cinco perfis exatos de marcas não listadas", "trava de 90% e fallback para IVA-ST"],
+    proves: ["PMPF de 01/07/2026 a 31/12/2026", "dez perfis exatos entre marcas listadas, perfil genérico e pack integral", "trava de 90% e fallback para IVA-ST"],
   },
   {
     code: "SP-RICMS-293-294-BEVERAGES",
@@ -161,7 +305,7 @@ export const stColdBeverageSpSources = [
     publisher: "SEFAZ-SP",
     url: "https://legislacao.fazenda.sp.gov.br/Paginas/art052.aspx",
     checkedAt: ST_COLD_BEVERAGES_SP_DESTINATION_CHECKED_AT,
-    proves: ["alíquota interna geral de 18%", "FECOEP restrito a bebidas alcoólicas da posição 2203 e fumo, sem incidência nestes cinco perfis não alcoólicos"],
+    proves: ["alíquota interna geral de 18%", "FECOEP restrito a bebidas alcoólicas da posição 2203 e fumo, sem incidência nestes dez perfis não alcoólicos"],
   },
   {
     code: "RSF-22-1989-INTERSTATE-RATES",
@@ -244,7 +388,7 @@ export function resolveColdBeverageSpDestinationOperation(input: ColdBeverageSpO
     .map(([, label]) => label);
   const blockers: string[] = [];
   if (!route) blockers.push("rota fora dos sete corredores prioritários com destino a São Paulo");
-  if (!profile) blockers.push("produto fora dos cinco perfis exatos da pauta paulista controlada");
+  if (!profile) blockers.push("produto fora dos dez perfis exatos da pauta paulista controlada");
   if (!isIsoDate(input.operationDate)
     || input.operationDate < ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from
     || input.operationDate > ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.to) {
@@ -267,7 +411,7 @@ export function resolveColdBeverageSpDestinationOperation(input: ColdBeverageSpO
     profile,
     missingFacts,
     sourceCodes: stColdBeverageSpSources.map((source) => source.code),
-    limitation: "Memória determinística condicionada a um perfil exato de PMPF e a remetente no regime normal. Não cobre Simples Nacional, marca com preço próprio, embalagem divergente, benefício, decisão, regime especial, IVA-ST de fallback nem água.",
+    limitation: "Memória determinística condicionada a um perfil exato de PMPF e a remetente no regime normal. A quantidade representa unidades comerciais integrais, inclusive o pack fechado quando selecionado. Não cobre Simples Nacional, marca ou embalagem divergente, benefício, decisão, regime especial, IVA-ST de fallback nem água.",
   };
   if (blockers.length > 0 || !route || !profile) {
     return { ...baseResult, status: "blocked", blockers, parameters: null, output: null };
@@ -343,6 +487,7 @@ export const stColdBeverageSpReferenceRuns = ST_COLD_BEVERAGES_SP_DESTINATION_RO
       profileCode: profile.code,
       scenario: "100 unidades, operação e base própria a 60% do PMPF, mercadoria nacional, regime normal" as const,
       status: result.status,
+      coverageStatus: result.status === "calculated_reference" ? "supported" as const : result.status === "pmpf_fallback_required" ? "partial" as const : "not_supported" as const,
       output: result.output,
     };
   }),
@@ -356,6 +501,11 @@ export function stColdBeverageSpDestinationMetrics() {
     reproducedMemories: stColdBeverageSpReferenceRuns.filter((run) => run.status === "calculated_reference").length,
     safeFailures: stColdBeverageSpReferenceRuns.filter((run) => run.status !== "calculated_reference").length,
     officialSources: stColdBeverageSpSources.length,
+    coverage: {
+      supported: stColdBeverageSpReferenceRuns.filter((run) => run.status === "calculated_reference").length,
+      partial: stColdBeverageSpReferenceRuns.filter((run) => run.status === "pmpf_fallback_required").length,
+      notSupported: stColdBeverageSpReferenceRuns.filter((run) => run.status === "blocked").length,
+    },
   };
 }
 
@@ -368,17 +518,22 @@ export function validateStColdBeverageSpDestination() {
   if (ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES.some((route) => route.destination !== "SP" || route.directionalSymmetryAssumed !== false)) {
     errors.push("sp_destination_routes_must_be_directional_and_end_in_sp");
   }
-  if (ST_COLD_BEVERAGES_SP_PMPF_PROFILES.length !== 5
-    || new Set(ST_COLD_BEVERAGES_SP_PMPF_PROFILES.map((profile) => profile.code)).size !== 5) {
-    errors.push("sp_destination_must_have_five_unique_profiles");
+  if (ST_COLD_BEVERAGES_SP_PMPF_PROFILES.length !== 10
+    || new Set(ST_COLD_BEVERAGES_SP_PMPF_PROFILES.map((profile) => profile.code)).size !== 10) {
+    errors.push("sp_destination_must_have_ten_unique_profiles");
   }
   if (ST_COLD_BEVERAGES_SP_PMPF_PROFILES.some((profile) =>
     profile.pmpfCents <= 0
+    || profile.ncms.length === 0
+    || !profile.legalDescription
+    || profile.commercialUnitUnits <= 0
+    || profile.priorityRank < 1
+    || profile.priorityRank > 10
     || profile.effectiveFrom !== ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.from
     || profile.effectiveTo !== ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.to)) {
     errors.push("sp_destination_profiles_have_invalid_scope");
   }
-  if (stColdBeverageSpReferenceRuns.length !== 35) errors.push("sp_destination_matrix_must_have_thirty_five_cells");
+  if (stColdBeverageSpReferenceRuns.length !== 70) errors.push("sp_destination_matrix_must_have_seventy_cells");
   if (stColdBeverageSpReferenceRuns.some((run) => run.status !== "calculated_reference" || !run.output)) {
     errors.push("sp_destination_reference_memory_failed");
   }

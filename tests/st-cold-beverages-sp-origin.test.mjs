@@ -45,7 +45,7 @@ const rjInput = {
   facts: confirmedFacts,
 };
 
-test("V70 closes five exact PMPF profiles in each new SP outbound route", () => {
+test("V77 keeps five exact PMPF profiles in each SP outbound route with complete legal identity", () => {
   assert.deepEqual(validateStColdBeverageSpOrigin(), { passed: true, errors: [] });
   assert.deepEqual(stColdBeverageSpOriginMetrics(), {
     outboundRoutes: 2,
@@ -53,11 +53,13 @@ test("V70 closes five exact PMPF profiles in each new SP outbound route", () => 
     controlledCells: 10,
     reproducedMemories: 10,
     safeFailures: 0,
-    officialSources: 10,
+    officialSources: 11,
+    coverage: { supported: 10, partial: 0, notSupported: 0 },
   });
   assert.deepEqual(ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES.map((route) => route.route), ["SP-MG", "SP-RJ"]);
   assert.equal(ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES.filter((profile) => profile.destination === "MG").length, 5);
   assert.equal(ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES.filter((profile) => profile.destination === "RJ").length, 5);
+  assert.equal(ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES.every((profile) => profile.ncms.length > 0 && profile.legalDescription && profile.commercialUnitUnits === 1), true);
   assert.equal(stColdBeverageSpOriginReferenceRuns.every((run) => run.status === "calculated_reference" && run.output), true);
 });
 

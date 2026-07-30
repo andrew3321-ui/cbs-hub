@@ -74,6 +74,10 @@ test("destination-SP beverage dossier freezes exact profile, legal period and ce
   assert.equal(snapshot.coverage.status, "supported");
   assert.equal(snapshot.assurance.calculationStatus, "calculated_conditional");
   assert.equal(snapshot.operation.cest, "03.010.01");
+  assert.deepEqual(snapshot.operation.ncms, ["2202.10.00", "2202.99.00"]);
+  assert.equal(snapshot.operation.legalDescription, "Refrigerante em embalagem PET");
+  assert.equal(snapshot.operation.commercialUnit, "individual_unit");
+  assert.equal(snapshot.operation.commercialUnitUnits, 1);
   assert.equal(snapshot.operation.pmpfUnitCents, 939);
   assert.equal(snapshot.calculation.totals.icmsStCents, 10_141);
   assert.equal(snapshot.calculation.totals.destinationTotalCents, 10_141);
@@ -100,6 +104,7 @@ test("SP-origin beverage dossier separates ICMS-ST and destination additional ta
 
   assert.equal(snapshot.coverage.status, "supported");
   assert.equal(snapshot.operation.cest, "03.010.01");
+  assert.deepEqual(snapshot.operation.ncms, ["2202.10.00", "2202.99.00"]);
   assert.equal(snapshot.calculation.parameters.pmpfLimitBps, 8_000);
   assert.equal(snapshot.calculation.parameters.baseReductionBps, 0);
   assert.equal(snapshot.calculation.totals.icmsStCents, 12_884);

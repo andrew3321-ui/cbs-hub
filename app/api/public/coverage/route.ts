@@ -146,7 +146,7 @@ async function publicCoverage() {
       sources: stColdBeverageSources,
       routes: stColdBeverageRoutes,
       applicability: stColdBeverageApplicabilityMatrix,
-      policy: "A prioridade dos corredores é uma heurística operacional interna, não estatística oficial de NF-e. Cada sentido e produto é conferido separadamente; 35 memórias com destino a São Paulo e 10 memórias SP→MG/RJ usam perfis exatos das pautas vigentes. Todas as demais combinações continuam bloqueadas.",
+      policy: "A prioridade dos corredores é uma heurística operacional interna, não estatística oficial de NF-e. Cada sentido e produto é conferido separadamente; 70 memórias com destino a São Paulo e 10 memórias SP→MG/RJ usam perfis exatos das pautas vigentes. Todas as demais combinações continuam bloqueadas.",
     },
     stColdBeveragesSpDestination: {
       version: ST_COLD_BEVERAGES_SP_DESTINATION_VERSION,
@@ -159,7 +159,7 @@ async function publicCoverage() {
       profiles: ST_COLD_BEVERAGES_SP_PMPF_PROFILES,
       runs: stColdBeverageSpReferenceRuns,
       sources: stColdBeverageSpSources,
-      policy: "Escopo fechado somente para cinco perfis de “Demais marcas não listadas”, sete origens prioritárias e operações de regime normal entre 01/07 e 31/12/2026. Marca listada, água, Simples Nacional, valor próprio a partir de 90% do PMPF ou qualquer fato divergente bloqueiam o número.",
+      policy: "Escopo fechado para dez perfis exatos — cinco genéricos legalmente elegíveis e cinco perfis listados de alto giro, inclusive pack integral — em sete origens prioritárias e operações de regime normal entre 01/07 e 31/12/2026. Água, Simples Nacional, perfil divergente, valor próprio a partir de 90% do PMPF ou qualquer fato ausente bloqueiam o número.",
     },
     stColdBeveragesSpOrigin: {
       version: ST_COLD_BEVERAGES_SP_ORIGIN_VERSION,

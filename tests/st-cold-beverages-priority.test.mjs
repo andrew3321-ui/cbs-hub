@@ -13,7 +13,7 @@ import {
   validateStColdBeveragePriority,
 } from "../domain/st-cold-beverages-priority.ts";
 
-test("V70 keeps 144 directional cells and reports the 45 separately controlled PMPF memories", () => {
+test("priority matrix keeps 144 directional cells and reports the 80 separately controlled PMPF memories", () => {
   assert.deepEqual(validateStColdBeveragePriority(), { passed: true, errors: [] });
   assert.deepEqual(stColdBeverageMetrics(), {
     corridors: 12,
@@ -22,7 +22,7 @@ test("V70 keeps 144 directional cells and reports the 45 separately controlled P
     productRouteCells: 144,
     protocolScopedCells: 125,
     explicitExceptionCells: 19,
-    finalCalculationsReleased: 45,
+    finalCalculationsReleased: 80,
     officialSources: 5,
   });
   assert.equal(stColdBeverageApplicabilityMatrix.length, stColdBeverageRoutes.length * ST_COLD_BEVERAGE_PRODUCTS.length);

@@ -1,5 +1,5 @@
-export const ST_COLD_BEVERAGES_SP_ORIGIN_VERSION = "2026.07.25-v70";
-export const ST_COLD_BEVERAGES_SP_ORIGIN_CHECKED_AT = "2026-07-25";
+export const ST_COLD_BEVERAGES_SP_ORIGIN_VERSION = "2026.07.30-v77";
+export const ST_COLD_BEVERAGES_SP_ORIGIN_CHECKED_AT = "2026-07-30";
 export const ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD = {
   from: "2026-07-01",
   to: "2026-12-31",
@@ -77,6 +77,10 @@ export type ColdBeverageSpOriginProfile = {
   packageType: "PET" | "LATA";
   volumeRange: string;
   cest: "03.010.01" | "03.010.02" | "03.013.00" | "03.015.00";
+  ncms: readonly string[];
+  legalDescription: string;
+  commercialUnit: "individual_unit";
+  commercialUnitUnits: 1;
   pmpfCents: number;
   legalTableItem: string;
   effectiveFrom: typeof ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from;
@@ -93,6 +97,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "PET",
     volumeRange: "2.000 ml",
     cest: "03.010.01",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em embalagem PET",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 1_193,
     legalTableItem: "Portaria SAIF 93/2026, Anexo I, item 483",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -107,6 +115,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "LATA",
     volumeRange: "350 ml",
     cest: "03.010.02",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em lata",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 497,
     legalTableItem: "Portaria SAIF 93/2026, Anexo I, item 75",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -121,6 +133,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "LATA",
     volumeRange: "250 a 270 ml",
     cest: "03.013.00",
+    ncms: ["2106.90", "2202.99.00"],
+    legalDescription: "Bebida energética em lata",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 1_130,
     legalTableItem: "Portaria SAIF 93/2026, Anexo III, item 44",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -135,6 +151,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "LATA",
     volumeRange: "473 a 500 ml",
     cest: "03.013.00",
+    ncms: ["2106.90", "2202.99.00"],
+    legalDescription: "Bebida energética em lata",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 1_078,
     legalTableItem: "Portaria SAIF 93/2026, Anexo III, item 105",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -149,6 +169,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "PET",
     volumeRange: "500 a 520 ml",
     cest: "03.015.00",
+    ncms: ["2106.90", "2202.99.00"],
+    legalDescription: "Bebida hidroeletrolítica",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 605,
     legalTableItem: "Portaria SAIF 93/2026, Anexo II, item 8",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -163,6 +187,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "PET",
     volumeRange: "1.751 a 2.000 ml",
     cest: "03.010.01",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em embalagem PET",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 1_074,
     legalTableItem: "Portaria SUBEREC 433/2025, Anexo Único, subitem 2.2.26",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -177,6 +205,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "LATA",
     volumeRange: "271 a 400 ml",
     cest: "03.010.02",
+    ncms: ["2202.10.00", "2202.99.00"],
+    legalDescription: "Refrigerante em lata",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 500,
     legalTableItem: "Portaria SUBEREC 433/2025, Anexo Único, subitem 2.2.30",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -191,6 +223,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "LATA",
     volumeRange: "até 310 ml",
     cest: "03.013.00",
+    ncms: ["2106.90", "2202.99.00"],
+    legalDescription: "Bebida energética em lata",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 1_094,
     legalTableItem: "Portaria SUBEREC 433/2025, Anexo Único, subitem 3.29",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -205,6 +241,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "LATA",
     volumeRange: "361 a 660 ml",
     cest: "03.013.00",
+    ncms: ["2106.90", "2202.99.00"],
+    legalDescription: "Bebida energética em lata",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 986,
     legalTableItem: "Portaria SUBEREC 433/2025, Anexo Único, subitem 3.25",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -219,6 +259,10 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES: ColdBeverageSpOriginProf
     packageType: "PET",
     volumeRange: "401 a 660 ml",
     cest: "03.015.00",
+    ncms: ["2106.90", "2202.99.00"],
+    legalDescription: "Bebida hidroeletrolítica",
+    commercialUnit: "individual_unit",
+    commercialUnitUnits: 1,
     pmpfCents: 652,
     legalTableItem: "Portaria SUBEREC 433/2025, Anexo Único, subitem 4.1.4",
     effectiveFrom: ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from,
@@ -241,6 +285,13 @@ export const ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS = {
 export type ColdBeverageSpOriginFacts = Record<keyof typeof ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS, boolean>;
 
 export const stColdBeverageSpOriginSources = [
+  {
+    code: "CONFAZ-CONV-142-2018-ANNEX-IV",
+    title: "Convênio ICMS 142/2018 — Anexo IV",
+    publisher: "CONFAZ",
+    url: "https://www.confaz.fazenda.gov.br/legislacao/convenios/2018/CV142_18",
+    proves: ["NCM, CEST e descrição legal de refrigerantes PET/lata, energéticos e bebidas hidroeletrolíticas"],
+  },
   {
     code: "CONFAZ-PROTOCOL-11-1991",
     title: "Protocolo ICMS 11/91 — bebidas frias",
@@ -493,6 +544,7 @@ export const stColdBeverageSpOriginReferenceRuns = ST_COLD_BEVERAGES_SP_ORIGIN_P
     profileCode: profile.code,
     scenario: "100 unidades, operação e base própria a 60% do PMPF, mercadoria nacional, regime normal" as const,
     status: result.status,
+    coverageStatus: result.status === "calculated_reference" ? "supported" as const : result.status === "pmpf_fallback_required" ? "partial" as const : "not_supported" as const,
     output: result.output,
   };
 });
@@ -505,6 +557,11 @@ export function stColdBeverageSpOriginMetrics() {
     reproducedMemories: stColdBeverageSpOriginReferenceRuns.filter((run) => run.status === "calculated_reference").length,
     safeFailures: stColdBeverageSpOriginReferenceRuns.filter((run) => run.status !== "calculated_reference").length,
     officialSources: stColdBeverageSpOriginSources.length,
+    coverage: {
+      supported: stColdBeverageSpOriginReferenceRuns.filter((run) => run.status === "calculated_reference").length,
+      partial: stColdBeverageSpOriginReferenceRuns.filter((run) => run.status === "pmpf_fallback_required").length,
+      notSupported: stColdBeverageSpOriginReferenceRuns.filter((run) => run.status === "blocked").length,
+    },
   };
 }
 
@@ -532,6 +589,9 @@ export function validateStColdBeverageSpOrigin() {
   }
   if (ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES.some((profile) =>
     profile.pmpfCents <= 0
+    || profile.ncms.length === 0
+    || !profile.legalDescription
+    || profile.commercialUnitUnits !== 1
     || profile.effectiveFrom !== ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.from
     || profile.effectiveTo !== ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD.to)) {
     errors.push("sp_origin_profiles_have_invalid_scope");

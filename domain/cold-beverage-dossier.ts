@@ -19,8 +19,8 @@ import {
   type ColdBeverageSpOriginOperationResult,
 } from "./st-cold-beverages-sp-origin.ts";
 
-export const COLD_BEVERAGE_DOSSIER_SCHEMA_VERSION = "cold-beverage-dossier.v2";
-export const COLD_BEVERAGE_DOSSIER_ENGINE_VERSION = "cbshub-cold-beverage-dossier-1.1.0";
+export const COLD_BEVERAGE_DOSSIER_SCHEMA_VERSION = "cold-beverage-dossier.v3";
+export const COLD_BEVERAGE_DOSSIER_ENGINE_VERSION = "cbshub-cold-beverage-dossier-1.2.0";
 
 export type ColdBeverageDossierScope = "sp_destination" | "sp_origin";
 export type ColdBeverageCoverageStatus = "supported" | "partial" | "not_supported";
@@ -39,7 +39,7 @@ export type ColdBeverageDossierLine = {
 };
 
 export type ColdBeverageDossierSnapshot = {
-  schemaVersion: typeof COLD_BEVERAGE_DOSSIER_SCHEMA_VERSION | "cold-beverage-dossier.v1";
+  schemaVersion: typeof COLD_BEVERAGE_DOSSIER_SCHEMA_VERSION | "cold-beverage-dossier.v2" | "cold-beverage-dossier.v1";
   engineVersion: typeof COLD_BEVERAGE_DOSSIER_ENGINE_VERSION;
   generatedAt: string;
   title: string;
@@ -81,6 +81,12 @@ export type ColdBeverageDossierSnapshot = {
     profileCode: string;
     productDescription: string;
     cest: string;
+    ncms: readonly string[];
+    legalDescription: string;
+    packageType: string;
+    volumeRange: string;
+    commercialUnit: "individual_unit" | "integral_pack" | "not_confirmed";
+    commercialUnitUnits: number | null;
     pmpfUnitCents: number | null;
     importedQualified: boolean;
     confirmedFacts: Array<{ code: string; label: string; confirmed: boolean }>;
@@ -320,6 +326,7 @@ export async function createColdBeverageDossierSnapshot(
   const warnings = [
     "A pauta vale somente para o perfil exato de marca, embalagem, volume, CEST, destino e vigência informado.",
     "Marca, embalagem ou GTIN divergente não herda o PMPF deste snapshot.",
+    "A quantidade da memória representa a unidade comercial do perfil; packs são calculados e comercializados de forma integral.",
     "O fallback por MVA/IVA-ST permanece bloqueado quando a pauta é afastada.",
     "A memória não substitui classificação fiscal, escrituração, emissão de documento ou responsabilidade profissional.",
   ];
@@ -368,6 +375,12 @@ export async function createColdBeverageDossierSnapshot(
       profileCode: input.profileCode,
       productDescription: result.profile?.label ?? "Perfil não reconhecido",
       cest: result.profile?.cest ?? "não confirmado",
+      ncms: result.profile?.ncms ?? [],
+      legalDescription: result.profile?.legalDescription ?? "não confirmada",
+      packageType: result.profile?.packageType ?? "não confirmado",
+      volumeRange: result.profile?.volumeRange ?? "não confirmado",
+      commercialUnit: result.profile?.commercialUnit ?? "not_confirmed",
+      commercialUnitUnits: result.profile?.commercialUnitUnits ?? null,
       pmpfUnitCents: result.profile?.pmpfCents ?? null,
       importedQualified: input.importedQualified,
       confirmedFacts: facts,
@@ -419,7 +432,9 @@ export async function createColdBeverageDossierSnapshot(
 export function isColdBeverageDossierSnapshot(value: unknown): value is ColdBeverageDossierSnapshot {
   if (!value || typeof value !== "object" || Array.isArray(value)) return false;
   const candidate = value as Partial<ColdBeverageDossierSnapshot>;
-  return (candidate.schemaVersion === COLD_BEVERAGE_DOSSIER_SCHEMA_VERSION || candidate.schemaVersion === "cold-beverage-dossier.v1")
+  return (candidate.schemaVersion === COLD_BEVERAGE_DOSSIER_SCHEMA_VERSION
+      || candidate.schemaVersion === "cold-beverage-dossier.v2"
+      || candidate.schemaVersion === "cold-beverage-dossier.v1")
     && (candidate.rule?.code === "COLD_BEVERAGES_SP_DESTINATION" || candidate.rule?.code === "COLD_BEVERAGES_SP_ORIGIN")
     && Array.isArray(candidate.calculation?.lines)
     && Array.isArray(candidate.evidence?.sources);
