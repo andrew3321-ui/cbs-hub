@@ -1,5 +1,6 @@
 import Link from "next/link";
 import BrandMark from "./BrandMark";
+import LandingHeroShowcase from "./LandingHeroShowcase";
 import { getCurrentUser } from "./auth";
 import { coverageMetrics } from "../domain/national-tax-coverage";
 import { platformIdentity } from "../domain/platform-identity";
@@ -62,76 +63,7 @@ export default async function LandingPage() {
           </div>
         </div>
 
-        <div className="cbs-product-preview" aria-label="Prévia da inteligência fiscal CBSHub">
-          <div className="cbs-preview-glow" />
-          <div className="cbs-preview-window">
-            <div className="cbs-preview-topbar">
-              <span className="cbs-preview-lockup"><BrandMark /><b>CBSHub</b></span>
-              <span className="cbs-preview-context">Almeida &amp; Torres Tributário</span>
-              <span className="cbs-preview-user">AT</span>
-            </div>
-
-            <div className="cbs-preview-body">
-              <aside className="cbs-preview-sidebar">
-                <span className="active"><i>⌕</i> Inteligência</span>
-                <span><i>∑</i> Laboratório</span>
-                <span><i>◇</i> Cobertura</span>
-                <span><i>≡</i> Dossiês</span>
-              </aside>
-
-              <div className="cbs-preview-content">
-                <div className="cbs-preview-heading">
-                  <div><small>INTELIGÊNCIA FISCAL</small><b>Analise uma operação</b></div>
-                  <span>Base V71</span>
-                </div>
-
-                <div className="cbs-query-box">
-                  <small>DESCREVA A OPERAÇÃO</small>
-                  <p>Qual o tratamento de ICMS-ST para autopeças de SP para MG?</p>
-                  <button aria-label="Pesquisar regra demonstrativa">Pesquisar regras <span>→</span></button>
-                </div>
-
-                <div className="cbs-case-facts">
-                  <span><small>ORIGEM</small><b>SP</b></span>
-                  <span><small>DESTINO</small><b>MG</b></span>
-                  <span><small>SEGMENTO</small><b>Autopeças</b></span>
-                  <span><small>OPERAÇÃO</small><b>Revenda</b></span>
-                </div>
-
-                <div className="cbs-result-card">
-                  <div className="cbs-result-status">
-                    <span><i /> SUPORTADO NO RECORTE</span>
-                    <small>Fatos mínimos 9/9</small>
-                  </div>
-                  <div className="cbs-result-main">
-                    <div>
-                      <small>TRATAMENTO IDENTIFICADO</small>
-                      <b>ICMS interestadual + trilha de ST</b>
-                      <p>A conclusão final permanece vinculada ao NCM, CEST e período da operação.</p>
-                    </div>
-                    <strong>12%<small>referência interestadual</small></strong>
-                  </div>
-                  <div className="cbs-source-line">
-                    <span>FONTE OFICIAL</span>
-                    <b>Protocolo ICMS 41/2008</b>
-                    <em>Vigência conferida ↗</em>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="cbs-floating-card cbs-floating-tests">
-            <span>GARANTIA AUTOMÁTICA</span>
-            <b>914 casos determinísticos</b>
-            <small>reexecutados a cada versão</small>
-          </div>
-          <div className="cbs-floating-card cbs-floating-version">
-            <span>MEMÓRIA VERSIONADA</span>
-            <b>#938cf478fdf5</b>
-            <small>integridade verificável</small>
-          </div>
-        </div>
+        <LandingHeroShowcase />
       </section>
 
       <section className="cbs-audience-bar" aria-label="Público do CBSHub">

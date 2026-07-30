@@ -302,6 +302,239 @@
   place-items: center;
 }
 
+.cbs-showcase {
+  isolation: isolate;
+}
+
+.cbs-showcase-product-slide,
+.cbs-showcase-video-slide {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+}
+
+.cbs-showcase-product-slide {
+  z-index: 2;
+  opacity: 1;
+  transform: translateX(0) scale(1);
+  transition:
+    opacity .6s ease,
+    transform 1s cubic-bezier(.22, .72, .18, 1),
+    filter .6s ease;
+}
+
+.cbs-showcase-tour .cbs-showcase-product-slide {
+  opacity: .16;
+  transform: translateX(-7%) scale(.975);
+  filter: saturate(.68);
+  pointer-events: none;
+}
+
+.cbs-showcase-video-slide {
+  z-index: 3;
+  opacity: 0;
+  clip-path: circle(0% at 100% 52%);
+  transform: translateX(8%) scale(.985);
+  pointer-events: none;
+  transition:
+    clip-path 1.15s cubic-bezier(.72, 0, .18, 1),
+    opacity .25s ease,
+    transform 1.15s cubic-bezier(.22, .72, .18, 1);
+}
+
+.cbs-showcase-video-slide.is-active {
+  opacity: 1;
+  clip-path: circle(150% at 100% 52%);
+  transform: translateX(0) scale(1);
+  pointer-events: auto;
+}
+
+.cbs-showcase-video-shell {
+  width: 790px;
+  max-width: 112%;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(191, 214, 217, .85);
+  border-radius: 21px;
+  background: var(--cbs-night);
+  box-shadow: 0 38px 90px rgba(7, 29, 43, .25);
+}
+
+.cbs-showcase-video-shell video {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  background: var(--cbs-night);
+}
+
+.cbs-showcase-video-shade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(7, 29, 43, .72), transparent 43%),
+    linear-gradient(90deg, rgba(7, 29, 43, .34), transparent 58%),
+    linear-gradient(0deg, rgba(7, 29, 43, .42), transparent 28%);
+  pointer-events: none;
+}
+
+.cbs-showcase-video-copy {
+  max-width: 430px;
+  position: absolute;
+  top: 28px;
+  left: 30px;
+  z-index: 2;
+  color: white;
+  text-shadow: 0 2px 18px rgba(2, 18, 27, .38);
+}
+
+.cbs-showcase-video-copy > span {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #b9f4ee;
+  font-size: 7px;
+  font-weight: 900;
+  letter-spacing: 1.1px;
+}
+
+.cbs-showcase-video-copy > span i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--cbs-cyan);
+  box-shadow: 0 0 0 4px rgba(39, 194, 184, .18);
+}
+
+.cbs-showcase-video-copy strong {
+  max-width: 410px;
+  margin-top: 9px;
+  display: block;
+  font-size: clamp(20px, 2.1vw, 29px);
+  line-height: 1.02;
+  letter-spacing: -1.2px;
+}
+
+.cbs-showcase-video-copy p {
+  max-width: 390px;
+  margin: 8px 0 0;
+  color: #d7e5e7;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.cbs-showcase-video-proof {
+  min-width: 145px;
+  padding: 10px 12px;
+  position: absolute;
+  top: 24px;
+  right: 25px;
+  z-index: 2;
+  display: grid;
+  gap: 4px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 11px;
+  background: rgba(7, 29, 43, .48);
+  color: white;
+  backdrop-filter: blur(10px);
+}
+
+.cbs-showcase-video-proof span {
+  color: var(--cbs-cyan);
+  font-size: 6px;
+  font-weight: 900;
+  letter-spacing: .7px;
+}
+
+.cbs-showcase-video-proof b { font-size: 9px; }
+
+.cbs-showcase-progress {
+  height: 3px;
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 3;
+  background: rgba(255, 255, 255, .2);
+}
+
+.cbs-showcase-progress i {
+  height: 100%;
+  display: block;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--cbs-cyan), var(--cbs-amber));
+  transition: width .2s linear;
+}
+
+.cbs-showcase-controls {
+  padding: 5px;
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  z-index: 6;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  transform: translateX(-50%);
+  border: 1px solid rgba(195, 214, 216, .9);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .9);
+  box-shadow: 0 10px 28px rgba(7, 29, 43, .1);
+  backdrop-filter: blur(12px);
+}
+
+.cbs-showcase-controls button {
+  min-height: 31px;
+  padding: 0 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: #617983;
+  font: inherit;
+  font-size: 8px;
+  font-weight: 820;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: color .2s ease, background .2s ease;
+}
+
+.cbs-showcase-controls button i {
+  width: 6px;
+  height: 6px;
+  border: 1px solid #8ba1a8;
+  border-radius: 50%;
+}
+
+.cbs-showcase-controls button small {
+  color: #83969d;
+  font-size: 6px;
+  font-weight: 750;
+}
+
+.cbs-showcase-controls button.is-active {
+  background: var(--cbs-night);
+  color: white;
+}
+
+.cbs-showcase-controls button.is-active i {
+  border-color: var(--cbs-cyan);
+  background: var(--cbs-cyan);
+  box-shadow: 0 0 0 3px rgba(39, 194, 184, .13);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cbs-showcase-product-slide,
+  .cbs-showcase-video-slide,
+  .cbs-showcase-progress i {
+    transition: none;
+  }
+}
+
 .cbs-preview-glow {
   width: 620px;
   height: 620px;
@@ -987,6 +1220,7 @@
   .cbs-trial-proof { justify-content: center; }
   .cbs-product-preview { height: 570px; }
   .cbs-preview-window { max-width: 86%; transform: none; }
+  .cbs-showcase-video-shell { max-width: 89%; }
   .cbs-floating-tests { right: 4%; }
   .cbs-floating-version { left: 4%; }
   .cbs-audience-bar { flex-direction: column; text-align: center; }
@@ -1017,6 +1251,15 @@
   .cbs-product-preview { height: 430px; margin-top: 34px; }
   .cbs-preview-glow { width: 430px; height: 430px; }
   .cbs-preview-window { width: 760px; max-width: 148%; min-height: 430px; transform: scale(.72); }
+  .cbs-showcase-video-shell { width: 760px; max-width: 122%; border-radius: 15px; }
+  .cbs-showcase-video-copy { top: 18px; left: 19px; max-width: 62%; }
+  .cbs-showcase-video-copy strong { margin-top: 6px; font-size: 18px; letter-spacing: -.7px; }
+  .cbs-showcase-video-copy p { display: none; }
+  .cbs-showcase-video-proof { top: 15px; right: 16px; min-width: 0; padding: 8px 9px; }
+  .cbs-showcase-video-proof span { font-size: 5px; }
+  .cbs-showcase-video-proof b { font-size: 7px; }
+  .cbs-showcase-controls { bottom: -3px; }
+  .cbs-showcase-controls button { min-height: 29px; padding-inline: 9px; }
   .cbs-preview-body { min-height: 372px; }
   .cbs-floating-card { display: none; }
   .cbs-audience-bar div { justify-content: center; flex-wrap: wrap; gap: 11px; }
