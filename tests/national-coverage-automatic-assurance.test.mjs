@@ -11,8 +11,8 @@ test("garantia automática libera somente uma base tecnicamente íntegra", () =>
   assert.equal(assurance.status, "automatically_verified");
   assert.equal(assurance.professionalOpinion, false);
   assert.equal(assurance.humanReviewRequired, false);
-  assert.equal(assurance.metrics.modules, 11);
-  assert.equal(assurance.metrics.modulesPassed, 11);
+  assert.equal(assurance.metrics.modules, 12);
+  assert.equal(assurance.metrics.modulesPassed, 12);
   assert.equal(assurance.metrics.totalRuns, 650);
   assert.equal(assurance.metrics.referenceReproduced, 5);
   assert.equal(assurance.metrics.safelyBlocked, 645);
