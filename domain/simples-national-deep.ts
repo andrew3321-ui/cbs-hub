@@ -1,5 +1,5 @@
-export const SIMPLES_NATIONAL_DEEP_VERSION = "2026.07.31-v80";
-export const SIMPLES_NATIONAL_DEEP_CHECKED_AT = "2026-07-30";
+export const SIMPLES_NATIONAL_DEEP_VERSION = "2026.07.31-v93";
+export const SIMPLES_NATIONAL_DEEP_CHECKED_AT = "2026-07-31";
 export const SIMPLES_NATIONAL_LIMIT_CENTS = 480_000_000;
 export const SIMPLES_NATIONAL_2026_SUBLIMIT_CENTS = 360_000_000;
 
@@ -40,6 +40,9 @@ export type SimplesCalculationInput = {
   eligibilityConfirmed: boolean;
   under2026SublimitConfirmed: boolean;
   noSpecialTreatment: boolean;
+  calculationPeriod?: string;
+  businessStartedLessThan13Months?: boolean;
+  startActivityRbt12AnnualizationConfirmed?: boolean;
 };
 export type SimplesCalculationLine = {
   code: string;
@@ -194,17 +197,56 @@ export const simplesActivityProfiles: SimplesActivityProfile[] = [
   profile(18, "4120400", "Construção de edifícios", ["IV"], "not_applicable", "construction_or_labor_assignment", serviceSegregations, ["CPP patronal permanece fora do DAS", "empreitada e cessão de mão de obra exigem fatos próprios"]),
   profile(19, "4321500", "Instalação e manutenção elétrica", ["IV"], "not_applicable", "construction_or_labor_assignment", serviceSegregations, ["CPP patronal permanece fora do DAS", "obra e manutenção isolada precisam ser distinguidas"]),
   profile(20, "8121400", "Limpeza em prédios e domicílios", ["IV"], "not_applicable", "construction_or_labor_assignment", serviceSegregations, ["CPP patronal permanece fora do DAS", "cessão de mão de obra e retenção previdenciária"]),
+  profile(21, "4723700", "Comércio varejista de bebidas", ["I"], "not_applicable", "commerce", tradeSegregations),
+  profile(22, "4744001", "Comércio varejista de ferragens e ferramentas", ["I"], "not_applicable", "commerce", tradeSegregations),
+  profile(23, "4772500", "Comércio varejista de cosméticos, perfumaria e higiene pessoal", ["I"], "not_applicable", "commerce", tradeSegregations),
+  profile(24, "4771701", "Comércio varejista de produtos farmacêuticos sem manipulação", ["I"], "not_applicable", "commerce", tradeSegregations, ["manipulação de fórmulas possui segregação própria por forma de atendimento"]),
+  profile(25, "4751201", "Comércio varejista especializado de equipamentos e suprimentos de informática", ["I"], "not_applicable", "commerce", tradeSegregations),
+  profile(26, "4753900", "Comércio varejista especializado de eletrodomésticos e equipamentos de áudio e vídeo", ["I"], "not_applicable", "commerce", tradeSegregations),
+  profile(27, "4761003", "Comércio varejista de artigos de papelaria", ["I"], "not_applicable", "commerce", tradeSegregations),
+  profile(28, "4789005", "Comércio varejista de produtos saneantes domissanitários", ["I"], "not_applicable", "commerce", tradeSegregations),
+  profile(29, "4789004", "Comércio varejista de animais vivos e artigos e alimentos para animais", ["I"], "not_applicable", "commerce", tradeSegregations),
+  profile(30, "4742300", "Comércio varejista de material elétrico", ["I"], "not_applicable", "commerce", tradeSegregations),
+  profile(31, "1052000", "Fabricação de laticínios", ["II"], "not_applicable", "industry", [...tradeSegregations, "receita de revenda no Anexo I", "benefícios e alíquota zero por produto"]),
+  profile(32, "1066000", "Fabricação de alimentos para animais", ["II"], "not_applicable", "industry", [...tradeSegregations, "receita de revenda no Anexo I", "produto e espécie animal"]),
+  profile(33, "1105400", "Fabricação de águas envasadas e bebidas não alcoólicas", ["II"], "not_applicable", "industry", [...tradeSegregations, "receita de revenda no Anexo I", "bebida e embalagem exatas"]),
+  profile(34, "1412601", "Confecção de peças do vestuário", ["II"], "not_applicable", "industry", [...tradeSegregations, "receita de revenda no Anexo I", "industrialização por encomenda"]),
+  profile(35, "2063100", "Fabricação de cosméticos, perfumaria e higiene pessoal", ["II"], "not_applicable", "industry", [...tradeSegregations, "receita de revenda no Anexo I", "tratamento monofásico por produto e papel na cadeia"]),
+  profile(36, "2229301", "Fabricação de artefatos de material plástico para construção", ["II"], "not_applicable", "industry", [...tradeSegregations, "receita de revenda no Anexo I", "descrição e finalidade do produto"]),
+  profile(37, "2511000", "Fabricação de estruturas metálicas", ["II"], "not_applicable", "industry", [...tradeSegregations, "receita de montagem ou obra", "industrialização por encomenda"]),
+  profile(38, "2599399", "Fabricação de outros produtos de metal", ["II"], "not_applicable", "industry", [...tradeSegregations, "receita de revenda no Anexo I", "produto efetivo e IPI"]),
+  profile(39, "1622699", "Fabricação de outros artigos de carpintaria para construção", ["II"], "not_applicable", "industry", [...tradeSegregations, "receita de instalação ou obra", "receita de revenda no Anexo I"]),
+  profile(40, "3299099", "Fabricação de produtos diversos", ["II"], "not_applicable", "industry", [...tradeSegregations, "produto efetivamente fabricado", "receita de revenda no Anexo I"]),
+  profile(41, "6911701", "Serviços advocatícios", ["III", "V"], "required", "service", serviceSegregations),
+  profile(42, "7410202", "Design de interiores", ["III", "V"], "required", "service", serviceSegregations),
+  profile(43, "8650001", "Atividades de enfermagem", ["III", "V"], "required", "service", serviceSegregations),
+  profile(44, "8660700", "Atividades de apoio à gestão de saúde", ["III", "V"], "required", "service", serviceSegregations),
+  profile(45, "9511800", "Reparação e manutenção de computadores e periféricos", ["III"], "not_applicable", "service", [...serviceSegregations, "peças e mercadorias comercializadas no Anexo I"]),
+  profile(46, "8219999", "Preparação de documentos e serviços especializados de apoio administrativo", ["III"], "not_applicable", "service", serviceSegregations),
+  profile(47, "6821801", "Corretagem na compra, venda e avaliação de imóveis", ["III", "V"], "required", "service", serviceSegregations),
+  profile(48, "4211101", "Construção de rodovias e ferrovias", ["IV"], "not_applicable", "construction_or_labor_assignment", serviceSegregations, ["CPP patronal permanece fora do DAS", "empreitada e cessão de mão de obra exigem fatos próprios"]),
+  profile(49, "4399103", "Obras de alvenaria", ["IV"], "not_applicable", "construction_or_labor_assignment", serviceSegregations, ["CPP patronal permanece fora do DAS", "materiais e subempreitadas precisam ser conciliados"]),
+  profile(50, "4221902", "Construção de estações e redes de distribuição de energia elétrica", ["IV"], "not_applicable", "construction_or_labor_assignment", serviceSegregations, ["CPP patronal permanece fora do DAS", "obra, manutenção e cessão de mão de obra precisam ser distinguidas"]),
 ];
 
 export const simplesActivityProfileByCnae = new Map(simplesActivityProfiles.map((item) => [item.cnae, item]));
 
 export const simplesSegregationRules = [
-  { code: "ordinary", label: "Receita comum do anexo confirmado", effect: "entra na memória do anexo somente depois da composição completa" },
-  { code: "icms_st", label: "ICMS-ST ou antecipação com encerramento", effect: "segregar a parcela estadual conforme a hipótese comprovada" },
-  { code: "pis_cofins_monophase", label: "PIS/Cofins monofásico", effect: "segregar somente produto e receita abrangidos pela legislação específica" },
-  { code: "export", label: "Exportação", effect: "separar mercado externo e comprovar o resultado da operação" },
-  { code: "iss_withheld", label: "ISS retido ou devido a outro município", effect: "segregar município, responsabilidade e valor do serviço" },
-  { code: "mixed_activity", label: "Atividades em anexos diferentes", effect: "manter receita mensal própria para cada atividade e anexo" },
+  { code: "ordinary", label: "Receita comum do anexo confirmado", effect: "entra na memória do anexo somente depois da composição completa", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "icms_st", label: "ICMS-ST ou antecipação com encerramento", effect: "segregar a parcela estadual conforme a hipótese comprovada", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "pis_cofins_monophase", label: "PIS/Cofins monofásico", effect: "segregar somente produto e receita abrangidos pela legislação específica", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "export", label: "Exportação", effect: "separar mercado interno e externo antes da memória", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140", "SIMPLES-PERGUNTAO-2026"] },
+  { code: "iss_withheld", label: "ISS retido ou devido a outro município", effect: "segregar município, responsabilidade e valor do serviço", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "mixed_activity", label: "Atividades em anexos diferentes", effect: "manter receita mensal própria para cada atividade e anexo", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "activity_start", label: "Início de atividade", effect: "usar RBT12 proporcional anualizada e limites proporcionais somente após confirmar abertura e meses de atividade", sourceCodes: ["SIMPLES-CGSN-140", "SIMPLES-PERGUNTAO-2026"] },
+  { code: "export_goods", label: "Exportação de mercadorias", effect: "separar a receita e desconsiderar apenas os percentuais autorizados pela regra aplicável", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "export_services", label: "Exportação de serviços", effect: "exigir prova de exportação e do resultado no exterior antes de desconsiderar percentuais", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "canceled_sales", label: "Vendas canceladas", effect: "excluir somente cancelamento documentado e conciliado com o período", sourceCodes: ["SIMPLES-CGSN-140", "SIMPLES-PERGUNTAO-2026"] },
+  { code: "unconditional_discounts", label: "Descontos incondicionais", effect: "reduzir a receita somente quando constar no documento e não depender de evento posterior", sourceCodes: ["SIMPLES-CGSN-140", "SIMPLES-PERGUNTAO-2026"] },
+  { code: "cash_basis_receivables", label: "Regime de caixa", effect: "separar receita recebida da receita auferida e preservar esta última para limites e controles", sourceCodes: ["SIMPLES-CGSN-140", "SIMPLES-PERGUNTAO-2026"] },
+  { code: "accounting_fixed_iss", label: "Escritório contábil com ISS fixo", effect: "desconsiderar o percentual do ISS apenas quando a legislação municipal e os fatos autorizarem", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "pharmacy_compounding", label: "Medicamento manipulado", effect: "segregar encomenda pessoal posterior do comércio comum conforme atendimento, prescrição e produção", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "service_withholdings", label: "Retenções sobre serviços", effect: "registrar IRRF, CSRF, INSS e ISS em livros próprios; não deduzir automaticamente do DAS", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
 ] as const;
 
 export const simplesEligibilityGates = [
@@ -213,6 +255,11 @@ export const simplesEligibilityGates = [
   "natureza jurídica e atividade sem vedação aplicável",
   "débitos e cadastros fiscais regularizados para a opção",
   "receitas de matriz e filiais consolidadas",
+  "atividade efetiva e anexo confirmados sem decisão automática por CNAE",
+  "RBT12 proporcional anualizada confirmada quando houver início de atividade",
+  "mercado interno e exportação controlados separadamente",
+  "receitas monofásicas, ST, ISS retido e atividades mistas segregadas",
+  "retenções reconciliadas em livros próprios sem dedução automática do DAS",
 ] as const;
 
 export const simplesExclusionRules = [
@@ -221,6 +268,16 @@ export const simplesExclusionRules = [
   { code: "forbidden_activity", fact: "atividade efetiva alcançada por vedação legal", consequence: "bloquear opção ou permanência sem inferir apenas pelo CNAE", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140", "CNAE-CONCLA"] },
   { code: "tax_debt_or_registration", fact: "débito ou irregularidade cadastral relevante não saneada", consequence: "bloquear a afirmação de elegibilidade e direcionar para conferência oficial", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
   { code: "sublimit", fact: "receita acumulada ultrapassa R$ 3.600.000 em 2026", consequence: "separar ICMS e ISS do DAS na data de efeito legal, preservando os demais tributos até análise do limite nacional", sourceCodes: ["SIMPLES-CGSN-140", "SIMPLES-SUBLIMITE-2026"] },
+  { code: "public_entity_capital", fact: "ente público participa do capital", consequence: "bloquear elegibilidade até conferir a vedação e a estrutura societária", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "foreign_branch", fact: "filial, sucursal, agência ou representação no País de pessoa jurídica com sede no exterior", consequence: "bloquear elegibilidade no recorte vedado", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "corporate_participation", fact: "outra pessoa jurídica participa do capital fora das hipóteses permitidas", consequence: "bloquear até qualificar sócios e exceções legais", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "individual_partner_global_revenue", fact: "participação do sócio e receita bruta global relacionada não foram consolidadas", consequence: "bloquear até medir participação e receita global", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "foreign_domiciled_partner", fact: "sócio domiciliado no exterior", consequence: "bloquear opção ou permanência conforme a vedação legal", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "financial_or_credit_activity", fact: "atividade financeira, creditícia, factoring ou operação legalmente vedada", consequence: "bloquear sem ampliar a vedação por descrição aproximada", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "electric_energy_chain", fact: "geração, transmissão, distribuição ou comercialização de energia elétrica", consequence: "bloquear quando a atividade efetiva coincidir com a vedação", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "fuel_import_or_manufacture", fact: "importação ou fabricação de combustíveis alcançada por vedação", consequence: "bloquear após classificar produto, operação e papel da empresa", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "vehicle_import_or_manufacture", fact: "importação ou fabricação de automóveis e motocicletas alcançada por vedação", consequence: "bloquear após comprovar atividade efetiva; comércio ou reparo não herda a vedação", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
+  { code: "unresolved_registration", fact: "ausência ou irregularidade de inscrição fiscal exigível não regularizada", consequence: "bloquear afirmação de permanência e registrar o prazo legal aplicável", sourceCodes: ["SIMPLES-LC-123", "SIMPLES-CGSN-140"] },
 ] as const;
 
 function safeMoney(value: number, field: string, min = 0, max = Number.MAX_SAFE_INTEGER) {
@@ -263,7 +320,7 @@ export function calculateSimplesNationalDeepReference(input: SimplesCalculationI
   const rbt12 = input.rbt12Cents;
   const revenue = input.monthlyRevenueCents;
 
-  if (!profile) blockers.push("CNAE fora dos 20 perfis prioritários estruturados");
+  if (!profile) blockers.push("CNAE fora dos 50 perfis prioritários estruturados");
   if (rbt12 === null) blockers.push("RBT12 não informado");
   if (revenue === null) blockers.push("receita mensal e sua composição não informadas");
   if (!input.activityConfirmed) blockers.push("atividade efetivamente exercida não confirmada");
@@ -273,6 +330,8 @@ export function calculateSimplesNationalDeepReference(input: SimplesCalculationI
   if (!input.eligibilityConfirmed) blockers.push("elegibilidade, impedimentos e receita global não conferidos");
   if (!input.under2026SublimitConfirmed) blockers.push("sublimite de ICMS/ISS de 2026 não conferido");
   if (!input.noSpecialTreatment) blockers.push("tratamento especial exige segregação própria no PGDAS-D");
+  if (input.calculationPeriod !== undefined && !/^2026-(0[1-9]|1[0-2])$/.test(input.calculationPeriod)) blockers.push("período fora da vigência 2026 desta versão");
+  if (input.businessStartedLessThan13Months === true && input.startActivityRbt12AnnualizationConfirmed !== true) blockers.push("RBT12 proporcional anualizada do início de atividade não confirmada");
 
   if (rbt12 !== null) {
     safeMoney(rbt12, "rbt12", 1);
@@ -339,6 +398,211 @@ export function calculateSimplesNationalDeepReference(input: SimplesCalculationI
   };
 }
 
+export type SimplesNationalReferenceCase = {
+  id: string;
+  kind: "activity" | "bracket_boundary" | "factor_r" | "segregation" | "impediment" | "activity_start" | "mandatory_gate";
+  relatedCode: string;
+  input: SimplesCalculationInput;
+  expected: {
+    status: SimplesCalculationResult["status"];
+    resolvedAnnex: SimplesAnnex | null;
+    bracket: number | null;
+    referenceCents: number | null;
+    factorRBps: number | null;
+    blocker: string | null;
+  };
+};
+
+const POSITIVE_REFERENCE_BY_ANNEX: Record<SimplesAnnex, { referenceCents: number; factorRBps: number | null }> = {
+  I: { referenceCents: 882_500, factorRBps: null },
+  II: { referenceCents: 932_500, factorRBps: null },
+  III: { referenceCents: 1_303_000, factorRBps: null },
+  IV: { referenceCents: 1_068_500, factorRBps: null },
+  V: { referenceCents: 1_907_500, factorRBps: 0 },
+};
+
+const COMPLETE_INPUT = {
+  rbt12Cents: 120_000_000,
+  monthlyRevenueCents: 10_000_000,
+  activityConfirmed: true,
+  annexConfirmed: true,
+  revenueCompositionConfirmed: true,
+  periodClosed: true,
+  eligibilityConfirmed: true,
+  under2026SublimitConfirmed: true,
+  noSpecialTreatment: true,
+  calculationPeriod: "2026-07",
+} as const;
+
+function positiveInput(profile: SimplesActivityProfile, annex?: SimplesAnnex): SimplesCalculationInput {
+  const resolved = annex ?? (profile.factorR === "required" ? "III" : profile.annexCandidates[0]);
+  return {
+    ...COMPLETE_INPUT,
+    cnae: profile.cnae,
+    declaredAnnex: resolved,
+    fs12Cents: profile.factorR === "required" ? 33_600_000 : null,
+  };
+}
+
+const activityCases: SimplesNationalReferenceCase[] = simplesActivityProfiles.map((profile) => {
+  const annex = profile.factorR === "required" ? "III" : profile.annexCandidates[0];
+  return {
+    id: `activity:${profile.cnae}`,
+    kind: "activity",
+    relatedCode: profile.cnae,
+    input: positiveInput(profile, annex),
+    expected: {
+      status: "calculated_reference",
+      resolvedAnnex: annex,
+      bracket: 4,
+      referenceCents: POSITIVE_REFERENCE_BY_ANNEX[annex].referenceCents,
+      factorRBps: profile.factorR === "required" ? 2_800 : null,
+      blocker: null,
+    },
+  };
+});
+
+const BRACKET_EXPECTATIONS: Record<SimplesAnnex, Array<{ referenceCents: number | null; factorRBps: number | null }>> = {
+  I: [{ referenceCents: 40_000, factorRBps: null }, { referenceCents: 56_500, factorRBps: null }, { referenceCents: 75_750, factorRBps: null }, { referenceCents: 94_500, factorRBps: null }, { referenceCents: 118_750, factorRBps: null }, { referenceCents: null, factorRBps: null }],
+  II: [{ referenceCents: 45_000, factorRBps: null }, { referenceCents: 61_500, factorRBps: null }, { referenceCents: 80_750, factorRBps: null }, { referenceCents: 99_500, factorRBps: null }, { referenceCents: 123_250, factorRBps: null }, { referenceCents: null, factorRBps: null }],
+  III: [{ referenceCents: 60_000, factorRBps: null }, { referenceCents: 86_000, factorRBps: null }, { referenceCents: 110_500, factorRBps: null }, { referenceCents: 140_200, factorRBps: null }, { referenceCents: 175_100, factorRBps: null }, { referenceCents: null, factorRBps: null }],
+  IV: [{ referenceCents: 45_000, factorRBps: null }, { referenceCents: 67_500, factorRBps: null }, { referenceCents: 84_750, factorRBps: null }, { referenceCents: 117_900, factorRBps: null }, { referenceCents: 168_950, factorRBps: null }, { referenceCents: null, factorRBps: null }],
+  V: [{ referenceCents: 155_000, factorRBps: 0 }, { referenceCents: 167_500, factorRBps: 0 }, { referenceCents: 181_250, factorRBps: 0 }, { referenceCents: 195_500, factorRBps: 0 }, { referenceCents: 212_750, factorRBps: 0 }, { referenceCents: null, factorRBps: 0 }],
+};
+
+const bracketRepresentative: Record<SimplesAnnex, SimplesActivityProfile> = {
+  I: simplesActivityProfileByCnae.get("4711302")!,
+  II: simplesActivityProfileByCnae.get("1091102")!,
+  III: simplesActivityProfileByCnae.get("6920601")!,
+  IV: simplesActivityProfileByCnae.get("4120400")!,
+  V: simplesActivityProfileByCnae.get("6201501")!,
+};
+
+const bracketCases: SimplesNationalReferenceCase[] = (Object.keys(simplesAnnexTables) as SimplesAnnex[]).flatMap((annex) =>
+  simplesAnnexTables[annex].map((bracket, index) => {
+    const sixthBand = index === 5;
+    const factorRBps = annex === "V" ? 0 : null;
+    return {
+      id: `bracket:${annex}:${index + 1}:upper`,
+      kind: "bracket_boundary" as const,
+      relatedCode: `${annex}-${index + 1}`,
+      input: {
+        ...positiveInput(bracketRepresentative[annex], annex),
+        rbt12Cents: bracket.toCents,
+        monthlyRevenueCents: 1_000_000,
+        fs12Cents: annex === "V" ? 0 : null,
+      },
+      expected: {
+        status: sixthBand ? "blocked" as const : "calculated_reference" as const,
+        resolvedAnnex: annex,
+        bracket: sixthBand ? null : index + 1,
+        referenceCents: BRACKET_EXPECTATIONS[annex][index].referenceCents,
+        factorRBps,
+        blocker: sixthBand ? "ICMS e ISS devem ser tratados fora do DAS após o sublimite de 2026" : null,
+      },
+    };
+  }),
+);
+
+const factorProfiles = simplesActivityProfiles.filter((profile) => profile.factorR === "required").slice(0, 10);
+const factorRCases: SimplesNationalReferenceCase[] = factorProfiles.flatMap((profile) => ([
+  {
+    id: `factor-r:${profile.cnae}:2800`,
+    kind: "factor_r" as const,
+    relatedCode: profile.cnae,
+    input: { ...positiveInput(profile, "III"), fs12Cents: 33_600_000 },
+    expected: { status: "calculated_reference" as const, resolvedAnnex: "III" as const, bracket: 4, referenceCents: 1_303_000, factorRBps: 2_800, blocker: null },
+  },
+  {
+    id: `factor-r:${profile.cnae}:2799`,
+    kind: "factor_r" as const,
+    relatedCode: profile.cnae,
+    input: { ...positiveInput(profile, "V"), fs12Cents: 33_588_000 },
+    expected: { status: "calculated_reference" as const, resolvedAnnex: "V" as const, bracket: 4, referenceCents: 1_907_500, factorRBps: 2_799, blocker: null },
+  },
+]));
+
+const impedimentCases: SimplesNationalReferenceCase[] = simplesExclusionRules.map((rule, index) => {
+  const profile = simplesActivityProfiles[index % simplesActivityProfiles.length];
+  const annex = profile.factorR === "required" ? "III" : profile.annexCandidates[0];
+  return {
+    id: `impediment:${rule.code}`,
+    kind: "impediment",
+    relatedCode: rule.code,
+    input: { ...positiveInput(profile, annex), eligibilityConfirmed: false },
+    expected: { status: "blocked", resolvedAnnex: annex, bracket: null, referenceCents: null, factorRBps: profile.factorR === "required" ? 2_800 : null, blocker: "elegibilidade, impedimentos e receita global não conferidos" },
+  };
+});
+
+const segregationCases: SimplesNationalReferenceCase[] = simplesSegregationRules.map((rule, index) => {
+  const ordinary = rule.code === "ordinary";
+  const profile = simplesActivityProfiles[index % simplesActivityProfiles.length];
+  const annex = profile.factorR === "required" ? "III" : profile.annexCandidates[0];
+  return {
+    id: `segregation:${rule.code}`,
+    kind: "segregation",
+    relatedCode: rule.code,
+    input: { ...positiveInput(profile, annex), revenueCompositionConfirmed: ordinary },
+    expected: ordinary
+      ? { status: "calculated_reference", resolvedAnnex: annex, bracket: 4, referenceCents: POSITIVE_REFERENCE_BY_ANNEX[annex].referenceCents, factorRBps: profile.factorR === "required" ? 2_800 : null, blocker: null }
+      : { status: "blocked", resolvedAnnex: annex, bracket: null, referenceCents: null, factorRBps: profile.factorR === "required" ? 2_800 : null, blocker: "composição e segregações da receita não confirmadas" },
+  };
+});
+
+const activityStartCases: SimplesNationalReferenceCase[] = simplesActivityProfiles.slice(0, 10).map((profile, index) => {
+  const positive = index < 5;
+  const annex = profile.factorR === "required" ? "III" : profile.annexCandidates[0];
+  return {
+    id: `activity-start:${profile.cnae}:${positive ? "annualized" : "missing-annualization"}`,
+    kind: "activity_start",
+    relatedCode: profile.cnae,
+    input: { ...positiveInput(profile, annex), businessStartedLessThan13Months: true, startActivityRbt12AnnualizationConfirmed: positive },
+    expected: positive
+      ? { status: "calculated_reference", resolvedAnnex: annex, bracket: 4, referenceCents: POSITIVE_REFERENCE_BY_ANNEX[annex].referenceCents, factorRBps: profile.factorR === "required" ? 2_800 : null, blocker: null }
+      : { status: "blocked", resolvedAnnex: annex, bracket: null, referenceCents: null, factorRBps: profile.factorR === "required" ? 2_800 : null, blocker: "RBT12 proporcional anualizada do início de atividade não confirmada" },
+  };
+});
+
+const gateMutations: Array<{ code: string; patch: Partial<SimplesCalculationInput>; blocker: string }> = [
+  { code: "activity", patch: { activityConfirmed: false }, blocker: "atividade efetivamente exercida não confirmada" },
+  { code: "annex", patch: { annexConfirmed: false }, blocker: "anexo não confirmado pelos fatos da atividade" },
+  { code: "composition", patch: { revenueCompositionConfirmed: false }, blocker: "composição e segregações da receita não confirmadas" },
+  { code: "period", patch: { periodClosed: false }, blocker: "período de apuração não fechado" },
+  { code: "eligibility", patch: { eligibilityConfirmed: false }, blocker: "elegibilidade, impedimentos e receita global não conferidos" },
+  { code: "sublimit", patch: { under2026SublimitConfirmed: false }, blocker: "sublimite de ICMS/ISS de 2026 não conferido" },
+  { code: "special", patch: { noSpecialTreatment: false }, blocker: "tratamento especial exige segregação própria no PGDAS-D" },
+  { code: "rbt12", patch: { rbt12Cents: null }, blocker: "RBT12 não informado" },
+  { code: "monthly_revenue", patch: { monthlyRevenueCents: null }, blocker: "receita mensal e sua composição não informadas" },
+  { code: "validity", patch: { calculationPeriod: "2027-01" }, blocker: "período fora da vigência 2026 desta versão" },
+];
+
+const mandatoryGateCases: SimplesNationalReferenceCase[] = gateMutations.map((mutation, index) => {
+  const profile = simplesActivityProfiles[index];
+  const input = { ...positiveInput(profile), ...mutation.patch };
+  const resolvedAnnex = profile.factorR === "required" ? "III" : profile.annexCandidates[0];
+  return {
+    id: `gate:${mutation.code}`,
+    kind: "mandatory_gate",
+    relatedCode: mutation.code,
+    input,
+    expected: { status: "blocked", resolvedAnnex, bracket: null, referenceCents: null, factorRBps: profile.factorR === "required" ? 2_800 : null, blocker: mutation.blocker },
+  };
+});
+
+export const simplesNationalReferenceCases: SimplesNationalReferenceCase[] = [
+  ...activityCases,
+  ...bracketCases,
+  ...factorRCases,
+  ...impedimentCases,
+  ...segregationCases,
+  ...activityStartCases,
+  ...mandatoryGateCases,
+];
+
+export function executeSimplesNationalReferenceCase(referenceCase: SimplesNationalReferenceCase) {
+  return calculateSimplesNationalDeepReference(referenceCase.input);
+}
+
 export function simplesNationalDeepMetrics() {
   return {
     prioritizedActivities: simplesActivityProfiles.length,
@@ -347,16 +611,17 @@ export function simplesNationalDeepMetrics() {
     segregationRules: simplesSegregationRules.length,
     eligibilityGates: simplesEligibilityGates.length,
     exclusionRules: simplesExclusionRules.length,
-    deterministicCases: simplesActivityProfiles.length + 30 + 7,
-    calculatedMemories: simplesActivityProfiles.length + 30,
-    safelyBlockedCases: 7,
+    deterministicCases: simplesNationalReferenceCases.length,
+    calculatedMemories: simplesNationalReferenceCases.filter((item) => item.expected.status === "calculated_reference").length,
+    safelyBlockedCases: simplesNationalReferenceCases.filter((item) => item.expected.status === "blocked").length,
   };
 }
 
 export function validateSimplesNationalDeep() {
   const errors: string[] = [];
-  if (simplesActivityProfiles.length !== 20) errors.push("twenty_priority_activities_required");
-  if (new Set(simplesActivityProfiles.map((item) => item.cnae)).size !== 20) errors.push("duplicate_cnae");
+  const knownSourceCodes = new Set(simplesNationalSources.map((item) => item.code));
+  if (simplesActivityProfiles.length !== 50) errors.push("fifty_priority_activities_required");
+  if (new Set(simplesActivityProfiles.map((item) => item.cnae)).size !== 50) errors.push("duplicate_cnae");
   if (Object.values(simplesAnnexTables).some((brackets) => brackets.length !== 6)) errors.push("six_brackets_per_annex_required");
   if (new Set(simplesNationalSources.map((item) => item.code)).size !== simplesNationalSources.length) errors.push("duplicate_source_code");
   if (!simplesNationalSources.every((item) => item.url.startsWith("https://") && item.checkedAt === SIMPLES_NATIONAL_DEEP_CHECKED_AT)) errors.push("official_source_metadata_invalid");
@@ -368,7 +633,8 @@ export function validateSimplesNationalDeep() {
     if (item.sourceCodes.length < 4 || item.segregations.length < 4 || item.hardStops.length < 3) errors.push(`${item.cnae}:profile_incomplete`);
     if (item.effectiveFrom !== "2018-01-01" || item.checkedAt !== SIMPLES_NATIONAL_DEEP_CHECKED_AT || item.version !== SIMPLES_NATIONAL_DEEP_VERSION) errors.push(`${item.cnae}:validity_metadata_incomplete`);
   }
-  if (simplesExclusionRules.length < 5 || simplesExclusionRules.some((item) => item.sourceCodes.length < 2)) errors.push("exclusion_rules_incomplete");
+  if (simplesSegregationRules.length !== 15 || simplesSegregationRules.some((item) => item.sourceCodes.length < 2 || item.sourceCodes.some((code) => !knownSourceCodes.has(code)))) errors.push("fifteen_segregation_rules_required");
+  if (simplesExclusionRules.length !== 15 || simplesExclusionRules.some((item) => item.sourceCodes.length < 2 || item.sourceCodes.some((code) => !knownSourceCodes.has(code)))) errors.push("fifteen_exclusion_rules_required");
 
   const completeInput = {
     rbt12Cents: 120_000_000,
@@ -399,6 +665,19 @@ export function validateSimplesNationalDeep() {
   });
   if (missingRbt.status !== "blocked" || !missingRbt.blockers.includes("RBT12 não informado")) errors.push("missing_rbt12_not_blocked");
 
+  if (simplesNationalReferenceCases.length !== 150 || new Set(simplesNationalReferenceCases.map((item) => item.id)).size !== 150) errors.push("one_hundred_fifty_unique_cases_required");
+  for (const referenceCase of simplesNationalReferenceCases) {
+    const output = executeSimplesNationalReferenceCase(referenceCase);
+    const referenceLine = output.lines.find((line) => line.code === "reference") ?? null;
+    if (output.status !== referenceCase.expected.status) errors.push(`${referenceCase.id}:status_diverged`);
+    if (output.resolvedAnnex !== referenceCase.expected.resolvedAnnex) errors.push(`${referenceCase.id}:annex_diverged`);
+    if (output.bracket !== referenceCase.expected.bracket) errors.push(`${referenceCase.id}:bracket_diverged`);
+    if ((referenceLine?.amountCents ?? null) !== referenceCase.expected.referenceCents) errors.push(`${referenceCase.id}:cents_diverged`);
+    if (output.factorRBps !== referenceCase.expected.factorRBps) errors.push(`${referenceCase.id}:factor_r_diverged`);
+    if (referenceCase.expected.blocker !== null && !output.blockers.includes(referenceCase.expected.blocker)) errors.push(`${referenceCase.id}:blocker_diverged`);
+    if (referenceCase.expected.status === "blocked" && referenceLine?.amountCents !== undefined) errors.push(`${referenceCase.id}:blocked_case_leaked_das`);
+  }
+
   return { passed: errors.length === 0, errors };
 }
 
@@ -412,6 +691,7 @@ export async function hashSimplesNationalDeep() {
     segregations: simplesSegregationRules,
     eligibility: simplesEligibilityGates,
     exclusions: simplesExclusionRules,
+    referenceCases: simplesNationalReferenceCases,
   });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");

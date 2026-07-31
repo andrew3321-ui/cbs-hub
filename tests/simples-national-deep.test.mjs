@@ -10,6 +10,8 @@ import {
   simplesNationalDeepMetrics,
   simplesNationalSources,
   simplesExclusionRules,
+  simplesNationalReferenceCases,
+  simplesSegregationRules,
   validateSimplesNationalDeep,
 } from "../domain/simples-national-deep.ts";
 
@@ -25,12 +27,12 @@ const complete = {
   noSpecialTreatment: true,
 };
 
-test("V80 ranks 20 recurring activities without treating CNAE as a final tax conclusion", () => {
-  assert.equal(simplesActivityProfiles.length, 20);
-  assert.deepEqual(simplesActivityProfiles.map((item) => item.rank), Array.from({ length: 20 }, (_, index) => index + 1));
-  assert.equal(new Set(simplesActivityProfiles.map((item) => item.cnae)).size, 20);
+test("V93 ranks 50 recurring activities without treating CNAE as a final tax conclusion", () => {
+  assert.equal(simplesActivityProfiles.length, 50);
+  assert.deepEqual(simplesActivityProfiles.map((item) => item.rank), Array.from({ length: 50 }, (_, index) => index + 1));
+  assert.equal(new Set(simplesActivityProfiles.map((item) => item.cnae)).size, 50);
   assert.ok(simplesActivityProfiles.every((item) => item.classificationPolicy === "candidate_requires_effective_activity_confirmation"));
-  assert.ok(simplesActivityProfiles.every((item) => item.effectiveFrom === "2018-01-01" && item.version.endsWith("v80")));
+  assert.ok(simplesActivityProfiles.every((item) => item.effectiveFrom === "2018-01-01" && item.version.endsWith("v93")));
   assert.ok(simplesActivityProfiles.every((item) => item.segregations.length >= 4));
   assert.deepEqual(resolveSimplesActivity("69.20-6/01")?.annexCandidates, ["III"]);
   assert.deepEqual(resolveSimplesActivity("62.04-0/00")?.annexCandidates, ["III", "V"]);
@@ -130,17 +132,19 @@ test("official evidence, deterministic metrics, validation and hash are complete
   assert.equal(simplesNationalSources.length, 5);
   assert.ok(simplesNationalSources.every((item) => item.url.startsWith("https://")));
   assert.deepEqual(simplesNationalDeepMetrics(), {
-    prioritizedActivities: 20,
+    prioritizedActivities: 50,
     annexes: 5,
     annexBracketMemories: 30,
-    segregationRules: 6,
-    eligibilityGates: 5,
-    exclusionRules: 5,
-    deterministicCases: 57,
-    calculatedMemories: 50,
-    safelyBlockedCases: 7,
+    segregationRules: 15,
+    eligibilityGates: 10,
+    exclusionRules: 15,
+    deterministicCases: 150,
+    calculatedMemories: 101,
+    safelyBlockedCases: 49,
   });
-  assert.equal(simplesExclusionRules.length, 5);
+  assert.equal(simplesExclusionRules.length, 15);
+  assert.equal(simplesSegregationRules.length, 15);
+  assert.equal(simplesNationalReferenceCases.length, 150);
   assert.deepEqual(validateSimplesNationalDeep(), { passed: true, errors: [] });
   const first = await hashSimplesNationalDeep();
   const second = await hashSimplesNationalDeep();

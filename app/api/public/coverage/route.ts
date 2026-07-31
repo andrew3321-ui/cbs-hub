@@ -19,6 +19,7 @@ import { hashStConstructionElectricalPriority, stConstructionElectricalDossiers,
 import { hashStFoodCleaningPetPriority, stFoodCleaningPetDossiers, stFoodCleaningPetMetrics, stFoodCleaningPetMvaFallbackRun, stFoodCleaningPetNegativeRuns, stFoodCleaningPetReferenceRuns, stFoodCleaningPetSources, ST_FOOD_CLEANING_PET_FACT_LABELS, ST_FOOD_CLEANING_PET_PERIOD, ST_FOOD_CLEANING_PET_PRODUCTS, ST_FOOD_CLEANING_PET_ROUTES, ST_FOOD_CLEANING_PET_VERSION, validateStFoodCleaningPetPriority } from "../../../../domain/st-food-cleaning-pet-priority";
 import { hashStSectoralPriorityExpansion, stSectoralPriorityCases, stSectoralPriorityCells, stSectoralPriorityMetrics, ST_SECTORAL_PRIORITY_EXPANSION_CHECKED_AT, ST_SECTORAL_PRIORITY_EXPANSION_VERSION, ST_SECTORAL_RANKED_ROUTES, ST_SECTORAL_REPRESENTATIVES, validateStSectoralPriorityExpansion } from "../../../../domain/st-sectoral-priority-expansion";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
+import { hashSimplesNationalDeep, simplesActivityProfiles, simplesAnnexTables, simplesEligibilityGates, simplesExclusionRules, simplesNationalDeepMetrics, simplesNationalReferenceCases, simplesNationalSources, simplesSegregationRules, SIMPLES_NATIONAL_DEEP_CHECKED_AT, SIMPLES_NATIONAL_DEEP_VERSION, validateSimplesNationalDeep } from "../../../../domain/simples-national-deep";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
@@ -48,6 +49,7 @@ async function publicCoverage() {
   const constructionElectricalFingerprint = (await hashStConstructionElectricalPriority()).slice(0, 12);
   const foodCleaningPetFingerprint = (await hashStFoodCleaningPetPriority()).slice(0, 12);
   const sectoralPriorityFingerprint = (await hashStSectoralPriorityExpansion()).slice(0, 12);
+  const simplesNationalFingerprint = (await hashSimplesNationalDeep()).slice(0, 12);
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const sourceCertificationFingerprint = (await hashOfficialSourceCertification()).slice(0, 12);
@@ -262,6 +264,21 @@ async function publicCoverage() {
       cells: stSectoralPriorityCells,
       cases: stSectoralPriorityCases,
       policy: "A matriz ranqueia dez rotas por segmento por heurística operacional interna. Somente células com identidade, fonte, vigência, responsabilidade e memória já congeladas são suportadas; qualquer lacuna bloqueia o valor e proíbe reutilizar parâmetros de outra UF ou do sentido inverso.",
+    },
+    simplesNationalDeep: {
+      version: SIMPLES_NATIONAL_DEEP_VERSION,
+      checkedAt: SIMPLES_NATIONAL_DEEP_CHECKED_AT,
+      fingerprint: simplesNationalFingerprint,
+      validation: validateSimplesNationalDeep(),
+      metrics: simplesNationalDeepMetrics(),
+      profiles: simplesActivityProfiles,
+      annexTables: simplesAnnexTables,
+      segregations: simplesSegregationRules,
+      eligibilityGates: simplesEligibilityGates,
+      impediments: simplesExclusionRules,
+      referenceCases: simplesNationalReferenceCases,
+      sources: simplesNationalSources,
+      policy: "CNAE somente localiza um perfil candidato. DAS em centavos exige atividade e anexo confirmados, RBT12, folha quando houver fator R, receita mensal segregada, período fechado, elegibilidade, sublimite e tratamentos especiais reconciliados.",
     },
     stPharmaCosmeticsPriority: {
       version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,

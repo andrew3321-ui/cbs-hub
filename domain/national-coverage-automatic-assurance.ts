@@ -69,7 +69,7 @@ import {
   validateStSectoralPriorityExpansion,
 } from "./st-sectoral-priority-expansion.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v92";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v93";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-31";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -100,7 +100,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("ICMS_GENERAL_NATIONAL", "ICMS modal nas 27 UFs e DIFAL/FCP em recortes prioritários", validateIcmsGeneralNational()),
     moduleResult("ISS_DEEP_EXPANSION", "ISS 17.01 auditado em 50 municípios", validateIssDeepCoverage()),
     moduleResult("ISS_RECURRING_PRIORITY", "ISS recorrente em 180 combinações município-item", validateIssRecurringPriority()),
-    moduleResult("SIMPLES_NATIONAL_DEEP", "Simples Nacional em 20 atividades e cinco anexos", validateSimplesNationalDeep()),
+    moduleResult("SIMPLES_NATIONAL_DEEP", "Simples Nacional em 50 atividades e cinco anexos", validateSimplesNationalDeep()),
     moduleResult("PIS_COFINS_DEEP", "PIS/Cofins por regime, produto, papel e crédito", validatePisCofinsDeep()),
     moduleResult("SERVICE_WITHHOLDINGS_DEEP", "IRRF, CSRF, INSS e ISS em serviços recorrentes", validateServiceWithholdingsDeep()),
     moduleResult("IPI_TIPI_DEEP", "IPI/TIPI por NCM, Ex, operação, papel e vigência", validateIpiTipiDeep()),

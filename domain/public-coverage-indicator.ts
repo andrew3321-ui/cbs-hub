@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v13";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v14";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "simples-v93-fifty-activities",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "O Simples Nacional passou a auditar 50 perfis de atividade, 15 segregações, 15 impedimentos e 150 casos determinísticos. CNAE continua sendo apenas candidato e a sexta faixa permanece bloqueada para um DAS integral quando ICMS e ISS estão fora do sublimite.",
+        affectedCodes: ["SIMPLES_NATIONAL_DEEP"],
+        clientDataExposed: false,
+      },
       {
         id: "st-sectoral-v92-ten-by-ten-audit",
         changedAt: "2026-07-31T00:00:00.000Z",
