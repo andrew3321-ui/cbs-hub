@@ -1,7 +1,7 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
 import type { FiscalDossierSnapshot } from "./fiscal-dossier";
 
-export const NFE_AUDIT_PROFILE_VERSION = "cbshub-nfe-structural-2026.1";
+export const NFE_AUDIT_PROFILE_VERSION = "cbshub-nfe-structural-2026.2";
 export const NFE_MAX_XML_BYTES = 5 * 1024 * 1024;
 export const NFE_MAX_ITEMS = 500;
 
@@ -56,6 +56,10 @@ export type NfeAuditItem = {
   stRateBps: number | null;
   stValueCents: number | null;
   fcpStValueCents: number | null;
+  fcpValueCents: number | null;
+  difalFcpValueCents: number | null;
+  difalDestinationValueCents: number | null;
+  difalOriginValueCents: number | null;
   ibsValueCents: number | null;
   cbsValueCents: number | null;
   rtcClassCode: string | null;
@@ -78,6 +82,8 @@ export type NfeAuditResult = {
     issuedAt: string | null;
     environment: "production" | "homologation" | "unknown";
     operationNature: string | null;
+    finalityCode: string | null;
+    isReturn: boolean;
     issuerName: string | null;
     issuerTaxId: string | null;
     issuerState: string | null;
@@ -99,9 +105,17 @@ export type NfeAuditResult = {
     declaredIcmsCents: number | null;
     declaredStCents: number | null;
     declaredFcpStCents: number | null;
+    declaredFcpCents: number | null;
+    declaredDifalFcpCents: number | null;
+    declaredDifalDestinationCents: number | null;
+    declaredDifalOriginCents: number | null;
     icmsCents: number;
     stCents: number;
     fcpStCents: number;
+    fcpCents: number;
+    difalFcpCents: number;
+    difalDestinationCents: number;
+    difalOriginCents: number;
     ibsCents: number;
     cbsCents: number;
   };
@@ -224,6 +238,7 @@ function extractItem(value: unknown, fallbackNumber: number): NfeAuditItem {
   const prod = record(det.prod);
   const imposto = record(det.imposto);
   const { group: icms } = findIcmsGroup(imposto);
+  const icmsUfDest = record(imposto.ICMSUFDest);
   const rtc = rtcValues(imposto);
   const itemNumberText = scalar(det["@_nItem"]);
   const itemNumber = itemNumberText && /^\d+$/.test(itemNumberText) ? Number(itemNumberText) : fallbackNumber;
@@ -248,6 +263,10 @@ function extractItem(value: unknown, fallbackNumber: number): NfeAuditItem {
     stRateBps: rateBps(icms.pICMSST),
     stValueCents: moneyCents(icms.vICMSST),
     fcpStValueCents: moneyCents(icms.vFCPST),
+    fcpValueCents: moneyCents(icms.vFCP),
+    difalFcpValueCents: moneyCents(icmsUfDest.vFCPUFDest),
+    difalDestinationValueCents: moneyCents(icmsUfDest.vICMSUFDest),
+    difalOriginValueCents: moneyCents(icmsUfDest.vICMSUFRemet),
     ibsValueCents: rtc.ibsValueCents,
     cbsValueCents: rtc.cbsValueCents,
     rtcClassCode: rtc.rtcClassCode,
@@ -329,6 +348,10 @@ export async function auditNfeXml(xml: string): Promise<NfeAuditResult> {
   const declaredIcmsCents = moneyCents(declaredTotals.vICMS);
   const declaredStCents = moneyCents(declaredTotals.vST);
   const declaredFcpStCents = moneyCents(declaredTotals.vFCPST);
+  const declaredFcpCents = moneyCents(declaredTotals.vFCP);
+  const declaredDifalFcpCents = moneyCents(declaredTotals.vFCPUFDest);
+  const declaredDifalDestinationCents = moneyCents(declaredTotals.vICMSUFDest);
+  const declaredDifalOriginCents = moneyCents(declaredTotals.vICMSUFRemet);
   if (declaredProductCents === null) issues.push(issue("NFE-TOTAL-PRODUCT-MISSING", "blocker", "totals", "O total declarado de produtos não pôde ser lido.", "NFe.infNFe.total.ICMSTot.vProd"));
   else if (declaredProductCents !== itemProductSumCents) issues.push(issue("NFE-TOTAL-PRODUCT-MISMATCH", "blocker", "totals", "A soma dos itens diverge do total de produtos da NF-e.", "NFe.infNFe.total.ICMSTot.vProd"));
   if (invoiceCents === null) issues.push(issue("NFE-INVOICE-TOTAL-MISSING", "blocker", "totals", "O valor total da NF-e não pôde ser lido.", "NFe.infNFe.total.ICMSTot.vNF"));
@@ -341,6 +364,19 @@ export async function auditNfeXml(xml: string): Promise<NfeAuditResult> {
     if (declared === null) issues.push(issue(`NFE-TOTAL-${field.toUpperCase()}-MISSING`, "blocker", "totals", `O total declarado de ${label} não pôde ser lido.`, `NFe.infNFe.total.ICMSTot.${field}`));
     else if (declared !== summed) issues.push(issue(`NFE-TOTAL-${field.toUpperCase()}-MISMATCH`, "blocker", "totals", `A soma de ${label} dos itens diverge do total declarado.`, `NFe.infNFe.total.ICMSTot.${field}`));
   }
+  const optionalTaxTotalChecks = [
+    ["FCP próprio", "vFCP", declaredFcpCents, items.reduce((sum, item) => sum + (item.fcpValueCents ?? 0), 0)],
+    ["FCP-DIFAL", "vFCPUFDest", declaredDifalFcpCents, items.reduce((sum, item) => sum + (item.difalFcpValueCents ?? 0), 0)],
+    ["DIFAL destino", "vICMSUFDest", declaredDifalDestinationCents, items.reduce((sum, item) => sum + (item.difalDestinationValueCents ?? 0), 0)],
+    ["DIFAL origem", "vICMSUFRemet", declaredDifalOriginCents, items.reduce((sum, item) => sum + (item.difalOriginValueCents ?? 0), 0)],
+  ] as const;
+  for (const [label, field, declared, summed] of optionalTaxTotalChecks) {
+    if (declared !== null && declared !== summed) issues.push(issue(`NFE-TOTAL-${field.toUpperCase()}-MISMATCH`, "blocker", "totals", `A soma de ${label} dos itens diverge do total declarado.`, `NFe.infNFe.total.ICMSTot.${field}`));
+    if (declared === null && summed > 0) issues.push(issue(`NFE-TOTAL-${field.toUpperCase()}-MISSING`, "blocker", "totals", `Há ${label} nos itens, mas o total correspondente não foi informado.`, `NFe.infNFe.total.ICMSTot.${field}`));
+  }
+  const finalityCode = childText(ide, "finNFe");
+  const returnCfops = items.filter((item) => item.cfop && /^[1256](?:2|4)/.test(item.cfop));
+  if (finalityCode === "4" && returnCfops.length === 0) issues.push(issue("NFE-RETURN-CFOP-NOT-LOCATED", "warning", "document", "A finalidade indica devolução, mas nenhum CFOP típico de devolução foi reconhecido; confirme a classificação da operação.", "NFe.infNFe.ide.finNFe"));
   if (!items.some((item) => item.ibsValueCents !== null || item.cbsValueCents !== null)) issues.push(issue("NFE-RTC-FIELDS-NOT-LOCATED", "info", "document", "Nenhum grupo IBS/CBS foi localizado nos itens; isso pode refletir o leiaute, a operação ou o período do documento.", "NFe.infNFe.det.imposto.IBSCBS"));
 
   const blockerCount = issues.filter((current) => current.severity === "blocker").length;
@@ -363,6 +399,8 @@ export async function auditNfeXml(xml: string): Promise<NfeAuditResult> {
       issuedAt: childText(ide, "dhEmi") ?? childText(ide, "dEmi"),
       environment: childText(ide, "tpAmb") === "1" ? "production" : childText(ide, "tpAmb") === "2" ? "homologation" : "unknown",
       operationNature: childText(ide, "natOp"),
+      finalityCode,
+      isReturn: finalityCode === "4",
       issuerName: childText(emit, "xNome"),
       issuerTaxId: normalizedCode(childText(emit, "CNPJ") ?? childText(emit, "CPF")),
       issuerState: childText(emitAddress, "UF"),
@@ -384,9 +422,17 @@ export async function auditNfeXml(xml: string): Promise<NfeAuditResult> {
       declaredIcmsCents,
       declaredStCents,
       declaredFcpStCents,
+      declaredFcpCents,
+      declaredDifalFcpCents,
+      declaredDifalDestinationCents,
+      declaredDifalOriginCents,
       icmsCents,
       stCents,
       fcpStCents,
+      fcpCents: items.reduce((sum, item) => sum + (item.fcpValueCents ?? 0), 0),
+      difalFcpCents: items.reduce((sum, item) => sum + (item.difalFcpValueCents ?? 0), 0),
+      difalDestinationCents: items.reduce((sum, item) => sum + (item.difalDestinationValueCents ?? 0), 0),
+      difalOriginCents: items.reduce((sum, item) => sum + (item.difalOriginValueCents ?? 0), 0),
       ibsCents: items.reduce((sum, item) => sum + (item.ibsValueCents ?? 0), 0),
       cbsCents: items.reduce((sum, item) => sum + (item.cbsValueCents ?? 0), 0),
     },

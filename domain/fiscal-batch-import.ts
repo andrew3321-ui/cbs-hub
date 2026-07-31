@@ -1,7 +1,12 @@
 import { XMLParser, XMLValidator } from "fast-xml-parser";
+import {
+  reconcileNfseWithExistingEngines,
+  reconcileSpedWithExistingEngines,
+  type FiscalImportEngineReconciliation,
+} from "./fiscal-import-reconciliation.ts";
 
-export const FISCAL_BATCH_PROFILE_VERSION = "fiscal-batch.v2";
-export const FISCAL_BATCH_EVIDENCE_VERSION = "fiscal-import-evidence.v1";
+export const FISCAL_BATCH_PROFILE_VERSION = "fiscal-batch.v3";
+export const FISCAL_BATCH_EVIDENCE_VERSION = "fiscal-import-evidence.v2";
 export const FISCAL_BATCH_MAX_FILES = 25;
 export const FISCAL_BATCH_MAX_FILE_BYTES = 5_000_000;
 export const FISCAL_BATCH_MAX_TOTAL_BYTES = 30_000_000;
@@ -28,6 +33,8 @@ export type FiscalBatchInspection = {
   summary: Record<string, string | number | boolean | null>;
   issueDetails: FiscalBatchIssue[];
   issues: string[];
+  missingFields: string[];
+  engineReconciliations: FiscalImportEngineReconciliation[];
   calculationEligible: false;
   calculationBlockers: string[];
   officialSourceCodes: string[];
@@ -85,7 +92,9 @@ function issue(
 }
 
 function result(
-  values: Omit<FiscalBatchInspection, "profileVersion" | "evidenceVersion" | "issues" | "calculationEligible" | "calculationBlockers">,
+  values: Omit<FiscalBatchInspection, "profileVersion" | "evidenceVersion" | "issues" | "missingFields" | "engineReconciliations" | "calculationEligible" | "calculationBlockers"> & {
+    engineReconciliations?: FiscalImportEngineReconciliation[];
+  },
 ): FiscalBatchInspection {
   const blockers = values.issueDetails.filter((item) => item.severity === "blocker").map((item) => item.message);
   return {
@@ -93,6 +102,8 @@ function result(
     profileVersion: FISCAL_BATCH_PROFILE_VERSION,
     evidenceVersion: FISCAL_BATCH_EVIDENCE_VERSION,
     issues: values.issueDetails.map((item) => item.message),
+    missingFields: values.issueDetails.filter((item) => /MISSING|AUSENT|NOT-INFORMED/.test(item.code)).map((item) => item.code),
+    engineReconciliations: values.engineReconciliations ?? [],
     calculationEligible: false,
     calculationBlockers: [
       ...blockers,
@@ -171,8 +182,8 @@ function inspectSped(filename: string, text: string): FiscalBatchInspection {
   const blockCounts = new Map<string, number>();
   const issueDetails: FiscalBatchIssue[] = [];
   const trackedCodes = new Set([
-    "0000", "0001", "0990", "C001", "C100", "C170", "C190", "C197", "C990",
-    "E001", "E100", "E110", "E111", "E116", "E990", "H001", "H005", "H990",
+    "0000", "0001", "0150", "0190", "0200", "0460", "0990", "C001", "C100", "C170", "C190", "C195", "C197", "C990",
+    "D001", "D100", "D190", "D990", "E001", "E100", "E110", "E111", "E115", "E116", "E990", "H001", "H005", "H990",
     "9001", "9990", "9999",
   ]);
   let lineCount = 0;
@@ -257,8 +268,11 @@ function inspectSped(filename: string, text: string): FiscalBatchInspection {
   const e110IcmsPayableCents = e110 ? localizedMoneyCents(e110[11]) : null;
   if (e110 && e110IcmsPayableCents === null) issueDetails.push(issue("SPED-E110-MONEY-INVALID", "blocker", "totals", "VL_ICMS_RECOLHER do registro E110 não pôde ser convertido em centavos."));
 
-  const priorityCodes = ["C100", "C170", "C190", "C197", "E100", "E110", "E111", "E116", "H005"];
+  const priorityCodes = ["C100", "C170", "C190", "C195", "C197", "D100", "D190", "E100", "E110", "E111", "E115", "E116", "H005"];
   const blockers = issueDetails.some((item) => item.severity === "blocker");
+  const documentRecords = ["C100", "C170", "C190", "C195", "C197", "D100", "D190"].reduce((sum, code) => sum + (records.get(code)?.length ?? 0), 0);
+  const assessmentRecords = ["E100", "E110", "E111", "E115", "E116"].reduce((sum, code) => sum + (records.get(code)?.length ?? 0), 0);
+  const divergenceCount = issueDetails.filter((item) => item.category === "totals" || /MISMATCH|DIVERG/.test(item.code)).length;
   if (!blockers) issueDetails.push(issue("SPED-STRUCTURAL-SCOPE", "info", "schema", "Estrutura, período e fechamentos foram conciliados; o conteúdo fiscal continua sujeito ao Guia Prático do perfil e período."));
   return result({
     documentType: "sped",
@@ -281,8 +295,12 @@ function inspectSped(filename: string, text: string): FiscalBatchInspection {
       c190IcmsCents,
       c190StCents,
       e110IcmsPayableCents,
+      documentRecords,
+      assessmentRecords,
+      divergenceCount,
     },
     issueDetails,
+    engineReconciliations: reconcileSpedWithExistingEngines({ documentRecords, assessmentRecords, divergenceCount }),
     officialSourceCodes: ["SPED-EFD-GUIDE-3.2.2"],
   });
 }
@@ -325,11 +343,25 @@ function inspectNfse(filename: string, text: string): FiscalBatchInspection {
   const competence = tag(text, ["dCompet", "Competencia", "DataEmissao"]);
   if (!competence) issueDetails.push(issue("NFSE-COMPETENCE-MISSING", "blocker", "period", "Competência ou data de emissão não foi localizada."));
   const serviceCode = tag(text, ["cTribNac", "ItemListaServico", "CodigoTributacaoMunicipio"]);
+  const providerTaxId = digits(tag(text, ["CNPJPrestador", "CpfCnpjPrestador", "CNPJ", "CPF"]));
+  const takerTaxId = digits(tag(text, ["CNPJTomador", "CpfCnpjTomador", "CpfCnpj"]));
+  const retainedText = tag(text, ["ISSRetido", "issRetido", "tpRetISSQN"]);
+  const retained = retainedText === null ? null : ["1", "true", "sim"].includes(retainedText.toLowerCase());
+  if (!providerTaxId) issueDetails.push(issue("NFSE-PROVIDER-TAX-ID-MISSING", "blocker", "schema", "Identificador fiscal do prestador não foi localizado."));
+  if (!takerTaxId) issueDetails.push(issue("NFSE-TAKER-TAX-ID-MISSING", "warning", "schema", "Identificador fiscal do tomador não foi localizado."));
+  if (retained === null) issueDetails.push(issue("NFSE-ISS-WITHHOLDING-MISSING", "warning", "coverage", "Indicador de retenção do ISS não foi localizado."));
   if (!serviceCode) issueDetails.push(issue("NFSE-SERVICE-CODE-MISSING", "blocker", "coverage", "Código nacional/municipal do serviço não foi localizado."));
 
   const amountText = tag(text, ["vServ", "ValorServicos"]);
   const baseText = tag(text, ["vBC", "BaseCalculo"]);
   const issText = tag(text, ["vISSQN", "ValorIss"]);
+  const federalRetentions = {
+    irrfCents: localizedMoneyCents(tag(text, ["vIR", "ValorIr"])?.replace(".", ",")),
+    inssCents: localizedMoneyCents(tag(text, ["vINSS", "ValorInss"])?.replace(".", ",")),
+    pisCents: localizedMoneyCents(tag(text, ["vPIS", "ValorPis"])?.replace(".", ",")),
+    cofinsCents: localizedMoneyCents(tag(text, ["vCOFINS", "ValorCofins"])?.replace(".", ",")),
+    csllCents: localizedMoneyCents(tag(text, ["vCSLL", "ValorCsll"])?.replace(".", ",")),
+  };
   const serviceCents = localizedMoneyCents(amountText?.replace(".", ","));
   const baseCents = localizedMoneyCents(baseText?.replace(".", ","));
   const issCents = localizedMoneyCents(issText?.replace(".", ","));
@@ -361,8 +393,13 @@ function inspectNfse(filename: string, text: string): FiscalBatchInspection {
       serviceCents,
       issBaseCents: baseCents,
       issCents,
+      issRetained: retained,
+      providerTaxIdPresent: Boolean(providerTaxId),
+      takerTaxIdPresent: Boolean(takerTaxId),
+      ...federalRetentions,
     },
     issueDetails,
+    engineReconciliations: reconcileNfseWithExistingEngines({ municipalityCode, serviceCode, retained }),
     officialSourceCodes: adapter.sourceCode ? [adapter.sourceCode] : [],
   });
 }

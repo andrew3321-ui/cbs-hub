@@ -29,6 +29,7 @@ import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regressio
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
 import { withApiTelemetry } from "../../../api-infrastructure";
 import { hashOfficialSourceCertification, officialSourceAffectedRuleReport, officialSourceCertificationMetrics, officialSourceInventory, officialSourceLiveProbeSnapshot, officialSourceTechnicalAlternatives, OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT, OFFICIAL_SOURCE_CERTIFICATION_VERSION, validateOfficialSourceCertification } from "../../../../domain/official-source-certification";
+import { FISCAL_IMPORT_CORPUS_VERSION, fiscalImportCorpusFiles, fiscalImportCorpusMetrics, hashFiscalImportCorpus, validateFiscalImportCorpus } from "../../../../domain/fiscal-import-corpus";
 
 async function publicCoverage() {
   const fingerprint = (await hashNationalCoverage()).slice(0, 12);
@@ -61,6 +62,7 @@ async function publicCoverage() {
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const sourceCertificationFingerprint = (await hashOfficialSourceCertification()).slice(0, 12);
+  const fiscalImportFingerprint = (await hashFiscalImportCorpus()).slice(0, 12);
   const regressionReport = await buildFiscalRegressionReport();
   const coverageIndicator = await buildPublicCoverageIndicator();
   return Response.json({
@@ -84,6 +86,14 @@ async function publicCoverage() {
       affectedRules: officialSourceAffectedRuleReport(),
       sources: officialSourceInventory,
       policy: "Fonte confirmada exige identidade, emissor, dispositivo, vigência e consulta estruturados. Restrição técnica do portal permanece pendente; URL definitivamente ausente bloqueia a evidência e nunca é promovida a regra suportada.",
+    },
+    fiscalImportCorpus: {
+      version: FISCAL_IMPORT_CORPUS_VERSION,
+      fingerprint: fiscalImportFingerprint,
+      validation: validateFiscalImportCorpus(),
+      metrics: fiscalImportCorpusMetrics(),
+      files: fiscalImportCorpusFiles,
+      policy: "Corpus exclusivamente sintético e anonimizado. O bruto importado é descartado; somente evidência minimizada, rejeições e conciliações com motores versionados são preservadas.",
     },
     metrics: coverageMetrics(),
     states: stateCoverage,

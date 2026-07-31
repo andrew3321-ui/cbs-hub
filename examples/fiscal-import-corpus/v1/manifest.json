@@ -1,0 +1,15 @@
+{
+  "version": "fiscal-import-corpus.2026-07-31.v1",
+  "synthetic": true,
+  "anonymized": true,
+  "containsRealDocuments": false,
+  "rawFilesPersistedByApplication": false,
+  "files": [
+    "nfe-sale.xml",
+    "nfe-return.xml",
+    "nfse-national.xml",
+    "nfse-incomplete.xml",
+    "sped-efd-valid.txt",
+    "sped-efd-incomplete.txt"
+  ]
+}

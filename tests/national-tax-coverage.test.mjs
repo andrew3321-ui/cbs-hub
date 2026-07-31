@@ -67,7 +67,7 @@ test("batch inspector accepts structural SPED and recognizes NF-e/NFS-e safely",
   const nfe = inspectFiscalBatchText("nfe.xml", "<nfeProc><NFe><infNFe><ide><mod>55</mod></ide><det nItem='1'/></infNFe></NFe></nfeProc>");
   assert.equal(nfe.documentType, "nfe");
   assert.equal(nfe.status, "warning");
-  const nfse = inspectFiscalBatchText("nfse.xml", "<CompNfse versao='2.04'><Nfse><InfNfse><Numero>123</Numero><DataEmissao>2026-07-01</DataEmissao><IdentificacaoRps><Numero>1</Numero></IdentificacaoRps><CodigoVerificacao>ABC</CodigoVerificacao><ItemListaServico>1.07</ItemListaServico><CodigoMunicipio>3550308</CodigoMunicipio><ValorServicos>100.00</ValorServicos></InfNfse></Nfse></CompNfse>");
+  const nfse = inspectFiscalBatchText("nfse.xml", "<CompNfse versao='2.04'><Nfse><InfNfse><Numero>123</Numero><DataEmissao>2026-07-01</DataEmissao><IdentificacaoRps><Numero>1</Numero></IdentificacaoRps><CodigoVerificacao>ABC</CodigoVerificacao><ItemListaServico>1.07</ItemListaServico><CodigoMunicipio>3550308</CodigoMunicipio><CNPJPrestador>00000000000000</CNPJPrestador><CNPJTomador>11111111111111</CNPJTomador><ISSRetido>0</ISSRetido><ValorServicos>100.00</ValorServicos></InfNfse></Nfse></CompNfse>");
   assert.equal(nfse.documentType, "nfse");
   assert.equal(nfse.status, "warning");
   assert.equal(nfse.adapterCode, "abrasf-2.04-generic");

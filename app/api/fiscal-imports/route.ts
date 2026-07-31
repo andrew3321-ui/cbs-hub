@@ -10,6 +10,7 @@ import {
   sha256BatchSource,
 } from "../../../domain/fiscal-batch-import";
 import { auditNfeXml, NFE_AUDIT_PROFILE_VERSION, nfeAuditSources, publicNfeAudit } from "../../../domain/nfe-audit";
+import { reconcileNfeWithExistingEngines } from "../../../domain/fiscal-import-reconciliation";
 import { ensureScenarioSchema } from "../../../db";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
@@ -54,6 +55,7 @@ type ItemRow = {
   issues_json: string;
   calculation_blockers_json: string;
   official_source_codes_json: string;
+  evidence_json: string;
   evidence_hash: string;
 };
 
@@ -77,6 +79,7 @@ function parseJson<T>(value: string, fallback: T): T {
 
 function publicItem(row: ItemRow) {
   const issueDetails = parseJson<Array<{ code: string; severity: string; category: string; message: string }>>(row.issues_json, []);
+  const evidenceEnvelope = parseJson<{ evidence?: { missingFields?: string[]; engineReconciliations?: unknown[] } & Record<string, unknown> }>(row.evidence_json, {});
   return {
     id: row.id,
     ordinal: row.ordinal,
@@ -100,6 +103,9 @@ function publicItem(row: ItemRow) {
     issues: issueDetails.map((item) => item.message),
     calculationBlockers: parseJson<string[]>(row.calculation_blockers_json, []),
     officialSourceCodes: parseJson<string[]>(row.official_source_codes_json, []),
+    documentEvidence: evidenceEnvelope.evidence ?? null,
+    missingFields: evidenceEnvelope.evidence?.missingFields ?? issueDetails.filter((item) => /MISSING|NOT-INFORMED/.test(item.code)).map((item) => item.code),
+    engineReconciliations: evidenceEnvelope.evidence?.engineReconciliations ?? [],
     evidenceHash: row.evidence_hash.slice(0, 16),
   };
 }
@@ -118,6 +124,8 @@ function minimizedNfeEvidence(audit: ReturnType<typeof publicNfeAudit>) {
       number: audit.header.number,
       issuedAt: audit.header.issuedAt,
       environment: audit.header.environment,
+      finalityCode: audit.header.finalityCode,
+      isReturn: audit.header.isReturn,
       issuerState: audit.header.issuerState,
       recipientState: audit.header.recipientState,
     },
@@ -140,6 +148,10 @@ function minimizedNfeEvidence(audit: ReturnType<typeof publicNfeAudit>) {
       stRateBps: item.stRateBps,
       stValueCents: item.stValueCents,
       fcpStValueCents: item.fcpStValueCents,
+      fcpValueCents: item.fcpValueCents,
+      difalFcpValueCents: item.difalFcpValueCents,
+      difalDestinationValueCents: item.difalDestinationValueCents,
+      difalOriginValueCents: item.difalOriginValueCents,
       ibsValueCents: item.ibsValueCents,
       cbsValueCents: item.cbsValueCents,
       trace: item.trace,
@@ -163,7 +175,7 @@ async function requireImporter() {
 
 async function inspectFile(filename: string, text: string): Promise<{ inspection: FiscalBatchInspection; evidence: unknown }> {
   const initial = inspectFiscalBatchText(filename, text);
-  if (initial.documentType !== "nfe") return { inspection: initial, evidence: { summary: initial.summary, issueDetails: initial.issueDetails } };
+  if (initial.documentType !== "nfe") return { inspection: initial, evidence: { summary: initial.summary, issueDetails: initial.issueDetails, missingFields: initial.missingFields, engineReconciliations: initial.engineReconciliations } };
 
   try {
     const audit = await auditNfeXml(text);
@@ -175,6 +187,7 @@ async function inspectFile(filename: string, text: string): Promise<{ inspection
       message: item.message,
     }));
     const status = audit.status === "blocked" ? "blocked" : audit.status === "validated_with_warnings" ? "warning" : "accepted";
+    const engineReconciliations = reconcileNfeWithExistingEngines(audit);
     const inspection: FiscalBatchInspection = {
       documentType: "nfe",
       status,
@@ -200,9 +213,16 @@ async function inspectFile(filename: string, text: string): Promise<{ inspection
         icmsCents: audit.totals.icmsCents,
         stCents: audit.totals.stCents,
         fcpStCents: audit.totals.fcpStCents,
+        fcpCents: audit.totals.fcpCents,
+        difalFcpCents: audit.totals.difalFcpCents,
+        difalDestinationCents: audit.totals.difalDestinationCents,
+        difalOriginCents: audit.totals.difalOriginCents,
+        returnOperation: audit.header.isReturn,
       },
       issueDetails,
       issues: issueDetails.map((item) => item.message),
+      missingFields: issueDetails.filter((item) => /MISSING|NOT-INFORMED/.test(item.code)).map((item) => item.code),
+      engineReconciliations,
       calculationEligible: false,
       calculationBlockers: [
         ...issueDetails.filter((item) => item.severity === "blocker").map((item) => item.message),
@@ -210,7 +230,7 @@ async function inspectFile(filename: string, text: string): Promise<{ inspection
       ],
       officialSourceCodes: nfeAuditSources.map((source) => source.code),
     };
-    return { inspection, evidence: minimizedNfeEvidence(publicAudit) };
+    return { inspection, evidence: { ...minimizedNfeEvidence(publicAudit), missingFields: inspection.missingFields, engineReconciliations } };
   } catch (cause) {
     const code = cause instanceof Error ? cause.message : "nfe_audit_failed";
     const message = `NF-e bloqueada pelo auditor detalhado (${code}).`;
@@ -223,6 +243,8 @@ async function inspectFile(filename: string, text: string): Promise<{ inspection
         coverageStatus: "partial",
         issueDetails: [{ code: "NFE-AUDIT-FAILED", severity: "blocker", category: "structure", message }],
         issues: [message],
+        missingFields: [],
+        engineReconciliations: [],
         calculationBlockers: [message, "Documento bloqueado nunca alimenta cálculo final."],
         officialSourceCodes: nfeAuditSources.map((source) => source.code),
       },
@@ -268,6 +290,7 @@ async function batchPayload(batch: BatchRow, workspaceId: number, idempotent = f
       rejections: publicItems.filter((item) => item.status === "blocked").map((item) => ({ filename: item.filename, codes: item.issueDetails.filter((entry) => entry.severity === "blocker").map((entry) => entry.code) })),
       divergences: publicItems.flatMap((item) => item.issueDetails.filter((entry) => entry.category === "totals" && /MISMATCH|DIVERG|COUNT/.test(entry.code)).map((entry) => ({ filename: item.filename, code: entry.code, message: entry.message }))),
       missingData: publicItems.flatMap((item) => item.issueDetails.filter((entry) => /MISSING|AUSENT/.test(entry.code)).map((entry) => ({ filename: item.filename, code: entry.code, message: entry.message }))),
+      engineReconciliations: publicItems.flatMap((item) => item.engineReconciliations.map((entry) => ({ filename: item.filename, reconciliation: entry }))),
     },
     rawFilesPersisted: false,
     evidenceHash: batch.evidence_hash?.slice(0, 16) ?? null,
@@ -432,6 +455,8 @@ async function importBatch(request: Request) {
           summary: { filename },
           issueDetails: [{ code: "FILE-NOT-UTF8", severity: "blocker", category: "structure", message }],
           issues: [message],
+          missingFields: [],
+          engineReconciliations: [],
           calculationEligible: false,
           calculationBlockers: [message],
           officialSourceCodes: [],
