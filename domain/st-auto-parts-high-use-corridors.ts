@@ -1,7 +1,7 @@
 import { calculateRepresentativeStMemory } from "./st-sp-mg-legal.ts";
 
-export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION = "2026.07.29-v76";
-export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT = "2026-07-29";
+export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION = "2026.07.31-v90";
+export const ST_AUTO_PARTS_HIGH_USE_CORRIDORS_CHECKED_AT = "2026-07-31";
 export const ST_AUTO_PARTS_SUPPORTED_PERIOD = { from: "2026-01-01", to: "2026-12-31" } as const;
 export const ST_AUTO_PARTS_SP_EXCLUSION_FROM = "2026-10-01" as const;
 
@@ -340,6 +340,8 @@ export type AutoPartsOperationInput = {
   cest: string;
   ncm: string;
   importedQualified: boolean;
+  productOrigin?: "domestic" | "imported";
+  importRuleQualification?: "not_applicable" | "qualifies" | "does_not_qualify" | "unknown";
   commercialCondition: AutoPartsCommercialCondition;
   facts: AutoPartsOperationFacts;
 };
@@ -402,6 +404,7 @@ export type StAutoPartsHighUseRoute = {
   route: string;
   agreementStatus: "protocol_41_active" | "outside_protocol_41";
   agreementReason: string;
+  responsibleParty: "interstate_sender_as_tax_substitute_subject_to_protocol_exceptions" | null;
   directionalSymmetryAssumed: false;
   product: typeof representativeProduct;
   parameterMethod: "protocol_mva" | "destination_internal_mva" | "destination_own_treatment_required";
@@ -433,6 +436,10 @@ function stateSourceCodes(origin: StAutoPartsHighUseUf, destination: StAutoParts
 export function resolveAutoPartsPriorityOperation(input: AutoPartsOperationInput): AutoPartsOperationResult {
   const route = stAutoPartsHighUseRouteByKey.get(input.route);
   const product = findControlledAutoPartsProduct(input.cest, input.ncm);
+  const productOrigin = input.productOrigin ?? (input.importedQualified ? "imported" : "domestic");
+  const importRuleQualification = input.importRuleQualification
+    ?? (input.importedQualified ? "qualifies" : "not_applicable");
+  const qualifiedImported = productOrigin === "imported" && importRuleQualification === "qualifies";
   const missingFacts = Object.entries(ST_AUTO_PARTS_OPERATION_FACT_LABELS)
     .filter(([key]) => input.facts?.[key as keyof AutoPartsOperationFacts] !== true)
     .map(([, label]) => label);
@@ -443,6 +450,8 @@ export function resolveAutoPartsPriorityOperation(input: AutoPartsOperationInput
   if (!Number.isSafeInteger(input.operationCents) || input.operationCents <= 0 || input.operationCents > 100_000_000_000) blockers.push("valor da operação inválido ou acima do limite controlado");
   if (!Number.isSafeInteger(input.ownIcmsBaseCents) || input.ownIcmsBaseCents <= 0 || input.ownIcmsBaseCents > 100_000_000_000) blockers.push("base do ICMS próprio inválida");
   if (input.commercialCondition !== "fidelity" && input.commercialCondition !== "standard") blockers.push("condição comercial de fidelidade não informada");
+  if (productOrigin === "imported" && importRuleQualification !== "qualifies") blockers.push("origem importada sem qualificação confirmada na Resolução do Senado nº 13/2012");
+  if (productOrigin === "domestic" && importRuleQualification !== "not_applicable") blockers.push("qualificação de mercadoria importada incompatível com a origem nacional informada");
   blockers.push(...missingFacts);
   const baseResult = {
     route: input.route,
@@ -464,11 +473,11 @@ export function resolveAutoPartsPriorityOperation(input: AutoPartsOperationInput
   }
   const parameters = destinationParameters[route.destination as keyof typeof destinationParameters];
   if (!parameters) return { ...baseResult, status: "blocked", blockers: ["parâmetros estaduais do destino não congelados"], parameters: null, output: null };
-  const interstateRateBps = input.importedQualified ? 400 : domesticInterstateRateBps(route.origin, route.destination);
+  const interstateRateBps = qualifiedImported ? 400 : domesticInterstateRateBps(route.origin, route.destination);
   const mvaOriginalBps = input.commercialCondition === "fidelity" ? parameters.fidelityMvaBps : parameters.standardMvaBps;
   const calculationParameters = {
     commercialCondition: input.commercialCondition,
-    importedQualified: input.importedQualified,
+    importedQualified: qualifiedImported,
     mvaOriginalBps,
     interstateRateBps,
     internalRateBps: parameters.internalRateBps,
@@ -516,6 +525,7 @@ function buildDirection(corridorRank: number, origin: StAutoPartsHighUseUf, dest
     agreementReason: active
       ? `${origin} e ${destination} integram o âmbito vigente; a direção ${origin}→${destination} ainda depende da regra interna do destino e dos fatos da operação.`
       : `${origin}→${destination} não pode usar automaticamente o Protocolo 41/08 porque ${missingMembership.join(" e ")}.`,
+    responsibleParty: active ? "interstate_sender_as_tax_substitute_subject_to_protocol_exceptions" : null,
     directionalSymmetryAssumed: false,
     product: representativeProduct,
     parameterMethod,
@@ -593,6 +603,17 @@ export type StAutoPartsProductRouteCell = {
   effectiveTo: "2026-09-30" | "2026-12-31";
   parameterVersion: typeof ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION;
   sourceCodes: string[];
+  legalResolution: string;
+  responsibleParty: StAutoPartsHighUseRoute["responsibleParty"];
+  parameterSnapshot: null | {
+    method: StAutoPartsHighUseRoute["parameterMethod"];
+    mvaOriginalBps: number;
+    adjustedMvaBpsFor12: number | null;
+    internalRateBps: number;
+    fcpRateBps: number;
+    effectiveFrom: "2026-01-01";
+    effectiveTo: "2026-09-30" | "2026-12-31";
+  };
   blockers: string[];
   syntheticReference: null | ReturnType<typeof calculateRepresentativeStMemory>;
 };
@@ -607,12 +628,27 @@ export const stAutoPartsProductRouteCells: StAutoPartsProductRouteCell[] = ST_AU
     status: route.agreementStatus === "protocol_41_active" && route.syntheticReference
       ? "supported" as const
       : route.agreementStatus === "outside_protocol_41"
-        ? "partial" as const
+        ? "not_supported" as const
         : "not_supported" as const,
     effectiveFrom: ST_AUTO_PARTS_SUPPORTED_PERIOD.from,
     effectiveTo: route.destination === "SP" ? "2026-09-30" as const : ST_AUTO_PARTS_SUPPORTED_PERIOD.to,
     parameterVersion: ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION,
     sourceCodes: [...new Set([...product.sourceCodes, ...route.sourceCodes])],
+    legalResolution: route.agreementStatus === "protocol_41_active"
+      ? `${route.agreementReason} Os parâmetros do destino e a memória de referência estão congelados para o período controlado.`
+      : `${route.agreementReason} A célula não emite valor porque não foi comprovada regra própria vigente do destino.`,
+    responsibleParty: route.responsibleParty,
+    parameterSnapshot: route.syntheticReference && route.mvaOriginalBps !== null && route.officialInternalRateBps !== null && route.officialFcpRateBps !== null
+      ? {
+          method: route.parameterMethod,
+          mvaOriginalBps: route.mvaOriginalBps,
+          adjustedMvaBpsFor12: route.adjustedMvaBpsFor12,
+          internalRateBps: route.officialInternalRateBps,
+          fcpRateBps: route.officialFcpRateBps,
+          effectiveFrom: ST_AUTO_PARTS_SUPPORTED_PERIOD.from,
+          effectiveTo: route.destination === "SP" ? "2026-09-30" : ST_AUTO_PARTS_SUPPORTED_PERIOD.to,
+        }
+      : null,
     blockers: route.agreementStatus === "protocol_41_active"
       ? [
           "confirmar identidade fiscal e uso especificamente automotivo",
@@ -622,6 +658,85 @@ export const stAutoPartsProductRouteCells: StAutoPartsProductRouteCell[] = ST_AU
       : [...route.remainingBlockers],
     syntheticReference: route.syntheticReference,
   })),
+);
+
+export type StAutoPartsProductRouteAuditKind =
+  | "baseline"
+  | "product_mismatch"
+  | "benefit_present"
+  | "import_qualification_unknown"
+  | "rate_exception_present"
+  | "date_outside_validity";
+
+export type StAutoPartsProductRouteAuditCase = {
+  code: string;
+  cellKey: string;
+  kind: StAutoPartsProductRouteAuditKind;
+  expectedStatus: AutoPartsOperationResult["status"];
+  actualStatus: AutoPartsOperationResult["status"];
+  passed: boolean;
+  outputDestinationTotalCents: number | null;
+  blockers: string[];
+};
+
+function auditInputForCell(cell: StAutoPartsProductRouteCell): AutoPartsOperationInput {
+  const product = ST_AUTO_PARTS_PRODUCT_CATALOG.find((item) => item.code === cell.productCode);
+  if (!product) throw new Error(`auto_parts_product_missing:${cell.productCode}`);
+  return {
+    route: cell.route,
+    operationDate: cell.effectiveTo,
+    operationCents: 100_000,
+    ownIcmsBaseCents: 100_000,
+    cest: product.cest,
+    ncm: product.ncmPatterns[0],
+    importedQualified: false,
+    productOrigin: "domestic",
+    importRuleQualification: "not_applicable",
+    commercialCondition: "standard",
+    facts: allOperationFacts,
+  };
+}
+
+function executeCellAudit(cell: StAutoPartsProductRouteCell, kind: StAutoPartsProductRouteAuditKind): StAutoPartsProductRouteAuditCase {
+  const baseline = auditInputForCell(cell);
+  const input: AutoPartsOperationInput = kind === "product_mismatch"
+    ? { ...baseline, ncm: "00000000" }
+    : kind === "benefit_present"
+      ? { ...baseline, facts: { ...baseline.facts, noSpecialTreatmentConfirmed: false } }
+      : kind === "import_qualification_unknown"
+        ? { ...baseline, productOrigin: "imported", importRuleQualification: "unknown" }
+        : kind === "rate_exception_present"
+          ? { ...baseline, facts: { ...baseline.facts, noSpecificRateExceptionConfirmed: false } }
+          : kind === "date_outside_validity"
+            ? { ...baseline, operationDate: "2025-12-31" }
+            : baseline;
+  const expectedStatus: AutoPartsOperationResult["status"] = kind === "baseline" && cell.status === "supported"
+    ? "calculated_reference"
+    : "blocked";
+  const result = resolveAutoPartsPriorityOperation(input);
+  return {
+    code: `${cell.key}:${kind}`,
+    cellKey: cell.key,
+    kind,
+    expectedStatus,
+    actualStatus: result.status,
+    passed: result.status === expectedStatus && (expectedStatus === "calculated_reference" ? result.output !== null : result.output === null),
+    outputDestinationTotalCents: result.output?.destinationTotalCents ?? null,
+    blockers: [...result.blockers],
+  };
+}
+
+const AUTO_PARTS_AUDIT_KINDS: readonly StAutoPartsProductRouteAuditKind[] = [
+  "baseline",
+  "product_mismatch",
+  "benefit_present",
+  "import_qualification_unknown",
+  "rate_exception_present",
+  "date_outside_validity",
+];
+
+export const stAutoPartsProductRouteAuditCases: StAutoPartsProductRouteAuditCase[] = stAutoPartsProductRouteCells.flatMap((cell) =>
+  AUTO_PARTS_AUDIT_KINDS.map((kind) => executeCellAudit(cell, kind)),
 );
 
 export function stAutoPartsHighUseCorridorMetrics() {
@@ -640,6 +755,10 @@ export function stAutoPartsHighUseCorridorMetrics() {
     partialProductRouteCells: cellStatuses.partial,
     notSupportedProductRouteCells: cellStatuses.notSupported,
     deterministicProductRouteMemories: stAutoPartsProductRouteCells.filter((cell) => cell.syntheticReference !== null).length,
+    deterministicProductRouteCases: stAutoPartsProductRouteAuditCases.length,
+    calculatedProductRouteCases: stAutoPartsProductRouteAuditCases.filter((item) => item.actualStatus === "calculated_reference" && item.passed).length,
+    safelyBlockedProductRouteCases: stAutoPartsProductRouteAuditCases.filter((item) => item.actualStatus === "blocked" && item.passed).length,
+    failedProductRouteCases: stAutoPartsProductRouteAuditCases.filter((item) => !item.passed).length,
     activeAgreementRoutes: stAutoPartsHighUseRoutes.filter((route) => route.agreementStatus === "protocol_41_active").length,
     outsideProtocolRoutes: stAutoPartsHighUseRoutes.filter((route) => route.agreementStatus === "outside_protocol_41").length,
     protocolMvaRoutes: stAutoPartsHighUseRoutes.filter((route) => route.parameterMethod === "protocol_mva").length,
@@ -679,8 +798,9 @@ export function validateStAutoPartsHighUseCorridors() {
   if (metrics.protocolMvaRoutes !== 4 || metrics.destinationMvaRoutes !== 6) errors.push("priority_mva_partition_changed");
   if (metrics.syntheticReferencesReproduced !== 10 || metrics.safelyBlocked !== 14) errors.push("priority_reference_partition_changed");
   if (metrics.controlledProducts !== 7 || metrics.newlyControlledProducts !== 6) errors.push("priority_product_catalog_changed");
-  if (metrics.productRouteCells !== 168 || metrics.supportedProductRouteCells !== 70 || metrics.partialProductRouteCells !== 98 || metrics.notSupportedProductRouteCells !== 0) errors.push("priority_product_route_partition_changed");
+  if (metrics.productRouteCells !== 168 || metrics.supportedProductRouteCells !== 70 || metrics.partialProductRouteCells !== 0 || metrics.notSupportedProductRouteCells !== 98) errors.push("priority_product_route_partition_changed");
   if (metrics.deterministicProductRouteMemories !== 70) errors.push("priority_product_route_memories_changed");
+  if (metrics.deterministicProductRouteCases !== 1_008 || metrics.calculatedProductRouteCases !== 70 || metrics.safelyBlockedProductRouteCases !== 938 || metrics.failedProductRouteCases !== 0) errors.push("priority_product_route_audit_changed");
   if (new Set(ST_AUTO_PARTS_PRODUCT_CATALOG.map((product) => product.cest)).size !== ST_AUTO_PARTS_PRODUCT_CATALOG.length) errors.push("priority_product_cest_must_be_unique");
   for (const product of ST_AUTO_PARTS_PRODUCT_CATALOG) {
     if (product.sourceCodes.some((code) => !sourceByCode.has(code))) errors.push(`unknown_product_source:${product.code}`);
@@ -691,7 +811,12 @@ export function validateStAutoPartsHighUseCorridors() {
     if (cell.sourceCodes.some((code) => !sourceByCode.has(code))) errors.push(`unknown_product_route_source:${cell.key}`);
     if (cell.status === "supported" && (!cell.syntheticReference || cell.blockers.length === 0)) errors.push(`supported_product_route_incomplete:${cell.key}`);
     if (cell.status !== "supported" && cell.syntheticReference !== null) errors.push(`blocked_product_route_leaked_value:${cell.key}`);
+    if (cell.legalResolution.length < 80) errors.push(`explicit_legal_resolution_missing:${cell.key}`);
+    if (cell.status === "supported" && (cell.responsibleParty === null || cell.parameterSnapshot === null)) errors.push(`supported_parameter_snapshot_incomplete:${cell.key}`);
+    if (cell.status === "not_supported" && (cell.responsibleParty !== null || cell.parameterSnapshot !== null || cell.blockers.length < 3)) errors.push(`blocked_cell_resolution_incomplete:${cell.key}`);
   }
+  if (stAutoPartsProductRouteAuditCases.length !== 1_008 || new Set(stAutoPartsProductRouteAuditCases.map((item) => item.code)).size !== 1_008) errors.push("priority_audit_cases_must_be_unique");
+  if (stAutoPartsProductRouteAuditCases.some((item) => !item.passed)) errors.push("priority_audit_case_failed");
   for (const key of ["SP-MG", "RJ-MG"]) {
     const reference = stAutoPartsHighUseRouteByKey.get(key)?.syntheticReference;
     if (reference?.destinationTotalCents !== 21_183) errors.push(`mg_reference_did_not_reproduce:${key}`);
@@ -739,6 +864,7 @@ export async function hashStAutoPartsHighUseCorridors() {
     routes: stAutoPartsHighUseRoutes,
     products: ST_AUTO_PARTS_PRODUCT_CATALOG,
     productRouteCells: stAutoPartsProductRouteCells,
+    productRouteAuditCases: stAutoPartsProductRouteAuditCases,
   });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");

@@ -6,7 +6,7 @@ import { hashStSpCalculationRuns, stSpCalculationValidationMetrics, validateStSp
 import { hashStCementSpRoutes, validateStCementSpRoutes } from "./st-cement-sp-routes.ts";
 import { hashStCementPriorityBatch, validateStCementPriorityBatch } from "./st-cement-priority-batch.ts";
 import { hashStAutoPartsPriorityBatch, validateStAutoPartsPriorityBatch } from "./st-auto-parts-priority-batch.ts";
-import { hashStAutoPartsHighUseCorridors, validateStAutoPartsHighUseCorridors } from "./st-auto-parts-high-use-corridors.ts";
+import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, validateStAutoPartsHighUseCorridors } from "./st-auto-parts-high-use-corridors.ts";
 import { hashStColdBeveragePriority, validateStColdBeveragePriority } from "./st-cold-beverages-priority.ts";
 import { hashStColdBeverageSpDestination, validateStColdBeverageSpDestination } from "./st-cold-beverages-sp-destination.ts";
 import { hashStColdBeverageSpOrigin, validateStColdBeverageSpOrigin } from "./st-cold-beverages-sp-origin.ts";
@@ -62,7 +62,7 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v89";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v90";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-31";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -100,6 +100,7 @@ export function validateNationalCoverageAutomatically() {
     })()),
   ];
   const calculation = stSpCalculationValidationMetrics();
+  const autoParts = stAutoPartsHighUseCorridorMetrics();
   const constructionElectrical = stConstructionElectricalMetrics();
   const foodCleaningPet = stFoodCleaningPetMetrics();
   const icmsGeneral = icmsGeneralNationalMetrics();
@@ -125,11 +126,12 @@ export function validateNationalCoverageAutomatically() {
       modules: modules.length,
       modulesPassed: modules.filter((module) => module.passed).length,
       totalRuns: calculation.totalRuns
+        + autoParts.deterministicProductRouteCases
         + constructionElectrical.reproducedMemories + constructionElectrical.safeFailureScenarios
         + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases,
-      referenceReproduced: calculation.referenceReproduced + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories,
-      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases,
-      failed: calculation.failed,
+      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories,
+      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases,
+      failed: calculation.failed + autoParts.failedProductRouteCases,
     },
     modules,
     errors,

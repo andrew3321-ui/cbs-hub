@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v10";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v11";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "auto-parts-v90-168-cell-audit",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "As 168 células prioritárias de produto-rota de autopeças foram reauditadas. Setenta preservam memórias condicionais reproduzíveis e 98 fora do acordo interestadual vigente agora falham fechadas como não suportadas, com motivo jurídico explícito.",
+        affectedCodes: ["AUTO_PARTS_HIGH_USE_CORRIDORS"],
+        clientDataExposed: false,
+      },
       {
         id: "iss-recurring-v89-180-cells",
         changedAt: "2026-07-31T00:00:00.000Z",

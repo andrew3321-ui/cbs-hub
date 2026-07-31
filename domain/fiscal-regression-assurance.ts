@@ -352,9 +352,9 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     metrics: () => {
       const metrics = stAutoPartsHighUseCorridorMetrics();
       return {
-        deterministicCases: metrics.directedRoutes,
-        calculatedMemories: metrics.syntheticReferencesReproduced,
-        safelyBlockedCases: metrics.safelyBlocked,
+        deterministicCases: metrics.deterministicProductRouteCases,
+        calculatedMemories: metrics.calculatedProductRouteCases,
+        safelyBlockedCases: metrics.safelyBlockedProductRouteCases,
       };
     },
     sourceCodes: () => stAutoPartsHighUseSources.map((source) => source.code).sort(),

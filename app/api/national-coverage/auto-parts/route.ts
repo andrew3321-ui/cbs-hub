@@ -37,6 +37,10 @@ async function calculateAutoParts(request: Request) {
       cest: String(body.cest ?? ""),
       ncm: String(body.ncm ?? ""),
       importedQualified: body.importedQualified === true,
+      productOrigin: body.productOrigin === "imported" ? "imported" : body.productOrigin === "domestic" ? "domestic" : undefined,
+      importRuleQualification: ["not_applicable", "qualifies", "does_not_qualify", "unknown"].includes(String(body.importRuleQualification))
+        ? String(body.importRuleQualification) as AutoPartsOperationInput["importRuleQualification"]
+        : undefined,
       commercialCondition: String(body.commercialCondition ?? "") as AutoPartsOperationInput["commercialCondition"],
       facts,
     };

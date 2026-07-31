@@ -8,13 +8,14 @@ import {
   resolveAutoPartsPriorityOperation,
   stAutoPartsHighUseCorridorMetrics,
   stAutoPartsProductRouteCells,
+  stAutoPartsProductRouteAuditCases,
   stAutoPartsHighUseRouteByKey,
   stAutoPartsHighUseRoutes,
   stAutoPartsHighUseSources,
   validateStAutoPartsHighUseCorridors,
 } from "../domain/st-auto-parts-high-use-corridors.ts";
 
-test("V76 audits seven products across the twelve priority corridors", () => {
+test("V90 audits seven products across the twelve priority corridors", () => {
   assert.deepEqual(validateStAutoPartsHighUseCorridors(), { passed: true, errors: [] });
   assert.deepEqual(stAutoPartsHighUseCorridorMetrics(), {
     corridors: 12,
@@ -23,9 +24,13 @@ test("V76 audits seven products across the twelve priority corridors", () => {
     newlyControlledProducts: 6,
     productRouteCells: 168,
     supportedProductRouteCells: 70,
-    partialProductRouteCells: 98,
-    notSupportedProductRouteCells: 0,
+    partialProductRouteCells: 0,
+    notSupportedProductRouteCells: 98,
     deterministicProductRouteMemories: 70,
+    deterministicProductRouteCases: 1008,
+    calculatedProductRouteCases: 70,
+    safelyBlockedProductRouteCases: 938,
+    failedProductRouteCases: 0,
     activeAgreementRoutes: 10,
     outsideProtocolRoutes: 14,
     protocolMvaRoutes: 4,
@@ -37,6 +42,24 @@ test("V76 audits seven products across the twelve priority corridors", () => {
   });
   assert.equal(new Set(stAutoPartsHighUseRoutes.map((route) => route.route)).size, 24);
   assert.equal(stAutoPartsHighUseRoutes.every((route) => route.directionalSymmetryAssumed === false), true);
+});
+
+test("every product-route cell has an explicit legal resolution and six independent audit outcomes", () => {
+  assert.equal(stAutoPartsProductRouteAuditCases.length, 1_008);
+  assert.equal(new Set(stAutoPartsProductRouteAuditCases.map((item) => item.code)).size, 1_008);
+  assert.equal(stAutoPartsProductRouteAuditCases.every((item) => item.passed), true);
+  assert.equal(stAutoPartsProductRouteCells.filter((cell) => cell.status === "not_supported").length, 98);
+  for (const cell of stAutoPartsProductRouteCells) {
+    assert.ok(cell.legalResolution.length >= 80, cell.key);
+    assert.equal(stAutoPartsProductRouteAuditCases.filter((item) => item.cellKey === cell.key).length, 6, cell.key);
+    if (cell.status === "supported") {
+      assert.notEqual(cell.responsibleParty, null, cell.key);
+      assert.notEqual(cell.parameterSnapshot, null, cell.key);
+    } else {
+      assert.equal(cell.responsibleParty, null, cell.key);
+      assert.equal(cell.parameterSnapshot, null, cell.key);
+    }
+  }
 });
 
 test("only the ten directions between current protocol parties are active", () => {
@@ -101,6 +124,7 @@ test("missing facts, unknown products and outside routes fail closed without val
   assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, ncm: "8707" }).output, null);
   assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, route: "SP-SC" }).output, null);
   assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, operationDate: "" }).output, null);
+  assert.equal(resolveAutoPartsPriorityOperation({ ...completeInput, productOrigin: "imported", importRuleQualification: "unknown" }).output, null);
 });
 
 test("the ranked product catalog freezes legal identity, scope and exclusions", () => {
