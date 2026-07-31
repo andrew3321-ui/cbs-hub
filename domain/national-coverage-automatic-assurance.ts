@@ -10,6 +10,8 @@ import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, val
 import { hashStColdBeveragePriority, validateStColdBeveragePriority } from "./st-cold-beverages-priority.ts";
 import { hashStColdBeverageSpDestination, validateStColdBeverageSpDestination } from "./st-cold-beverages-sp-destination.ts";
 import { hashStColdBeverageSpOrigin, validateStColdBeverageSpOrigin } from "./st-cold-beverages-sp-origin.ts";
+import { hashStColdBeverageScDestination, stColdBeverageScMetrics, validateStColdBeverageScDestination } from "./st-cold-beverages-sc-destination.ts";
+import { hashStColdBeveragePriorityAudit, stColdBeveragePriorityAuditMetrics, validateStColdBeveragePriorityAudit } from "./st-cold-beverages-priority-audit.ts";
 import { hashStPharmaCosmeticsPriority, validateStPharmaCosmeticsPriority } from "./st-pharma-cosmetics-priority.ts";
 import {
   hashStConstructionElectricalPriority,
@@ -62,7 +64,7 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v90";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v91";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-31";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -84,6 +86,8 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("COLD_BEVERAGES_PRIORITY", "Bebidas frias por produto, rota e data", validateStColdBeveragePriority()),
     moduleResult("COLD_BEVERAGES_SP_DESTINATION", "PMPF de bebidas com destino a São Paulo", validateStColdBeverageSpDestination()),
     moduleResult("COLD_BEVERAGES_SP_ORIGIN", "PMPF de bebidas de SP para MG e RJ", validateStColdBeverageSpOrigin()),
+    moduleResult("COLD_BEVERAGES_SC_DESTINATION", "PMPF e fallback MVA de bebidas de SP para SC", validateStColdBeverageScDestination()),
+    moduleResult("COLD_BEVERAGES_PRIORITY_AUDIT", "Matriz auditada de oito corredores de bebidas", validateStColdBeveragePriorityAudit()),
     moduleResult("PHARMA_COSMETICS_PRIORITY", "Medicamentos, cosméticos e perfumaria prioritários", validateStPharmaCosmeticsPriority()),
     moduleResult("CONSTRUCTION_ELECTRICAL_PRIORITY", "Materiais de construção, ferramentas e elétricos em SP→MG/RJ", validateStConstructionElectricalPriority()),
     moduleResult("FOOD_CLEANING_PET_PRIORITY", "Alimentos, limpeza, higiene doméstica e pet food em SP→MG/RJ", validateStFoodCleaningPetPriority()),
@@ -111,6 +115,8 @@ export function validateNationalCoverageAutomatically() {
   const withholdings = serviceWithholdingsDeepMetrics();
   const ipiTipi = ipiTipiDeepMetrics();
   const taxReformSectors = taxReformSectorMetrics();
+  const beveragesSc = stColdBeverageScMetrics();
+  const beveragesAudit = stColdBeveragePriorityAuditMetrics();
   const errors = modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`));
   if (calculation.failed !== 0) errors.push(`ST_CALCULATION_RUNS:${calculation.failed}_engine_failures`);
   const passed = modules.every((module) => module.passed) && errors.length === 0;
@@ -127,10 +133,12 @@ export function validateNationalCoverageAutomatically() {
       modulesPassed: modules.filter((module) => module.passed).length,
       totalRuns: calculation.totalRuns
         + autoParts.deterministicProductRouteCases
+        + beveragesSc.positiveMemories + beveragesSc.negativeGates
+        + beveragesAudit.deterministicCases
         + constructionElectrical.reproducedMemories + constructionElectrical.safeFailureScenarios
         + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases,
-      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories,
-      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases,
+      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories,
+      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases,
       failed: calculation.failed + autoParts.failedProductRouteCases,
     },
     modules,
@@ -152,6 +160,8 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStColdBeveragePriority(),
     hashStColdBeverageSpDestination(),
     hashStColdBeverageSpOrigin(),
+    hashStColdBeverageScDestination(),
+    hashStColdBeveragePriorityAudit(),
     hashStPharmaCosmeticsPriority(),
     hashStConstructionElectricalPriority(),
     hashStFoodCleaningPetPriority(),

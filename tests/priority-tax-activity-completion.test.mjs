@@ -16,6 +16,12 @@ import {
   stColdBeverageSpOriginReferenceRuns,
   stColdBeverageSpOriginSources,
 } from "../domain/st-cold-beverages-sp-origin.ts";
+import {
+  ST_COLD_BEVERAGES_SC_FACT_LABELS,
+  stColdBeverageScReferenceRuns,
+  stColdBeverageScNegativeRuns,
+  stColdBeverageScSources,
+} from "../domain/st-cold-beverages-sc-destination.ts";
 
 function assertOfficialEvidence(sources) {
   assert.equal(sources.length > 0, true);
@@ -44,7 +50,7 @@ test("P0 exact auto-parts scope has nine explicit facts and ten reproducible rou
   assertOfficialEvidence(stAutoPartsHighUseSources);
 });
 
-test("P0 exact beverage scope has explicit operation facts and 80 reproducible memories", () => {
+test("P0 exact beverage scope has explicit operation facts and 105 reproducible memories", () => {
   for (const labels of [ST_COLD_BEVERAGES_SP_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS]) {
     const combined = Object.values(labels).join(" ");
     assert.match(combined, /regime normal/);
@@ -54,8 +60,10 @@ test("P0 exact beverage scope has explicit operation facts and 80 reproducible m
     assert.match(combined, /redução/);
   }
 
-  assert.equal(stColdBeverageSpReferenceRuns.length, 70);
+  assert.equal(stColdBeverageSpReferenceRuns.length, 80);
   assert.equal(stColdBeverageSpOriginReferenceRuns.length, 10);
+  assert.equal(stColdBeverageScReferenceRuns.length, 15);
+  assert.equal(stColdBeverageScNegativeRuns.length, 30);
   for (const run of [...stColdBeverageSpReferenceRuns, ...stColdBeverageSpOriginReferenceRuns]) {
     assert.equal(run.status, "calculated_reference");
     assert.equal(run.output !== null, true);
@@ -63,6 +71,8 @@ test("P0 exact beverage scope has explicit operation facts and 80 reproducible m
   }
   assertOfficialEvidence(stColdBeverageSpSources);
   assertOfficialEvidence(stColdBeverageSpOriginSources);
+  assert.equal(Object.keys(ST_COLD_BEVERAGES_SC_FACT_LABELS).length, 10);
+  assertOfficialEvidence(stColdBeverageScSources);
 });
 
 test("P0 completion preserves fail-closed coverage outside the exact supported cells", () => {

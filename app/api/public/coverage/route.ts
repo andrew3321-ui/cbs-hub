@@ -12,6 +12,8 @@ import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, stA
 import { hashStColdBeveragePriority, stColdBeverageApplicabilityMatrix, stColdBeverageMetrics, stColdBeverageRoutes, stColdBeverageSources, ST_COLD_BEVERAGE_OPERATION_FACT_LABELS, ST_COLD_BEVERAGE_PRODUCTS, ST_COLD_BEVERAGES_PRIORITY_VERSION, ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM, ST_COLD_BEVERAGES_SUPPORTED_PERIOD, validateStColdBeveragePriority } from "../../../../domain/st-cold-beverages-priority";
 import { hashStColdBeverageSpDestination, stColdBeverageSpDestinationMetrics, stColdBeverageSpReferenceRuns, stColdBeverageSpSources, ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD, ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES, ST_COLD_BEVERAGES_SP_DESTINATION_VERSION, ST_COLD_BEVERAGES_SP_FACT_LABELS, ST_COLD_BEVERAGES_SP_PMPF_PROFILES, validateStColdBeverageSpDestination } from "../../../../domain/st-cold-beverages-sp-destination";
 import { hashStColdBeverageSpOrigin, stColdBeverageSpOriginMetrics, stColdBeverageSpOriginReferenceRuns, stColdBeverageSpOriginSources, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD, ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES, ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES, ST_COLD_BEVERAGES_SP_ORIGIN_VERSION, validateStColdBeverageSpOrigin } from "../../../../domain/st-cold-beverages-sp-origin";
+import { hashStColdBeverageScDestination, stColdBeverageScMetrics, stColdBeverageScNegativeRuns, stColdBeverageScReferenceRuns, stColdBeverageScSources, ST_COLD_BEVERAGES_SC_DESTINATION_PERIOD, ST_COLD_BEVERAGES_SC_DESTINATION_VERSION, ST_COLD_BEVERAGES_SC_FACT_LABELS, ST_COLD_BEVERAGES_SC_PMPF_PROFILES, ST_COLD_BEVERAGES_SC_ROUTE, validateStColdBeverageScDestination } from "../../../../domain/st-cold-beverages-sc-destination";
+import { hashStColdBeveragePriorityAudit, stColdBeveragePriorityAuditCases, stColdBeveragePriorityAuditCells, stColdBeveragePriorityAuditMetrics, ST_COLD_BEVERAGES_AUDITED_CORRIDORS, ST_COLD_BEVERAGES_PRIORITY_AUDIT_VERSION, validateStColdBeveragePriorityAudit } from "../../../../domain/st-cold-beverages-priority-audit";
 import { hashStPharmaCosmeticsPriority, stPharmaCosmeticsCoverageCells, stPharmaCosmeticsLegalRoutes, stPharmaCosmeticsMetrics, stPharmaCosmeticsReferenceRuns, stPharmaCosmeticsSources, stPharmaCosmeticsStateRules, ST_PHARMA_COSMETICS_FACT_LABELS, ST_PHARMA_COSMETICS_PRIORITY_VERSION, ST_PHARMA_COSMETICS_PRODUCTS, ST_PHARMA_COSMETICS_ROUTES, validateStPharmaCosmeticsPriority } from "../../../../domain/st-pharma-cosmetics-priority";
 import { hashStConstructionElectricalPriority, stConstructionElectricalDossiers, stConstructionElectricalMetrics, stConstructionElectricalNegativeRuns, stConstructionElectricalReferenceRuns, stConstructionElectricalSources, ST_CONSTRUCTION_ELECTRICAL_FACT_LABELS, ST_CONSTRUCTION_ELECTRICAL_PERIOD, ST_CONSTRUCTION_ELECTRICAL_PRODUCTS, ST_CONSTRUCTION_ELECTRICAL_ROUTES, ST_CONSTRUCTION_ELECTRICAL_VERSION, validateStConstructionElectricalPriority } from "../../../../domain/st-construction-electrical-priority";
 import { hashStFoodCleaningPetPriority, stFoodCleaningPetDossiers, stFoodCleaningPetMetrics, stFoodCleaningPetMvaFallbackRun, stFoodCleaningPetNegativeRuns, stFoodCleaningPetReferenceRuns, stFoodCleaningPetSources, ST_FOOD_CLEANING_PET_FACT_LABELS, ST_FOOD_CLEANING_PET_PERIOD, ST_FOOD_CLEANING_PET_PRODUCTS, ST_FOOD_CLEANING_PET_ROUTES, ST_FOOD_CLEANING_PET_VERSION, validateStFoodCleaningPetPriority } from "../../../../domain/st-food-cleaning-pet-priority";
@@ -39,6 +41,8 @@ async function publicCoverage() {
   const coldBeveragesFingerprint = (await hashStColdBeveragePriority()).slice(0, 12);
   const coldBeveragesSpFingerprint = (await hashStColdBeverageSpDestination()).slice(0, 12);
   const coldBeveragesSpOriginFingerprint = (await hashStColdBeverageSpOrigin()).slice(0, 12);
+  const coldBeveragesScFingerprint = (await hashStColdBeverageScDestination()).slice(0, 12);
+  const coldBeveragesAuditFingerprint = (await hashStColdBeveragePriorityAudit()).slice(0, 12);
   const pharmaCosmeticsFingerprint = (await hashStPharmaCosmeticsPriority()).slice(0, 12);
   const constructionElectricalFingerprint = (await hashStConstructionElectricalPriority()).slice(0, 12);
   const foodCleaningPetFingerprint = (await hashStFoodCleaningPetPriority()).slice(0, 12);
@@ -193,7 +197,7 @@ async function publicCoverage() {
       sources: stColdBeverageSources,
       routes: stColdBeverageRoutes,
       applicability: stColdBeverageApplicabilityMatrix,
-      policy: "A prioridade dos corredores é uma heurística operacional interna, não estatística oficial de NF-e. Cada sentido e produto é conferido separadamente; 70 memórias com destino a São Paulo e 10 memórias SP→MG/RJ usam perfis exatos das pautas vigentes. Todas as demais combinações continuam bloqueadas.",
+      policy: "A prioridade dos corredores é uma heurística operacional interna, não estatística oficial de NF-e. Cada sentido e produto é conferido separadamente; 80 memórias com destino a São Paulo, 10 memórias SP→MG/RJ e 5 PMPF com 10 fallbacks SP→SC usam perfis exatos. Todas as demais combinações continuam bloqueadas.",
     },
     stColdBeveragesSpDestination: {
       version: ST_COLD_BEVERAGES_SP_DESTINATION_VERSION,
@@ -206,7 +210,7 @@ async function publicCoverage() {
       profiles: ST_COLD_BEVERAGES_SP_PMPF_PROFILES,
       runs: stColdBeverageSpReferenceRuns,
       sources: stColdBeverageSpSources,
-      policy: "Escopo fechado para dez perfis exatos — cinco genéricos legalmente elegíveis e cinco perfis listados de alto giro, inclusive pack integral — em sete origens prioritárias e operações de regime normal entre 01/07 e 31/12/2026. Água, Simples Nacional, perfil divergente, valor próprio a partir de 90% do PMPF ou qualquer fato ausente bloqueiam o número.",
+      policy: "Escopo fechado para dez perfis exatos — cinco genéricos legalmente elegíveis e cinco perfis listados de alto giro, inclusive pack integral — em oito origens prioritárias e operações de regime normal entre 01/07 e 31/12/2026. Água, Simples Nacional, perfil divergente, valor próprio a partir de 90% do PMPF ou qualquer fato ausente bloqueiam o número.",
     },
     stColdBeveragesSpOrigin: {
       version: ST_COLD_BEVERAGES_SP_ORIGIN_VERSION,
@@ -220,6 +224,30 @@ async function publicCoverage() {
       runs: stColdBeverageSpOriginReferenceRuns,
       sources: stColdBeverageSpOriginSources,
       policy: "Escopo fechado para cinco perfis de alto giro em SP→MG e cinco em SP→RJ, sempre no regime normal e entre contribuintes. O motor preserva a diferença jurídica da trava de 80%, separa ICMS-ST e FCP e bloqueia qualquer perfil, vigência ou fato divergente.",
+    },
+    stColdBeveragesScDestination: {
+      version: ST_COLD_BEVERAGES_SC_DESTINATION_VERSION,
+      fingerprint: coldBeveragesScFingerprint,
+      validation: validateStColdBeverageScDestination(),
+      metrics: stColdBeverageScMetrics(),
+      supportedPeriod: ST_COLD_BEVERAGES_SC_DESTINATION_PERIOD,
+      factLabels: ST_COLD_BEVERAGES_SC_FACT_LABELS,
+      route: ST_COLD_BEVERAGES_SC_ROUTE,
+      profiles: ST_COLD_BEVERAGES_SC_PMPF_PROFILES,
+      positiveRuns: stColdBeverageScReferenceRuns,
+      negativeRuns: stColdBeverageScNegativeRuns,
+      sources: stColdBeverageScSources,
+      policy: "Recorte fechado SP→SC para cinco marca/GTIN/embalagem/volumes exatos entre 01/08 e 30/11/2026. O PMPF é usado abaixo de 90% da pauta e o fallback aplica MVA distinta por papel do remetente. Perfil, regime, interdependência, documento ou vigência divergente bloqueiam a memória.",
+    },
+    stColdBeveragesPriorityAudit: {
+      version: ST_COLD_BEVERAGES_PRIORITY_AUDIT_VERSION,
+      fingerprint: coldBeveragesAuditFingerprint,
+      validation: validateStColdBeveragePriorityAudit(),
+      metrics: stColdBeveragePriorityAuditMetrics(),
+      corridors: ST_COLD_BEVERAGES_AUDITED_CORRIDORS,
+      cells: stColdBeveragePriorityAuditCells,
+      cases: stColdBeveragePriorityAuditCases,
+      policy: "Os oito corredores comerciais de maior prioridade interna são auditados nos dois sentidos e nas seis identidades. Suportado exige perfil exato no módulo do destino; ausência de parâmetro estadual resulta em não suportado, nunca em valor emprestado.",
     },
     stPharmaCosmeticsPriority: {
       version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,

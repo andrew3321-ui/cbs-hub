@@ -13,16 +13,16 @@ import {
   validateStColdBeveragePriority,
 } from "../domain/st-cold-beverages-priority.ts";
 
-test("priority matrix keeps 144 directional cells and reports the 80 separately controlled PMPF memories", () => {
+test("V91 keeps 156 directional cells and reports 95 controlled PMPF/fallback memories", () => {
   assert.deepEqual(validateStColdBeveragePriority(), { passed: true, errors: [] });
   assert.deepEqual(stColdBeverageMetrics(), {
-    corridors: 12,
-    directedRoutes: 24,
+    corridors: 13,
+    directedRoutes: 26,
     productIdentities: 6,
-    productRouteCells: 144,
-    protocolScopedCells: 125,
-    explicitExceptionCells: 19,
-    finalCalculationsReleased: 80,
+    productRouteCells: 156,
+    protocolScopedCells: 135,
+    explicitExceptionCells: 21,
+    finalCalculationsReleased: 95,
     officialSources: 5,
   });
   assert.equal(stColdBeverageApplicabilityMatrix.length, stColdBeverageRoutes.length * ST_COLD_BEVERAGE_PRODUCTS.length);

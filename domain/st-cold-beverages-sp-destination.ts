@@ -3,8 +3,8 @@ import {
   type ColdBeverageProductCode,
 } from "./st-cold-beverages-priority.ts";
 
-export const ST_COLD_BEVERAGES_SP_DESTINATION_VERSION = "2026.07.30-v77";
-export const ST_COLD_BEVERAGES_SP_DESTINATION_CHECKED_AT = "2026-07-30";
+export const ST_COLD_BEVERAGES_SP_DESTINATION_VERSION = "2026.07.31-v91";
+export const ST_COLD_BEVERAGES_SP_DESTINATION_CHECKED_AT = "2026-07-31";
 export const ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD = {
   from: "2026-07-01",
   to: "2026-12-31",
@@ -511,9 +511,9 @@ export function stColdBeverageSpDestinationMetrics() {
 
 export function validateStColdBeverageSpDestination() {
   const errors: string[] = [];
-  if (ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES.length !== 7
-    || new Set(ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES.map((route) => route.route)).size !== 7) {
-    errors.push("sp_destination_must_have_seven_unique_inbound_routes");
+  if (ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES.length !== 8
+    || new Set(ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES.map((route) => route.route)).size !== 8) {
+    errors.push("sp_destination_must_have_eight_unique_inbound_routes");
   }
   if (ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES.some((route) => route.destination !== "SP" || route.directionalSymmetryAssumed !== false)) {
     errors.push("sp_destination_routes_must_be_directional_and_end_in_sp");
@@ -533,7 +533,7 @@ export function validateStColdBeverageSpDestination() {
     || profile.effectiveTo !== ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD.to)) {
     errors.push("sp_destination_profiles_have_invalid_scope");
   }
-  if (stColdBeverageSpReferenceRuns.length !== 70) errors.push("sp_destination_matrix_must_have_seventy_cells");
+  if (stColdBeverageSpReferenceRuns.length !== 80) errors.push("sp_destination_matrix_must_have_eighty_cells");
   if (stColdBeverageSpReferenceRuns.some((run) => run.status !== "calculated_reference" || !run.output)) {
     errors.push("sp_destination_reference_memory_failed");
   }

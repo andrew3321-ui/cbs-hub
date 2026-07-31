@@ -45,6 +45,19 @@ import {
   validateStColdBeverageSpOrigin,
 } from "./st-cold-beverages-sp-origin.ts";
 import {
+  ST_COLD_BEVERAGES_SC_DESTINATION_VERSION,
+  hashStColdBeverageScDestination,
+  stColdBeverageScMetrics,
+  stColdBeverageScSources,
+  validateStColdBeverageScDestination,
+} from "./st-cold-beverages-sc-destination.ts";
+import {
+  ST_COLD_BEVERAGES_PRIORITY_AUDIT_VERSION,
+  hashStColdBeveragePriorityAudit,
+  stColdBeveragePriorityAuditMetrics,
+  validateStColdBeveragePriorityAudit,
+} from "./st-cold-beverages-priority-audit.ts";
+import {
   ST_PHARMA_COSMETICS_PRIORITY_VERSION,
   hashStPharmaCosmeticsPriority,
   stPharmaCosmeticsMetrics,
@@ -416,6 +429,36 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     },
     sourceCodes: () => stColdBeverageSpOriginSources.map((source) => source.code).sort(),
     requiredGates: ["perfil e destino compatíveis", "regime normal", "responsabilidade", "vigência", "limite estadual de 80%", "alíquotas/FCP", "documentos"],
+  },
+  {
+    code: "COLD_BEVERAGES_SC_DESTINATION",
+    label: "Bebidas de São Paulo para Santa Catarina",
+    ruleCodes: ["NATIONAL-COVERAGE-V27", "COLD_BEVERAGES_SC_DESTINATION"],
+    version: ST_COLD_BEVERAGES_SC_DESTINATION_VERSION,
+    validate: validateStColdBeverageScDestination,
+    hash: hashStColdBeverageScDestination,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = stColdBeverageScMetrics();
+      return { deterministicCases: metrics.positiveMemories + metrics.negativeGates, calculatedMemories: metrics.positiveMemories, safelyBlockedCases: metrics.negativeGates };
+    },
+    sourceCodes: () => stColdBeverageScSources.map((source) => source.code).sort(),
+    requiredGates: ["marca/GTIN", "embalagem e volume", "regime", "responsabilidade", "interdependência", "vigência", "trava de 90%", "papel do remetente", "documentos"],
+  },
+  {
+    code: "COLD_BEVERAGES_PRIORITY_AUDIT",
+    label: "Matriz de oito corredores prioritários de bebidas",
+    ruleCodes: ["NATIONAL-COVERAGE-V27", "COLD_BEVERAGES_PRIORITY_AUDIT"],
+    version: ST_COLD_BEVERAGES_PRIORITY_AUDIT_VERSION,
+    validate: validateStColdBeveragePriorityAudit,
+    hash: hashStColdBeveragePriorityAudit,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = stColdBeveragePriorityAuditMetrics();
+      return { deterministicCases: metrics.deterministicCases, calculatedMemories: 0, safelyBlockedCases: metrics.negativeGates };
+    },
+    sourceCodes: () => ["CONFAZ-PROTOCOL-11-1991", "SP-SRE-27-2026-BEVERAGES", "MG-SAIF-93-2026", "RJ-SUBEREC-433-2025", "SC-ATO-DIAT-12-2026"],
+    requiredGates: ["corredor e sentido", "identidade CEST", "perfil exato", "marca", "embalagem", "volume", "regime", "interdependência", "vigência"],
   },
   {
     code: "PHARMA_COSMETICS_PRIORITY",

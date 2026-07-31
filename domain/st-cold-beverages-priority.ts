@@ -1,5 +1,5 @@
-export const ST_COLD_BEVERAGES_PRIORITY_VERSION = "2026.07.30-v77";
-export const ST_COLD_BEVERAGES_PRIORITY_CHECKED_AT = "2026-07-30";
+export const ST_COLD_BEVERAGES_PRIORITY_VERSION = "2026.07.31-v91";
+export const ST_COLD_BEVERAGES_PRIORITY_CHECKED_AT = "2026-07-31";
 export const ST_COLD_BEVERAGES_SUPPORTED_PERIOD = { from: "2026-01-01", to: "2026-12-31" } as const;
 export const ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM = "2026-07-01" as const;
 
@@ -11,6 +11,7 @@ export const ST_COLD_BEVERAGES_PRIORITY_CORRIDORS = [
   ["SP", "RS"],
   ["SP", "GO"],
   ["SP", "BA"],
+  ["SP", "ES"],
   ["MG", "RJ"],
   ["PR", "SC"],
   ["SC", "RS"],
@@ -268,16 +269,16 @@ export function stColdBeverageMetrics() {
     productRouteCells: stColdBeverageApplicabilityMatrix.length,
     protocolScopedCells: scoped,
     explicitExceptionCells: exceptions,
-    finalCalculationsReleased: 80,
+    finalCalculationsReleased: 95,
     officialSources: stColdBeverageSources.length,
   };
 }
 
 export function validateStColdBeveragePriority() {
   const errors: string[] = [];
-  if (stColdBeverageRoutes.length !== 24 || new Set(stColdBeverageRoutes.map((route) => route.route)).size !== 24) errors.push("beverage_routes_must_have_twenty_four_unique_directions");
+  if (stColdBeverageRoutes.length !== 26 || new Set(stColdBeverageRoutes.map((route) => route.route)).size !== 26) errors.push("beverage_routes_must_have_twenty_six_unique_directions");
   if (ST_COLD_BEVERAGE_PRODUCTS.length !== 6 || new Set(ST_COLD_BEVERAGE_PRODUCTS.map((product) => product.cest)).size !== 6) errors.push("beverage_products_must_have_six_unique_cests");
-  if (stColdBeverageApplicabilityMatrix.length !== 144) errors.push("beverage_matrix_must_have_one_hundred_forty_four_cells");
+  if (stColdBeverageApplicabilityMatrix.length !== 156) errors.push("beverage_matrix_must_have_one_hundred_fifty_six_cells");
   if (stColdBeverageRoutes.some((route) => route.directionalSymmetryAssumed !== false)) errors.push("beverage_routes_must_not_assume_symmetry");
   if (stColdBeverageSources.some((source) => !source.url.startsWith("https://") || source.proves.length === 0)) errors.push("beverage_sources_must_be_official_https_with_scope");
   const sourceCodes = new Set(stColdBeverageSources.map((source) => source.code));

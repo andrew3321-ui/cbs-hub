@@ -34,16 +34,16 @@ const baseInput = {
   facts: confirmedFacts,
 };
 
-test("V77 closes 70 exact PMPF cells for the seven priority origins into São Paulo", () => {
+test("V91 closes 80 exact PMPF cells for eight priority origins into São Paulo", () => {
   assert.deepEqual(validateStColdBeverageSpDestination(), { passed: true, errors: [] });
   assert.deepEqual(stColdBeverageSpDestinationMetrics(), {
-    inboundRoutes: 7,
+    inboundRoutes: 8,
     exactPmpfProfiles: 10,
-    controlledCells: 70,
-    reproducedMemories: 70,
+    controlledCells: 80,
+    reproducedMemories: 80,
     safeFailures: 0,
     officialSources: 7,
-    coverage: { supported: 70, partial: 0, notSupported: 0 },
+    coverage: { supported: 80, partial: 0, notSupported: 0 },
   });
   assert.equal(ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES.every((route) => route.destination === "SP"), true);
   assert.equal(ST_COLD_BEVERAGES_SP_PMPF_PROFILES.some((profile) => profile.productCode === "WATER_GLASS"), false);

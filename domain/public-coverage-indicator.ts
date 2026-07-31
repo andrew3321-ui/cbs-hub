@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v11";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v12";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "cold-beverages-v91-priority-expansion",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "Bebidas frias passaram a cobrir ES→SP nos dez perfis paulistas e SP→SC em cinco perfis exatos, com PMPF abaixo da trava de 90%, fallback por MVA conforme o papel do remetente e 30 mutações negativas que bloqueiam divergências.",
+        affectedCodes: ["COLD_BEVERAGES_PRIORITY", "COLD_BEVERAGES_SP_DESTINATION", "COLD_BEVERAGES_SC_DESTINATION"],
+        clientDataExposed: false,
+      },
       {
         id: "auto-parts-v90-168-cell-audit",
         changedAt: "2026-07-31T00:00:00.000Z",
