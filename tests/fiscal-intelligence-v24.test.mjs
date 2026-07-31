@@ -15,12 +15,12 @@ const nationalIcmsFacts = {
   specialTreatment: "none",
 };
 
-test("V24 ships eight controlled tax modules backed only by an expanded versioned base", () => {
+test("V80 ships eight controlled tax modules backed only by an expanded versioned base", () => {
   assert.equal(fiscalTopicCatalog().length, 8);
-  assert.equal(spMgAutoPartsKnowledge.version, "1.1.0");
+  assert.equal(spMgAutoPartsKnowledge.version, "1.2.0");
   assert.equal(spMgAutoPartsKnowledge.baseCode, "FISCAL-MANUAL-BR");
   assert.ok(spMgAutoPartsKnowledge.rules.length >= 24);
-  assert.ok(spMgAutoPartsKnowledge.sources.length >= 29);
+  assert.ok(spMgAutoPartsKnowledge.sources.length >= 31);
   assert.ok(spMgAutoPartsKnowledge.sources.filter((source) => source.primary).length >= 20);
   assert.ok(spMgAutoPartsKnowledge.nationalTopics.every((topic) => topic.requiredFacts.length > 0 && topic.hardStops.length > 0));
 });
@@ -93,6 +93,10 @@ test("Simples classifies the work queue but refuses to calculate DAS without apu
     specialTreatment: "none",
   });
   assert.equal(result.topicCode, "SIMPLES-NACIONAL");
+  assert.match(result.findings.find((item) => item.code === "SIMPLES-CNAE-TRIAGE")?.detail ?? "", /Anexos III\/V, condicionado ao fator R/);
+  assert.equal(result.findings.find((item) => item.code === "SIMPLES-SUBLIMIT-2026")?.value, "R$ 3.600.000");
+  assert.ok(result.sources.some((item) => item.code === "CNAE-CONCLA"));
+  assert.ok(result.sources.some((item) => item.code === "CGSN-PORTARIA-54-2025"));
   assert.equal(result.findings.find((item) => item.code === "SIMPLES-DAS-NOT-CALCULATED")?.value, "Não calculado");
   assert.equal(result.scenarioBranches.length, 3);
   assert.equal(result.calculationEligible, false);

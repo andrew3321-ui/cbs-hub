@@ -82,6 +82,13 @@ import {
   issDeepExpansionSources,
   validateIssDeepExpansion,
 } from "./iss-deep-expansion.ts";
+import {
+  SIMPLES_NATIONAL_DEEP_VERSION,
+  hashSimplesNationalDeep,
+  simplesNationalDeepMetrics,
+  simplesNationalSources,
+  validateSimplesNationalDeep,
+} from "./simples-national-deep.ts";
 
 export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v2";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-30";
@@ -121,6 +128,18 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 ];
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
+  {
+    code: "SIMPLES_NATIONAL_DEEP",
+    label: "Simples Nacional — atividades, anexos e segregações recorrentes",
+    ruleCodes: ["SIMPLES-PGDAS", "SIMPLES-NATIONAL-DEEP-V80"],
+    version: SIMPLES_NATIONAL_DEEP_VERSION,
+    validate: validateSimplesNationalDeep,
+    hash: hashSimplesNationalDeep,
+    testKinds: ALL_TEST_KINDS,
+    metrics: simplesNationalDeepMetrics,
+    sourceCodes: () => simplesNationalSources.map((source) => source.code).sort(),
+    requiredGates: ["CNAE e atividade efetiva", "anexo confirmado", "RBT12 e receita mensal", "fator R quando aplicável", "segregações", "limite e sublimite", "impedimentos", "período fechado"],
+  },
   {
     code: "ISS_DEEP_EXPANSION",
     label: "ISS profundo — segundo lote de 25 municípios",

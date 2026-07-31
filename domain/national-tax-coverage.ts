@@ -7,8 +7,13 @@ import {
   icmsStateGeneralProfiles,
   type IcmsUfCode,
 } from "./icms-general-national.ts";
+import {
+  SIMPLES_NATIONAL_DEEP_VERSION,
+  simplesActivityProfiles,
+  simplesNationalSources,
+} from "./simples-national-deep.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v79";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v80";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-30";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
@@ -46,6 +51,7 @@ export const coverageSources: CoverageSource[] = [
   { code: "RTC-MANUAL", title: "Manual de serviços da Reforma Tributária do Consumo", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/manuais/reforma-tributaria-do-consumo/manual-servicos-rtc.pdf", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   ...icmsGeneralSources,
   ...issDeepSources,
+  ...simplesNationalSources,
 ];
 
 const state = (uf: UfCode, name: string, region: StateCoverage["region"], officialPortal: string): StateCoverage => {
@@ -143,7 +149,7 @@ export const cityCoverage: CityCoverage[] = cityRows.map(([ibgeCode, city, uf]) 
 });
 
 export const recurringScenarios: ScenarioCoverage[] = [
-  { code: "SIMPLES-PGDAS", tax: "Simples", title: "Receita segregada, anexo e fator R", status: "partial", supported: ["memoria deterministica em centavos para Anexo I e servicos III/V", "fator R, anexo, receita segregada e bloqueio por fatos ausentes"], blockers: ["DAS definitivo depende de receitas segregadas, periodo fechado, sublimites, impedimentos e PGDAS-D"] },
+  { code: "SIMPLES-PGDAS", tax: "Simples", title: "Atividades, cinco anexos, fator R e segregações", status: "partial", supported: [`${simplesActivityProfiles.length} perfis CNAE prioritários como candidatos, nunca como conclusão isolada`, "30 memórias de faixa em centavos nos Anexos I a V", `fator R, segregações, limite nacional e sublimite de 2026 versionados em ${SIMPLES_NATIONAL_DEEP_VERSION}`], blockers: ["DAS definitivo depende de atividade efetiva, RBT12, composição integral da receita, período fechado, sublimite, impedimentos e reconciliação no PGDAS-D"] },
   { code: "PIS-COFINS-CUM", tax: "PIS/Cofins", title: "Regime cumulativo recorrente", status: "partial", supported: ["aliquotas de referencia de PIS e Cofins", "saldo matematico separado de creditos"], blockers: ["monofasico, aliquota zero, suspensao, exportacao e receita mista precisam ser classificados"] },
   { code: "PIS-COFINS-NC", tax: "PIS/Cofins", title: "Nao cumulativo com creditos", status: "partial", supported: ["debitos e creditos documentados em linhas separadas", "bloqueio quando credito nao possui suporte"], blockers: ["credito exige documento, vinculo, hipotese legal e tratamento da receita"] },
   { code: "PIS-COFINS-SPECIAL", tax: "PIS/Cofins", title: "Monofasico, aliquota zero, suspensao e exportacao", status: "partial", supported: ["receita especial segregada do saldo geral", "referencia zerada apenas quando tratamento e base legal estao confirmados"], blockers: ["produto, NCM, servico, operacao, base legal e ausencia de receita mista sao fatos obrigatorios"] },

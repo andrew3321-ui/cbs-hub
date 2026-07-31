@@ -14,8 +14,9 @@ import {
   type FiscalScenarioBranch,
   type NationalFiscalTopic,
 } from "./fiscal-intelligence.ts";
+import { resolveSimplesActivity } from "./simples-national-deep.ts";
 
-const DEFAULT_REFERENCE_DATE = "2026-07-16";
+const DEFAULT_REFERENCE_DATE = "2026-07-30";
 
 const labels: Record<keyof FiscalIntelligenceFacts, string> = {
   tax: "Tributo", originState: "UF de origem", destinationState: "UF de destino", segment: "Segmento", productDescription: "Produto ou serviço",
@@ -189,9 +190,22 @@ function evaluatePisCofins(facts: FiscalIntelligenceFacts): EvaluationParts {
 }
 
 function evaluateSimples(facts: FiscalIntelligenceFacts): EvaluationParts {
-  const findings = facts.cnae ? [finding("SIMPLES-CNAE-TRIAGE", "CNAE estruturado", facts.cnae, "O CNAE inicia a triagem de vedação e anexo, mas a atividade efetiva, receita segregada e regras específicas prevalecem.", ["LC-123-2006", "CGSN-140-2018"], "compliance_gate")] : [];
+  const profile = facts.cnae ? resolveSimplesActivity(facts.cnae) : null;
+  const findings = facts.cnae ? [
+    finding(
+      "SIMPLES-CNAE-TRIAGE",
+      profile ? "CNAE prioritário localizado" : "CNAE fora do catálogo prioritário",
+      facts.cnae,
+      profile
+        ? `${profile.activity}. Candidato aos Anexos ${profile.annexCandidates.join("/")}${profile.factorR === "required" ? ", condicionado ao fator R" : ""}; atividade efetiva, receita segregada e regras específicas prevalecem.`
+        : "O CNAE inicia a triagem, mas não existe perfil prioritário estruturado para este código e nenhum anexo foi inferido.",
+      profile ? ["LC-123-2006", "CGSN-140-2018", "CNAE-CONCLA"] : ["LC-123-2006", "CGSN-140-2018"],
+      "compliance_gate",
+    ),
+  ] : [];
+  findings.push(finding("SIMPLES-SUBLIMIT-2026", "Sublimite de ICMS e ISS em 2026", "R$ 3.600.000", "O limite precisa ser conferido sobre a receita acumulada; o excesso pode levar ICMS e ISS para fora do DAS sem alterar, por si só, o teto nacional de R$ 4.800.000.", ["CGSN-140-2018", "CGSN-PORTARIA-54-2025"], "compliance_gate"));
   findings.push(finding("SIMPLES-DAS-NOT-CALCULATED", "DAS", "Não calculado", "O motor não recebeu RBT12, receita do período, anexo confirmado, fator R, folha nem segregações de ST, monofásico, exportação e retenções.", ["LC-123-2006", "CGSN-140-2018"], "compliance_gate"));
-  return { findings, scenarioBranches: [scenario("SIMPLES-COMMERCE", "Comércio", "Anexo I · triagem", "Receita efetiva de revenda, salvo segregações.", "ST e monofásico podem sair da parcela comum.", "baseline", ["LC-123-2006", "CGSN-140-2018"]), scenario("SIMPLES-INDUSTRY", "Indústria", "Anexo II · triagem", "Receita de industrialização.", "IPI e operações especiais precisam ser segregados.", "baseline", ["LC-123-2006", "CGSN-140-2018"]), scenario("SIMPLES-SERVICES", "Serviços", "Anexos III, IV ou V", "A atividade, o fator R e as regras específicas definem o tratamento.", "CNAE sozinho não decide o anexo.", "exception", ["LC-123-2006", "CGSN-140-2018"])], decisionTrace: [trace("SIMPLES-DAS-INPUT-GATE", "blocked", "O cálculo do DAS permanece bloqueado até a entrada de todas as variáveis do PGDAS-D.")], headline: "Simples: trilha de enquadramento aberta; DAS não calculado", summary: "A V24 organiza CNAE, atividade, anexo, fator R e receitas segregadas. O sistema não calcula DAS por uma pergunta textual." };
+  return { findings, scenarioBranches: [scenario("SIMPLES-COMMERCE", "Comércio", "Anexo I · triagem", "Receita efetiva de revenda, salvo segregações.", "ST e monofásico exigem segregação.", "baseline", ["LC-123-2006", "CGSN-140-2018"]), scenario("SIMPLES-INDUSTRY", "Indústria", "Anexo II · triagem", "Receita de industrialização.", "Revenda, IPI e operações especiais precisam ser separados.", "baseline", ["LC-123-2006", "CGSN-140-2018"]), scenario("SIMPLES-SERVICES", "Serviços", "Anexos III, IV ou V", "A atividade, o fator R e as regras específicas definem o tratamento.", "CNAE sozinho não decide o anexo; no IV, a CPP permanece fora do DAS.", "exception", ["LC-123-2006", "CGSN-140-2018"])], decisionTrace: [trace("SIMPLES-CNAE-ACTIVITY-GATE", profile ? "applied" : "blocked", profile ? "Perfil candidato localizado; a conclusão permanece dependente da atividade efetiva." : "CNAE sem perfil prioritário estruturado."), trace("SIMPLES-SUBLIMIT-2026", "blocked", "Sem RBT12, o sistema não afirma se ICMS e ISS permanecem dentro do DAS."), trace("SIMPLES-DAS-INPUT-GATE", "blocked", "O cálculo do DAS permanece bloqueado até a entrada de todas as variáveis do PGDAS-D.")], headline: profile ? `Simples: perfil candidato aos Anexos ${profile.annexCandidates.join("/")}; DAS bloqueado` : "Simples: trilha de enquadramento aberta; DAS não calculado", summary: "A V80 organiza 20 perfis prioritários, os cinco anexos, fator R, segregações, impedimentos e sublimite. Uma pergunta textual nunca produz DAS." };
 }
 
 function evaluateIrpjCsll(facts: FiscalIntelligenceFacts): EvaluationParts {

@@ -14,15 +14,16 @@ test("versioned regression report exposes module, rule, evidence and maturity wi
   const report = await buildFiscalRegressionReport();
   assert.equal(report.reportVersion, FISCAL_REGRESSION_REPORT_VERSION);
   assert.equal(report.status, "automatically_verified", JSON.stringify(report.errors));
-  assert.equal(report.metrics.modules, 12);
+  assert.equal(report.metrics.modules, 13);
   assert.ok(report.modules.some((module) => module.code === "ICMS_GENERAL_NATIONAL"));
   assert.ok(report.modules.some((module) => module.code === "ISS_DEEP_EXPANSION"));
+  assert.ok(report.modules.some((module) => module.code === "SIMPLES_NATIONAL_DEEP"));
   assert.equal(report.metrics.modulesPassed, report.metrics.modules);
   assert.equal(report.metrics.catalogued, report.metrics.modules);
   assert.equal(report.metrics.structured, report.metrics.modules);
   assert.equal(report.metrics.tested, report.metrics.modules);
   assert.equal(report.metrics.approved, 0);
-  assert.ok(report.metrics.deterministicCases >= 900);
+  assert.ok(report.metrics.deterministicCases >= 1_100);
   assert.ok(report.metrics.calculatedMemories > 80);
   assert.ok(report.metrics.safelyBlockedCases > 600);
   assert.match(report.fingerprint, /^[0-9a-f]{64}$/);

@@ -9,7 +9,7 @@ import {
 import { issDeepProfileByIbge, sourcesForIssDeepProfile } from "./iss-deep-coverage.ts";
 import { fiscalAutomaticAssuranceCapacity } from "./fiscal-automatic-assurance.ts";
 
-export const FISCAL_EXPANSION_VERSION = "2026.07.31-v79";
+export const FISCAL_EXPANSION_VERSION = "2026.07.31-v80";
 export const FISCAL_EXPANSION_MONTH = "2026-07";
 
 export type ExpansionScope = "icms" | "iss" | "st" | "federal" | "sources";

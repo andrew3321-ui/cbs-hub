@@ -11,11 +11,11 @@ test("garantia automática libera somente uma base tecnicamente íntegra", () =>
   assert.equal(assurance.status, "automatically_verified");
   assert.equal(assurance.professionalOpinion, false);
   assert.equal(assurance.humanReviewRequired, false);
-  assert.equal(assurance.metrics.modules, 16);
-  assert.equal(assurance.metrics.modulesPassed, 16);
-  assert.equal(assurance.metrics.totalRuns, 717);
-  assert.equal(assurance.metrics.referenceReproduced, 27);
-  assert.equal(assurance.metrics.safelyBlocked, 689);
+  assert.equal(assurance.metrics.modules, 17);
+  assert.equal(assurance.metrics.modulesPassed, 17);
+  assert.equal(assurance.metrics.totalRuns, 774);
+  assert.equal(assurance.metrics.referenceReproduced, 77);
+  assert.equal(assurance.metrics.safelyBlocked, 696);
   assert.equal(assurance.metrics.failed, 0);
   assert.deepEqual(assurance.errors, []);
 });
