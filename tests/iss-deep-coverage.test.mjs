@@ -8,14 +8,17 @@ import {
   issDeepCityProfiles,
   issDeepMetrics,
   issDeepPartialPriorityQueue,
+  issDeepReferenceCases,
+  issDeepReferenceMetrics,
   issDeepServiceCoverage,
   issDeepSources,
   resolveIssDeepServiceCoverage,
   sourcesForIssDeepProfile,
   sourcesForIssServiceCoverage,
+  validateIssDeepCoverage,
 } from "../domain/iss-deep-coverage.ts";
 
-test("V79 structures 50 priority ISS municipalities and preserves exact calculations only where proved", () => {
+test("V88 audits 50 priority ISS municipalities and preserves exact calculations only where proved", () => {
   assert.equal(issDeepCityProfiles.length, 50);
   assert.equal(new Set(issDeepCityProfiles.map((item) => item.ibgeCode)).size, 50);
   assert.ok(issDeepCityProfiles.every((item) => item.stage === "structured"));
@@ -38,6 +41,40 @@ test("V79 structures 50 priority ISS municipalities and preserves exact calculat
   assert.equal(issDeepMetrics.partialServiceRules, 25);
   assert.equal(issDeepMetrics.professionallyApprovedCities, 0);
   assert.equal(issDeepMetrics.automaticHomologation, false);
+  assert.equal(issDeepMetrics.referenceCases, 200);
+  assert.equal(issDeepMetrics.calculatedMemories, 25);
+  assert.equal(issDeepMetrics.safelyBlockedCases, 175);
+});
+
+test("all 50 municipalities have controlled, classifier, validity and withholding cases", () => {
+  assert.deepEqual(validateIssDeepCoverage(), { passed: true, errors: [] });
+  assert.equal(issDeepReferenceCases.length, 200);
+  assert.equal(new Set(issDeepReferenceCases.map((reference) => reference.code)).size, 200);
+  assert.deepEqual(issDeepReferenceMetrics(), {
+    deterministicCases: 200,
+    calculatedMemories: 25,
+    safelyBlockedCases: 175,
+    positiveMunicipalities: 25,
+    partialMunicipalities: 25,
+  });
+  for (const profile of issDeepCityProfiles) {
+    const municipalityCases = issDeepReferenceCases.filter((reference) => reference.input.ibgeCode === profile.ibgeCode);
+    assert.deepEqual(municipalityCases.map((reference) => reference.kind).sort(), [
+      "classifier_mismatch",
+      "controlled",
+      "validity_boundary",
+      "withholding_mutation",
+    ]);
+    for (const reference of municipalityCases) {
+      const result = calculateIssDeep(reference.input);
+      assert.equal(result.status, reference.expectedStatus, reference.code);
+      assert.equal(result.coverageStatus, reference.expectedCoverageStatus, reference.code);
+      if (result.status === "blocked") assert.equal(result.calculation, null, reference.code);
+      if (reference.expectedIssCents !== null && result.status === "calculated") {
+        assert.equal(result.calculation.issCents, reference.expectedIssCents, reference.code);
+      }
+    }
+  }
 });
 
 test("the 22-city expansion queue preserves the original partial backlog and prioritizes recurring services", () => {

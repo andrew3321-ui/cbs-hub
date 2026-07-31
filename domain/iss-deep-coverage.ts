@@ -5,8 +5,8 @@ import {
   issDeepExpansionSources,
 } from "./iss-deep-expansion.ts";
 
-export const ISS_DEEP_VERSION = "2026.07.31-v79";
-export const ISS_DEEP_CHECKED_AT = "2026-07-30";
+export const ISS_DEEP_VERSION = "2026.07.31-v88";
+export const ISS_DEEP_CHECKED_AT = "2026-07-31";
 
 export const ISS_DEEP_TECHNICAL_CHECKS = [
   "unique_profile_and_ibge",
@@ -1154,6 +1154,114 @@ export function calculateIssDeep(input: IssDeepCalculationInput) {
   };
 }
 
+export type IssDeepReferenceCase = {
+  code: string;
+  kind: "controlled" | "classifier_mismatch" | "validity_boundary" | "withholding_mutation";
+  input: IssDeepCalculationInput;
+  expectedStatus: "calculated" | "blocked";
+  expectedCoverageStatus: IssCoverageStatus;
+  expectedIssCents: number | null;
+};
+
+function dayBefore(value: string | null) {
+  if (!value) return "1900-01-01";
+  const date = new Date(`${value}T00:00:00.000Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}
+
+function externalRecipientFor(ibgeCode: string) {
+  return ibgeCode === "3304557" ? "3550308" : "3304557";
+}
+
+function controlledReferenceInput(service: IssDeepServiceCoverage): IssDeepCalculationInput {
+  return {
+    ibgeCode: service.ibgeCode,
+    lc116Item: service.lc116Item,
+    municipalServiceCode: service.municipalServiceCode ?? "17.01",
+    operationDate: ISS_DEEP_CHECKED_AT,
+    taxableBaseCents: 100_000,
+    providerEstablishmentIbgeCode: service.ibgeCode,
+    recipientMunicipalityIbgeCode: externalRecipientFor(service.ibgeCode),
+    recipientType: "private_legal_entity",
+    providerTaxRegime: "normal",
+    exportStatus: "domestic_result",
+    professionalSociety: false,
+    specialRegime: false,
+    benefitApplied: false,
+    incidenceMunicipalityIbgeCode: service.ibgeCode,
+    withholdingResponsibility: "provider",
+  };
+}
+
+export const issDeepReferenceCases: IssDeepReferenceCase[] = issDeepServiceCoverage.flatMap((service) => {
+  const controlled = controlledReferenceInput(service);
+  const supported = service.coverageStatus === "supported" && service.calculationSupported && service.rate.bps !== null;
+  const supportedCoverage: IssCoverageStatus = supported ? "supported" : "partial";
+  return [
+    {
+      code: `${service.ibgeCode}-CONTROLLED`,
+      kind: "controlled",
+      input: controlled,
+      expectedStatus: supported ? "calculated" : "blocked",
+      expectedCoverageStatus: supportedCoverage,
+      expectedIssCents: supported ? Math.floor((controlled.taxableBaseCents * (service.rate.bps as number) + 5_000) / 10_000) : null,
+    },
+    {
+      code: `${service.ibgeCode}-CLASSIFIER-MISMATCH`,
+      kind: "classifier_mismatch",
+      input: { ...controlled, municipalServiceCode: `${controlled.municipalServiceCode}9` },
+      expectedStatus: "blocked",
+      expectedCoverageStatus: "partial",
+      expectedIssCents: null,
+    },
+    {
+      code: `${service.ibgeCode}-VALIDITY-BOUNDARY`,
+      kind: "validity_boundary",
+      input: { ...controlled, operationDate: dayBefore(service.effectiveFrom) },
+      expectedStatus: "blocked",
+      expectedCoverageStatus: supportedCoverage,
+      expectedIssCents: null,
+    },
+    {
+      code: `${service.ibgeCode}-WITHHOLDING-MUTATION`,
+      kind: "withholding_mutation",
+      input: { ...controlled, withholdingResponsibility: "recipient" },
+      expectedStatus: "blocked",
+      expectedCoverageStatus: supportedCoverage,
+      expectedIssCents: null,
+    },
+  ] satisfies IssDeepReferenceCase[];
+});
+
+export function issDeepReferenceMetrics() {
+  const results = issDeepReferenceCases.map((reference) => calculateIssDeep(reference.input));
+  return {
+    deterministicCases: results.length,
+    calculatedMemories: results.filter((result) => result.status === "calculated").length,
+    safelyBlockedCases: results.filter((result) => result.status === "blocked").length,
+    positiveMunicipalities: issDeepServiceCoverage.filter((service) => service.calculationSupported).length,
+    partialMunicipalities: issDeepServiceCoverage.filter((service) => !service.calculationSupported).length,
+  };
+}
+
+export function validateIssDeepCoverage() {
+  const errors: string[] = [];
+  if (issDeepCityProfiles.length !== 50 || issDeepServiceCoverage.length !== 50) errors.push("expected_50_municipal_dossiers");
+  if (issDeepReferenceCases.length !== 200) errors.push("expected_200_reference_cases");
+  if (new Set(issDeepReferenceCases.map((reference) => reference.code)).size !== issDeepReferenceCases.length) errors.push("duplicate_reference_case");
+  for (const reference of issDeepReferenceCases) {
+    const result = calculateIssDeep(reference.input);
+    if (result.status !== reference.expectedStatus) errors.push(`${reference.code}:unexpected_${result.status}`);
+    if (result.coverageStatus !== reference.expectedCoverageStatus) errors.push(`${reference.code}:unexpected_${result.coverageStatus}_coverage`);
+    if (reference.expectedIssCents !== null && result.status === "calculated" && result.calculation.issCents !== reference.expectedIssCents) errors.push(`${reference.code}:unexpected_memory`);
+    if (result.status === "blocked" && result.calculation !== null) errors.push(`${reference.code}:blocked_value_leak`);
+  }
+  const metrics = issDeepReferenceMetrics();
+  if (metrics.deterministicCases !== metrics.calculatedMemories + metrics.safelyBlockedCases) errors.push("reference_accounting_mismatch");
+  return { passed: errors.length === 0, errors };
+}
+
 export type IssDeepGateInput = {
   ibgeCode: string;
   lc116Item?: string | null;
@@ -1231,6 +1339,9 @@ export const issDeepMetrics = {
   partialServiceRules: issDeepServiceCoverage.filter((item) => item.coverageStatus === "partial").length,
   professionallyApprovedCities: 0,
   automaticHomologation: false,
+  referenceCases: issDeepReferenceCases.length,
+  calculatedMemories: issDeepReferenceMetrics().calculatedMemories,
+  safelyBlockedCases: issDeepReferenceMetrics().safelyBlockedCases,
 } as const;
 
 export {

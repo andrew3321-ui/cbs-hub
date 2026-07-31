@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v8";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v9";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "iss-17-01-v88-50-municipalities",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "Os 50 municípios do recorte ISS 17.01 passaram a possuir matriz determinística de cenário controlado, classificador divergente, fronteira de vigência e mutação de retenção; cálculo continua restrito às 25 regras integralmente provadas.",
+        affectedCodes: ["ISS-DEEP-NATIONAL", "ISS-DEEP-17.01-V88"],
+        clientDataExposed: false,
+      },
       {
         id: "icms-general-v87-priority-difal",
         changedAt: "2026-07-31T00:00:00.000Z",

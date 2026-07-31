@@ -80,12 +80,12 @@ import {
   validateIcmsGeneralNational,
 } from "./icms-general-national.ts";
 import {
-  ISS_DEEP_EXPANSION_VERSION,
-  hashIssDeepExpansion,
-  issDeepExpansionCities,
-  issDeepExpansionSources,
-  validateIssDeepExpansion,
-} from "./iss-deep-expansion.ts";
+  ISS_DEEP_VERSION,
+  hashIssDeepCoverage,
+  issDeepReferenceMetrics,
+  issDeepSources,
+  validateIssDeepCoverage,
+} from "./iss-deep-coverage.ts";
 import {
   SIMPLES_NATIONAL_DEEP_VERSION,
   hashSimplesNationalDeep,
@@ -210,18 +210,14 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   },
   {
     code: "ISS_DEEP_EXPANSION",
-    label: "ISS profundo — segundo lote de 25 municípios",
-    ruleCodes: ["ISS-DEEP-NATIONAL", "ISS-DEEP-EXPANSION-V79"],
-    version: ISS_DEEP_EXPANSION_VERSION,
-    validate: validateIssDeepExpansion,
-    hash: hashIssDeepExpansion,
+    label: "ISS 17.01 — 50 municípios auditados",
+    ruleCodes: ["ISS-DEEP-NATIONAL", "ISS-DEEP-17.01-V88"],
+    version: ISS_DEEP_VERSION,
+    validate: validateIssDeepCoverage,
+    hash: hashIssDeepCoverage,
     testKinds: ALL_TEST_KINDS,
-    metrics: () => ({
-      deterministicCases: issDeepExpansionCities.length,
-      calculatedMemories: 0,
-      safelyBlockedCases: issDeepExpansionCities.length,
-    }),
-    sourceCodes: () => issDeepExpansionSources.map((source) => source.code).sort(),
+    metrics: issDeepReferenceMetrics,
+    sourceCodes: () => issDeepSources.map((source) => source.code).sort(),
     requiredGates: ["município e item da LC 116", "código municipal", "alíquota e vigência", "local de incidência", "retenção e responsável", "exceções, benefícios e regimes especiais"],
   },
   {
