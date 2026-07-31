@@ -20,6 +20,7 @@ import { hashStFoodCleaningPetPriority, stFoodCleaningPetDossiers, stFoodCleanin
 import { hashStSectoralPriorityExpansion, stSectoralPriorityCases, stSectoralPriorityCells, stSectoralPriorityMetrics, ST_SECTORAL_PRIORITY_EXPANSION_CHECKED_AT, ST_SECTORAL_PRIORITY_EXPANSION_VERSION, ST_SECTORAL_RANKED_ROUTES, ST_SECTORAL_REPRESENTATIVES, validateStSectoralPriorityExpansion } from "../../../../domain/st-sectoral-priority-expansion";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { hashSimplesNationalDeep, simplesActivityProfiles, simplesAnnexTables, simplesEligibilityGates, simplesExclusionRules, simplesNationalDeepMetrics, simplesNationalReferenceCases, simplesNationalSources, simplesSegregationRules, SIMPLES_NATIONAL_DEEP_CHECKED_AT, SIMPLES_NATIONAL_DEEP_VERSION, validateSimplesNationalDeep } from "../../../../domain/simples-national-deep";
+import { hashPisCofinsDeep, pisCofinsCreditHypotheses, pisCofinsDeepMetrics, pisCofinsDeepSources, pisCofinsProductProfiles, pisCofinsReferenceCases, PIS_COFINS_DEEP_CHECKED_AT, PIS_COFINS_DEEP_SUPPORTED_PERIOD, PIS_COFINS_DEEP_VERSION, PIS_COFINS_LC224_EFFECTIVE_FROM, validatePisCofinsDeep } from "../../../../domain/pis-cofins-deep";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
@@ -50,6 +51,7 @@ async function publicCoverage() {
   const foodCleaningPetFingerprint = (await hashStFoodCleaningPetPriority()).slice(0, 12);
   const sectoralPriorityFingerprint = (await hashStSectoralPriorityExpansion()).slice(0, 12);
   const simplesNationalFingerprint = (await hashSimplesNationalDeep()).slice(0, 12);
+  const pisCofinsFingerprint = (await hashPisCofinsDeep()).slice(0, 12);
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const sourceCertificationFingerprint = (await hashOfficialSourceCertification()).slice(0, 12);
@@ -279,6 +281,20 @@ async function publicCoverage() {
       referenceCases: simplesNationalReferenceCases,
       sources: simplesNationalSources,
       policy: "CNAE somente localiza um perfil candidato. DAS em centavos exige atividade e anexo confirmados, RBT12, folha quando houver fator R, receita mensal segregada, período fechado, elegibilidade, sublimite e tratamentos especiais reconciliados.",
+    },
+    pisCofinsDeep: {
+      version: PIS_COFINS_DEEP_VERSION,
+      checkedAt: PIS_COFINS_DEEP_CHECKED_AT,
+      supportedPeriod: PIS_COFINS_DEEP_SUPPORTED_PERIOD,
+      lc224EffectiveFrom: PIS_COFINS_LC224_EFFECTIVE_FROM,
+      fingerprint: pisCofinsFingerprint,
+      validation: validatePisCofinsDeep(),
+      metrics: pisCofinsDeepMetrics(),
+      profiles: pisCofinsProductProfiles,
+      creditHypotheses: pisCofinsCreditHypotheses,
+      referenceCases: pisCofinsReferenceCases,
+      sources: pisCofinsDeepSources,
+      policy: "NCM exato na tabela oficial, papel na cadeia, documento, receita segregada, vínculo, incidência da aquisição e vigência são gates. Créditos com método específico nunca herdam automaticamente 1,65% e 7,60%.",
     },
     stPharmaCosmeticsPriority: {
       version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,

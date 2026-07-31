@@ -94,7 +94,7 @@ test("PIS/Cofins recognizes a special product candidate but keeps the 2026 rate 
     specialTreatment: "exists",
     pisCofinsRegime: "monophase",
   });
-  assert.equal(result.findings.find((item) => item.code === "PIS-COFINS-PRODUCT-CANDIDATE")?.value, "Pneus novos");
+  assert.equal(result.findings.find((item) => item.code === "PIS-COFINS-PRODUCT-CANDIDATE")?.value, "Pneus para automóveis");
   assert.equal(result.decisionTrace.some((item) => item.ruleCode === "PIS-COFINS-LC224-2026" && item.result === "blocked"), true);
   assert.equal(result.calculationEligible, false);
 });

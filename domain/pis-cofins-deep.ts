@@ -1,6 +1,7 @@
-export const PIS_COFINS_DEEP_VERSION = "2026.07.31-v81";
-export const PIS_COFINS_DEEP_CHECKED_AT = "2026-07-30";
+export const PIS_COFINS_DEEP_VERSION = "2026.07.31-v94";
+export const PIS_COFINS_DEEP_CHECKED_AT = "2026-07-31";
 export const PIS_COFINS_LC224_EFFECTIVE_FROM = "2026-04-01";
+export const PIS_COFINS_DEEP_SUPPORTED_PERIOD = { from: "2026-04-01", to: "2026-12-31" } as const;
 
 export type PisCofinsRegime = "cumulative" | "non_cumulative";
 export type PisCofinsRole = "manufacturer" | "importer" | "wholesaler" | "retailer" | "service_provider";
@@ -14,7 +15,18 @@ export type PisCofinsCreditKind =
   | "leasing"
   | "fixed_asset_depreciation"
   | "storage_and_freight"
-  | "sales_returns";
+  | "sales_returns"
+  | "buildings_depreciation"
+  | "leasehold_improvements"
+  | "cleaning_transport_food_uniform"
+  | "subcontracted_freight"
+  | "imports_goods"
+  | "imports_services"
+  | "opening_inventory"
+  | "agricultural_presumed"
+  | "export_related"
+  | "fuel_specific"
+  | "court_recognized";
 
 export type PisCofinsSource = {
   code: string;
@@ -46,6 +58,7 @@ export type PisCofinsCreditHypothesis = {
   sourceCodes: string[];
   requiredFacts: string[];
   forbiddenWhen: string[];
+  calculationMethod?: "basic_rates" | "requires_specific_memory";
 };
 
 export type PisCofinsDeepInput = {
@@ -239,6 +252,49 @@ export const pisCofinsProductProfiles: PisCofinsProductProfile[] = [
   profile(18, "MILK", "Leites selecionados", ["0401", "0402"], "zero_rate", ["PISCOFINS-L-10925"], ["manufacturer", "importer", "wholesaler", "retailer"], "requires_specific_analysis"),
   profile(19, "WHEAT_FLOUR", "Farinha de trigo selecionada", ["1101"], "zero_rate", ["PISCOFINS-L-10925"], ["manufacturer", "importer", "wholesaler", "retailer"], "requires_specific_analysis"),
   profile(20, "MEAT", "Carnes selecionadas", ["0201", "0202", "0203", "0207"], "zero_rate", ["PISCOFINS-L-10925"], ["manufacturer", "importer", "wholesaler", "retailer"], "requires_specific_analysis"),
+  ...([
+    ["AUTO_BRAKE", "Autopeças · freios", "87083090", "monophase", "PISCOFINS-L-10485"],
+    ["AUTO_BODY", "Autopeças · carroçaria", "87082999", "monophase", "PISCOFINS-L-10485"],
+    ["AUTO_GEAR", "Autopeças · transmissão", "87084090", "monophase", "PISCOFINS-L-10485"],
+    ["AUTO_AXLE", "Autopeças · eixos", "87085099", "monophase", "PISCOFINS-L-10485"],
+    ["AUTO_WHEEL", "Autopeças · rodas", "87087090", "monophase", "PISCOFINS-L-10485"],
+    ["AUTO_SUSPENSION", "Autopeças · suspensão", "87088000", "monophase", "PISCOFINS-L-10485"],
+    ["AUTO_RADIATOR", "Autopeças · radiadores", "87089100", "monophase", "PISCOFINS-L-10485"],
+    ["AUTO_EXHAUST", "Autopeças · escapamentos", "87089200", "monophase", "PISCOFINS-L-10485"],
+    ["AUTO_CLUTCH", "Autopeças · embreagens", "87089300", "monophase", "PISCOFINS-L-10485"],
+    ["AUTO_STEERING", "Autopeças · direção", "87089490", "monophase", "PISCOFINS-L-10485"],
+    ["TIRE_CAR", "Pneus para automóveis", "40111000", "monophase", "PISCOFINS-L-10485"],
+    ["TIRE_BUS", "Pneus para ônibus e caminhões", "40112090", "monophase", "PISCOFINS-L-10485"],
+    ["MEDICINE_DOSED", "Medicamento dosado representativo", "30049099", "monophase", "PISCOFINS-L-10147"],
+    ["PERFUME_EXTRACT", "Perfume representativo", "33030010", "monophase", "PISCOFINS-L-10147"],
+    ["BEAUTY_CREAM", "Creme de beleza representativo", "33049910", "monophase", "PISCOFINS-L-10147"],
+    ["HAIR_SHAMPOO", "Xampu representativo", "33051000", "monophase", "PISCOFINS-L-10147"],
+    ["DEODORANT", "Desodorante representativo", "33072010", "monophase", "PISCOFINS-L-10147"],
+    ["SODA", "Refrigerante representativo", "22021000", "monophase", "PISCOFINS-L-13097"],
+    ["BEER_MALT", "Cerveja de malte representativa", "22030000", "monophase", "PISCOFINS-L-13097"],
+    ["GASOLINE", "Gasolina representativa", "27101259", "monophase", "PISCOFINS-L-9718"],
+    ["RICE_HUSKED", "Arroz descascado", "10062020", "zero_rate", "PISCOFINS-L-10925"],
+    ["RICE_SEMI", "Arroz semibranqueado", "10063021", "zero_rate", "PISCOFINS-L-10925"],
+    ["BLACK_BEANS", "Feijão preto", "07133319", "zero_rate", "PISCOFINS-L-10925"],
+    ["COMMON_BEANS", "Feijão comum", "07133399", "zero_rate", "PISCOFINS-L-10925"],
+    ["RAW_MILK", "Leite cru", "04012010", "zero_rate", "PISCOFINS-L-10925"],
+    ["MILK_POWDER", "Leite em pó", "04022110", "zero_rate", "PISCOFINS-L-10925"],
+    ["WHEAT_FLOUR_EXACT", "Farinha de trigo", "11010010", "zero_rate", "PISCOFINS-L-10925"],
+    ["BEEF_FRESH", "Carne bovina fresca", "02013000", "zero_rate", "PISCOFINS-L-10925"],
+    ["BEEF_FROZEN", "Carne bovina congelada", "02023000", "zero_rate", "PISCOFINS-L-10925"],
+    ["PORK", "Carne suína", "02032900", "zero_rate", "PISCOFINS-L-10925"],
+    ["CHICKEN", "Carne de frango", "02071400", "zero_rate", "PISCOFINS-L-10925"],
+    ["FERTILIZER_UREA", "Fertilizante com ureia", "31021010", "zero_rate", "PISCOFINS-L-10925"],
+    ["FERTILIZER_NPK", "Fertilizante NPK", "31052000", "zero_rate", "PISCOFINS-L-10925"],
+    ["CORN", "Milho em grão representativo", "10059010", "zero_rate", "PISCOFINS-L-10925"],
+    ["WHEAT", "Trigo representativo", "10019900", "zero_rate", "PISCOFINS-L-10925"],
+    ["SOY", "Soja representativa", "12019000", "zero_rate", "PISCOFINS-L-10925"],
+    ["EGGS", "Ovos representativos", "04072100", "zero_rate", "PISCOFINS-L-10925"],
+    ["FISH", "Peixe representativo", "03028990", "zero_rate", "PISCOFINS-L-10925"],
+    ["BREAD", "Pão comum representativo", "19059090", "zero_rate", "PISCOFINS-L-10925"],
+    ["CHEESE", "Queijo representativo", "04069090", "zero_rate", "PISCOFINS-L-10925"],
+  ] as const).map(([code, segment, ncm, treatment, source], index) =>
+    profile(21 + index, code, segment, [ncm], treatment, [source, "PISCOFINS-RFB-MONOPHASE"], ["manufacturer", "importer", "wholesaler", "retailer"], treatment === "zero_rate" ? "requires_specific_analysis" : "forbidden")),
 ];
 
 export const pisCofinsCreditHypotheses: PisCofinsCreditHypothesis[] = [
@@ -251,6 +307,17 @@ export const pisCofinsCreditHypotheses: PisCofinsCreditHypothesis[] = [
   { code: "fixed_asset_depreciation", label: "Depreciação de ativo imobilizado", sourceCodes: ["PISCOFINS-L-10637", "PISCOFINS-L-10833", "PISCOFINS-IN-2121"], requiredFacts: ["bem incorporado ao ativo", "uso na produção ou prestação", "memória de depreciação"], forbiddenWhen: ["bem para revenda", "ativo sem uso elegível"] },
   { code: "storage_and_freight", label: "Armazenagem e frete na venda", sourceCodes: ["PISCOFINS-L-10637", "PISCOFINS-L-10833"], requiredFacts: ["ônus suportado pelo vendedor", "operação de venda vinculada", "documento fiscal"], forbiddenWhen: ["frete suportado por terceiro", "operação não vinculada"] },
   { code: "sales_returns", label: "Bens recebidos em devolução", sourceCodes: ["PISCOFINS-L-10637", "PISCOFINS-L-10833"], requiredFacts: ["receita anterior tributada", "documento de devolução", "vínculo com operação original"], forbiddenWhen: ["venda original sem incidência comprovada"] },
+  { code: "buildings_depreciation", label: "Depreciação de edificações e benfeitorias", sourceCodes: ["PISCOFINS-L-10637", "PISCOFINS-L-10833", "PISCOFINS-IN-2121"], requiredFacts: ["edificação incorporada ao ativo", "uso na atividade", "data e memória de aquisição"], forbiddenWhen: ["bem não elegível ou sem uso empresarial"], calculationMethod: "requires_specific_memory" },
+  { code: "leasehold_improvements", label: "Benfeitorias em imóvel de terceiro", sourceCodes: ["PISCOFINS-L-10637", "PISCOFINS-L-10833", "PISCOFINS-IN-2121"], requiredFacts: ["contrato", "benfeitoria ativada", "uso na atividade"], forbiddenWhen: ["gasto sem capitalização ou vínculo"], calculationMethod: "requires_specific_memory" },
+  { code: "cleaning_transport_food_uniform", label: "Vale-transporte, alimentação e uniformes em atividades legalmente abrangidas", sourceCodes: ["PISCOFINS-L-10637", "PISCOFINS-L-10833", "PISCOFINS-IN-2121"], requiredFacts: ["atividade abrangida", "empregados vinculados", "documentos"], forbiddenWhen: ["atividade fora do recorte legal"], calculationMethod: "requires_specific_memory" },
+  { code: "subcontracted_freight", label: "Frete subcontratado", sourceCodes: ["PISCOFINS-L-10637", "PISCOFINS-L-10833", "PISCOFINS-IN-2121"], requiredFacts: ["transportador e subcontratação", "receita vinculada", "documentos"], forbiddenWhen: ["frete fora da hipótese específica"], calculationMethod: "requires_specific_memory" },
+  { code: "imports_goods", label: "Crédito na importação de bens", sourceCodes: ["PISCOFINS-IN-2121", "PISCOFINS-RFB-CREDIT"], requiredFacts: ["DI/Duimp", "contribuição efetivamente paga", "bem e finalidade elegíveis"], forbiddenWhen: ["importação sem incidência ou pagamento"], calculationMethod: "requires_specific_memory" },
+  { code: "imports_services", label: "Crédito na importação de serviços", sourceCodes: ["PISCOFINS-IN-2121", "PISCOFINS-RFB-CREDIT"], requiredFacts: ["serviço importado", "contribuição paga", "uso elegível"], forbiddenWhen: ["serviço sem vínculo com receita elegível"], calculationMethod: "requires_specific_memory" },
+  { code: "opening_inventory", label: "Crédito presumido sobre estoque de abertura", sourceCodes: ["PISCOFINS-L-10637", "PISCOFINS-L-10833", "PISCOFINS-IN-2121"], requiredFacts: ["mudança válida de regime", "estoque inventariado", "parcelamento e memória"], forbiddenWhen: ["mercadoria vedada ou sem inventário"], calculationMethod: "requires_specific_memory" },
+  { code: "agricultural_presumed", label: "Crédito presumido agropecuário", sourceCodes: ["PISCOFINS-L-10925", "PISCOFINS-IN-2121"], requiredFacts: ["produto", "fornecedor", "destinação e percentual legal"], forbiddenWhen: ["cadeia ou produto fora da hipótese"], calculationMethod: "requires_specific_memory" },
+  { code: "export_related", label: "Créditos vinculados a receita de exportação", sourceCodes: ["PISCOFINS-L-10637", "PISCOFINS-L-10833", "PISCOFINS-IN-2121"], requiredFacts: ["receita exportada", "vínculo dos custos", "documentação"], forbiddenWhen: ["vínculo não comprovado"], calculationMethod: "requires_specific_memory" },
+  { code: "fuel_specific", label: "Crédito específico de combustíveis", sourceCodes: ["PISCOFINS-L-9718", "PISCOFINS-IN-2121"], requiredFacts: ["produto e NCM", "papel na cadeia", "período e regime específico"], forbiddenWhen: ["aplicação das alíquotas básicas por analogia"], calculationMethod: "requires_specific_memory" },
+  { code: "court_recognized", label: "Crédito reconhecido judicialmente", sourceCodes: ["PISCOFINS-RFB-CREDIT", "PISCOFINS-IN-2121"], requiredFacts: ["decisão definitiva", "período", "habilitação e memória"], forbiddenWhen: ["decisão não definitiva ou sem habilitação aplicável"], calculationMethod: "requires_specific_memory" },
 ];
 
 function normalizeNcm(value: string | null) {
@@ -280,7 +347,9 @@ function multiplyCents(value: number, rateBps: number) {
 export function classifyPisCofinsProduct(ncm: string | null) {
   const normalized = normalizeNcm(ncm);
   if (normalized.length !== 8) return [];
-  return pisCofinsProductProfiles.filter((item) => item.ncmPrefixes.some((prefix) => normalized.startsWith(prefix)));
+  const matches = pisCofinsProductProfiles.filter((item) => item.ncmPrefixes.some((prefix) => normalized.startsWith(prefix)));
+  const specificity = Math.max(0, ...matches.flatMap((item) => item.ncmPrefixes.filter((prefix) => normalized.startsWith(prefix)).map((prefix) => prefix.length)));
+  return matches.filter((item) => item.ncmPrefixes.some((prefix) => normalized.startsWith(prefix) && prefix.length === specificity));
 }
 
 function blocked(input: PisCofinsDeepInput, profile: PisCofinsProductProfile | null, blockers: string[], sources: string[]): PisCofinsDeepResult {
@@ -307,6 +376,8 @@ export function calculatePisCofinsDeepReference(input: PisCofinsDeepInput): PisC
   const profile = candidates.length === 1 ? candidates[0] : null;
   const sources = ["PISCOFINS-L-9718", "PISCOFINS-L-10637", "PISCOFINS-L-10833", "PISCOFINS-IN-2121"];
   const blockers: string[] = [];
+
+  if (input.calculationDate < PIS_COFINS_DEEP_SUPPORTED_PERIOD.from || input.calculationDate > PIS_COFINS_DEEP_SUPPORTED_PERIOD.to) blockers.push("data fora da vigência 2026 desta versão");
 
   if (revenue === null) blockers.push("receita segregada não informada");
   if (!input.regimeConfirmed) blockers.push("regime cumulativo ou não cumulativo não confirmado");
@@ -365,7 +436,10 @@ export function calculatePisCofinsDeepReference(input: PisCofinsDeepInput): PisC
     }
     const hypothesis = pisCofinsCreditHypotheses.find((item) => item.code === input.creditKind);
     if (!hypothesis) blockers.push("hipótese de crédito fora do catálogo estruturado");
-    else sources.push(...hypothesis.sourceCodes);
+    else {
+      sources.push(...hypothesis.sourceCodes);
+      if (hypothesis.calculationMethod === "requires_specific_memory") blockers.push("hipótese exige memória específica; alíquotas básicas não podem ser aplicadas automaticamente");
+    }
     if (!blockers.length) {
       pisCredit = multiplyCents(creditBase, 165);
       cofinsCredit = multiplyCents(creditBase, 760);
@@ -398,15 +472,140 @@ export function calculatePisCofinsDeepReference(input: PisCofinsDeepInput): PisC
   };
 }
 
+export type PisCofinsReferenceCase = {
+  id: string;
+  kind: "product_role" | "credit" | "negative_product" | "mandatory_gate";
+  input: PisCofinsDeepInput;
+  expected: {
+    status: PisCofinsDeepResult["status"];
+    pisDebitCents: number | null;
+    cofinsDebitCents: number | null;
+    pisCreditCents: number | null;
+    cofinsCreditCents: number | null;
+    blocker: string | null;
+  };
+};
+
+const confirmedInput: PisCofinsDeepInput = {
+  regime: "non_cumulative",
+  treatment: "general",
+  role: "service_provider",
+  ncm: null,
+  calculationDate: "2026-07-31",
+  revenueCents: 10_000_000,
+  creditBaseCents: 0,
+  creditKind: null,
+  regimeConfirmed: true,
+  roleConfirmed: true,
+  exactNcmConfirmedInOfficialTable: false,
+  operationDocumented: true,
+  revenueSegregated: true,
+  legalTreatmentConfirmed: false,
+  post2026BenefitRateConfirmed: false,
+  creditLegalHypothesisConfirmed: false,
+  creditDocumented: false,
+  acquisitionWasTaxed: false,
+  linkedToTaxedActivity: false,
+};
+
+function representativeNcm(profile: PisCofinsProductProfile) {
+  return profile.ncmPrefixes[0].padEnd(8, "0").slice(0, 8);
+}
+
+const productRoleCases: PisCofinsReferenceCase[] = pisCofinsProductProfiles.map((profile) => ({
+  id: `product:${profile.code}:retailer`,
+  kind: "product_role",
+  input: {
+    ...confirmedInput,
+    treatment: profile.candidateTreatment,
+    role: "retailer",
+    ncm: representativeNcm(profile),
+    exactNcmConfirmedInOfficialTable: true,
+    legalTreatmentConfirmed: true,
+    post2026BenefitRateConfirmed: true,
+    post2026PisRateBps: 0,
+    post2026CofinsRateBps: 0,
+  },
+  expected: { status: "calculated_reference", pisDebitCents: 0, cofinsDebitCents: 0, pisCreditCents: 0, cofinsCreditCents: 0, blocker: null },
+}));
+
+const creditCases: PisCofinsReferenceCase[] = pisCofinsCreditHypotheses.map((hypothesis) => {
+  const specific = hypothesis.calculationMethod === "requires_specific_memory";
+  return {
+    id: `credit:${hypothesis.code}`,
+    kind: "credit",
+    input: {
+      ...confirmedInput,
+      creditBaseCents: 2_000_000,
+      creditKind: hypothesis.code,
+      creditLegalHypothesisConfirmed: true,
+      creditDocumented: true,
+      acquisitionWasTaxed: true,
+      linkedToTaxedActivity: true,
+    },
+    expected: specific
+      ? { status: "blocked", pisDebitCents: null, cofinsDebitCents: null, pisCreditCents: null, cofinsCreditCents: null, blocker: "hipótese exige memória específica; alíquotas básicas não podem ser aplicadas automaticamente" }
+      : { status: "calculated_reference", pisDebitCents: 165_000, cofinsDebitCents: 760_000, pisCreditCents: 33_000, cofinsCreditCents: 152_000, blocker: null },
+  };
+});
+
+const negativeProductCases: PisCofinsReferenceCase[] = pisCofinsProductProfiles.map((profile) => ({
+  id: `negative-product:${profile.code}:official-table`,
+  kind: "negative_product",
+  input: {
+    ...confirmedInput,
+    treatment: profile.candidateTreatment,
+    role: "retailer",
+    ncm: representativeNcm(profile),
+    exactNcmConfirmedInOfficialTable: false,
+    legalTreatmentConfirmed: true,
+    post2026BenefitRateConfirmed: true,
+    post2026PisRateBps: 0,
+    post2026CofinsRateBps: 0,
+  },
+  expected: { status: "blocked", pisDebitCents: null, cofinsDebitCents: null, pisCreditCents: null, cofinsCreditCents: null, blocker: "enquadramento exato não confirmado nas tabelas oficiais da EFD-Contribuições" },
+}));
+
+const pisCofinsGateMutations: Array<{ code: string; patch: Partial<PisCofinsDeepInput>; blocker: string }> = [
+  { code: "date", patch: { calculationDate: "2027-01-01" }, blocker: "data fora da vigência 2026 desta versão" },
+  { code: "revenue", patch: { revenueCents: null }, blocker: "receita segregada não informada" },
+  { code: "regime", patch: { regimeConfirmed: false }, blocker: "regime cumulativo ou não cumulativo não confirmado" },
+  { code: "role", patch: { roleConfirmed: false }, blocker: "papel na cadeia não confirmado" },
+  { code: "document", patch: { operationDocumented: false }, blocker: "documento fiscal e natureza da operação não confirmados" },
+  { code: "segregation", patch: { revenueSegregated: false }, blocker: "receita não segregada por tratamento tributário" },
+  { code: "credit_hypothesis", patch: { creditBaseCents: 100_000, creditKind: "inputs", creditDocumented: true, acquisitionWasTaxed: true, linkedToTaxedActivity: true }, blocker: "hipótese legal e vínculo do crédito não confirmados" },
+  { code: "credit_document", patch: { creditBaseCents: 100_000, creditKind: "inputs", creditLegalHypothesisConfirmed: true, acquisitionWasTaxed: true, linkedToTaxedActivity: true }, blocker: "crédito sem documento fiscal e memória" },
+  { code: "acquisition_incidence", patch: { creditBaseCents: 100_000, creditKind: "inputs", creditLegalHypothesisConfirmed: true, creditDocumented: true, linkedToTaxedActivity: true }, blocker: "aquisição sem incidência confirmada não gera crédito básico" },
+  { code: "credit_link", patch: { creditBaseCents: 100_000, creditKind: "inputs", creditLegalHypothesisConfirmed: true, creditDocumented: true, acquisitionWasTaxed: true }, blocker: "crédito sem vínculo comprovado com atividade ou receita elegível" },
+];
+
+const mandatoryPisCofinsGateCases: PisCofinsReferenceCase[] = pisCofinsGateMutations.map((mutation) => ({
+  id: `gate:${mutation.code}`,
+  kind: "mandatory_gate",
+  input: { ...confirmedInput, ...mutation.patch },
+  expected: { status: "blocked", pisDebitCents: null, cofinsDebitCents: null, pisCreditCents: null, cofinsCreditCents: null, blocker: mutation.blocker },
+}));
+
+export const pisCofinsReferenceCases: PisCofinsReferenceCase[] = [
+  ...productRoleCases,
+  ...creditCases,
+  ...negativeProductCases,
+  ...mandatoryPisCofinsGateCases,
+];
+
+export function executePisCofinsReferenceCase(referenceCase: PisCofinsReferenceCase) {
+  return calculatePisCofinsDeepReference(referenceCase.input);
+}
+
 export function pisCofinsDeepMetrics() {
   return {
     prioritizedProductProfiles: pisCofinsProductProfiles.length,
     creditHypotheses: pisCofinsCreditHypotheses.length,
     regimes: 2,
     specialTreatments: 3,
-    deterministicCases: pisCofinsProductProfiles.length + pisCofinsCreditHypotheses.length + 11,
-    calculatedMemories: 4,
-    safelyBlockedCases: pisCofinsProductProfiles.length + pisCofinsCreditHypotheses.length + 7,
+    deterministicCases: pisCofinsReferenceCases.length,
+    calculatedMemories: pisCofinsReferenceCases.filter((item) => item.expected.status === "calculated_reference").length,
+    safelyBlockedCases: pisCofinsReferenceCases.filter((item) => item.expected.status === "blocked").length,
   };
 }
 
@@ -434,8 +633,8 @@ const baseInput: PisCofinsDeepInput = {
 
 export function validatePisCofinsDeep() {
   const errors: string[] = [];
-  if (pisCofinsProductProfiles.length !== 20) errors.push("twenty_priority_profiles_required");
-  if (pisCofinsCreditHypotheses.length !== 9) errors.push("nine_credit_hypotheses_required");
+  if (pisCofinsProductProfiles.length !== 60) errors.push("sixty_priority_profiles_required");
+  if (pisCofinsCreditHypotheses.length !== 20) errors.push("twenty_credit_hypotheses_required");
   if (new Set(pisCofinsProductProfiles.map((item) => item.code)).size !== pisCofinsProductProfiles.length) errors.push("duplicate_product_profile");
   if (new Set(pisCofinsDeepSources.map((item) => item.code)).size !== pisCofinsDeepSources.length) errors.push("duplicate_source");
   if (!pisCofinsDeepSources.every((item) => item.url.startsWith("https://") && item.checkedAt === PIS_COFINS_DEEP_CHECKED_AT)) errors.push("official_source_metadata_invalid");
@@ -486,6 +685,20 @@ export function validatePisCofinsDeep() {
   });
   if (forbiddenCredit.status !== "blocked" || !forbiddenCredit.blockers.some((item) => item.includes("vedado"))) errors.push("monophase_credit_not_blocked");
 
+  if (pisCofinsReferenceCases.length !== 150 || new Set(pisCofinsReferenceCases.map((item) => item.id)).size !== 150) errors.push("one_hundred_fifty_unique_cases_required");
+  for (const referenceCase of pisCofinsReferenceCases) {
+    const output = executePisCofinsReferenceCase(referenceCase);
+    const amount = (code: string) => output.lines.find((line) => line.code === code)?.amountCents ?? null;
+    if (output.status !== referenceCase.expected.status) errors.push(`${referenceCase.id}:status_diverged`);
+    if (amount("pis_debit") !== referenceCase.expected.pisDebitCents) errors.push(`${referenceCase.id}:pis_debit_diverged`);
+    if (amount("cofins_debit") !== referenceCase.expected.cofinsDebitCents) errors.push(`${referenceCase.id}:cofins_debit_diverged`);
+    if (amount("pis_credit") !== referenceCase.expected.pisCreditCents) errors.push(`${referenceCase.id}:pis_credit_diverged`);
+    if (amount("cofins_credit") !== referenceCase.expected.cofinsCreditCents) errors.push(`${referenceCase.id}:cofins_credit_diverged`);
+    if (referenceCase.expected.blocker !== null && !output.blockers.includes(referenceCase.expected.blocker)) errors.push(`${referenceCase.id}:blocker_diverged`);
+    if (referenceCase.expected.status === "blocked" && output.lines.length > 0) errors.push(`${referenceCase.id}:blocked_case_leaked_value`);
+  }
+  if (pisCofinsDeepMetrics().calculatedMemories < 40) errors.push("forty_positive_memories_required");
+
   return { passed: errors.length === 0, errors };
 }
 
@@ -497,6 +710,8 @@ export async function hashPisCofinsDeep() {
     profiles: pisCofinsProductProfiles,
     credits: pisCofinsCreditHypotheses,
     lc224EffectiveFrom: PIS_COFINS_LC224_EFFECTIVE_FROM,
+    supportedPeriod: PIS_COFINS_DEEP_SUPPORTED_PERIOD,
+    referenceCases: pisCofinsReferenceCases,
   });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");

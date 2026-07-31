@@ -35,7 +35,7 @@ import {
   taxReformSectorSources,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v93";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v94";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-31";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";

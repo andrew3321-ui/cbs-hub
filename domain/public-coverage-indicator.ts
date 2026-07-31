@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v14";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v15";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "pis-cofins-v94-sixty-profiles",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "PIS/Cofins passou a auditar 60 perfis de produto/operação/papel, 20 hipóteses de crédito e 150 casos. Hipóteses com cálculo próprio permanecem bloqueadas contra aplicação indevida das alíquotas básicas.",
+        affectedCodes: ["PIS_COFINS_DEEP"],
+        clientDataExposed: false,
+      },
       {
         id: "simples-v93-fifty-activities",
         changedAt: "2026-07-31T00:00:00.000Z",
