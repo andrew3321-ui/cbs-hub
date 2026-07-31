@@ -28,8 +28,13 @@ import {
   ipiTipiDeepSources,
   ipiTipiPriorityProfiles,
 } from "./ipi-tipi-deep.ts";
+import {
+  TAX_REFORM_SECTOR_VERSION,
+  taxReformSectorProfiles,
+  taxReformSectorSources,
+} from "./tax-reform-sector-scenarios.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.30-v83";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.30-v84";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-30";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
@@ -71,6 +76,7 @@ export const coverageSources: CoverageSource[] = [
   ...pisCofinsDeepSources,
   ...serviceWithholdingSources,
   ...ipiTipiDeepSources,
+  ...taxReformSectorSources,
 ];
 
 const state = (uf: UfCode, name: string, region: StateCoverage["region"], officialPortal: string): StateCoverage => {
@@ -176,6 +182,7 @@ export const recurringScenarios: ScenarioCoverage[] = [
   { code: "IRPJ-CSLL-REAL", tax: "IRPJ/CSLL", title: "Lucro Real com adicoes/exclusoes", status: "partial", supported: ["base antes da compensacao, limite de 30%, IRPJ, adicional e CSLL"], blockers: ["LALUR/LACS, contabilidade, adicoes, exclusoes e compensacoes precisam estar conciliados"] },
   { code: "RET-IRRF-CSRF", tax: "Retenções", title: "IRRF, CSRF, INSS e ISS em serviços recorrentes", status: "partial", supported: [`${serviceWithholdingProfiles.length} perfis priorizados em ${SERVICE_WITHHOLDINGS_DEEP_VERSION}`, "quatro livros independentes por fato gerador, responsável, base, limite e prazo", "IRRF de 1%/1,5%, CSRF de 4,65%, INSS de 11%/3,5% e ISS municipal somente após seus próprios gates", "memórias em centavos e líquido bloqueado sem simultaneidade comprovada"], blockers: ["órgão público exige tabela própria", "INSS exige modo de execução, CPRB e deduções", "ISS exige município, item, lei, alíquota, responsabilidade e vencimento", "dispensas de um tributo nunca são reutilizadas em outro"] },
   { code: "IPI-TIPI", tax: "IPI", title: "IPI/TIPI por NCM e operação", status: "partial", supported: [`${ipiTipiPriorityProfiles.length} NCMs exatos priorizados em ${IPI_TIPI_DEEP_VERSION}`, "saída industrial, importação, equiparação e saída comercial não tributada em trilhas separadas", "alíquota nominal, alíquota zero e Ex da TIPI versionados", "base de importação e saída interna em centavos"], blockers: ["NCM e descrição legal exatos, notas da TIPI, operação, papel e vigência são obrigatórios", "benefícios externos à TIPI exigem regra jurídica dedicada", "créditos e saldo do período permanecem fora da memória de débito"] },
+  { code: "RTC-SECTOR-SCENARIOS", tax: "IBS/CBS", title: "Transição setorial de 2026 a 2033", status: "partial", supported: [`${taxReformSectorProfiles.length} perfis setoriais priorizados em ${TAX_REFORM_SECTOR_VERSION}`, "regime geral, redução de 30%, redução de 60% e cesta básica a zero em trilhas separadas", "CBS, IBS, ICMS/ISS, PIS/Cofins, IPI e IS preservados em livros próprios", "144 casos anuais e negativos sem produzir saldo jurídico a recolher"], blockers: ["serviços financeiros, combustíveis e imóveis exigem memória própria de regime específico", "classificação no Anexo legal, referência anual, créditos, vigência e exceções permanecem obrigatórios", "tratamentos diferenciados de 2026 permanecem bloqueados no recorte operacional atual"] },
 ];
 
 export const normativeMonitorSources = [

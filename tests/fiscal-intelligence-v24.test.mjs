@@ -15,12 +15,12 @@ const nationalIcmsFacts = {
   specialTreatment: "none",
 };
 
-test("V83 ships eight controlled tax modules backed only by an expanded versioned base", () => {
+test("V84 ships eight controlled tax modules backed only by an expanded versioned base", () => {
   assert.equal(fiscalTopicCatalog().length, 8);
-  assert.equal(spMgAutoPartsKnowledge.version, "1.5.0");
+  assert.equal(spMgAutoPartsKnowledge.version, "1.6.0");
   assert.equal(spMgAutoPartsKnowledge.baseCode, "FISCAL-MANUAL-BR");
-  assert.ok(spMgAutoPartsKnowledge.rules.length >= 28);
-  assert.ok(spMgAutoPartsKnowledge.sources.length >= 42);
+  assert.ok(spMgAutoPartsKnowledge.rules.length >= 31);
+  assert.ok(spMgAutoPartsKnowledge.sources.length >= 46);
   assert.ok(spMgAutoPartsKnowledge.sources.filter((source) => source.primary).length >= 20);
   assert.ok(spMgAutoPartsKnowledge.nationalTopics.every((topic) => topic.requiredFacts.length > 0 && topic.hardStops.length > 0));
 });
@@ -137,6 +137,19 @@ test("IBS/CBS labels 2026 percentages as test highlights instead of tax payable"
   assert.equal(result.findings.find((item) => item.code === "IBS-TEST-2026")?.value, "0,1%");
   assert.match(result.summary, /Nenhum valor líquido a pagar/i);
   assert.equal(result.calculationEligible, false);
+});
+
+test("IBS/CBS catalog exposes sector transition without lending the regular formula to specific regimes", () => {
+  const topic = fiscalTopicCatalog().find((item) => item.code === "IBS-CBS-2026");
+  assert.ok(topic);
+  assert.match(topic.title, /2026 a 2033/);
+  assert.ok(topic.supportedOutputs.some((item) => /12 perfis setoriais/.test(item)));
+  assert.ok(topic.supportedOutputs.some((item) => /144 cenários determinísticos/.test(item)));
+  assert.ok(topic.hardStops.some((item) => /financeiro, combustível ou imobiliário/.test(item)));
+  assert.ok(topic.sourceCodes.includes("RTC-CGIBS-DERE"));
+  assert.ok(spMgAutoPartsKnowledge.rules.some((item) => item.code === "RTC-SECTOR-REDUCTION-GATE"));
+  assert.ok(spMgAutoPartsKnowledge.rules.some((item) => item.code === "RTC-SPECIFIC-REGIME-GATE"));
+  assert.ok(spMgAutoPartsKnowledge.sources.some((item) => item.code === "RTC-RFB-CALCULATOR"));
 });
 
 test("service withholding separates potential CSRF, Simples dispensation and Reinf evidence", () => {

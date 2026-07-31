@@ -255,7 +255,7 @@ export default function TaxReformImpact({ initialClientLabel }: Props) {
         </section>
 
         <footer className="rtc-assurance">
-          <div><span>Motor</span><code>{report.engineVersion}</code></div><div><span>Metodologia</span><code>{report.methodologyVersion}</code></div><div><span>Regra</span><code>{report.rule.code}@{report.rule.version}</code></div><div><span>Hash dos dados</span><code>#{report.inputHash.slice(0, 16)}</code></div><div><span>Hash do relatório</span><code>#{report.reportHash.slice(0, 16)}</code></div>
+          <div><span>Motor</span><code>{report.engineVersion}</code></div><div><span>Metodologia</span><code>{report.methodologyVersion}</code></div><div><span>Base setorial</span><code>{report.sectorCatalogVersion}</code></div><div><span>Regra</span><code>{report.rule.code}@{report.rule.version}</code></div><div><span>Hash dos dados</span><code>#{report.inputHash.slice(0, 16)}</code></div><div><span>Hash do relatório</span><code>#{report.reportHash.slice(0, 16)}</code></div>
         </footer>
         <p className="rtc-legal-boundary">{report.legalBoundary} Valor líquido jurídico a recolher: <b>não produzido</b>.</p>
         <div className="rtc-report-actions"><button type="button" onClick={() => window.print()}>Imprimir / salvar PDF</button><button type="button" onClick={downloadReport}>Baixar versão auditável (JSON)</button></div>

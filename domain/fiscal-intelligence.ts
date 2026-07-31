@@ -1,6 +1,11 @@
 import { pisCofinsDeepSources } from "./pis-cofins-deep.ts";
 import { serviceWithholdingProfiles, serviceWithholdingSources } from "./service-withholdings-deep.ts";
 import { IPI_TIPI_DEEP_VERSION, ipiTipiDeepSources, ipiTipiPriorityProfiles } from "./ipi-tipi-deep.ts";
+import {
+  TAX_REFORM_SECTOR_VERSION,
+  taxReformSectorProfiles,
+  taxReformSectorSources,
+} from "./tax-reform-sector-scenarios.ts";
 
 export type FiscalIntelligenceStatus = "out_of_scope" | "needs_information" | "conditional";
 
@@ -197,6 +202,12 @@ const nationalSources: FiscalKnowledgeSource[] = [
   ...pisCofinsDeepSources.map((source) => ({ ...source, sourceUpdatedAt: source.effectiveFrom, primary: source.publisher === "Presidência da República" })),
   ...serviceWithholdingSources.map((source) => ({ ...source, sourceUpdatedAt: source.effectiveFrom, primary: source.publisher === "Presidência da República" })),
   ...ipiTipiDeepSources.map((source) => ({ ...source, sourceUpdatedAt: source.effectiveFrom, primary: source.publisher === "Presidência da República" })),
+  ...taxReformSectorSources
+    .map((source) => ({
+      ...source,
+      sourceUpdatedAt: null,
+      primary: source.publisher === "Presidência da República" || source.publisher === "Comitê Gestor do IBS",
+    })),
 ];
 
 const nationalRules: ManualRule[] = [
@@ -219,6 +230,9 @@ const nationalRules: ManualRule[] = [
   { code: "IRPJ-CSLL-NOMINAL-RATES", title: "Alíquotas nominais de IRPJ e CSLL", conclusion: "O IRPJ geral é 15% com adicional quando aplicável; a CSLL geral é 9%, mas ambos incidem sobre bases que dependem do regime e da atividade.", sourceCodes: ["L-9249-1995", "RFB-IRPJ", "RFB-CSLL"] },
   { code: "IRPJ-CSLL-2026-GATE", title: "Alterações de benefícios em 2026", conclusion: "Benefícios e percentuais de presunção podem exigir ajustes específicos em 2026 antes de qualquer cálculo.", sourceCodes: ["RFB-BENEFITS-2026", "L-9249-1995"] },
   { code: "RTC-2026-TEST-YEAR", title: "IBS e CBS no ano-teste de 2026", conclusion: "O documento deve destacar CBS e IBS conforme o leiaute; a dispensa de recolhimento depende do cumprimento das obrigações aplicáveis.", sourceCodes: ["LC-214-2025", "RFB-RTC-2026"] },
+  { code: "RTC-SECTOR-REDUCTION-GATE", title: "Reduções e alíquota zero exigem enquadramento exato", conclusion: `A base ${TAX_REFORM_SECTOR_VERSION} separa redução de 30%, redução de 60% e alíquota zero, mas somente libera memória quando operação, setor e classificação no Anexo legal aplicável estiverem comprovados.`, sourceCodes: ["RTC-LC-214-COMPILED", "RTC-RFB-TRANSITION", "RTC-RFB-CALCULATOR"] },
+  { code: "RTC-SPECIFIC-REGIME-GATE", title: "Regime específico não herda o regime geral", conclusion: "Serviços financeiros, combustíveis e operações imobiliárias permanecem bloqueados até uma memória própria comprovar base, alíquota, período e exceções do respectivo regime.", sourceCodes: ["RTC-LC-214-COMPILED", "RTC-CGIBS-DERE"] },
+  { code: "RTC-TRANSITION-SEPARATE-BOOKS", title: "Transição anual em livros separados", conclusion: "De 2026 a 2033, PIS/Cofins, ICMS/ISS, IPI, CBS, IBS e Imposto Seletivo são mantidos em livros separados; créditos não são compensados por presunção.", sourceCodes: ["RTC-EC-132", "RTC-LC-214-COMPILED", "RTC-RFB-TRANSITION"] },
   { code: "CSRF-SERVICES-4-65", title: "Retenção conjunta em serviços abrangidos", conclusion: "Serviços do art. 30 podem sofrer retenção conjunta de 4,65%, sujeita a natureza do serviço, partes e exceções.", sourceCodes: ["L-10833-2003"] },
   { code: "IRRF-SERVICES-1-1-5", title: "IRRF por natureza do serviço", conclusion: "Serviços profissionais usam referência de 1,5%; limpeza, conservação, segurança, vigilância e locação de mão de obra usam 1%, sempre com hipótese, beneficiário, dispensa e código confirmados.", sourceCodes: ["RET-RIR-2018", "RET-RFB-MAFON"] },
   { code: "CSRF-LIMIT-10", title: "Dispensa da CSRF calculada", conclusion: "A retenção conjunta igual ou inferior a R$ 10 é dispensada; o antigo corte de pagamento de R$ 5.000 não é reutilizado.", sourceCodes: ["RET-L-13137"] },
@@ -235,16 +249,16 @@ const nationalTopics: NationalFiscalTopic[] = [
   { code: "PIS-COFINS", tax: "PIS_COFINS", title: "PIS e Cofins", coverageLevel: "structured_triage", requiredFacts: ["productDescription", "pisCofinsRegime", "issuerTaxRegime", "businessActivity", "specialTreatment"], supportedOutputs: ["referências cumulativa e não cumulativa", "20 perfis monofásicos/alíquota zero candidatos", "nove hipóteses recorrentes de crédito", "débitos e créditos sem compensação presumida", "controle da LC 224/2025 em 2026"], hardStops: ["produto especial sem NCM exato e tabela oficial", "papel na cadeia ou documento ausente", "crédito sem hipótese legal, incidência e vínculo", "benefício pós-2026 não confirmado"], sourceCodes: ["L-9718-1998", "L-10637-2002", "L-10833-2003", "PISCOFINS-L-10147", "PISCOFINS-L-10485", "PISCOFINS-L-10925", "PISCOFINS-IN-2121", "PISCOFINS-LC-224"], examples: ["Qual a alíquota de PIS e Cofins no regime cumulativo?", "Revenda do NCM 4011.10.00 é monofásica em 2026?", "Lucro real pode tomar crédito de PIS/Cofins sobre insumo?"] },
   { code: "SIMPLES-NACIONAL", tax: "SIMPLES", title: "Simples Nacional", coverageLevel: "structured_triage", requiredFacts: ["cnae", "businessActivity", "productDescription", "specialTreatment"], supportedOutputs: ["20 perfis CNAE prioritários", "trilha dos Anexos I a V e fator R", "segregação de receitas", "limite e sublimite de 2026", "tributos fora do DAS"], hardStops: ["DAS sem RBT12 e composição mensal", "anexo apenas pelo CNAE", "impedimentos não conferidos", "ST, monofásico, exportação ou retenção não segregados"], sourceCodes: ["LC-123-2006", "CGSN-140-2018", "CGSN-PORTARIA-54-2025", "CNAE-CONCLA"], examples: ["Em qual anexo do Simples entra uma consultoria?", "Como o fator R muda a tributação de serviços?", "Qual o efeito do sublimite de 2026?"] },
   { code: "IRPJ-CSLL", tax: "IRPJ_CSLL", title: "IRPJ e CSLL", coverageLevel: "structured_triage", requiredFacts: ["incomeTaxRegime", "businessActivity", "productDescription", "specialTreatment"], supportedOutputs: ["alíquotas nominais", "base conforme regime e atividade", "adicional de IRPJ e alerta 2026"], hardStops: ["base presumida sem separar atividades", "benefício de 2026 não classificado", "instituição financeira não identificada"], sourceCodes: ["L-9249-1995", "RFB-IRPJ", "RFB-CSLL", "RFB-BENEFITS-2026"], examples: ["Quais as alíquotas de IRPJ e CSLL no lucro presumido?", "Prestação de serviços usa qual base presumida?"] },
-  { code: "IBS-CBS-2026", tax: "IBS_CBS", title: "IBS e CBS em 2026", coverageLevel: "operational_reference", requiredFacts: ["operationType", "businessActivity", "specialTreatment"], supportedOutputs: ["destaque teste de CBS 0,9% e IBS 0,1%", "dispensa condicionada de recolhimento", "obrigações documentais"], hardStops: ["tratar destaque como saldo a recolher", "ignorar nota técnica do documento", "regime específico não mapeado"], sourceCodes: ["LC-214-2025", "RFB-RTC-2026"], examples: ["Como destacar IBS e CBS em 2026?", "IBS e CBS geram valor a pagar no ano-teste?"] },
+  { code: "IBS-CBS-2026", tax: "IBS_CBS", title: "IBS e CBS de 2026 a 2033", coverageLevel: "operational_reference", requiredFacts: ["operationType", "businessActivity", "specialTreatment"], supportedOutputs: [`${taxReformSectorProfiles.length} perfis setoriais em ${TAX_REFORM_SECTOR_VERSION}`, "transição anual de 2026 a 2033", "CBS, IBS, ICMS/ISS, PIS/Cofins, IPI e IS em livros separados", "reduções de 30% e 60% e alíquota zero condicionadas ao enquadramento", "144 cenários determinísticos com memória anual"], hardStops: ["tratar destaque de 2026 como saldo a recolher", "classificação setorial ou Anexo legal não comprovados", "crédito sem documento e vínculo", "regime específico financeiro, combustível ou imobiliário sem fórmula própria"], sourceCodes: ["LC-214-2025", "RFB-RTC-2026", "RTC-EC-132", "RTC-RFB-TRANSITION", "RTC-CGIBS-DERE", "RTC-RFB-CALCULATOR"], examples: ["Como destacar IBS e CBS em 2026?", "Como muda a carga de um serviço profissional entre 2027 e 2033?", "A cesta básica tem alíquota zero em 2033?", "Combustível pode usar a fórmula do regime geral?"] },
   { code: "WITHHOLDINGS-SERVICES", tax: "WITHHOLDINGS", title: "Retenções sobre serviços", coverageLevel: "structured_triage", requiredFacts: ["productDescription", "payerType", "paymentRecipientType", "serviceNature", "issuerTaxRegime", "specialTreatment"], supportedOutputs: [`${serviceWithholdingProfiles.length} perfis recorrentes`, "IRRF, CSRF, INSS e ISS em quatro livros independentes", "limites, dispensas, responsáveis e prazos por tributo", "eventos EFD-Reinf e bloqueio do líquido sem simultaneidade"], hardStops: ["percentual sem natureza, partes, regime e fato gerador", "órgão público tratado como tomador privado", "CPRB, cessão, empreitada ou deduções não confirmadas", "ISS sem município, item, lei, alíquota e responsabilidade"], sourceCodes: ["RET-RIR-2018", "RET-RFB-MAFON", "RET-L-10833", "RET-L-13137", "RET-IN-RFB-2110", "RET-IN-RFB-1234", "RET-LC-116", "RET-RFB-REINF"], examples: ["Consultoria entre duas empresas tem IRRF e CSRF?", "Limpeza com cessão de mão de obra exige INSS e ISS retido?", "Órgão público pode usar a retenção privada de 4,65%?"] },
 ];
 
 export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
   schemaVersion: "manual-fiscal-intelligence.v1",
-  engineVersion: "cbshub-manual-fiscal-1.4.0",
+  engineVersion: "cbshub-manual-fiscal-1.5.0",
   baseCode: "FISCAL-MANUAL-BR",
-  version: "1.5.0",
-  name: "Inteligência Fiscal Manual Brasil · V82",
+  version: "1.6.0",
+  name: "Inteligência Fiscal Manual Brasil · V84",
   assuranceLevel: "pilot_conditional",
   coverage: { tax: "ICMS", originState: "SP", destinationState: "MG", segment: "auto_parts" },
   ontology: {

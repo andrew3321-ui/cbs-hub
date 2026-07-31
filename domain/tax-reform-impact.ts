@@ -1,5 +1,11 @@
-export const TAX_REFORM_IMPACT_ENGINE_VERSION = "cbshub-rtc-impact-1.0.0";
-export const TAX_REFORM_IMPACT_METHODOLOGY_VERSION = "rtc-transition-2026.07";
+import {
+  TAX_REFORM_SECTOR_VERSION,
+  hashTaxReformSectorCatalog,
+  taxReformSectorProfiles,
+} from "./tax-reform-sector-scenarios.ts";
+
+export const TAX_REFORM_IMPACT_ENGINE_VERSION = "cbshub-rtc-impact-1.1.0";
+export const TAX_REFORM_IMPACT_METHODOLOGY_VERSION = "rtc-transition-2026.07-v84";
 export const TAX_REFORM_REPORT_VERSION = "tax-reform-impact-report.v1";
 
 export type TaxReformCoverage = "supported" | "partial" | "unsupported";
@@ -72,6 +78,7 @@ export type TaxReformMemoryLine = {
 export type TaxReformImpactCalculation = {
   engineVersion: typeof TAX_REFORM_IMPACT_ENGINE_VERSION;
   methodologyVersion: typeof TAX_REFORM_IMPACT_METHODOLOGY_VERSION;
+  sectorCatalogVersion: typeof TAX_REFORM_SECTOR_VERSION;
   rule: TaxReformTransitionRule;
   coverage: TaxReformCoverage;
   conclusionNature: "documentary_test" | "financial_projection" | "blocked";
@@ -131,7 +138,7 @@ export const taxReformSources: TaxReformSource[] = [
     url: "https://www.planalto.gov.br/ccivil_03/constituicao/emendas/emc/emc132.htm",
     legalReference: "instituição do IBS/CBS e transição constitucional",
     sourceUpdatedAt: null,
-    checkedAt: "2026-07-26",
+    checkedAt: "2026-07-30",
   },
   {
     code: "LC-214-2025",
@@ -140,7 +147,7 @@ export const taxReformSources: TaxReformSource[] = [
     url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp214compilado.htm",
     legalReference: "normas gerais do IBS, CBS, IS e transição",
     sourceUpdatedAt: null,
-    checkedAt: "2026-07-26",
+    checkedAt: "2026-07-30",
   },
   {
     code: "RFB-RTC-TRANSITION",
@@ -149,7 +156,7 @@ export const taxReformSources: TaxReformSource[] = [
     url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/entenda",
     legalReference: "cronograma oficial de 2026 a 2033",
     sourceUpdatedAt: "2026-07-03",
-    checkedAt: "2026-07-26",
+    checkedAt: "2026-07-30",
   },
   {
     code: "RFB-RTC-2026",
@@ -158,7 +165,7 @@ export const taxReformSources: TaxReformSource[] = [
     url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/orientacoes-2026",
     legalReference: "documentos fiscais, obrigações e dispensa condicionada no ano-teste",
     sourceUpdatedAt: "2026-05-06",
-    checkedAt: "2026-07-26",
+    checkedAt: "2026-07-30",
   },
   {
     code: "RFB-RTC-CALCULATOR",
@@ -167,7 +174,7 @@ export const taxReformSources: TaxReformSource[] = [
     url: "https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/manuais/reforma-tributaria-do-consumo/manual-servicos-rtc.pdf",
     legalReference: "motor oficial versionado para CBS, IBS e IS",
     sourceUpdatedAt: null,
-    checkedAt: "2026-07-26",
+    checkedAt: "2026-07-30",
   },
 ];
 
@@ -179,7 +186,7 @@ function transitionRule(
 ): TaxReformTransitionRule {
   return {
     code: `RTC-BR-TRANSITION-${targetYear}`,
-    version: "1.0.0-2026.07",
+    version: "1.1.0-2026.07",
     targetYear,
     effectiveFrom: `${targetYear}-01-01`,
     effectiveTo: `${targetYear}-12-31`,
@@ -392,6 +399,7 @@ export function calculateTaxReformImpact(input: TaxReformImpactInput): TaxReform
   return {
     engineVersion: TAX_REFORM_IMPACT_ENGINE_VERSION,
     methodologyVersion: TAX_REFORM_IMPACT_METHODOLOGY_VERSION,
+    sectorCatalogVersion: TAX_REFORM_SECTOR_VERSION,
     rule,
     coverage,
     conclusionNature: hasBlocker ? "blocked" : input.targetYear === 2026 ? "documentary_test" : "financial_projection",
@@ -453,12 +461,16 @@ export async function createTaxReformImpactReport(input: TaxReformImpactInput, g
   return { ...reportWithoutHash, reportHash: await sha256(JSON.stringify(reportWithoutHash)) };
 }
 
-export function hashTaxReformImpactModel() {
+export async function hashTaxReformImpactModel() {
+  const sectorCatalogHash = await hashTaxReformSectorCatalog();
   return sha256(JSON.stringify({
     engineVersion: TAX_REFORM_IMPACT_ENGINE_VERSION,
     methodologyVersion: TAX_REFORM_IMPACT_METHODOLOGY_VERSION,
     rules: taxReformTransitionRules,
     sources: taxReformSources,
+    sectorCatalogVersion: TAX_REFORM_SECTOR_VERSION,
+    sectorCatalogHash,
+    sectorProfiles: taxReformSectorProfiles.map(({ code, treatment, standardRateShareBps, supportedFrom }) => ({ code, treatment, standardRateShareBps, supportedFrom })),
     referenceCases: taxReformImpactReferenceCases.map(({ code, input, expected }) => ({ code, input, expected })),
   }));
 }

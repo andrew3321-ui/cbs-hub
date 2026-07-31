@@ -110,6 +110,13 @@ import {
   ipiTipiDeepSources,
   validateIpiTipiDeep,
 } from "./ipi-tipi-deep.ts";
+import {
+  TAX_REFORM_SECTOR_VERSION,
+  hashTaxReformSectorCatalog,
+  taxReformSectorMetrics,
+  taxReformSectorSources,
+  validateTaxReformSectorCatalog,
+} from "./tax-reform-sector-scenarios.ts";
 
 export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v2";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-30";
@@ -231,6 +238,28 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     },
     sourceCodes: () => icmsGeneralSources.map((item) => item.code).sort(),
     requiredGates: ["UF e vigência", "NCM completo", "destinatário e finalidade", "alíquota modal aplicável", "alíquota específica e benefício ausentes", "ST separada", "FCP por hipótese", "método estadual do DIFAL"],
+  },
+  {
+    code: "RTC_SECTOR_SCENARIOS",
+    label: "Reforma Tributária — cenários setoriais de 2026 a 2033",
+    ruleCodes: ["RTC-BR-TRANSITION", "RTC-SECTOR-SCENARIOS-V84"],
+    version: TAX_REFORM_SECTOR_VERSION,
+    validate: () => {
+      const validation = validateTaxReformSectorCatalog();
+      return { passed: validation.ok, errors: validation.errors };
+    },
+    hash: hashTaxReformSectorCatalog,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = taxReformSectorMetrics();
+      return {
+        deterministicCases: metrics.deterministicCases,
+        calculatedMemories: metrics.calculatedMemories,
+        safelyBlockedCases: metrics.safelyBlockedCases,
+      };
+    },
+    sourceCodes: () => taxReformSectorSources.map((source) => source.code).sort(),
+    requiredGates: ["setor e operação", "classificação no Anexo legal", "ano da transição", "alíquotas de referência", "livros CBS e IBS", "créditos comprovados", "exceção ZFM", "regime específico próprio"],
   },
   {
     code: "RTC_TRANSITION_IMPACT",

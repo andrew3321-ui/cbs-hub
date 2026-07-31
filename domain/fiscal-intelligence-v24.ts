@@ -365,5 +365,5 @@ export function evaluateExpandedFiscalQuestion(question: string, overrides: Fisc
 }
 
 export function fiscalTopicCatalog(definition = spMgAutoPartsKnowledge) {
-  return definition.nationalTopics.map((topic) => ({ code: topic.code, tax: topic.tax, title: topic.title, coverageLevel: topic.coverageLevel, supportedOutputs: topic.supportedOutputs, hardStops: topic.hardStops, examples: topic.examples }));
+  return definition.nationalTopics.map((topic) => ({ code: topic.code, tax: topic.tax, title: topic.title, coverageLevel: topic.coverageLevel, supportedOutputs: topic.supportedOutputs, hardStops: topic.hardStops, sourceCodes: topic.sourceCodes, examples: topic.examples }));
 }

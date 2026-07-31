@@ -9,6 +9,12 @@ import {
   taxReformTransitionRules,
   type TaxReformImpactInput,
 } from "../../../domain/tax-reform-impact";
+import {
+  TAX_REFORM_SECTOR_VERSION,
+  taxReformSectorMetrics,
+  taxReformSectorProfiles,
+  taxReformSectorSources,
+} from "../../../domain/tax-reform-sector-scenarios";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { withWorkspaceFeature } from "../../plan-entitlements";
@@ -65,6 +71,12 @@ async function getModel() {
     moneyUnit: "cent",
     rateUnit: "basis_point",
     netPayableEnabled: false,
+    sectorCatalog: {
+      version: TAX_REFORM_SECTOR_VERSION,
+      metrics: taxReformSectorMetrics(),
+      profiles: taxReformSectorProfiles,
+      sources: taxReformSectorSources,
+    },
     rules: taxReformTransitionRules,
     sources: taxReformSources,
     referenceCases: taxReformImpactReferenceCases.map((referenceCase) => ({
