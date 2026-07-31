@@ -106,6 +106,7 @@ requireBuildInvariant(report.status === "automatically_verified", report.errors.
 requireBuildInvariant(report.metrics.modules > 0, "empty_regression_manifest");
 requireBuildInvariant(report.metrics.modulesPassed === report.metrics.modules, "module_regression_failed");
 requireBuildInvariant(report.metrics.tested === report.metrics.modules, "untested_module_in_manifest");
+requireBuildInvariant(report.metrics.targetReached && report.metrics.remainingToTarget === 0, "regression_case_target_not_reached");
 requireBuildInvariant(
   report.modules.every((module) => module.gates.failClosed && module.gates.releasedWithoutRequiredGates === 0),
   "mandatory_gate_regression",

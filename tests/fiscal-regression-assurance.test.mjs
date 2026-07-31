@@ -27,7 +27,10 @@ test("versioned regression report exposes module, rule, evidence and maturity wi
   assert.equal(report.metrics.structured, report.metrics.modules);
   assert.equal(report.metrics.tested, report.metrics.modules);
   assert.equal(report.metrics.approved, 0);
-  assert.ok(report.metrics.deterministicCases >= 1_100);
+  assert.ok(report.metrics.deterministicCases >= 2_000);
+  assert.equal(report.metrics.caseTarget, 2_000);
+  assert.equal(report.metrics.targetReached, true);
+  assert.equal(report.metrics.remainingToTarget, 0);
   assert.ok(report.metrics.calculatedMemories > 80);
   assert.ok(report.metrics.safelyBlockedCases > 600);
   assert.match(report.fingerprint, /^[0-9a-f]{64}$/);

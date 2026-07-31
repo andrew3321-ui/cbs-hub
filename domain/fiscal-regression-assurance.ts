@@ -8,10 +8,14 @@ import {
 } from "./fiscal-homologation-simulations.ts";
 import {
   ST_SP_CALCULATION_VALIDATION_VERSION,
-  hashStSpCalculationRuns,
-  stSpCalculationValidationMetrics,
-  validateStSpCalculationRuns,
 } from "./st-sp-calculation-validation.ts";
+import {
+  FISCAL_REGRESSION_CASE_TARGET,
+  FISCAL_REGRESSION_EXPANSION_VERSION,
+  fiscalRegressionExpansionMetrics,
+  hashFiscalRegressionExpansion,
+  validateFiscalRegressionExpansion,
+} from "./fiscal-regression-expansion.ts";
 import {
   ST_AUTO_PARTS_HIGH_USE_CORRIDORS_VERSION,
   hashStAutoPartsHighUseCorridors,
@@ -118,8 +122,8 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v2";
-export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-30";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v3";
+export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-31";
 
 export type FiscalRegressionTestKind =
   | "positive"
@@ -314,18 +318,11 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     code: "ST_SP_CALCULATION_RUNS",
     label: "Matriz determinística de 25 produtos e 26 destinos",
     ruleCodes: ["NATIONAL-COVERAGE-V27", "AUTO_PARTS_HIGH_USE_CORRIDORS"],
-    version: ST_SP_CALCULATION_VALIDATION_VERSION,
-    validate: validateStSpCalculationRuns,
-    hash: hashStSpCalculationRuns,
-    testKinds: ["positive", "negative", "exception"],
-    metrics: () => {
-      const metrics = stSpCalculationValidationMetrics();
-      return {
-        deterministicCases: metrics.totalRuns,
-        calculatedMemories: metrics.referenceReproduced,
-        safelyBlockedCases: metrics.safelyBlocked,
-      };
-    },
+    version: `${ST_SP_CALCULATION_VALIDATION_VERSION}:${FISCAL_REGRESSION_EXPANSION_VERSION}`,
+    validate: validateFiscalRegressionExpansion,
+    hash: hashFiscalRegressionExpansion,
+    testKinds: ALL_TEST_KINDS,
+    metrics: fiscalRegressionExpansionMetrics,
     sourceCodes: () => ["NATIONAL_COVERAGE", "ST_SP_MG_LEGAL", "ST_STATE_PARAMETER_BATCHES"],
     requiredGates: ["acordo por produto e rota", "lei do destino", "base de preço", "alíquota interna", "FCP", "benefícios e exceções"],
   },
@@ -535,6 +532,9 @@ export async function buildFiscalRegressionReport(affectedRuleCodes?: readonly s
     structured: modules.filter((module) => module.maturity.structured).length,
     tested: modules.filter((module) => module.maturity.tested).length,
     approved: modules.filter((module) => module.maturity.approved).length,
+    caseTarget: FISCAL_REGRESSION_CASE_TARGET,
+    targetReached: modules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0) >= FISCAL_REGRESSION_CASE_TARGET,
+    remainingToTarget: Math.max(0, FISCAL_REGRESSION_CASE_TARGET - modules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0)),
   };
   const status = modules.length > 0 && errors.length === 0 && modules.every((module) => module.gates.failClosed)
     ? "automatically_verified" as const
