@@ -195,7 +195,7 @@ test("catalog validation, metrics and hash are reproducible", async () => {
     separateLedgers: 4,
     versionedRuleControls: 4,
     deterministicCases: 120,
-    calculatedMemories: 39,
+    calculatedMemories: 80,
     safelyBlockedCases: 40,
   });
   assert.match(await hashServiceWithholdingsDeep(), /^[0-9a-f]{64}$/);

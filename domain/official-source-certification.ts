@@ -25,8 +25,8 @@ import { ST_MG_ANNEX_VII_SOURCE } from "./st-sp-mg-legal.ts";
 import { taxReformSources } from "./tax-reform-impact.ts";
 import { taxReformSectorSources } from "./tax-reform-sector-scenarios.ts";
 
-export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.07.30-v85";
-export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-07-30";
+export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.07.31-v98";
+export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-07-31";
 
 export type OfficialSourceClass = "primary" | "official_index" | "official_guidance";
 export type OfficialSourceCertificationStatus = "confirmed" | "pending" | "unavailable";
@@ -49,6 +49,16 @@ export type OfficialSourceInventoryItem = {
   impactedRuleCodes: string[];
   status: OfficialSourceCertificationStatus;
   pendingReasons: string[];
+};
+
+export type OfficialSourceTechnicalAlternative = {
+  originalUrl: string;
+  alternativeUrl: string;
+  authority: string;
+  kind: "official_mirror" | "official_authority_index";
+  checkedAt: string;
+  provesExactAct: false;
+  evidenceScope: "technical_redundancy_only";
 };
 
 type SourceGroup = {
@@ -246,23 +256,82 @@ export const officialSourceInventory: OfficialSourceInventoryItem[] = Array.from
     });
     return map;
   }, new Map<string, OfficialSourceInventoryItem>()).values(),
-).map((item) => item.code === "ISS-CVL-RISS"
-  ? {
-      ...item,
-      status: "unavailable" as const,
-      pendingReasons: mergeValues(item.pendingReasons, ["URL oficial retornou HTTP 404 na recertificação; regra exata permanece bloqueada"]),
-    }
-  : item
 ).sort((a, b) => a.code.localeCompare(b.code) || a.url.localeCompare(b.url));
+
+type AlternativeRule = {
+  hosts: string[];
+  alternativeUrl: string;
+  authority: string;
+  kind: OfficialSourceTechnicalAlternative["kind"];
+};
+
+const technicalAlternativeRules: AlternativeRule[] = [
+  { hosts: ["planalto.gov.br"], alternativeUrl: "https://legis.senado.leg.br/norma/", authority: "União", kind: "official_mirror" },
+  { hosts: ["receita.fazenda.gov.br", "sped.rfb.gov.br"], alternativeUrl: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/legislacao", authority: "Receita Federal", kind: "official_authority_index" },
+  { hosts: ["confaz.fazenda.gov.br"], alternativeUrl: "https://www.gov.br/confaz/pt-br/assuntos/legislacao", authority: "CONFAZ", kind: "official_authority_index" },
+  { hosts: ["nfe.fazenda.gov.br"], alternativeUrl: "https://www.gov.br/nfe/pt-br", authority: "Portal Nacional da NF-e", kind: "official_authority_index" },
+  { hosts: ["sefaz.ac.gov.br"], alternativeUrl: "https://www.ac.gov.br/", authority: "Estado do Acre", kind: "official_authority_index" },
+  { hosts: ["sefaz.ba.gov.br"], alternativeUrl: "https://www.ba.gov.br/fazenda/", authority: "Estado da Bahia", kind: "official_authority_index" },
+  { hosts: ["sefaz.es.gov.br"], alternativeUrl: "https://sefaz.es.gov.br/", authority: "Estado do Espírito Santo", kind: "official_authority_index" },
+  { hosts: ["sinj.df.gov.br"], alternativeUrl: "https://www.df.gov.br/", authority: "Distrito Federal", kind: "official_authority_index" },
+  { hosts: ["sefaz.pb.gov.br"], alternativeUrl: "https://paraiba.pb.gov.br/diretas/secretaria-da-fazenda", authority: "Estado da Paraíba", kind: "official_authority_index" },
+  { hosts: ["cotic.rn.gov.br", "set.rn.gov.br"], alternativeUrl: "https://www.rn.gov.br/", authority: "Estado do Rio Grande do Norte", kind: "official_authority_index" },
+  { hosts: ["sefaz.rr.gov.br"], alternativeUrl: "https://portal.rr.gov.br/", authority: "Estado de Roraima", kind: "official_authority_index" },
+  { hosts: ["sefaz.ma.gov.br"], alternativeUrl: "https://www.ma.gov.br/", authority: "Estado do Maranhão", kind: "official_authority_index" },
+  { hosts: ["aracaju.se.gov.br"], alternativeUrl: "https://www.aracaju.se.gov.br/", authority: "Município de Aracaju", kind: "official_authority_index" },
+  { hosts: ["guarulhos.sp.gov.br"], alternativeUrl: "https://www.guarulhos.sp.gov.br/", authority: "Município de Guarulhos", kind: "official_authority_index" },
+  { hosts: ["ribeiraopreto.sp.gov.br"], alternativeUrl: "https://www.ribeiraopreto.sp.gov.br/portal/", authority: "Município de Ribeirão Preto", kind: "official_authority_index" },
+  { hosts: ["recife.pe.gov.br"], alternativeUrl: "https://www2.recife.pe.gov.br/", authority: "Município do Recife", kind: "official_authority_index" },
+  { hosts: ["saogoncalo.rj.gov.br"], alternativeUrl: "https://www.saogoncalo.rj.gov.br/", authority: "Município de São Gonçalo", kind: "official_authority_index" },
+  { hosts: ["salvador.ba.gov.br"], alternativeUrl: "https://www.salvador.ba.gov.br/", authority: "Município de Salvador", kind: "official_authority_index" },
+  { hosts: ["joinville.sc.gov.br"], alternativeUrl: "https://www.joinville.sc.gov.br/", authority: "Município de Joinville", kind: "official_authority_index" },
+  { hosts: ["cascavel.pr.gov.br", "cascavel.atende.net"], alternativeUrl: "https://cascavel.atende.net/cidadao/pagina/legislacao-tributaria", authority: "Município de Cascavel", kind: "official_authority_index" },
+];
+
+function alternativeRuleFor(host: string) {
+  return technicalAlternativeRules.find((rule) => rule.hosts.some((suffix) => host === suffix || host.endsWith(`.${suffix}`)));
+}
+
+export const officialSourceTechnicalAlternatives: OfficialSourceTechnicalAlternative[] = Array.from(
+  new Map(officialSourceInventory.flatMap((item) => {
+    const rule = alternativeRuleFor(item.host);
+    if (!rule || item.url === rule.alternativeUrl) return [];
+    const evidence: OfficialSourceTechnicalAlternative = {
+      originalUrl: item.url,
+      alternativeUrl: rule.alternativeUrl,
+      authority: rule.authority,
+      kind: rule.kind,
+      checkedAt: OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT,
+      provesExactAct: false,
+      evidenceScope: "technical_redundancy_only",
+    };
+    return [[item.url, evidence] as const];
+  })).values(),
+).sort((left, right) => left.originalUrl.localeCompare(right.originalUrl));
+
+const technicalAlternativeByOriginalUrl = new Map(
+  officialSourceTechnicalAlternatives.map((item) => [item.originalUrl, item]),
+);
 
 export const officialSourceLiveProbeSnapshot = {
   checkedAt: OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT,
-  uniqueUrls: 285,
-  checked: 206,
-  pending: 78,
-  unavailable: 1,
-  unavailableSourceCodes: ["ISS-CVL-RISS"],
-  policy: "HTTP 2xx confirma acessibilidade técnica na data; timeout, 403, 429 e 5xx permanecem pendentes; somente 404 e 410 bloqueiam o link como indisponível.",
+  uniqueUrls: 288,
+  baseline: {
+    checkedAt: "2026-07-30",
+    uniqueUrls: 285,
+    checked: 206,
+    pending: 78,
+    unavailable: 1,
+    unavailableSourceCodes: ["ISS-CVL-RISS"],
+  },
+  checkedDirectly: 215,
+  checkedViaOfficialAlternative: 63,
+  checked: 278,
+  pending: 10,
+  pendingSourceCodes: ["CONFAZ", "ISS-GRU-LEGIS", "ISS-REC-CTM", "ISS-REC-L17240", "ISS-SG-CTM", "ISS-SG-LEGIS", "NFE-MOC-7-ANEXO-I", "NFE-NT-2025-002", "NFE-PORTAL", "NFE-SCHEMAS-OFFICIAL"],
+  unavailable: 0,
+  unavailableSourceCodes: [],
+  policy: "HTTP 2xx confirma acessibilidade técnica na data. Espelho ou índice oficial da mesma autoridade reduz fragilidade de transporte, mas não prova o ato exato nem promove a regra. Timeout, 403, 429 e 5xx sem alternativa permanecem pendentes; 404 e 410 sem substituição ficam indisponíveis.",
 } as const;
 
 export function officialSourceAffectedRuleReport(items: readonly OfficialSourceInventoryItem[] = officialSourceInventory) {
@@ -325,6 +394,8 @@ export type SourceProbeResult = {
   status: "checked" | "pending" | "unavailable";
   httpStatus: number | null;
   checkedAt: string;
+  accessPath: "direct" | "official_alternative" | "none";
+  alternativeUrl: string | null;
 };
 
 export async function probeOfficialSourceInventory(
@@ -336,9 +407,37 @@ export async function probeOfficialSourceInventory(
   for (let offset = 0; offset < unique.length; offset += 10) {
     const batch = unique.slice(offset, offset + 10);
     const batchResults = await Promise.all(batch.map(async (item) => {
+      const alternative = technicalAlternativeByOriginalUrl.get(item.url);
       try {
-        let response = await fetcher(item.url, { method: "HEAD", redirect: "follow" });
-        if ([403, 405].includes(response.status)) response = await fetcher(item.url, { method: "GET", redirect: "follow" });
+        let response: Pick<Response, "ok" | "status"> | null = null;
+        try {
+          response = await fetcher(item.url, { method: "HEAD", redirect: "follow" });
+        } catch {
+          // Muitos portais oficiais recusam ou não encerram HEAD. Uma falha de HEAD
+          // não prova indisponibilidade: o endpoint documental GET ainda deve ser
+          // consultado antes de a evidência permanecer pendente.
+        }
+        if (!response?.ok) {
+          try {
+            response = await fetcher(item.url, { method: "GET", redirect: "follow" });
+          } catch {
+            // A classificação abaixo permanece fail-closed quando ambos os meios
+            // técnicos falham; a exceção nunca promove a fonte.
+          }
+        }
+        let accessPath: SourceProbeResult["accessPath"] = response?.ok ? "direct" : "none";
+        if (!response?.ok && alternative) {
+          try {
+            const alternativeResponse = await fetcher(alternative.alternativeUrl, { method: "GET", redirect: "follow" });
+            if (alternativeResponse.ok) {
+              response = alternativeResponse;
+              accessPath = "official_alternative";
+            }
+          } catch {
+            // O endpoint redundante também falhou; a fonte segue pendente.
+          }
+        }
+        if (!response) throw new Error("official_source_probe_failed");
         const status = response.ok
           ? "checked" as const
           : [404, 410].includes(response.status)
@@ -351,6 +450,8 @@ export async function probeOfficialSourceInventory(
           status,
           httpStatus: response.status,
           checkedAt: OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT,
+          accessPath,
+          alternativeUrl: accessPath === "official_alternative" ? alternative?.alternativeUrl ?? null : null,
         };
       } catch {
         return {
@@ -360,6 +461,8 @@ export async function probeOfficialSourceInventory(
           status: "pending" as const,
           httpStatus: null,
           checkedAt: OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT,
+          accessPath: "none" as const,
+          alternativeUrl: alternative?.alternativeUrl ?? null,
         };
       }
     }));
@@ -373,6 +476,8 @@ export async function hashOfficialSourceCertification(items: readonly OfficialSo
     version: OFFICIAL_SOURCE_CERTIFICATION_VERSION,
     checkedAt: OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT,
     items,
+    liveProbe: officialSourceLiveProbeSnapshot,
+    technicalAlternatives: officialSourceTechnicalAlternatives,
   })));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

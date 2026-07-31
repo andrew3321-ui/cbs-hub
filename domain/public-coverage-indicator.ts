@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v18";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v19";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "reliability-v98-source-redundancy-and-balanced-regression",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "A prova técnica passou a exigir 3.000 casos e ao menos 100 em cada módulo fiscal principal, com igualdade entre casos, memórias e bloqueios. A recertificação mantém endpoints alternativos oficiais separados da prova do ato exato.",
+        affectedCodes: ["PUBLIC_COVERAGE", "FISCAL_REGRESSION", "OFFICIAL_SOURCE_CERTIFICATION"],
+        clientDataExposed: false,
+      },
       {
         id: "rtc-v97-specific-regimes",
         changedAt: "2026-07-31T00:00:00.000Z",

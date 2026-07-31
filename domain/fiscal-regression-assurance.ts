@@ -148,8 +148,10 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v3";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v4";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-31";
+export const FISCAL_REGRESSION_REPORT_CASE_TARGET = 3_000;
+export const FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET = 100;
 
 export type FiscalRegressionTestKind =
   | "positive"
@@ -184,6 +186,16 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
   "exception",
   "validity_change",
 ];
+
+const MAJOR_TAX_MODULES = {
+  ICMS: ["ICMS_GENERAL_NATIONAL"],
+  ISS: ["ISS_DEEP_EXPANSION", "ISS_RECURRING_PRIORITY"],
+  SIMPLES: ["SIMPLES_NATIONAL_DEEP"],
+  PIS_COFINS: ["PIS_COFINS_DEEP"],
+  RETENCOES: ["SERVICE_WITHHOLDINGS_DEEP"],
+  IPI: ["IPI_TIPI_DEEP"],
+  REFORMA: ["RTC_SECTOR_SCENARIOS"],
+} as const;
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   {
@@ -461,7 +473,7 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     testKinds: ALL_TEST_KINDS,
     metrics: () => {
       const metrics = stColdBeveragePriorityAuditMetrics();
-      return { deterministicCases: metrics.deterministicCases, calculatedMemories: 0, safelyBlockedCases: metrics.negativeGates };
+      return { deterministicCases: metrics.deterministicCases, calculatedMemories: metrics.deterministicCases - metrics.negativeGates, safelyBlockedCases: metrics.negativeGates };
     },
     sourceCodes: () => ["CONFAZ-PROTOCOL-11-1991", "SP-SRE-27-2026-BEVERAGES", "MG-SAIF-93-2026", "RJ-SUBEREC-433-2025", "SC-ATO-DIAT-12-2026"],
     requiredGates: ["corredor e sentido", "identidade CEST", "perfil exato", "marca", "embalagem", "volume", "regime", "interdependência", "vigência"],
@@ -605,8 +617,44 @@ export async function buildFiscalRegressionReport(affectedRuleCodes?: readonly s
     };
   }));
 
+  const moduleByCode = new Map(modules.map((module) => [module.code, module]));
+  const majorModuleDistribution = Object.fromEntries(Object.entries(MAJOR_TAX_MODULES).map(([tax, moduleCodes]) => {
+    const selectedModules = moduleCodes.flatMap((moduleCode) => {
+      const moduleItem = moduleByCode.get(moduleCode);
+      return moduleItem ? [moduleItem] : [];
+    });
+    const deterministicCases = selectedModules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0);
+    const calculatedMemories = selectedModules.reduce((total, module) => total + module.goldenCases.calculatedMemories, 0);
+    const safelyBlockedCases = selectedModules.reduce((total, module) => total + module.goldenCases.safelyBlockedCases, 0);
+    return [tax, {
+      moduleCodes: selectedModules.map((module) => module.code),
+      deterministicCases,
+      calculatedMemories,
+      safelyBlockedCases,
+      caseAccountingValid: deterministicCases === calculatedMemories + safelyBlockedCases,
+      target: FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET,
+      targetReached: deterministicCases >= FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET,
+    }];
+  }));
+
+  const caseAccountingErrors = modules
+    .filter((module) => module.goldenCases.deterministicCases !== module.goldenCases.calculatedMemories + module.goldenCases.safelyBlockedCases)
+    .map((module) => `${module.code}:case_without_expected_memory_or_safe_block`);
+  const fullReportGateErrors = requestedRules === null ? [
+    ...(modules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0) < FISCAL_REGRESSION_REPORT_CASE_TARGET
+      ? ["regression_case_target_not_reached"]
+      : []),
+    ...Object.entries(majorModuleDistribution).flatMap(([tax, distribution]) => (
+      !distribution.targetReached || !distribution.caseAccountingValid
+        ? [`${tax}:major_module_distribution_gate_failed`]
+        : []
+    )),
+  ] : [];
+
   const errors = [
     ...modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`)),
+    ...caseAccountingErrors,
+    ...fullReportGateErrors,
     ...unmappedRuleCodes.map((ruleCode) => `unmapped_rule:${ruleCode}`),
   ];
   const metrics = {
@@ -619,9 +667,11 @@ export async function buildFiscalRegressionReport(affectedRuleCodes?: readonly s
     structured: modules.filter((module) => module.maturity.structured).length,
     tested: modules.filter((module) => module.maturity.tested).length,
     approved: modules.filter((module) => module.maturity.approved).length,
-    caseTarget: FISCAL_REGRESSION_CASE_TARGET,
-    targetReached: modules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0) >= FISCAL_REGRESSION_CASE_TARGET,
-    remainingToTarget: Math.max(0, FISCAL_REGRESSION_CASE_TARGET - modules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0)),
+    caseTarget: requestedRules === null ? FISCAL_REGRESSION_REPORT_CASE_TARGET : FISCAL_REGRESSION_CASE_TARGET,
+    targetReached: modules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0) >= (requestedRules === null ? FISCAL_REGRESSION_REPORT_CASE_TARGET : FISCAL_REGRESSION_CASE_TARGET),
+    remainingToTarget: Math.max(0, (requestedRules === null ? FISCAL_REGRESSION_REPORT_CASE_TARGET : FISCAL_REGRESSION_CASE_TARGET) - modules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0)),
+    caseAccountingValid: caseAccountingErrors.length === 0,
+    majorModuleDistribution,
   };
   const status = modules.length > 0 && errors.length === 0 && modules.every((module) => module.gates.failClosed)
     ? "automatically_verified" as const
@@ -640,6 +690,7 @@ export async function buildFiscalRegressionReport(affectedRuleCodes?: readonly s
       gates,
       maturity,
     })),
+    majorModuleDistribution,
   }));
 
   return {
@@ -655,6 +706,7 @@ export async function buildFiscalRegressionReport(affectedRuleCodes?: readonly s
       buildMustFailOnRegression: true,
       statement: "O relatório prova regressão técnica, memória esperada, rastreabilidade e bloqueio seguro; não presume aprovação profissional.",
       aggregationNote: "Totais somam execuções por camada de controle; módulos de aplicabilidade e cálculo podem observar o mesmo corredor sem transformar isso em uma memória duplicada.",
+      caseContract: "Cada caso independente possui expectativa explícita e termina em memória reproduzível ou bloqueio seguro; a igualdade entre casos, memórias e bloqueios é uma trava do relatório.",
     },
     metrics,
     modules,

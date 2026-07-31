@@ -4,6 +4,8 @@ import test from "node:test";
 
 import {
   FISCAL_REGRESSION_REPORT_VERSION,
+  FISCAL_REGRESSION_REPORT_CASE_TARGET,
+  FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET,
   buildFiscalRegressionReport,
   fiscalRegressionModulesForRules,
 } from "../domain/fiscal-regression-assurance.ts";
@@ -31,10 +33,18 @@ test("versioned regression report exposes module, rule, evidence and maturity wi
   assert.equal(report.metrics.structured, report.metrics.modules);
   assert.equal(report.metrics.tested, report.metrics.modules);
   assert.equal(report.metrics.approved, 0);
-  assert.ok(report.metrics.deterministicCases >= 2_000);
-  assert.equal(report.metrics.caseTarget, 2_000);
+  assert.ok(report.metrics.deterministicCases >= 3_000);
+  assert.equal(report.metrics.caseTarget, FISCAL_REGRESSION_REPORT_CASE_TARGET);
   assert.equal(report.metrics.targetReached, true);
   assert.equal(report.metrics.remainingToTarget, 0);
+  assert.equal(report.metrics.caseAccountingValid, true);
+  assert.deepEqual(Object.keys(report.metrics.majorModuleDistribution), ["ICMS", "ISS", "SIMPLES", "PIS_COFINS", "RETENCOES", "IPI", "REFORMA"]);
+  assert.ok(Object.values(report.metrics.majorModuleDistribution).every((distribution) => (
+    distribution.target === FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET
+    && distribution.targetReached
+    && distribution.caseAccountingValid
+    && distribution.deterministicCases === distribution.calculatedMemories + distribution.safelyBlockedCases
+  )));
   assert.ok(report.metrics.calculatedMemories > 80);
   assert.ok(report.metrics.safelyBlockedCases > 600);
   assert.match(report.fingerprint, /^[0-9a-f]{64}$/);
@@ -44,6 +54,11 @@ test("versioned regression report exposes module, rule, evidence and maturity wi
     assert.ok(moduleItem.ruleVersion.length > 5, moduleItem.code);
     assert.match(moduleItem.fingerprint, /^[0-9a-f]{64}$/, moduleItem.code);
     assert.equal(moduleItem.goldenCases.independentExpectedMemory, true, moduleItem.code);
+    assert.equal(
+      moduleItem.goldenCases.deterministicCases,
+      moduleItem.goldenCases.calculatedMemories + moduleItem.goldenCases.safelyBlockedCases,
+      moduleItem.code,
+    );
     assert.ok(moduleItem.goldenCases.officialSourceCodes.length > 0, moduleItem.code);
     assert.equal(moduleItem.arithmetic.moneyUnit, "cent", moduleItem.code);
     assert.equal(moduleItem.arithmetic.rateUnit, "basis_point", moduleItem.code);

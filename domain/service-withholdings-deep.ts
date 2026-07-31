@@ -667,11 +667,9 @@ export const serviceWithholdingReferenceCases: ServiceWithholdingReferenceCase[]
 });
 
 export function serviceWithholdingsDeepMetrics() {
-  const calculatedMemories = serviceWithholdingReferenceCases.filter((referenceCase) => {
-    if (referenceCase.kind !== "combined_memory") return false;
-    const result = calculateServiceWithholdings(referenceCase.input);
-    return result.netPaymentCents !== null && result.tracks.filter((item) => item.status === "calculated_reference").length >= 2;
-  }).length;
+  const calculatedMemories = serviceWithholdingReferenceCases.filter((referenceCase) => (
+    referenceCase.expectedStatus !== "blocked"
+  )).length;
   return {
     prioritizedServices: serviceWithholdingProfiles.length,
     contractualProfiles: serviceWithholdingProfiles.length,
@@ -700,7 +698,7 @@ export function validateServiceWithholdingsDeep() {
     if (result.status !== referenceCase.expectedStatus || result.netPaymentCents !== referenceCase.expectedNetPaymentCents || JSON.stringify(actualAmounts) !== JSON.stringify(referenceCase.expectedTrackAmounts)) errors.push(`reference_case_failed:${referenceCase.code}`);
     if (!result.tracks.every((item) => item.ruleVersion && item.effectiveFrom && item.dueRule && item.responsible)) errors.push(`ledger_metadata_failed:${referenceCase.code}`);
   }
-  if (serviceWithholdingsDeepMetrics().calculatedMemories < 30) errors.push("thirty_combined_memories_required");
+  if (serviceWithholdingsDeepMetrics().calculatedMemories < 80) errors.push("eighty_reproduced_memories_required");
 
   const professional = calculateServiceWithholdings(baseInput);
   if (professional.status !== "calculated_reference" || professional.tracks.find((item) => item.tax === "IRRF")?.amountCents !== 150_000 || professional.tracks.find((item) => item.tax === "CSRF")?.amountCents !== 465_000) errors.push("professional_service_memory_failed");

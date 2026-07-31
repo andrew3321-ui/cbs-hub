@@ -74,7 +74,7 @@ const seeds: ExpansionSeed[] = [
   },
   {
     ibgeCode: "4104808", city: "Cascavel", uf: "PR", slug: "PR-CASCAVEL",
-    source: { code: "ISS-CVL-RISS", title: "Decreto nº 5.711/2002 — Regulamento do ISSQN", publisher: "Prefeitura de Cascavel", url: "https://www.cascavel.pr.gov.br/arquivos/14072009_decreto_5711_-_2002.pdf", kind: "municipal_law", legalReference: "Decreto nº 5.711/2002 e Lei Complementar nº 1/2001" },
+    source: { code: "ISS-CVL-RISS", title: "Portal oficial de legislação tributária de Cascavel", publisher: "Prefeitura de Cascavel", url: "https://cascavel.atende.net/cidadao/pagina/legislacao-tributaria", kind: "official_portal", legalReference: "Índice municipal para a Lei Complementar nº 1/2001; o PDF removido do Decreto nº 5.711/2002 não é tratado como prova primária" },
     priorityServiceItems: ["17.01", "14.01", "7.02"], rankingBasis: "agronegócio, logística e serviços regionais",
   },
   {

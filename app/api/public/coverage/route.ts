@@ -28,7 +28,7 @@ import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
 import { withApiTelemetry } from "../../../api-infrastructure";
-import { hashOfficialSourceCertification, officialSourceAffectedRuleReport, officialSourceCertificationMetrics, officialSourceInventory, officialSourceLiveProbeSnapshot, OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT, OFFICIAL_SOURCE_CERTIFICATION_VERSION, validateOfficialSourceCertification } from "../../../../domain/official-source-certification";
+import { hashOfficialSourceCertification, officialSourceAffectedRuleReport, officialSourceCertificationMetrics, officialSourceInventory, officialSourceLiveProbeSnapshot, officialSourceTechnicalAlternatives, OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT, OFFICIAL_SOURCE_CERTIFICATION_VERSION, validateOfficialSourceCertification } from "../../../../domain/official-source-certification";
 
 async function publicCoverage() {
   const fingerprint = (await hashNationalCoverage()).slice(0, 12);
@@ -80,6 +80,7 @@ async function publicCoverage() {
       validation: validateOfficialSourceCertification(),
       metrics: officialSourceCertificationMetrics(),
       liveProbe: officialSourceLiveProbeSnapshot,
+      technicalAlternatives: officialSourceTechnicalAlternatives,
       affectedRules: officialSourceAffectedRuleReport(),
       sources: officialSourceInventory,
       policy: "Fonte confirmada exige identidade, emissor, dispositivo, vigência e consulta estruturados. Restrição técnica do portal permanece pendente; URL definitivamente ausente bloqueia a evidência e nunca é promovida a regra suportada.",

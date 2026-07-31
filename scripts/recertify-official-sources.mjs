@@ -24,11 +24,15 @@ const probes = await probeOfficialSourceInventory(fetcher);
 const unavailable = probes.filter((item) => item.status === "unavailable");
 const pending = probes.filter((item) => item.status === "pending");
 const checked = probes.filter((item) => item.status === "checked");
+const checkedDirectly = checked.filter((item) => item.accessPath === "direct");
+const checkedViaOfficialAlternative = checked.filter((item) => item.accessPath === "official_alternative");
 console.log(JSON.stringify({
   version: OFFICIAL_SOURCE_CERTIFICATION_VERSION,
   inventory: officialSourceCertificationMetrics(),
   uniqueUrls: probes.length,
   checked: checked.length,
+  checkedDirectly: checkedDirectly.length,
+  checkedViaOfficialAlternative: checkedViaOfficialAlternative.length,
   pending: pending.length,
   unavailable: unavailable.length,
   pendingSources: pending,
