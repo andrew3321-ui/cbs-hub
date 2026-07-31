@@ -32,6 +32,7 @@ import {
   governanceNotifications,
   normativeChangeReviews,
   normativeGovernanceAuditEvents,
+  platformMetricEvents,
   reportShares,
   scenarioApprovals,
   scenarioReviewComments,
@@ -76,7 +77,7 @@ async function exportAccountData(request: Request) {
     const memberFilter = canExportWorkspaceData
       ? eq(workspaceMembers.workspaceId, workspace.id)
       : and(eq(workspaceMembers.workspaceId, workspace.id), eq(workspaceMembers.userId, currentUser.id));
-    const [members, scenarioRows, shareRows, approvalRows, auditRows, billingRows, transactionRows, fiscalRows, trialRows] = await Promise.all([
+    const [members, scenarioRows, shareRows, approvalRows, auditRows, billingRows, transactionRows, fiscalRows, trialRows, platformActivityRows] = await Promise.all([
       db.select({ id: users.id, name: users.name, email: users.email, role: workspaceMembers.role, status: workspaceMembers.status, joinedAt: workspaceMembers.joinedAt }).from(workspaceMembers).innerJoin(users, eq(users.id, workspaceMembers.userId)).where(memberFilter),
       companyIds.length ? db.select().from(scenarios).where(inArray(scenarios.companyId, companyIds)) : [],
       canExportWorkspaceData ? db.select({ id: reportShares.id, scenarioId: reportShares.scenarioId, companyId: reportShares.companyId, expiresAt: reportShares.expiresAt, revokedAt: reportShares.revokedAt, views: reportShares.views, lastViewedAt: reportShares.lastViewedAt, createdAt: reportShares.createdAt }).from(reportShares).where(eq(reportShares.ownerUserId, workspace.ownerUserId)) : [],
@@ -86,6 +87,7 @@ async function exportAccountData(request: Request) {
       db.select({ id: billingTransactions.id, provider: billingTransactions.provider, providerInvoiceId: billingTransactions.providerInvoiceId, providerPaymentId: billingTransactions.providerPaymentId, status: billingTransactions.status, statusDetail: billingTransactions.statusDetail, grossAmountCents: billingTransactions.grossAmountCents, feeAmountCents: billingTransactions.feeAmountCents, netAmountCents: billingTransactions.netAmountCents, currency: billingTransactions.currency, paymentMethod: billingTransactions.paymentMethod, approvedAt: billingTransactions.approvedAt, createdAt: billingTransactions.createdAt, updatedAt: billingTransactions.updatedAt }).from(billingTransactions).where(eq(billingTransactions.userId, currentUser.id)),
       db.select().from(fiscalIssuances).where(eq(fiscalIssuances.userId, currentUser.id)),
       canExportWorkspaceData ? db.select({ status: trialDeviceClaims.status, startedAt: trialDeviceClaims.startedAt, endsAt: trialDeviceClaims.endsAt, createdAt: trialDeviceClaims.createdAt }).from(trialDeviceClaims).where(eq(trialDeviceClaims.workspaceId, workspace.id)) : [],
+      db.select({ eventType: platformMetricEvents.eventType, eventDate: platformMetricEvents.eventDate, occurredAt: platformMetricEvents.occurredAt, pathGroup: platformMetricEvents.pathGroup, source: platformMetricEvents.source, medium: platformMetricEvents.medium, campaign: platformMetricEvents.campaign }).from(platformMetricEvents).where(eq(platformMetricEvents.userId, currentUser.id)).limit(5000),
     ]);
     const [account] = await db.select({ id: users.id, name: users.name, email: users.email, accountType: users.accountType, suggestedPlanKey: users.suggestedPlanKey, createdAt: users.createdAt }).from(users).where(eq(users.id, currentUser.id)).limit(1);
     const fiscalIssuanceIds = fiscalRows.map((item) => item.id);
@@ -131,6 +133,7 @@ async function exportAccountData(request: Request) {
       fiscalIssuanceEvents: fiscalIssuanceEventRows,
       support: { tickets: supportRows, events: supportEventRows },
       trial: trialRows,
+      platformActivity: platformActivityRows,
       fiscalControl: { ruleApprovals: ruleApprovalRows, expansionProgress: expansionProgressRows, expansionEvents: expansionEventRows, dossiers: dossierRows, dossierEvents: dossierEventRows, documents: documentRows, documentEvents: documentEventRows, homologations: homologationRows, homologationEvents: homologationEventRows, taxPeriods: taxPeriodRows, taxLedgerEntries: taxLedgerRows, reconciliations: reconciliationRows, closures: closureRows },
       safeguards: { passwordHashesExcluded: true, recoveryKeysExcluded: true, sessionTokensExcluded: true, providerPayloadsExcluded: true, rawFiscalXmlStored: false, rawDeviceSignalsStored: false, memberWorkspaceDataExcluded: !canExportWorkspaceData },
     };
@@ -226,6 +229,7 @@ async function deleteAccount(request: Request) {
       await db.delete(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
       await db.delete(billingTransactions).where(eq(billingTransactions.userId, user.id));
       await db.delete(billingAccounts).where(eq(billingAccounts.userId, user.id));
+      await db.delete(platformMetricEvents).where(eq(platformMetricEvents.userId, user.id));
       await db.delete(sessions).where(eq(sessions.userId, user.id));
       await db.delete(users).where(eq(users.id, user.id));
       await recordPrivacyRequest({ request, email: user.email, workspaceId: workspace.id, action: "account_deletion", status: "completed", details: { scope: "workspace_member" } });
@@ -243,6 +247,7 @@ async function deleteAccount(request: Request) {
     await db.delete(fiscalIssuances).where(eq(fiscalIssuances.userId, user.id));
     await db.delete(billingTransactions).where(eq(billingTransactions.userId, user.id));
     await db.delete(billingAccounts).where(eq(billingAccounts.userId, user.id));
+    await db.delete(platformMetricEvents).where(eq(platformMetricEvents.userId, user.id));
     await db.delete(auditEvents).where(eq(auditEvents.ownerUserId, user.id));
     await db.delete(reportShares).where(eq(reportShares.ownerUserId, user.id));
     await db.delete(scenarioApprovals).where(eq(scenarioApprovals.ownerUserId, user.id));

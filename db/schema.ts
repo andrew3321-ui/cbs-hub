@@ -131,6 +131,42 @@ export const sessions = sqliteTable("sessions", {
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [index("sessions_user_expires_idx").on(table.userId, table.expiresAt), index("sessions_expires_at_idx").on(table.expiresAt)]);
 
+export const platformMetricEvents = sqliteTable("platform_metric_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  eventType: text("event_type").notNull(),
+  eventDate: text("event_date").notNull(),
+  occurredAt: text("occurred_at").notNull(),
+  userId: integer("user_id"),
+  visitorHash: text("visitor_hash"),
+  sessionHash: text("session_hash"),
+  pathGroup: text("path_group").notNull().default("other"),
+  source: text("source").notNull().default("direct"),
+  medium: text("medium").notNull().default("none"),
+  campaign: text("campaign").notNull().default(""),
+  dedupeKey: text("dedupe_key").notNull(),
+  metadataJson: text("metadata_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("platform_metric_events_dedupe_idx").on(table.dedupeKey),
+  index("platform_metric_events_date_type_idx").on(table.eventDate, table.eventType),
+  index("platform_metric_events_user_date_idx").on(table.userId, table.eventDate, table.eventType),
+  index("platform_metric_events_source_date_idx").on(table.source, table.eventDate),
+]);
+
+export const platformMetricDaily = sqliteTable("platform_metric_daily", {
+  metricDate: text("metric_date").primaryKey(),
+  pageViews: integer("page_views").notNull().default(0),
+  visitors: integer("visitors").notNull().default(0),
+  sessions: integer("sessions").notNull().default(0),
+  signups: integer("signups").notNull().default(0),
+  activeUsers: integer("active_users").notNull().default(0),
+  trialsStarted: integer("trials_started").notNull().default(0),
+  trialsDenied: integer("trials_denied").notNull().default(0),
+  paymentsApproved: integer("payments_approved").notNull().default(0),
+  grossAmountCents: integer("gross_amount_cents").notNull().default(0),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
 export const scenarios = sqliteTable("scenarios", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),

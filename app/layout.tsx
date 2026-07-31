@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import AnalyticsBeacon from "./AnalyticsBeacon";
 import "./cbshub-landing.css";
 import "./homologation.css";
 import "./homologation-simulations.css";
@@ -34,7 +35,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body>{children}</body>
+      <body><AnalyticsBeacon />{children}</body>
     </html>
   );
 }

@@ -7,6 +7,7 @@ import { sha256Hex } from "../../../workspace";
 import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../plan-entitlements";
 import { TRIAL_COMPANY_LIMIT, TRIAL_DURATION_DAYS, trialEndsAt } from "../../../../domain/trial";
 import { buildTrialClaimIdentity, trialDeviceCookieHeader } from "../../../trial-protection";
+import { recordPlatformMetricEvent } from "../../../platform-analytics";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -132,6 +133,13 @@ export async function POST(request: Request) {
     const configuredLegacyOwner = normalizeEmail(String((env as unknown as { LEGACY_OWNER_EMAIL?: string }).LEGACY_OWNER_EMAIL ?? ""));
     const canClaimLegacyData = configuredLegacyOwner ? configuredLegacyOwner === email : Number(total) === 0;
     if (canClaimLegacyData) await db.update(companies).set({ ownerUserId: user.id, workspaceId }).where(isNull(companies.ownerUserId));
+
+    try {
+      await recordPlatformMetricEvent({ request, eventType: "signup", userId: user.id, payload: { pathname: "/cadastro" } });
+      if (!invitation) await recordPlatformMetricEvent({ request, eventType: trialGranted ? "trial_started" : "trial_denied", userId: user.id, payload: { pathname: "/cadastro", reason: trialGranted ? "granted" : trialIdentity ? "already_used" : "verification_unavailable" } });
+    } catch (metricError) {
+      console.warn(JSON.stringify({ event: "platform_metrics.signup_record_failed", error: metricError instanceof Error ? metricError.name : "UnknownError" }));
+    }
 
     const session = await createSession(user.id);
     const headers = new Headers();
