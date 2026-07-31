@@ -40,6 +40,7 @@ try {
     env: {
       ...process.env,
       SMOKE_BASE_URL: process.env.SMOKE_BASE_URL ?? "https://cbshub.com.br",
+      SMOKE_PREVIOUS_RELEASE_ID: previousVersionId ?? "",
     },
   });
 } catch (error) {

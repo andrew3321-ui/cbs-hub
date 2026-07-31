@@ -4,6 +4,7 @@ const email = process.env.SMOKE_TEST_EMAIL ?? "";
 const password = process.env.SMOKE_TEST_PASSWORD ?? "";
 const reportToken = process.env.SMOKE_REPORT_TOKEN ?? "";
 const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? 15_000);
+const previousReleaseId = process.env.SMOKE_PREVIOUS_RELEASE_ID ?? "";
 
 async function request(pathname, init = {}) {
   const controller = new AbortController();
@@ -49,8 +50,11 @@ async function waitForPublishedRelease() {
         lastReason = `HTTP ${health.status}`;
       } else {
         const body = await health.json();
-        if (body.status === "healthy" && body.checks?.database === "up" && body.release?.id) return body;
-        lastReason = "banco, assinatura ou versão ainda indisponível";
+        const releaseChanged = body.release?.id && (!previousReleaseId || body.release.id !== previousReleaseId);
+        if (body.status === "healthy" && body.checks?.database === "up" && releaseChanged) return body;
+        lastReason = body.release?.id === previousReleaseId
+          ? `versão anterior ${previousReleaseId} ainda em tráfego`
+          : "banco, assinatura ou versão ainda indisponível";
       }
     } catch (error) {
       lastReason = error instanceof Error ? error.message : "falha desconhecida";
