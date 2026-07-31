@@ -69,7 +69,7 @@ import {
   validateStSectoralPriorityExpansion,
 } from "./st-sectoral-priority-expansion.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v95";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v96";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-31";
 
 type Validation = { passed: boolean; errors: string[] };

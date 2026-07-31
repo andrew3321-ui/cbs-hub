@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   IPI_TIPI_DEEP_VERSION,
+  IPI_TIPI_DEEP_SUPPORTED_PERIOD,
   calculateIpiTipiDeepReference,
   findIpiTipiProfile,
   hashIpiTipiDeep,
@@ -37,12 +38,15 @@ const base = {
   nonTaxableReasonConfirmed: false,
 };
 
-test("V83 ranks fifteen exact priority NCM profiles with official TIPI evidence", () => {
-  assert.equal(IPI_TIPI_DEEP_VERSION, "2026.07.30-v83");
-  assert.equal(ipiTipiPriorityProfiles.length, 15);
-  assert.deepEqual(ipiTipiPriorityProfiles.map((item) => item.rank), Array.from({ length: 15 }, (_, index) => index + 1));
+test("V96 ranks fifty exact priority NCM profiles with official TIPI evidence", () => {
+  assert.equal(IPI_TIPI_DEEP_VERSION, "2026.07.31-v96");
+  assert.equal(ipiTipiPriorityProfiles.length, 50);
+  assert.deepEqual(ipiTipiPriorityProfiles.map((item) => item.rank), Array.from({ length: 50 }, (_, index) => index + 1));
   assert.ok(ipiTipiPriorityProfiles.every((item) => /^\d{8}$/.test(item.ncm)));
   assert.equal(findIpiTipiProfile("84.21.31.00")?.nominalRateBps, 520);
+  assert.equal(findIpiTipiProfile("33.03.00.10")?.nominalRateBps, 2730);
+  assert.equal(findIpiTipiProfile("69.07.21.00")?.nominalRateBps, 65);
+  assert.equal(findIpiTipiProfile("85.36.50.90")?.exceptions.length, 3);
   assert.equal(findIpiTipiProfile("8421"), null);
 });
 
@@ -145,18 +149,38 @@ test("external benefits never inherit a rate from TIPI without a dedicated legal
   assert.ok(result.blockers.some((item) => item.includes("regra jurídica dedicada")));
 });
 
-test("all eighty deterministic cases reproduce their expected output", () => {
+test("returns and dates outside the controlled period fail closed", () => {
+  const returned = calculateIpiTipiDeepReference({
+    ...base,
+    operation: "return_output",
+    returnDocumentConfirmed: true,
+    originalTaxedOperationConfirmed: true,
+  });
+  assert.equal(returned.status, "blocked");
+  assert.deepEqual(returned.lines, []);
+  assert.ok(returned.blockers.some((item) => item.includes("memória própria")));
+  assert.deepEqual(IPI_TIPI_DEEP_SUPPORTED_PERIOD, { from: "2026-01-30", to: "2026-12-31" });
+  for (const calculationDate of ["2026-01-29", "2027-01-01"]) {
+    const result = calculateIpiTipiDeepReference({ ...base, calculationDate });
+    assert.equal(result.status, "blocked");
+    assert.deepEqual(result.lines, []);
+  }
+});
+
+test("all expanded deterministic cases reproduce status and final cents", () => {
   const runs = runIpiTipiDeterministicCases();
-  assert.equal(runs.length, 80);
+  assert.equal(runs.length, 319);
   assert.ok(runs.every((item) => item.passed), JSON.stringify(runs.filter((item) => !item.passed)));
+  assert.ok(runs.filter((item) => item.result.status !== "blocked").length >= 50);
+  assert.deepEqual(new Set(runs.map((item) => item.kind)), new Set(["industrial", "import", "equiparated", "resale", "return", "safe_block", "exception"]));
   assert.deepEqual(ipiTipiDeepMetrics(), {
-    prioritizedNcms: 15,
-    exactExceptions: 7,
-    operations: 4,
+    prioritizedNcms: 50,
+    exactExceptions: 19,
+    operations: 5,
     officialSources: 7,
-    deterministicCases: 80,
-    calculatedMemories: 20,
-    safelyBlockedCases: 60,
+    deterministicCases: 319,
+    calculatedMemories: 219,
+    safelyBlockedCases: 100,
   });
 });
 

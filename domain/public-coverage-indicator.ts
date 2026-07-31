@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v16";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v17";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "ipi-tipi-v96-fifty-exact-ncms",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "IPI/TIPI passou a auditar 50 NCMs exatos, 19 Ex e 319 casos com centavos esperados. Prefixo, descrição aproximada, nota, Ex, papel, benefício, devolução ou vigência não confirmados bloqueiam a memória.",
+        affectedCodes: ["IPI_TIPI_DEEP", "IPI-TIPI"],
+        clientDataExposed: false,
+      },
       {
         id: "service-withholdings-v95-forty-contracts",
         changedAt: "2026-07-31T00:00:00.000Z",

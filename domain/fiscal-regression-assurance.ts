@@ -189,7 +189,7 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   {
     code: "IPI_TIPI_DEEP",
     label: "IPI/TIPI — NCMs prioritários de indústria e importação",
-    ruleCodes: ["IPI-TIPI", "IPI-TIPI-NCM-GATE", "IPI-TIPI-DEEP-V83"],
+    ruleCodes: ["IPI-TIPI", "IPI-TIPI-NCM-GATE", "IPI-TIPI-DEEP-V96"],
     version: IPI_TIPI_DEEP_VERSION,
     validate: validateIpiTipiDeep,
     hash: hashIpiTipiDeep,

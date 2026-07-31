@@ -22,6 +22,7 @@ import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomat
 import { hashSimplesNationalDeep, simplesActivityProfiles, simplesAnnexTables, simplesEligibilityGates, simplesExclusionRules, simplesNationalDeepMetrics, simplesNationalReferenceCases, simplesNationalSources, simplesSegregationRules, SIMPLES_NATIONAL_DEEP_CHECKED_AT, SIMPLES_NATIONAL_DEEP_VERSION, validateSimplesNationalDeep } from "../../../../domain/simples-national-deep";
 import { hashPisCofinsDeep, pisCofinsCreditHypotheses, pisCofinsDeepMetrics, pisCofinsDeepSources, pisCofinsProductProfiles, pisCofinsReferenceCases, PIS_COFINS_DEEP_CHECKED_AT, PIS_COFINS_DEEP_SUPPORTED_PERIOD, PIS_COFINS_DEEP_VERSION, PIS_COFINS_LC224_EFFECTIVE_FROM, validatePisCofinsDeep } from "../../../../domain/pis-cofins-deep";
 import { hashServiceWithholdingsDeep, serviceWithholdingProfiles, serviceWithholdingReferenceCases, serviceWithholdingRuleControls, serviceWithholdingSources, serviceWithholdingsDeepMetrics, SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT, SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD, SERVICE_WITHHOLDINGS_DEEP_VERSION, validateServiceWithholdingsDeep } from "../../../../domain/service-withholdings-deep";
+import { hashIpiTipiDeep, ipiTipiDeepMetrics, ipiTipiDeepSources, ipiTipiDeterministicCases, ipiTipiPriorityProfiles, IPI_TIPI_DEEP_CHECKED_AT, IPI_TIPI_DEEP_SUPPORTED_PERIOD, IPI_TIPI_DEEP_VERSION, validateIpiTipiDeep } from "../../../../domain/ipi-tipi-deep";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
@@ -54,6 +55,7 @@ async function publicCoverage() {
   const simplesNationalFingerprint = (await hashSimplesNationalDeep()).slice(0, 12);
   const pisCofinsFingerprint = (await hashPisCofinsDeep()).slice(0, 12);
   const serviceWithholdingsFingerprint = (await hashServiceWithholdingsDeep()).slice(0, 12);
+  const ipiTipiFingerprint = (await hashIpiTipiDeep()).slice(0, 12);
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const sourceCertificationFingerprint = (await hashOfficialSourceCertification()).slice(0, 12);
@@ -268,6 +270,18 @@ async function publicCoverage() {
       cells: stSectoralPriorityCells,
       cases: stSectoralPriorityCases,
       policy: "A matriz ranqueia dez rotas por segmento por heurística operacional interna. Somente células com identidade, fonte, vigência, responsabilidade e memória já congeladas são suportadas; qualquer lacuna bloqueia o valor e proíbe reutilizar parâmetros de outra UF ou do sentido inverso.",
+    },
+    ipiTipiDeep: {
+      version: IPI_TIPI_DEEP_VERSION,
+      checkedAt: IPI_TIPI_DEEP_CHECKED_AT,
+      supportedPeriod: IPI_TIPI_DEEP_SUPPORTED_PERIOD,
+      fingerprint: ipiTipiFingerprint,
+      validation: validateIpiTipiDeep(),
+      metrics: ipiTipiDeepMetrics(),
+      profiles: ipiTipiPriorityProfiles,
+      referenceCases: ipiTipiDeterministicCases,
+      sources: ipiTipiDeepSources,
+      policy: "Somente NCM de oito dígitos e descrição, notas, Ex, papel, operação e vigência confirmados liberam memória. Benefício externo e devolução exigem regra documental própria; nenhum prefixo ou rótulo aproximado herda alíquota.",
     },
     simplesNationalDeep: {
       version: SIMPLES_NATIONAL_DEEP_VERSION,

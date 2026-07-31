@@ -1,11 +1,16 @@
-export const IPI_TIPI_DEEP_VERSION = "2026.07.30-v83";
-export const IPI_TIPI_DEEP_CHECKED_AT = "2026-07-30";
+export const IPI_TIPI_DEEP_VERSION = "2026.07.31-v96";
+export const IPI_TIPI_DEEP_CHECKED_AT = "2026-07-31";
 export const IPI_TIPI_DEEP_EFFECTIVE_FROM = "2026-01-30";
+export const IPI_TIPI_DEEP_SUPPORTED_PERIOD = {
+  from: IPI_TIPI_DEEP_EFFECTIVE_FROM,
+  to: "2026-12-31",
+} as const;
 
 export type IpiOperation =
   | "industrial_output"
   | "import_clearance"
   | "equiparated_output"
+  | "return_output"
   | "non_taxable_exit";
 
 export type IpiTaxpayerRole =
@@ -35,7 +40,7 @@ export type IpiTipiException = {
   code: string;
   description: string;
   rateBps: number;
-  treatment: "reduced_rate" | "zero_rate";
+  treatment: "reduced_rate" | "zero_rate" | "specific_rate";
   sourceCodes: string[];
 };
 
@@ -78,6 +83,8 @@ export type IpiTipiDeepInput = {
   externalBenefitLegalReference: string | null;
   externalBenefitValidityConfirmed: boolean;
   nonTaxableReasonConfirmed: boolean;
+  returnDocumentConfirmed?: boolean;
+  originalTaxedOperationConfirmed?: boolean;
 };
 
 export type IpiTipiDeepLine = {
@@ -178,12 +185,12 @@ export const ipiTipiDeepSources: IpiTipiSource[] = [
 
 const baseSources = ["IPI-D11158-TIPI", "IPI-RFB-TIPI-CONSOLIDATED", "IPI-RFB-NCM"];
 
-function exception(code: string, description: string, rateBps: number): IpiTipiException {
+function exception(code: string, description: string, rateBps: number, treatment?: IpiTipiException["treatment"]): IpiTipiException {
   return {
     code,
     description,
     rateBps,
-    treatment: rateBps === 0 ? "zero_rate" : "reduced_rate",
+    treatment: treatment ?? (rateBps === 0 ? "zero_rate" : "reduced_rate"),
     sourceCodes: ["IPI-RFB-TIPI-CONSOLIDATED"],
   };
 }
@@ -246,6 +253,59 @@ export const ipiTipiPriorityProfiles: IpiTipiProfile[] = [
   profile(15, "19059090", "Outros produtos de padaria, pastelaria ou indústria de bolachas e biscoitos", 0, [
     exception("EX01", "Pão do tipo comum", 0),
   ]),
+  profile(16, "22021000", "Águas adicionadas de açúcar, edulcorantes ou aromatizadas", 260, [
+    exception("EX01", "Refrescos", 260, "specific_rate"),
+  ], ["A NC 22-1 somente reduz a alíquota após confirmar registro e composição exigidos; o benefício externo permanece bloqueado sem regra dedicada."]),
+  profile(17, "22030000", "Cervejas de malte", 390, [
+    exception("EX01", "Chope", 390, "specific_rate"),
+  ]),
+  profile(18, "30049099", "Outros medicamentos em doses ou acondicionados para venda a retalho", 0),
+  profile(19, "33030010", "Perfumes (extratos)", 2730),
+  profile(20, "34025000", "Preparações para lavagem acondicionadas para venda a retalho", 325),
+  profile(21, "39231090", "Outras caixas, caixotes, engradados e artigos semelhantes de plástico", 975),
+  profile(22, "39241000", "Serviços e utensílios de mesa ou cozinha, de plástico", 650, [
+    exception("EX01", "Pratos, xícaras, taças, copos e semelhantes descartáveis, de plástico", 675, "specific_rate"),
+  ]),
+  profile(23, "40111000", "Pneumáticos novos para automóveis de passageiros", 975),
+  profile(24, "40112090", "Outros pneumáticos novos para ônibus ou caminhões", 130),
+  profile(25, "48211000", "Etiquetas impressas de papel ou cartão", 0),
+  profile(26, "62034200", "Calças e semelhantes, masculinas, de algodão", 0),
+  profile(27, "64041900", "Outros calçados com sola de borracha ou plástico e parte superior têxtil", 0),
+  profile(28, "69072100", "Ladrilhos e placas cerâmicas com absorção de água não superior a 0,5%", 65),
+  profile(29, "70071900", "Outros vidros de segurança temperados", 650),
+  profile(30, "72104910", "Produtos laminados revestidos de zinco, espessura inferior a 4,75 mm", 325),
+  profile(31, "73181500", "Outros parafusos, pinos ou pernos, mesmo com porcas e arruelas", 650),
+  profile(32, "73269090", "Outras obras de ferro ou aço", 500),
+  profile(33, "76042920", "Perfis de ligas de alumínio", 0),
+  profile(34, "82055900", "Outras ferramentas manuais", 520),
+  profile(35, "84143019", "Outros compressores para equipamentos frigoríficos", 0),
+  profile(36, "84145990", "Outros ventiladores", 0),
+  profile(37, "84148019", "Outros compressores de ar", 0),
+  profile(38, "84212100", "Aparelhos para filtrar ou depurar água", 0),
+  profile(39, "84314929", "Outras partes de máquinas das posições 84.26, 84.29 ou 84.30", 325),
+  profile(40, "84733049", "Outras partes e acessórios de máquinas da posição 84.71", 1500),
+  profile(41, "85043119", "Outros transformadores elétricos de potência não superior a 1 kVA", 650),
+  profile(42, "85072090", "Outros acumuladores elétricos de chumbo", 975),
+  profile(43, "85176259", "Outros aparelhos para recepção, conversão e transmissão de dados", 1500),
+  profile(44, "85365090", "Outros interruptores, seccionadores e comutadores", 975, [
+    exception("EX01", "Interruptor para sistema elétrico em 24 V próprio para ônibus ou caminhões", 260),
+    exception("EX02", "Chaves de faca", 325),
+    exception("EX03", "Do tipo utilizado em residências", 325),
+  ]),
+  profile(45, "85444200", "Condutores elétricos munidos de peças de conexão, até 1.000 V", 500),
+  profile(46, "87081000", "Para-choques e suas partes", 325),
+  profile(47, "87083090", "Outros freios e servofreios e suas partes", 325),
+  profile(48, "87087090", "Outras rodas e suas partes e acessórios", 325),
+  profile(49, "87088000", "Sistemas de suspensão e suas partes", 325, [
+    exception("EX01", "Amortecedores dos veículos e subposições especificados na TIPI", 260),
+    exception("EX02", "Amortecedores de suspensão, exceto os do Ex 01", 1040, "specific_rate"),
+  ]),
+  profile(50, "90189099", "Outros instrumentos e aparelhos médico-cirúrgicos", 520, [
+    exception("EX01", "Conjuntos descartáveis de circulação assistida ou balão intra-aórtico", 0),
+    exception("EX02", "Máquinas cicladoras para diálise peritoneal e acessórios", 0),
+    exception("EX03", "Equipamentos e conjuntos especificados para diálise peritoneal", 0),
+    exception("EX04", "Kits para aférese", 0),
+  ]),
 ];
 
 function normalizeNcm(value: string | null) {
@@ -292,6 +352,14 @@ function operationMetadata(operation: IpiOperation, role: IpiTaxpayerRole) {
       dueRule: "Sem vencimento de IPI neste recorte, condicionado à não incidência comprovada",
     };
   }
+  if (operation === "return_output") {
+    return {
+      code: operation,
+      taxableEvent: "Devolução vinculada ao documento e à operação original",
+      taxpayerRole: role,
+      dueRule: "Nenhum débito, crédito ou IPI devolvido é inferido sem conciliar documento original, finalidade e escrituração",
+    };
+  }
   return {
     code: operation,
     taxableEvent: operation === "equiparated_output"
@@ -312,6 +380,7 @@ function roleMatchesOperation(operation: IpiOperation, role: IpiTaxpayerRole) {
   if (operation === "industrial_output") return role === "industrial";
   if (operation === "import_clearance") return role === "importer";
   if (operation === "equiparated_output") return role === "equiparated_industrial";
+  if (operation === "return_output") return true;
   return role === "ordinary_reseller";
 }
 
@@ -324,7 +393,7 @@ export function calculateIpiTipiDeepReference(input: IpiTipiDeepInput): IpiTipiD
   const warnings: string[] = [];
 
   if (normalizedNcm.length !== 8) blockers.push("NCM exato de oito dígitos não informado");
-  if (!profile) blockers.push("NCM fora dos quinze perfis exatos priorizados");
+  if (!profile) blockers.push("NCM fora dos cinquenta perfis exatos priorizados");
   if (!input.exactNcmConfirmed) blockers.push("classificação fiscal exata não confirmada");
   if (!input.productDescriptionConfirmed) blockers.push("descrição legal da mercadoria não confirmada");
   if (!input.tipiVersionConfirmed) blockers.push("versão consolidada da TIPI não confirmada");
@@ -332,7 +401,9 @@ export function calculateIpiTipiDeepReference(input: IpiTipiDeepInput): IpiTipiD
   if (!input.taxpayerRoleConfirmed) blockers.push("papel do contribuinte não confirmado");
   if (!input.operationDocumented) blockers.push("fato gerador e documento da operação não confirmados");
   if (!roleMatchesOperation(input.operation, input.taxpayerRole)) blockers.push("papel do contribuinte incompatível com a operação");
-  if (input.calculationDate < IPI_TIPI_DEEP_EFFECTIVE_FROM) blockers.push("data anterior ao recorte consolidado da TIPI 2026");
+  if (input.calculationDate < IPI_TIPI_DEEP_SUPPORTED_PERIOD.from || input.calculationDate > IPI_TIPI_DEEP_SUPPORTED_PERIOD.to) {
+    blockers.push(`data fora da vigência suportada (${IPI_TIPI_DEEP_SUPPORTED_PERIOD.from} a ${IPI_TIPI_DEEP_SUPPORTED_PERIOD.to})`);
+  }
   if (profile?.effectiveTo && input.calculationDate > profile.effectiveTo) blockers.push("perfil fora da vigência");
 
   const requestedException = normalizeException(input.tipiExceptionCode);
@@ -347,6 +418,12 @@ export function calculateIpiTipiDeepReference(input: IpiTipiDeepInput): IpiTipiD
     if (!input.externalBenefitLegalReference?.trim()) blockers.push("ato legal do benefício externo não informado");
     if (!input.externalBenefitValidityConfirmed) blockers.push("vigência e condições do benefício externo não confirmadas");
     blockers.push("benefício externo à TIPI exige regra jurídica dedicada antes de calcular");
+  }
+
+  if (input.operation === "return_output") {
+    if (!input.returnDocumentConfirmed) blockers.push("documento fiscal original e documento de devolução não conciliados");
+    if (!input.originalTaxedOperationConfirmed) blockers.push("incidência, base, alíquota, IPI original e finalidade da devolução não conciliados");
+    blockers.push("devolução permanece bloqueada até uma memória própria separar IPI devolvido, crédito, estorno e eventual débito");
   }
 
   if (input.operation === "non_taxable_exit") {
@@ -482,75 +559,61 @@ const completeInput: IpiTipiDeepInput = {
 
 export type IpiTipiDeterministicCase = {
   code: string;
+  kind: "industrial" | "import" | "equiparated" | "resale" | "return" | "safe_block" | "exception";
   expectedStatus: IpiTipiDeepResult["status"];
+  expectedDueCents: number | null;
   input: IpiTipiDeepInput;
 };
 
 export const ipiTipiDeterministicCases: IpiTipiDeterministicCase[] = [
-  ...ipiTipiPriorityProfiles.flatMap((item) => [
-    {
-      code: `${item.ncm}-STANDARD`,
-      expectedStatus: item.nominalRateBps === 0 ? "zero_rate_reference" as const : "calculated_reference" as const,
-      input: { ...completeInput, ncm: item.ncm },
-    },
-    {
-      code: `${item.ncm}-MISSING-DESCRIPTION`,
-      expectedStatus: "blocked" as const,
-      input: { ...completeInput, ncm: item.ncm, productDescriptionConfirmed: false },
-    },
-    {
-      code: `${item.ncm}-GENERIC-NCM`,
-      expectedStatus: "blocked" as const,
-      input: { ...completeInput, ncm: item.ncm.slice(0, 4) },
-    },
-    {
-      code: `${item.ncm}-ROLE-MISMATCH`,
-      expectedStatus: "blocked" as const,
-      input: { ...completeInput, ncm: item.ncm, taxpayerRole: "ordinary_reseller" as const },
-    },
-    {
-      code: `${item.ncm}-EXTERNAL-BENEFIT`,
-      expectedStatus: "blocked" as const,
-      input: {
-        ...completeInput,
-        ncm: item.ncm,
-        externalBenefit: "suspension" as const,
-        externalBenefitLegalReference: "ADE específico informado",
-        externalBenefitValidityConfirmed: true,
+  ...ipiTipiPriorityProfiles.flatMap((profile) => {
+    const positiveStatus = profile.nominalRateBps === 0 ? "zero_rate_reference" as const : "calculated_reference" as const;
+    return [
+      {
+        code: `${profile.ncm}-INDUSTRIAL`, kind: "industrial" as const, expectedStatus: positiveStatus,
+        expectedDueCents: multiplyCents(10_000_000, profile.nominalRateBps), input: { ...completeInput, ncm: profile.ncm },
       },
-    },
-  ]),
-  {
-    code: "33049990-EX01",
-    expectedStatus: "calculated_reference",
-    input: { ...completeInput, ncm: "33049990", tipiExceptionCode: "Ex 01", tipiExceptionConfirmed: true, noListedExceptionAppliesConfirmed: false },
-  },
-  {
-    code: "33049990-EX02",
-    expectedStatus: "zero_rate_reference",
-    input: { ...completeInput, ncm: "33049990", tipiExceptionCode: "Ex 02", tipiExceptionConfirmed: true, noListedExceptionAppliesConfirmed: false },
-  },
-  {
-    code: "85071090-EX01",
-    expectedStatus: "calculated_reference",
-    input: { ...completeInput, ncm: "85071090", tipiExceptionCode: "Ex 01", tipiExceptionConfirmed: true, noListedExceptionAppliesConfirmed: false },
-  },
-  {
-    code: "39269090-EX02",
-    expectedStatus: "zero_rate_reference",
-    input: { ...completeInput, ncm: "39269090", tipiExceptionCode: "Ex 02", tipiExceptionConfirmed: true, noListedExceptionAppliesConfirmed: false },
-  },
-  {
-    code: "73089090-EX01",
-    expectedStatus: "zero_rate_reference",
-    input: { ...completeInput, ncm: "73089090", tipiExceptionCode: "Ex 01", tipiExceptionConfirmed: true, noListedExceptionAppliesConfirmed: false },
-  },
+      {
+        code: `${profile.ncm}-IMPORT`, kind: "import" as const, expectedStatus: positiveStatus,
+        expectedDueCents: multiplyCents(9_100_000, profile.nominalRateBps),
+        input: { ...completeInput, ncm: profile.ncm, operation: "import_clearance" as const, taxpayerRole: "importer" as const, operationValueCents: null, customsValueCents: 8_000_000, importTaxCents: 1_000_000, exchangeChargesCents: 100_000 },
+      },
+      {
+        code: `${profile.ncm}-EQUIPARATED`, kind: "equiparated" as const, expectedStatus: positiveStatus,
+        expectedDueCents: multiplyCents(10_000_000, profile.nominalRateBps),
+        input: { ...completeInput, ncm: profile.ncm, operation: "equiparated_output" as const, taxpayerRole: "equiparated_industrial" as const },
+      },
+      {
+        code: `${profile.ncm}-RESALE`, kind: "resale" as const, expectedStatus: "not_taxable_reference" as const,
+        expectedDueCents: 0,
+        input: { ...completeInput, ncm: profile.ncm, operation: "non_taxable_exit" as const, taxpayerRole: "ordinary_reseller" as const, nonTaxableReasonConfirmed: true },
+      },
+      {
+        code: `${profile.ncm}-RETURN`, kind: "return" as const, expectedStatus: "blocked" as const,
+        expectedDueCents: null,
+        input: { ...completeInput, ncm: profile.ncm, operation: "return_output" as const, returnDocumentConfirmed: false, originalTaxedOperationConfirmed: false },
+      },
+      {
+        code: `${profile.ncm}-SAFE-BLOCK`, kind: "safe_block" as const, expectedStatus: "blocked" as const,
+        expectedDueCents: null,
+        input: { ...completeInput, ncm: profile.ncm.slice(0, 4), productDescriptionConfirmed: false, sectionChapterNotesConfirmed: false },
+      },
+    ];
+  }),
+  ...ipiTipiPriorityProfiles.flatMap((profile) => profile.exceptions.map((item) => ({
+    code: `${profile.ncm}-${item.code}`,
+    kind: "exception" as const,
+    expectedStatus: item.rateBps === 0 ? "zero_rate_reference" as const : "calculated_reference" as const,
+    expectedDueCents: multiplyCents(10_000_000, item.rateBps),
+    input: { ...completeInput, ncm: profile.ncm, tipiExceptionCode: item.code, tipiExceptionConfirmed: true, noListedExceptionAppliesConfirmed: false },
+  }))),
 ];
 
 export function runIpiTipiDeterministicCases() {
   return ipiTipiDeterministicCases.map((item) => {
     const result = calculateIpiTipiDeepReference(item.input);
-    return { ...item, result, passed: result.status === item.expectedStatus };
+    const dueCents = result.lines.find((line) => line.code === "ipi_due")?.amountCents ?? null;
+    return { ...item, result, passed: result.status === item.expectedStatus && dueCents === item.expectedDueCents };
   });
 }
 
@@ -559,7 +622,7 @@ export function ipiTipiDeepMetrics() {
   return {
     prioritizedNcms: ipiTipiPriorityProfiles.length,
     exactExceptions: ipiTipiPriorityProfiles.reduce((sum, item) => sum + item.exceptions.length, 0),
-    operations: 4,
+    operations: 5,
     officialSources: ipiTipiDeepSources.length,
     deterministicCases: runs.length,
     calculatedMemories: runs.filter((item) => item.result.status !== "blocked").length,
@@ -569,15 +632,30 @@ export function ipiTipiDeepMetrics() {
 
 export function validateIpiTipiDeep() {
   const errors: string[] = [];
-  if (ipiTipiPriorityProfiles.length !== 15) errors.push("fifteen_priority_ncms_required");
+  if (ipiTipiPriorityProfiles.length !== 50) errors.push("fifty_priority_ncms_required");
   if (new Set(ipiTipiPriorityProfiles.map((item) => item.ncm)).size !== ipiTipiPriorityProfiles.length) errors.push("duplicate_ncm_profile");
   if (!ipiTipiPriorityProfiles.every((item, index) => item.rank === index + 1 && /^\d{8}$/.test(item.ncm))) errors.push("rank_or_exact_ncm_invalid");
   if (!ipiTipiPriorityProfiles.every((item) => item.version === IPI_TIPI_DEEP_VERSION && item.checkedAt === IPI_TIPI_DEEP_CHECKED_AT && item.sourceCodes.length >= 3)) errors.push("profile_evidence_incomplete");
   if (!ipiTipiDeepSources.every((item) => item.url.startsWith("https://") && item.legalReference.length > 10 && item.checkedAt === IPI_TIPI_DEEP_CHECKED_AT)) errors.push("official_source_metadata_invalid");
   if (ipiTipiPriorityProfiles.some((item) => item.nominalRateBps < 0 || !Number.isSafeInteger(item.nominalRateBps))) errors.push("invalid_nominal_rate");
+  if (ipiTipiPriorityProfiles.some((item) => item.effectiveFrom !== IPI_TIPI_DEEP_SUPPORTED_PERIOD.from || item.effectiveTo !== null)) errors.push("profile_validity_incomplete");
+  if (ipiTipiPriorityProfiles.some((item) => new Set(item.exceptions.map((exceptionItem) => exceptionItem.code)).size !== item.exceptions.length)) errors.push("duplicate_exception_in_profile");
+  const sourceCodes = new Set(ipiTipiDeepSources.map((item) => item.code));
+  if (ipiTipiPriorityProfiles.some((item) => [...item.sourceCodes, ...item.exceptions.flatMap((exceptionItem) => exceptionItem.sourceCodes)].some((code) => !sourceCodes.has(code)))) errors.push("unknown_profile_source");
 
   const runs = runIpiTipiDeterministicCases();
   errors.push(...runs.filter((item) => !item.passed).map((item) => `${item.code}:expected_${item.expectedStatus}_got_${item.result.status}`));
+  if (runs.length < 200 || new Set(runs.map((item) => item.code)).size !== runs.length) errors.push("two_hundred_unique_cases_required");
+  if (runs.filter((item) => item.result.status !== "blocked").length < 50) errors.push("fifty_positive_memories_required");
+  for (const kind of ["industrial", "import", "equiparated", "resale", "return", "safe_block", "exception"] as const) {
+    if (!runs.some((item) => item.kind === kind)) errors.push(`missing_${kind}_case`);
+  }
+  if (!runs.filter((item) => item.kind === "return").every((item) => item.result.status === "blocked" && item.result.lines.length === 0)) errors.push("return_fail_close_failed");
+
+  const beforePeriod = calculateIpiTipiDeepReference({ ...completeInput, calculationDate: "2026-01-29" });
+  const afterPeriod = calculateIpiTipiDeepReference({ ...completeInput, calculationDate: "2027-01-01" });
+  if (beforePeriod.status !== "blocked" || beforePeriod.lines.length !== 0) errors.push("lower_validity_gate_failed");
+  if (afterPeriod.status !== "blocked" || afterPeriod.lines.length !== 0) errors.push("upper_validity_gate_failed");
 
   const standard = calculateIpiTipiDeepReference(completeInput);
   if (standard.lines.find((line) => line.code === "ipi_due")?.amountCents !== 975_000) errors.push("standard_memory_failed");
@@ -601,7 +679,8 @@ export async function hashIpiTipiDeep() {
     checkedAt: IPI_TIPI_DEEP_CHECKED_AT,
     sources: ipiTipiDeepSources,
     profiles: ipiTipiPriorityProfiles,
-    cases: ipiTipiDeterministicCases.map((item) => ({ code: item.code, expectedStatus: item.expectedStatus, input: item.input })),
+    supportedPeriod: IPI_TIPI_DEEP_SUPPORTED_PERIOD,
+    cases: ipiTipiDeterministicCases.map((item) => ({ code: item.code, kind: item.kind, expectedStatus: item.expectedStatus, expectedDueCents: item.expectedDueCents, input: item.input })),
   });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
