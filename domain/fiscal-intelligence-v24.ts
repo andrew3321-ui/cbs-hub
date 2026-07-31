@@ -15,6 +15,7 @@ import {
   type NationalFiscalTopic,
 } from "./fiscal-intelligence.ts";
 import { resolveSimplesActivity } from "./simples-national-deep.ts";
+import { classifyPisCofinsProduct } from "./pis-cofins-deep.ts";
 
 const DEFAULT_REFERENCE_DATE = "2026-07-30";
 
@@ -177,6 +178,8 @@ function evaluateIpi(facts: FiscalIntelligenceFacts): EvaluationParts {
 function evaluatePisCofins(facts: FiscalIntelligenceFacts): EvaluationParts {
   const findings: FiscalFinding[] = [];
   const decisionTrace: FiscalDecisionTrace[] = [];
+  const productCandidates = classifyPisCofinsProduct(facts.ncm || null);
+  const candidate = productCandidates.length === 1 ? productCandidates[0] : null;
   const generalBlocked = facts.specialTreatment === "exists" || facts.issuerTaxRegime === "simples" || ["monophase", "zero_rate"].includes(facts.pisCofinsRegime);
   if (!generalBlocked && facts.pisCofinsRegime === "cumulative") {
     findings.push(finding("PIS-COFINS-CUMULATIVE", "Referência cumulativa combinada", "3,65%", "Composição geral de PIS 0,65% e Cofins 3%, condicionada à receita, ao contribuinte e à inexistência de regime monofásico, alíquota zero ou suspensão.", ["L-9718-1998", "MP-2158-35-2001"], "regime_reference"));
@@ -185,8 +188,19 @@ function evaluatePisCofins(facts: FiscalIntelligenceFacts): EvaluationParts {
     findings.push(finding("PIS-COFINS-NON-CUMULATIVE", "Referência não cumulativa combinada", "9,25%", "Composição geral de PIS 1,65% e Cofins 7,6%. Créditos não foram presumidos: cada hipótese exige vínculo com a atividade e documento.", ["L-10637-2002", "L-10833-2003"], "regime_reference"));
     decisionTrace.push(trace("PIS-COFINS-NON-CUMULATIVE", "applied", "Regime não cumulativo informado; a resposta separou débito de crédito."));
   } else decisionTrace.push(trace("PIS-COFINS-SPECIAL-GATE", "blocked", facts.issuerTaxRegime === "simples" ? "No Simples, PIS e Cofins integram a sistemática do DAS e exigem segregação própria." : "Regime monofásico, alíquota zero, tratamento especial ou regime ainda não definido impede a taxa geral."));
+  if (candidate) {
+    findings.push(finding(
+      "PIS-COFINS-PRODUCT-CANDIDATE",
+      "Perfil especial candidato",
+      candidate.segment,
+      `O NCM informado aponta para ${candidate.candidateTreatment === "monophase" ? "tributação monofásica" : "alíquota zero"} em ${candidate.segment}. A conclusão exige NCM exato na tabela oficial, papel na cadeia, documento, operação e vigência.`,
+      candidate.sourceCodes,
+      "compliance_gate",
+    ));
+    decisionTrace.push(trace("PIS-COFINS-LC224-2026", "blocked", "Desde 01/04/2026, o efeito da LC 224/2025 e as exceções aplicáveis precisam ser conferidos antes de afirmar a alíquota do benefício."));
+  }
   findings.push(finding("PIS-COFINS-RTC-2026", "Convivência com o ano-teste", "Conferir CBS/IBS", "Em 2026, a documentação da RTC convive com PIS/Cofins; o destaque teste não deve ser confundido com substituição automática destas contribuições.", ["RFB-RTC-2026"], "additional_obligation"));
-  return { findings, scenarioBranches: [scenario("PIS-COFINS-CUM", "Cumulativo geral", "0,65% + 3%", "Receita abrangida e sem regime específico.", "Sem créditos da sistemática não cumulativa.", "baseline", ["L-9718-1998", "MP-2158-35-2001"]), scenario("PIS-COFINS-NC", "Não cumulativo geral", "1,65% + 7,6%", "Receita abrangida pela não cumulatividade.", "Créditos dependem das hipóteses dos arts. 3º.", "baseline", ["L-10637-2002", "L-10833-2003"]), scenario("PIS-COFINS-SPECIAL", "Monofásico/zero/suspensão", "Regra específica", "Produto ou receita possui tratamento próprio.", "Bloqueia a referência geral.", "exception", ["L-10637-2002", "L-10833-2003"])], decisionTrace, headline: findings.find((item) => item.nature === "regime_reference")?.value ? `PIS/Cofins: referência ${findings.find((item) => item.nature === "regime_reference")!.value}` : "PIS/Cofins: regime geral bloqueado", summary: "A resposta distingue cumulatividade, não cumulatividade, créditos e regimes concentrados, sem aplicar a taxa geral a produto especial." };
+  return { findings, scenarioBranches: [scenario("PIS-COFINS-CUM", "Cumulativo geral", "0,65% + 3%", "Receita abrangida e sem regime específico.", "Sem créditos da sistemática não cumulativa.", "baseline", ["L-9718-1998", "MP-2158-35-2001"]), scenario("PIS-COFINS-NC", "Não cumulativo geral", "1,65% + 7,6%", "Receita abrangida pela não cumulatividade.", "Créditos dependem das hipóteses dos arts. 3º.", "baseline", ["L-10637-2002", "L-10833-2003"]), scenario("PIS-COFINS-SPECIAL", "Monofásico/zero/suspensão", "Regra específica e vigência 2026", "Produto ou receita possui tratamento próprio.", "NCM, papel, tabela oficial e LC 224/2025 bloqueiam qualquer taxa presumida.", "exception", ["PISCOFINS-IN-2121", "PISCOFINS-LC-224"])], decisionTrace, headline: findings.find((item) => item.nature === "regime_reference")?.value ? `PIS/Cofins: referência ${findings.find((item) => item.nature === "regime_reference")!.value}` : "PIS/Cofins: regime geral bloqueado", summary: "A V81 distingue cumulatividade, 20 perfis especiais candidatos e nove hipóteses de crédito. Débitos e créditos ficam separados e nenhuma compensação é presumida." };
 }
 
 function evaluateSimples(facts: FiscalIntelligenceFacts): EvaluationParts {
@@ -205,7 +219,7 @@ function evaluateSimples(facts: FiscalIntelligenceFacts): EvaluationParts {
   ] : [];
   findings.push(finding("SIMPLES-SUBLIMIT-2026", "Sublimite de ICMS e ISS em 2026", "R$ 3.600.000", "O limite precisa ser conferido sobre a receita acumulada; o excesso pode levar ICMS e ISS para fora do DAS sem alterar, por si só, o teto nacional de R$ 4.800.000.", ["CGSN-140-2018", "CGSN-PORTARIA-54-2025"], "compliance_gate"));
   findings.push(finding("SIMPLES-DAS-NOT-CALCULATED", "DAS", "Não calculado", "O motor não recebeu RBT12, receita do período, anexo confirmado, fator R, folha nem segregações de ST, monofásico, exportação e retenções.", ["LC-123-2006", "CGSN-140-2018"], "compliance_gate"));
-  return { findings, scenarioBranches: [scenario("SIMPLES-COMMERCE", "Comércio", "Anexo I · triagem", "Receita efetiva de revenda, salvo segregações.", "ST e monofásico exigem segregação.", "baseline", ["LC-123-2006", "CGSN-140-2018"]), scenario("SIMPLES-INDUSTRY", "Indústria", "Anexo II · triagem", "Receita de industrialização.", "Revenda, IPI e operações especiais precisam ser separados.", "baseline", ["LC-123-2006", "CGSN-140-2018"]), scenario("SIMPLES-SERVICES", "Serviços", "Anexos III, IV ou V", "A atividade, o fator R e as regras específicas definem o tratamento.", "CNAE sozinho não decide o anexo; no IV, a CPP permanece fora do DAS.", "exception", ["LC-123-2006", "CGSN-140-2018"])], decisionTrace: [trace("SIMPLES-CNAE-ACTIVITY-GATE", profile ? "applied" : "blocked", profile ? "Perfil candidato localizado; a conclusão permanece dependente da atividade efetiva." : "CNAE sem perfil prioritário estruturado."), trace("SIMPLES-SUBLIMIT-2026", "blocked", "Sem RBT12, o sistema não afirma se ICMS e ISS permanecem dentro do DAS."), trace("SIMPLES-DAS-INPUT-GATE", "blocked", "O cálculo do DAS permanece bloqueado até a entrada de todas as variáveis do PGDAS-D.")], headline: profile ? `Simples: perfil candidato aos Anexos ${profile.annexCandidates.join("/")}; DAS bloqueado` : "Simples: trilha de enquadramento aberta; DAS não calculado", summary: "A V80 organiza 20 perfis prioritários, os cinco anexos, fator R, segregações, impedimentos e sublimite. Uma pergunta textual nunca produz DAS." };
+  return { findings, scenarioBranches: [scenario("SIMPLES-COMMERCE", "Comércio", "Anexo I · triagem", "Receita efetiva de revenda, salvo segregações.", "ST e monofásico exigem segregação.", "baseline", ["LC-123-2006", "CGSN-140-2018"]), scenario("SIMPLES-INDUSTRY", "Indústria", "Anexo II · triagem", "Receita de industrialização.", "Revenda, IPI e operações especiais precisam ser separados.", "baseline", ["LC-123-2006", "CGSN-140-2018"]), scenario("SIMPLES-SERVICES", "Serviços", "Anexos III, IV ou V", "A atividade, o fator R e as regras específicas definem o tratamento.", "CNAE sozinho não decide o anexo; no IV, a CPP permanece fora do DAS.", "exception", ["LC-123-2006", "CGSN-140-2018"])], decisionTrace: [trace("SIMPLES-CNAE-ACTIVITY-GATE", profile ? "applied" : "blocked", profile ? "Perfil candidato localizado; a conclusão permanece dependente da atividade efetiva." : "CNAE sem perfil prioritário estruturado."), trace("SIMPLES-SUBLIMIT-2026", "blocked", "Sem RBT12, o sistema não afirma se ICMS e ISS permanecem dentro do DAS."), trace("SIMPLES-DAS-INPUT-GATE", "blocked", "O cálculo do DAS permanece bloqueado até a entrada de todas as variáveis do PGDAS-D.")], headline: profile ? `Simples: perfil candidato aos Anexos ${profile.annexCandidates.join("/")}; DAS bloqueado` : "Simples: trilha de enquadramento aberta; DAS não calculado", summary: "A V81 organiza 20 perfis prioritários, os cinco anexos, fator R, segregações, impedimentos e sublimite. Uma pergunta textual nunca produz DAS." };
 }
 
 function evaluateIrpjCsll(facts: FiscalIntelligenceFacts): EvaluationParts {

@@ -294,7 +294,7 @@ export default function FiscalIntelligence() {
     <div className="page-content fiscal-intelligence-page">
       <div className="page-heading intelligence-heading">
         <div>
-          <p className="kicker">V80 · INTELIGÊNCIA FISCAL DETERMINÍSTICA</p>
+          <p className="kicker">V81 · INTELIGÊNCIA FISCAL DETERMINÍSTICA</p>
           <h1>Pergunte em linguagem comum. Confira a trilha jurídica.</h1>
           <p>Sem IA generativa: a resposta nasce de fatos estruturados, regras manuais e fontes oficiais versionadas.</p>
         </div>

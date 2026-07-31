@@ -3,7 +3,7 @@ import test from "node:test";
 import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, recurringScenarios, resolveInterstateIcms, stateCoverage, stSegments } from "../domain/national-tax-coverage.ts";
 import { inspectFiscalBatchText } from "../domain/fiscal-batch-import.ts";
 
-test("V79 exposes modal rates for all 27 UFs without pretending product incidence is final", () => {
+test("V81 exposes modal rates for all 27 UFs without pretending product incidence is final", () => {
   assert.equal(stateCoverage.length, 27);
   assert.equal(new Set(stateCoverage.map((item) => item.uf)).size, 27);
   assert.ok(stateCoverage.every((item) => item.status === "partial"));

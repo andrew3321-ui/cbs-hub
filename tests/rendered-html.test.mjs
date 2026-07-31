@@ -348,7 +348,7 @@ test("versão 80 expande a inteligência fiscal sem promover triagem a cálculo 
     readFile(new URL("domain/fiscal-intelligence-v24.ts", root), "utf8"),
   ]);
 
-  assert.match(ui, /V80 · INTELIGÊNCIA FISCAL DETERMINÍSTICA/);
+  assert.match(ui, /V81 · INTELIGÊNCIA FISCAL DETERMINÍSTICA/);
   assert.match(ui, /MOTOR MANUAL · 8 MÓDULOS/);
   assert.match(ui, /result\?\.topicCode === "ICMS-SP-MG-AUTO-PARTS"/);
   assert.match(ui, /sem cálculo definitivo/);
@@ -360,7 +360,7 @@ test("versão 80 expande a inteligência fiscal sem promover triagem a cálculo 
   assert.match(api, /fiscalTopicCatalog\(definition\)/);
   assert.match(service, /pisCofinsRegime/);
   assert.match(definition, /FISCAL-MANUAL-BR/);
-  assert.match(definition, /Inteligência Fiscal Manual Brasil · V80/);
+  assert.match(definition, /Inteligência Fiscal Manual Brasil · V81/);
   for (const topic of ["ICMS-NATIONAL", "ISS-NATIONAL", "IPI-NATIONAL", "PIS-COFINS", "SIMPLES-NACIONAL", "IRPJ-CSLL", "IBS-CBS-2026", "WITHHOLDINGS-SERVICES"]) assert.match(definition, new RegExp(topic));
   assert.match(expanded, /calculationEligible: false/);
   assert.match(expanded, /A plataforma separou CSRF, IRRF, retenção previdenciária e EFD-Reinf/);

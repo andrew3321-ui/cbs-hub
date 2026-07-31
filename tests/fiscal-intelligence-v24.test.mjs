@@ -15,9 +15,9 @@ const nationalIcmsFacts = {
   specialTreatment: "none",
 };
 
-test("V80 ships eight controlled tax modules backed only by an expanded versioned base", () => {
+test("V81 ships eight controlled tax modules backed only by an expanded versioned base", () => {
   assert.equal(fiscalTopicCatalog().length, 8);
-  assert.equal(spMgAutoPartsKnowledge.version, "1.2.0");
+  assert.equal(spMgAutoPartsKnowledge.version, "1.3.0");
   assert.equal(spMgAutoPartsKnowledge.baseCode, "FISCAL-MANUAL-BR");
   assert.ok(spMgAutoPartsKnowledge.rules.length >= 24);
   assert.ok(spMgAutoPartsKnowledge.sources.length >= 31);
@@ -82,6 +82,21 @@ test("PIS/Cofins separates general cumulative reference from special regimes", (
   const monophase = evaluateExpandedFiscalQuestion("PIS e Cofins monofasico", { ...base, pisCofinsRegime: "monophase" });
   assert.equal(monophase.findings.some((item) => item.code === "PIS-COFINS-CUMULATIVE" || item.code === "PIS-COFINS-NON-CUMULATIVE"), false);
   assert.equal(monophase.decisionTrace.some((item) => item.ruleCode === "PIS-COFINS-SPECIAL-GATE"), true);
+});
+
+test("PIS/Cofins recognizes a special product candidate but keeps the 2026 rate blocked", () => {
+  const result = evaluateExpandedFiscalQuestion("PIS e Cofins monofásico de pneus", {
+    tax: "PIS_COFINS",
+    productDescription: "pneu novo",
+    ncm: "40111000",
+    issuerTaxRegime: "normal",
+    businessActivity: "commerce",
+    specialTreatment: "exists",
+    pisCofinsRegime: "monophase",
+  });
+  assert.equal(result.findings.find((item) => item.code === "PIS-COFINS-PRODUCT-CANDIDATE")?.value, "Pneus novos");
+  assert.equal(result.decisionTrace.some((item) => item.ruleCode === "PIS-COFINS-LC224-2026" && item.result === "blocked"), true);
+  assert.equal(result.calculationEligible, false);
 });
 
 test("Simples classifies the work queue but refuses to calculate DAS without apuration inputs", () => {

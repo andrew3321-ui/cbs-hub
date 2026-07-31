@@ -12,8 +12,14 @@ import {
   simplesActivityProfiles,
   simplesNationalSources,
 } from "./simples-national-deep.ts";
+import {
+  PIS_COFINS_DEEP_VERSION,
+  pisCofinsCreditHypotheses,
+  pisCofinsDeepSources,
+  pisCofinsProductProfiles,
+} from "./pis-cofins-deep.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v80";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v81";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-30";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
@@ -52,6 +58,7 @@ export const coverageSources: CoverageSource[] = [
   ...icmsGeneralSources,
   ...issDeepSources,
   ...simplesNationalSources,
+  ...pisCofinsDeepSources,
 ];
 
 const state = (uf: UfCode, name: string, region: StateCoverage["region"], officialPortal: string): StateCoverage => {
@@ -150,9 +157,9 @@ export const cityCoverage: CityCoverage[] = cityRows.map(([ibgeCode, city, uf]) 
 
 export const recurringScenarios: ScenarioCoverage[] = [
   { code: "SIMPLES-PGDAS", tax: "Simples", title: "Atividades, cinco anexos, fator R e segregações", status: "partial", supported: [`${simplesActivityProfiles.length} perfis CNAE prioritários como candidatos, nunca como conclusão isolada`, "30 memórias de faixa em centavos nos Anexos I a V", `fator R, segregações, limite nacional e sublimite de 2026 versionados em ${SIMPLES_NATIONAL_DEEP_VERSION}`], blockers: ["DAS definitivo depende de atividade efetiva, RBT12, composição integral da receita, período fechado, sublimite, impedimentos e reconciliação no PGDAS-D"] },
-  { code: "PIS-COFINS-CUM", tax: "PIS/Cofins", title: "Regime cumulativo recorrente", status: "partial", supported: ["aliquotas de referencia de PIS e Cofins", "saldo matematico separado de creditos"], blockers: ["monofasico, aliquota zero, suspensao, exportacao e receita mista precisam ser classificados"] },
-  { code: "PIS-COFINS-NC", tax: "PIS/Cofins", title: "Nao cumulativo com creditos", status: "partial", supported: ["debitos e creditos documentados em linhas separadas", "bloqueio quando credito nao possui suporte"], blockers: ["credito exige documento, vinculo, hipotese legal e tratamento da receita"] },
-  { code: "PIS-COFINS-SPECIAL", tax: "PIS/Cofins", title: "Monofasico, aliquota zero, suspensao e exportacao", status: "partial", supported: ["receita especial segregada do saldo geral", "referencia zerada apenas quando tratamento e base legal estao confirmados"], blockers: ["produto, NCM, servico, operacao, base legal e ausencia de receita mista sao fatos obrigatorios"] },
+  { code: "PIS-COFINS-CUM", tax: "PIS/Cofins", title: "Regime cumulativo recorrente", status: "partial", supported: ["débitos de PIS 0,65% e Cofins 3% em centavos", "receita segregada e saldo sem crédito presumido", `motor versionado em ${PIS_COFINS_DEEP_VERSION}`], blockers: ["regime, papel, documento, receita mista e tratamento especial precisam ser confirmados"] },
+  { code: "PIS-COFINS-NC", tax: "PIS/Cofins", title: "Não cumulativo com créditos", status: "partial", supported: ["débitos de PIS 1,65% e Cofins 7,6% separados", `${pisCofinsCreditHypotheses.length} hipóteses recorrentes de crédito com gates`, "saldo não compensado automaticamente"], blockers: ["crédito exige hipótese legal, documento, incidência na aquisição e vínculo com atividade tributada"] },
+  { code: "PIS-COFINS-SPECIAL", tax: "PIS/Cofins", title: "Monofásico, alíquota zero e suspensão", status: "partial", supported: [`${pisCofinsProductProfiles.length} perfis prioritários por NCM como candidatos`, "papel de fabricante/importador separado da revenda", "vigência de 2026 e LC 224/2025 tratadas explicitamente"], blockers: ["NCM exato nas tabelas oficiais, papel, documento, operação, vigência e alíquota pós-2026 são obrigatórios"] },
   { code: "IRPJ-CSLL-PRESUMED", tax: "IRPJ/CSLL", title: "Lucro Presumido por atividade", status: "partial", supported: ["bases de IRPJ e CSLL, adicional e acrescimos de 2026 em memoria"], blockers: ["atividade, receita, ganhos, regime e tratamentos especiais precisam ser segregados"] },
   { code: "IRPJ-CSLL-REAL", tax: "IRPJ/CSLL", title: "Lucro Real com adicoes/exclusoes", status: "partial", supported: ["base antes da compensacao, limite de 30%, IRPJ, adicional e CSLL"], blockers: ["LALUR/LACS, contabilidade, adicoes, exclusoes e compensacoes precisam estar conciliados"] },
   { code: "RET-IRRF-CSRF", tax: "Retencoes", title: "IRRF, CSRF, INSS e ISS em servicos", status: "partial", supported: ["retencoes separadas por hipotese e responsavel", "pagamento liquido de referencia sem presumir dispensas"], blockers: ["servico, beneficiario, responsabilidade do tomador, dispensas e competencia municipal precisam ser confirmados"] },

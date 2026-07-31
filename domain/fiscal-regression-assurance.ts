@@ -89,6 +89,13 @@ import {
   simplesNationalSources,
   validateSimplesNationalDeep,
 } from "./simples-national-deep.ts";
+import {
+  PIS_COFINS_DEEP_VERSION,
+  hashPisCofinsDeep,
+  pisCofinsDeepMetrics,
+  pisCofinsDeepSources,
+  validatePisCofinsDeep,
+} from "./pis-cofins-deep.ts";
 
 export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v2";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-30";
@@ -128,6 +135,18 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 ];
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
+  {
+    code: "PIS_COFINS_DEEP",
+    label: "PIS/Cofins — monofásico, alíquota zero e créditos por segmento",
+    ruleCodes: ["PIS-COFINS-CUM", "PIS-COFINS-NC", "PIS-COFINS-SPECIAL", "PIS-COFINS-DEEP-V81"],
+    version: PIS_COFINS_DEEP_VERSION,
+    validate: validatePisCofinsDeep,
+    hash: hashPisCofinsDeep,
+    testKinds: ALL_TEST_KINDS,
+    metrics: pisCofinsDeepMetrics,
+    sourceCodes: () => pisCofinsDeepSources.map((source) => source.code).sort(),
+    requiredGates: ["regime e papel na cadeia", "NCM completo e tabela oficial", "produto e operação", "vigência e LC 224/2025", "documento fiscal", "receita segregada", "hipótese legal do crédito", "vínculo e incidência da aquisição"],
+  },
   {
     code: "SIMPLES_NATIONAL_DEEP",
     label: "Simples Nacional — atividades, anexos e segregações recorrentes",
