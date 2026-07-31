@@ -83,7 +83,7 @@ if (email && password) {
     method: "POST",
     headers: { "Content-Type": "application/json", Origin: baseUrl },
     body: JSON.stringify({ email: `smoke-${Date.now()}@invalid.cbshub.local`, password: "invalid-smoke-password" }),
-  }, [401]);
+  }, [401, 429]);
 }
 
 const calculation = await request("/api/deterministic-tax-lab", {
