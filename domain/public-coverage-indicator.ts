@@ -26,8 +26,8 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v7";
-export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-30";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v8";
+export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
   catalogued: boolean;
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "icms-general-v87-priority-difal",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "Doze UFs prioritárias passaram a possuir recorte controlado de DIFAL para consumidor final não contribuinte, com base única corrigida, fontes nacionais e estaduais, FCP classificado e bloqueio seguro para métodos não comprovados.",
+        affectedCodes: ["UF-SP", "UF-MG", "UF-RJ", "UF-PR", "UF-SC", "UF-RS", "UF-BA", "UF-GO", "UF-PE", "UF-CE", "UF-ES", "UF-DF"],
+        clientDataExposed: false,
+      },
       {
         id: "icms-general-v78-27-ufs",
         changedAt: "2026-07-30T00:00:00.000Z",

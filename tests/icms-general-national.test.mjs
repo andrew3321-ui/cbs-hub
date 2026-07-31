@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  ICMS_GENERAL_PRIORITY_UFS,
   hashIcmsGeneralNational,
+  icmsGeneralReferenceRuns,
   icmsGeneralNationalMetrics,
   icmsGeneralSources,
   icmsStateGeneralProfiles,
@@ -79,9 +81,10 @@ test("keeps taxpayer and non-taxpayer DIFAL methods and responsibilities separat
   assert.equal(nonTaxpayer.kind, "difal_non_taxpayer");
   assert.equal(nonTaxpayer.method, "single_base");
   assert.equal(nonTaxpayer.responsibility, "origin_remitter");
-  assert.equal(nonTaxpayer.amountsCents.destinationBase, 116_250);
-  assert.equal(nonTaxpayer.amountsCents.originIcms, 8_138);
-  assert.equal(nonTaxpayer.amountsCents.destinationDifal, 15_112);
+  assert.equal(nonTaxpayer.amountsCents.destinationBase, 100_000);
+  assert.equal(nonTaxpayer.amountsCents.originIcms, 7_000);
+  assert.equal(nonTaxpayer.amountsCents.destinationDifal, 13_000);
+  assert.ok(nonTaxpayer.sourceCodes.includes("ICMS-LC190-DIFAL"));
 });
 
 test("fails closed for ST, missing NCM, benefits and unproved state formula", () => {
@@ -109,4 +112,37 @@ test("coverage metrics distinguish cataloguing from formula support", () => {
   assert.ok(metrics.difalTaxpayerMethods < metrics.states);
   assert.ok(metrics.difalNonTaxpayerMethods < metrics.states);
   assert.equal(metrics.generalFundRates, 1);
+  assert.equal(metrics.priorityStates, 12);
+  assert.equal(metrics.deterministicCases, icmsGeneralReferenceRuns.length);
+  assert.ok(metrics.deterministicCases >= 100);
+  assert.ok(metrics.calculatedMemories >= 40);
+  assert.ok(metrics.safelyBlockedCases >= 40);
+});
+
+test("freezes single-base non-taxpayer DIFAL for every priority destination", () => {
+  for (const destination of ICMS_GENERAL_PRIORITY_UFS) {
+    const origin = destination === "SP" ? "MG" : "SP";
+    const result = resolveIcmsGeneralNational({
+      ...base,
+      origin,
+      destination,
+      recipientType: "non_taxpayer",
+      purpose: "use_consumption",
+    });
+    assert.equal(result.status, "calculated_reference", destination);
+    assert.equal(result.kind, "difal_non_taxpayer", destination);
+    assert.equal(result.method, "single_base", destination);
+    assert.equal(result.amountsCents.destinationBase, base.operationValueCents, destination);
+    assert.ok(result.sourceCodes.includes("ICMS-LC190-DIFAL"), destination);
+  }
+});
+
+test("the regression matrix contains independent positive and fail-closed cases", () => {
+  assert.ok(icmsGeneralReferenceRuns.length >= 100);
+  assert.equal(new Set(icmsGeneralReferenceRuns.map((run) => run.code)).size, icmsGeneralReferenceRuns.length);
+  for (const run of icmsGeneralReferenceRuns) {
+    const result = resolveIcmsGeneralNational(run.input);
+    assert.equal(result.status, run.expectedStatus, run.code);
+    if (result.status !== "calculated_reference") assert.equal("amountsCents" in result, false, run.code);
+  }
 });

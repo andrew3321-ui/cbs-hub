@@ -1,5 +1,5 @@
-export const ICMS_GENERAL_NATIONAL_VERSION = "2026.07.31-v78";
-export const ICMS_GENERAL_NATIONAL_CHECKED_AT = "2026-07-30";
+export const ICMS_GENERAL_NATIONAL_VERSION = "2026.07.31-v87";
+export const ICMS_GENERAL_NATIONAL_CHECKED_AT = "2026-07-31";
 
 export type IcmsUfCode =
   | "AC" | "AL" | "AP" | "AM" | "BA" | "CE" | "DF" | "ES" | "GO"
@@ -17,6 +17,10 @@ export type IcmsGeneralSource = {
 
 export type DifalMethod = "single_base" | "double_base" | "state_rule_required";
 export type FundStatus = "general_confirmed" | "product_specific" | "not_general" | "not_catalogued";
+
+export const ICMS_GENERAL_PRIORITY_UFS = [
+  "SP", "MG", "RJ", "PR", "SC", "RS", "BA", "GO", "PE", "CE", "ES", "DF",
+] as const satisfies readonly IcmsUfCode[];
 
 export type IcmsStateGeneralProfile = {
   uf: IcmsUfCode;
@@ -56,6 +60,10 @@ const source = (
 });
 
 export const icmsGeneralSources: IcmsGeneralSource[] = [
+  source("ICMS-LC87", "Lei Complementar nº 87/1996 — Lei Kandir", "Presidência da República", "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp87.htm", "arts. 4º, 11, 12 e 13"),
+  source("ICMS-LC190-DIFAL", "Lei Complementar nº 190/2022 — DIFAL para consumidor final", "Presidência da República", "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp190.htm", "art. 1º, alterações dos arts. 4º, 11 e 13 da LC nº 87/1996"),
+  source("ICMS-RSF22", "Resolução do Senado Federal nº 22/1989", "Senado Federal", "https://legis.senado.leg.br/norma/586152", "arts. 1º e 2º"),
+  source("ICMS-RSF13", "Resolução do Senado Federal nº 13/2012", "Senado Federal", "https://legis.senado.leg.br/norma/586999/publicacao?tipoDocumento=RSF&tipoTexto=ATU", "art. 1º e exceções dos §§ 1º a 4º"),
   source("ICMS-AC-GENERAL", "Tabela oficial de alíquotas internas do Acre", "SEFAZ/AC", "https://sefaz.ac.gov.br/2021/?mdocs-file=16465", "Lei Complementar estadual nº 55/1997, art. 18"),
   source("ICMS-AL-GENERAL", "Lei nº 9.776/2025", "Assembleia Legislativa de Alagoas", "https://sapl.al.al.leg.br/media/sapl/public/normajuridica/2025/3699/lei_no_9.776_de_22_de_dezembro_de_2025.pdf", "Lei estadual nº 5.900/1996, art. 17, I, b"),
   source("ICMS-AP-GENERAL", "Diário Oficial do Estado do Amapá — referência interna vigente", "Governo do Amapá", "https://diofe.portal.ap.gov.br/portal/edicoes/visualizar_pdf/10013/", "RICMS/AP e atos vigentes da SEFAZ/AP"),
@@ -83,7 +91,7 @@ export const icmsGeneralSources: IcmsGeneralSource[] = [
   source("ICMS-RO-GENERAL", "Instrução normativa estadual com memória de cálculo", "SEFIN/RO", "https://legislacao.sefin.ro.gov.br/Download?arquivo=cd2590be34d34255524a127553a46e27.pdf&nome=RC25-1_SEFIN_SUPEL_CGE+-+Dispoe+sobre+os+procedimentos+para+a+fruicao+do+beneficio+fiscal+de+isencao+do+ICMS+nas+vendas+para+orgaos+publicos.pdf", "Lei estadual nº 688/1996, art. 27"),
   source("ICMS-RR-GENERAL", "Lei nº 59/1993 consolidada", "SEFAZ/RR", "https://www.sefaz.rr.gov.br/downloads?catid=475&id=24844&m=0&task=download.send", "Lei estadual nº 59/1993, art. 32"),
   source("ICMS-SC-GENERAL", "RICMS/SC", "SEF/SC", "https://legislacao.sef.sc.gov.br/legtrib_internet/html/regulamentos/icms/ricms_01_00.htm", "Decreto estadual nº 2.870/2001, art. 26"),
-  source("ICMS-SP-GENERAL", "Referência oficial da alíquota padrão paulista", "SEFAZ/SP", "https://portal.fazenda.sp.gov.br/servicos/comex/Paginas/LeilaoRFB.aspx", "RICMS/SP, art. 52, I"),
+  source("ICMS-SP-GENERAL", "RICMS/SP — alíquota interna geral", "SEFAZ/SP", "https://legislacao.fazenda.sp.gov.br/Paginas/art052.aspx", "RICMS/SP, art. 52, I"),
   source("ICMS-SE-GENERAL", "Lei nº 3.796/1996 consolidada", "Assembleia Legislativa de Sergipe", "https://aleselegis.al.se.leg.br/Arquivo/Documents/legislacao/html/l37961996.html", "Lei estadual nº 3.796/1996, art. 18"),
   source("ICMS-TO-GENERAL", "Código Tributário do Tocantins consolidado", "Assembleia Legislativa do Tocantins", "https://www.al.to.leg.br/arquivos/lei_1287-2001_68306.PDF", "Lei estadual nº 1.287/2001, art. 27"),
 ];
@@ -127,27 +135,27 @@ export const icmsStateGeneralProfiles: IcmsStateGeneralProfile[] = [
   profile("AL", 2050, "2026-04-01", "ICMS-AL-GENERAL", "Lei estadual nº 5.900/1996, art. 17, I, b", fund("FECOEP/AL")),
   profile("AP", 1800, "2024-01-01", "ICMS-AP-GENERAL", "RICMS/AP", fund("Fundo de Combate à Pobreza do Amapá", "not_catalogued")),
   profile("AM", 2000, "2023-03-29", "ICMS-AM-GENERAL", "LC estadual nº 19/1997, art. 12, I, b", fund("FMPES/AM")),
-  profile("BA", 2050, "2024-02-07", "ICMS-BA-GENERAL", "Lei estadual nº 7.014/1996, art. 15, I", fund("FUNCEP/BA")),
-  profile("CE", 2000, "2024-01-01", "ICMS-CE-GENERAL", "Lei estadual nº 12.670/1996, art. 44, I, g", fund("FECOP/CE")),
+  profile("BA", 2050, "2024-02-07", "ICMS-BA-GENERAL", "Lei estadual nº 7.014/1996, art. 15, I", fund("FUNCEP/BA"), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
+  profile("CE", 2000, "2024-01-01", "ICMS-CE-GENERAL", "Lei estadual nº 12.670/1996, art. 44, I, g", fund("FECOP/CE"), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
   profile("DF", 2000, "2024-01-22", "ICMS-DF-GENERAL", "Lei distrital nº 1.254/1996, art. 18", fund("Fundo de Combate à Pobreza do DF", "product_specific"), "double_base", "single_base", "ICMS-DF-DIFAL"),
-  profile("ES", 1700, "2002-01-01", "ICMS-ES-GENERAL", "Lei estadual nº 7.000/2001, art. 20", fund("Fundo Estadual de Combate à Pobreza do ES", "product_specific")),
-  profile("GO", 1900, "2024-04-01", "ICMS-GO-GENERAL", "Lei estadual nº 11.651/1991, art. 27", fund("PROTEGE GOIÁS")),
+  profile("ES", 1700, "2002-01-01", "ICMS-ES-GENERAL", "Lei estadual nº 7.000/2001, art. 20", fund("Fundo Estadual de Combate à Pobreza do ES", "product_specific"), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
+  profile("GO", 1900, "2024-04-01", "ICMS-GO-GENERAL", "Lei estadual nº 11.651/1991, art. 27", fund("PROTEGE GOIÁS"), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
   profile("MA", 2300, "2025-02-23", "ICMS-MA-GENERAL", "Lei estadual nº 7.799/2002, art. 23, III", fund("FUMACOP/MA")),
   profile("MT", 1700, "2012-01-01", "ICMS-MT-GENERAL", "Lei estadual nº 7.098/1998, art. 14", fund("FECEP/MT", "product_specific", null, "ICMS-MT-DIFAL"), "state_rule_required", "single_base", "ICMS-MT-DIFAL"),
   profile("MS", 1700, "1998-01-01", "ICMS-MS-GENERAL", "Lei estadual nº 1.810/1997, art. 41", fund("FECOMP/MS", "product_specific", null, "ICMS-MS-GENERAL"), "double_base", "state_rule_required", "ICMS-MS-GENERAL"),
-  profile("MG", 1800, "2023-07-01", "ICMS-MG-GENERAL", "Decreto estadual nº 48.589/2023, Anexo I, item 7", fund("FEM/MG")),
+  profile("MG", 1800, "2023-07-01", "ICMS-MG-GENERAL", "Decreto estadual nº 48.589/2023, Anexo I, item 7", fund("FEM/MG"), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
   profile("PA", 1900, "2023-03-16", "ICMS-PA-GENERAL", "Lei estadual nº 5.530/1989, art. 12", fund("FECOP/PA")),
   profile("PB", 2000, "2024-01-01", "ICMS-PB-GENERAL", "Lei estadual nº 6.379/1996, art. 13", fund("FUNCEP/PB")),
-  profile("PR", 1950, "2024-03-18", "ICMS-PR-GENERAL", "Lei estadual nº 11.580/1996, art. 14, VIII", fund("FECOP/PR")),
-  profile("PE", 2050, "2024-01-01", "ICMS-PE-GENERAL", "Lei estadual nº 15.730/2016, art. 15-A", fund("FECEP/PE")),
+  profile("PR", 1950, "2024-03-18", "ICMS-PR-GENERAL", "Lei estadual nº 11.580/1996, art. 14, VIII", fund("FECOP/PR"), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
+  profile("PE", 2050, "2024-01-01", "ICMS-PE-GENERAL", "Lei estadual nº 15.730/2016, art. 15-A", fund("FECEP/PE"), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
   profile("PI", 2250, "2025-04-01", "ICMS-PI-GENERAL", "Lei estadual nº 4.257/1989, art. 23", fund("FECOP/PI")),
-  profile("RJ", 2000, "2024-03-20", "ICMS-RJ-GENERAL", "Lei estadual nº 2.657/1996 e LC estadual nº 210/2023", fund("FECP/RJ", "general_confirmed", 200, "ICMS-RJ-FECP", "Adicional geral de 2 p.p.; exceções e alíquotas específicas continuam prevalecendo.")),
+  profile("RJ", 2000, "2024-03-20", "ICMS-RJ-GENERAL", "Lei estadual nº 2.657/1996 e LC estadual nº 210/2023", fund("FECP/RJ", "general_confirmed", 200, "ICMS-RJ-FECP", "Adicional geral de 2 p.p.; exceções e alíquotas específicas continuam prevalecendo."), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
   profile("RN", 2000, "2025-03-20", "ICMS-RN-GENERAL", "Lei estadual nº 11.999/2024", fund("FECOP/RN")),
-  profile("RS", 1700, "2022-01-01", "ICMS-RS-GENERAL", "Lei estadual nº 8.820/1989, art. 12", fund("AMPARA/RS")),
+  profile("RS", 1700, "2022-01-01", "ICMS-RS-GENERAL", "Lei estadual nº 8.820/1989, art. 12", fund("AMPARA/RS"), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
   profile("RO", 1950, "2024-01-12", "ICMS-RO-GENERAL", "Lei estadual nº 688/1996, art. 27", fund("FECOEP/RO")),
   profile("RR", 2000, "2023-03-30", "ICMS-RR-GENERAL", "Lei estadual nº 59/1993, art. 32", fund("FECP/RR")),
-  profile("SC", 1700, "2012-01-01", "ICMS-SC-GENERAL", "RICMS/SC, art. 26, I", fund("Sem adicional geral catalogado", "not_general", 0, "ICMS-SC-GENERAL", "Não há adicional geral nesta camada; tratamentos específicos continuam sujeitos à legislação estadual.")),
-  profile("SP", 1800, "2001-01-01", "ICMS-SP-GENERAL", "RICMS/SP, art. 52, I", fund("FECOEP/SP")),
+  profile("SC", 1700, "2012-01-01", "ICMS-SC-GENERAL", "RICMS/SC, art. 26, I", fund("Sem adicional geral catalogado", "not_general", 0, "ICMS-SC-GENERAL", "Não há adicional geral nesta camada; tratamentos específicos continuam sujeitos à legislação estadual."), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
+  profile("SP", 1800, "2001-01-01", "ICMS-SP-GENERAL", "RICMS/SP, art. 52, I", fund("FECOEP/SP"), "state_rule_required", "single_base", "ICMS-LC190-DIFAL"),
   profile("SE", 1900, "2023-03-20", "ICMS-SE-GENERAL", "Lei estadual nº 3.796/1996, art. 18", fund("FECOEP/SE")),
   profile("TO", 2000, "2024-01-01", "ICMS-TO-GENERAL", "Lei estadual nº 1.287/2001, art. 27", fund("FECOEP/TO")),
 ];
@@ -226,6 +234,10 @@ function interstateRateBps(origin: IcmsUfCode, destination: IcmsUfCode, imported
   return (south.has(origin) || (southeast.has(origin) && origin !== "ES")) && northNortheastCenterWestOrEs.has(destination) ? 700 : 1200;
 }
 
+function interstateSourceCode(importedQualified: boolean) {
+  return importedQualified ? "ICMS-RSF13" : "ICMS-RSF22";
+}
+
 function baseBlockers(input: IcmsGeneralInput, destination: IcmsStateGeneralProfile) {
   const blockers: string[] = [];
   if (!["taxpayer", "non_taxpayer"].includes(input.recipientType)) blockers.push("Tipo de destinatário inválido.");
@@ -249,7 +261,7 @@ function baseBlockers(input: IcmsGeneralInput, destination: IcmsStateGeneralProf
 export function resolveIcmsGeneralNational(input: IcmsGeneralInput): IcmsGeneralResult {
   const destination = icmsStateGeneralProfileByUf.get(input.destination);
   if (!destination) return { status: "blocked", coverageStatus: "partial", reason: "UF de destino não catalogada.", sourceCodes: [], blockers: ["UF de destino inválida."] };
-  const sourceCodes = Array.from(new Set([destination.sourceCode, destination.fund.sourceCode].filter((item): item is string => Boolean(item))));
+  const sourceCodes = Array.from(new Set([destination.sourceCode, destination.fund.sourceCode, "ICMS-LC87"].filter((item): item is string => Boolean(item))));
   if (input.stStatus === "applicable") {
     return {
       status: "route_to_st",
@@ -281,13 +293,14 @@ export function resolveIcmsGeneralNational(input: IcmsGeneralInput): IcmsGeneral
   }
 
   const interstate = interstateRateBps(input.origin, input.destination, input.importedQualified);
+  const interstateSources = Array.from(new Set([destination.sourceCode, "ICMS-LC87", interstateSourceCode(input.importedQualified)]));
   if (!input.finalConsumer || input.purpose === "resale" || input.purpose === "industrialization") {
     return {
       status: "not_applicable",
       coverageStatus: "partial",
       reason: "DIFAL não aplicável neste recorte de finalidade; a operação permanece apenas com a referência interestadual, sem substituir regras de ST ou antecipação.",
       interstateRateBps: interstate,
-      sourceCodes: [destination.sourceCode],
+      sourceCodes: interstateSources,
       blockers: [],
     };
   }
@@ -305,9 +318,9 @@ export function resolveIcmsGeneralNational(input: IcmsGeneralInput): IcmsGeneral
 
   const originTaxOnOriginBase = applyBps(amount, interstate);
   const netOfOriginTax = amount - originTaxOnOriginBase;
-  const destinationBase = grossUp(netOfOriginTax, destination.generalRateBps);
+  const destinationBase = method === "single_base" ? amount : grossUp(netOfOriginTax, destination.generalRateBps);
   const destinationInternal = applyBps(destinationBase, destination.generalRateBps);
-  const originIcms = method === "single_base" ? applyBps(destinationBase, interstate) : originTaxOnOriginBase;
+  const originIcms = originTaxOnOriginBase;
   const difal = Math.max(destinationInternal - originIcms, 0);
   const fcp = applyBps(destinationBase, fcpBps);
   return {
@@ -326,32 +339,85 @@ export function resolveIcmsGeneralNational(input: IcmsGeneralInput): IcmsGeneral
     },
     method,
     responsibility: input.recipientType === "taxpayer" ? "destination_taxpayer" : "origin_remitter",
-    sourceCodes: Array.from(new Set([...sourceCodes, destination.difal.sourceCode].filter((item): item is string => Boolean(item)))),
+    sourceCodes: Array.from(new Set([...sourceCodes, ...interstateSources, "ICMS-LC190-DIFAL", destination.difal.sourceCode].filter((item): item is string => Boolean(item)))),
     blockers: [],
   };
 }
 
-export const icmsGeneralReferenceRuns: Array<{ code: string; input: IcmsGeneralInput; expectedStatus: IcmsGeneralResult["status"] }> = [
-  {
-    code: "INTERSTATE-7",
-    input: { origin: "SP", destination: "BA", operationDate: "2026-07-30", operationValueCents: 100_000, importedQualified: false, recipientType: "taxpayer", finalConsumer: false, purpose: "resale", ncm: "87089990", generalRateAppliesConfirmed: true, noSpecificRateBenefitConfirmed: true, stStatus: "not_applicable_confirmed", fcpStatus: "not_applicable_confirmed" },
-    expectedStatus: "not_applicable",
-  },
-  {
-    code: "DF-DIFAL-TAXPAYER",
-    input: { origin: "SP", destination: "DF", operationDate: "2026-07-30", operationValueCents: 100_000, importedQualified: false, recipientType: "taxpayer", finalConsumer: true, purpose: "fixed_asset", ncm: "84713012", generalRateAppliesConfirmed: true, noSpecificRateBenefitConfirmed: true, stStatus: "not_applicable_confirmed", fcpStatus: "not_applicable_confirmed" },
+export type IcmsGeneralReferenceRun = {
+  code: string;
+  input: IcmsGeneralInput;
+  expectedStatus: IcmsGeneralResult["status"];
+};
+
+const controlledInput = (overrides: Partial<IcmsGeneralInput>): IcmsGeneralInput => ({
+  origin: "SP",
+  destination: "MG",
+  operationDate: ICMS_GENERAL_NATIONAL_CHECKED_AT,
+  operationValueCents: 100_000,
+  importedQualified: false,
+  recipientType: "non_taxpayer",
+  finalConsumer: true,
+  purpose: "use_consumption",
+  ncm: "84713012",
+  generalRateAppliesConfirmed: true,
+  noSpecificRateBenefitConfirmed: true,
+  stStatus: "not_applicable_confirmed",
+  fcpStatus: "not_applicable_confirmed",
+  ...overrides,
+});
+
+const routeOriginsFor = (destination: IcmsUfCode) =>
+  ICMS_GENERAL_PRIORITY_UFS.filter((uf) => uf !== destination).slice(0, 4);
+
+const internalReferenceRuns: IcmsGeneralReferenceRun[] = ICMS_GENERAL_PRIORITY_UFS.map((uf) => ({
+  code: `INTERNAL-${uf}`,
+  input: controlledInput({
+    origin: uf,
+    destination: uf,
+    recipientType: "taxpayer",
+    finalConsumer: false,
+    purpose: "resale",
+    fcpStatus: uf === "RJ" ? "general_confirmed" : "not_applicable_confirmed",
+  }),
+  expectedStatus: "calculated_reference",
+}));
+
+const nonTaxpayerDifalReferenceRuns: IcmsGeneralReferenceRun[] = ICMS_GENERAL_PRIORITY_UFS.flatMap((destination) =>
+  routeOriginsFor(destination).map((origin, index) => ({
+    code: `DIFAL-NON-TAXPAYER-${origin}-${destination}-${index + 1}`,
+    input: controlledInput({ origin, destination, importedQualified: index === 3 }),
     expectedStatus: "calculated_reference",
-  },
-  {
-    code: "RJ-INTERNAL-FECP",
-    input: { origin: "RJ", destination: "RJ", operationDate: "2026-07-30", operationValueCents: 100_000, importedQualified: false, recipientType: "taxpayer", finalConsumer: false, purpose: "resale", ncm: "84713012", generalRateAppliesConfirmed: true, noSpecificRateBenefitConfirmed: true, stStatus: "not_applicable_confirmed", fcpStatus: "general_confirmed" },
-    expectedStatus: "calculated_reference",
-  },
-  {
-    code: "ST-SAFE-ROUTE",
-    input: { origin: "SP", destination: "MG", operationDate: "2026-07-30", operationValueCents: 100_000, importedQualified: false, recipientType: "taxpayer", finalConsumer: false, purpose: "resale", ncm: "87089990", generalRateAppliesConfirmed: true, noSpecificRateBenefitConfirmed: true, stStatus: "applicable", fcpStatus: "unknown" },
-    expectedStatus: "route_to_st",
-  },
+  })),
+);
+
+const taxpayerDifalReferenceRuns: IcmsGeneralReferenceRun[] = ICMS_GENERAL_PRIORITY_UFS.map((destination) => ({
+  code: `DIFAL-TAXPAYER-${routeOriginsFor(destination)[0]}-${destination}`,
+  input: controlledInput({
+    origin: routeOriginsFor(destination)[0],
+    destination,
+    recipientType: "taxpayer",
+    purpose: "fixed_asset",
+  }),
+  expectedStatus: destination === "DF" ? "calculated_reference" : "blocked",
+}));
+
+const safetyReferenceRuns: IcmsGeneralReferenceRun[] = ICMS_GENERAL_PRIORITY_UFS.flatMap((destination) => {
+  const origin = routeOriginsFor(destination)[0];
+  const base = controlledInput({ origin, destination });
+  return [
+    { code: `SAFE-BENEFIT-${origin}-${destination}`, input: { ...base, noSpecificRateBenefitConfirmed: false }, expectedStatus: "blocked" },
+    { code: `SAFE-ST-${origin}-${destination}`, input: { ...base, stStatus: "applicable", fcpStatus: "unknown" }, expectedStatus: "route_to_st" },
+    { code: `SAFE-FCP-${origin}-${destination}`, input: { ...base, fcpStatus: "unknown" }, expectedStatus: "blocked" },
+    { code: `SAFE-VALIDITY-${origin}-${destination}`, input: { ...base, operationDate: "1990-01-01" }, expectedStatus: "blocked" },
+  ] satisfies IcmsGeneralReferenceRun[];
+});
+
+export const icmsGeneralReferenceRuns: IcmsGeneralReferenceRun[] = [
+  ...internalReferenceRuns,
+  ...nonTaxpayerDifalReferenceRuns,
+  ...taxpayerDifalReferenceRuns,
+  ...safetyReferenceRuns,
 ];
 
 export function validateIcmsGeneralNational() {
@@ -363,14 +429,23 @@ export function validateIcmsGeneralNational() {
     if (item.generalRateBps < 1_700 || item.generalRateBps > 2_300) errors.push(`${item.uf}:invalid_general_rate`);
     if (item.fund.status === "general_confirmed" && (!item.fund.generalRateBps || !item.fund.sourceCode)) errors.push(`${item.uf}:invalid_general_fund`);
   }
+  const priorityProfiles = ICMS_GENERAL_PRIORITY_UFS.map((uf) => icmsStateGeneralProfileByUf.get(uf));
+  if (priorityProfiles.some((item) => !item)) errors.push("priority_profile_missing");
+  if (priorityProfiles.some((item) => item?.difal.nonTaxpayer !== "single_base" || !item.difal.sourceCode)) errors.push("priority_non_taxpayer_method_not_frozen");
+  if (priorityProfiles.some((item) => item?.fund.status === "not_catalogued")) errors.push("priority_fund_not_classified");
   for (const run of icmsGeneralReferenceRuns) {
     const result = resolveIcmsGeneralNational(run.input);
     if (result.status !== run.expectedStatus) errors.push(`${run.code}:unexpected_${result.status}`);
   }
+  const metrics = icmsGeneralNationalMetrics();
+  if (metrics.deterministicCases < 100) errors.push("deterministic_case_target_not_reached");
+  if (metrics.calculatedMemories < 40) errors.push("calculated_memory_target_not_reached");
+  if (metrics.safelyBlockedCases < 40) errors.push("safe_block_target_not_reached");
   return { passed: errors.length === 0, errors };
 }
 
 export function icmsGeneralNationalMetrics() {
+  const results = icmsGeneralReferenceRuns.map((run) => resolveIcmsGeneralNational(run.input));
   return {
     states: icmsStateGeneralProfiles.length,
     officialSources: icmsGeneralSources.length,
@@ -378,7 +453,12 @@ export function icmsGeneralNationalMetrics() {
     difalNonTaxpayerMethods: icmsStateGeneralProfiles.filter((item) => item.difal.nonTaxpayer !== "state_rule_required").length,
     generalFundRates: icmsStateGeneralProfiles.filter((item) => item.fund.status === "general_confirmed").length,
     productSpecificFunds: icmsStateGeneralProfiles.filter((item) => item.fund.status === "product_specific").length,
+    priorityStates: ICMS_GENERAL_PRIORITY_UFS.length,
     referenceRuns: icmsGeneralReferenceRuns.length,
+    deterministicCases: results.length,
+    calculatedMemories: results.filter((item) => item.status === "calculated_reference").length,
+    safelyBlockedCases: results.filter((item) => item.status === "blocked" || item.status === "route_to_st").length,
+    notApplicableCases: results.filter((item) => item.status === "not_applicable").length,
   };
 }
 

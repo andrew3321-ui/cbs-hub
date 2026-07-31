@@ -235,9 +235,9 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     metrics: () => {
       const metrics = icmsGeneralNationalMetrics();
       return {
-        deterministicCases: metrics.referenceRuns,
-        calculatedMemories: metrics.referenceRuns - 1,
-        safelyBlockedCases: 1,
+        deterministicCases: metrics.deterministicCases,
+        calculatedMemories: metrics.calculatedMemories,
+        safelyBlockedCases: metrics.safelyBlockedCases,
       };
     },
     sourceCodes: () => icmsGeneralSources.map((item) => item.code).sort(),
