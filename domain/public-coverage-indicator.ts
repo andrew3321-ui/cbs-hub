@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v9";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v10";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "iss-recurring-v89-180-cells",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "Doze serviços recorrentes passaram a ser auditados em 15 municípios prioritários, formando 180 células públicas e parciais; nenhum código ou valor municipal foi presumido sem classificador, alíquota, vigência, incidência e retenção exatos.",
+        affectedCodes: ["ISS-RECURRING-PRIORITY-V89"],
+        clientDataExposed: false,
+      },
       {
         id: "iss-17-01-v88-50-municipalities",
         changedAt: "2026-07-31T00:00:00.000Z",

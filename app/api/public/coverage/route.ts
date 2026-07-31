@@ -1,5 +1,6 @@
 import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, NATIONAL_COVERAGE_CHECKED_AT, NATIONAL_COVERAGE_VERSION, recurringScenarios, stateCoverage, stSegments } from "../../../../domain/national-tax-coverage";
 import { buildIssDeepTechnicalEvidence, ISS_DEEP_CHECKED_AT, ISS_DEEP_VERSION, issDeepCityProfiles, issDeepMetrics, issDeepServiceCoverage, issDeepSources } from "../../../../domain/iss-deep-coverage";
+import { ISS_RECURRING_PRIORITY_CHECKED_AT, ISS_RECURRING_PRIORITY_VERSION, hashIssRecurringPriority, issRecurringPriorityCells, issRecurringPriorityItems, issRecurringPriorityMetrics, issRecurringPriorityMunicipalities, issRecurringPriorityReferenceCases, validateIssRecurringPriority } from "../../../../domain/iss-recurring-priority";
 import { hashStSpMgLegalCatalog, stSpMgLegalMetrics, stSpMgLegalPackages, ST_SP_MG_LEGAL_VERSION, validateStSpMgLegalCatalog } from "../../../../domain/st-sp-mg-legal";
 import { hashStSpOriginMatrix, stSpOriginCells, stSpOriginDestinations, stSpOriginMandatoryFacts, stSpOriginMatrixMetrics, ST_SP_ORIGIN_MATRIX_VERSION, validateStSpOriginMatrix } from "../../../../domain/st-sp-origin-matrix";
 import { hashStRepresentativeProducts, stRepresentativeProducts, ST_REPRESENTATIVE_PRODUCTS_SOURCE, ST_REPRESENTATIVE_PRODUCTS_VERSION, validateStRepresentativeProducts } from "../../../../domain/st-representative-products";
@@ -24,6 +25,7 @@ import { hashOfficialSourceCertification, officialSourceAffectedRuleReport, offi
 async function publicCoverage() {
   const fingerprint = (await hashNationalCoverage()).slice(0, 12);
   const technicalEvidence = await buildIssDeepTechnicalEvidence();
+  const issRecurringFingerprint = (await hashIssRecurringPriority()).slice(0, 12);
   const stValidation = validateStSpMgLegalCatalog();
   const stFingerprint = (await hashStSpMgLegalCatalog()).slice(0, 12);
   const spOriginValidation = validateStSpOriginMatrix();
@@ -89,6 +91,18 @@ async function publicCoverage() {
       sources: issDeepSources,
       technicalEvidence,
       policy: "Pacote estruturado não libera alíquota. Somente uma regra municipal exata, vigente, versionada e compatível com todos os fatos do cenário controlado libera memória determinística; qualquer divergência bloqueia o resultado.",
+    },
+    issRecurringPriority: {
+      version: ISS_RECURRING_PRIORITY_VERSION,
+      checkedAt: ISS_RECURRING_PRIORITY_CHECKED_AT,
+      fingerprint: issRecurringFingerprint,
+      validation: validateIssRecurringPriority(),
+      metrics: issRecurringPriorityMetrics(),
+      items: issRecurringPriorityItems,
+      municipalities: issRecurringPriorityMunicipalities,
+      cells: issRecurringPriorityCells,
+      referenceCases: issRecurringPriorityReferenceCases,
+      policy: "A célula auditada não é uma alíquota. Código, alíquota, vigência, incidência, tomador e retenção municipais precisam estar exatos antes de qualquer memória; ausência de prova mantém o status parcial e bloqueia o valor.",
     },
     stSegments,
     stSpMg: {

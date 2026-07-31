@@ -32,6 +32,11 @@ import {
   validateIssDeepCoverage,
 } from "./iss-deep-coverage.ts";
 import {
+  hashIssRecurringPriority,
+  issRecurringPriorityMetrics,
+  validateIssRecurringPriority,
+} from "./iss-recurring-priority.ts";
+import {
   hashSimplesNationalDeep,
   simplesNationalDeepMetrics,
   validateSimplesNationalDeep,
@@ -57,7 +62,7 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v88";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v89";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-31";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -84,6 +89,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("FOOD_CLEANING_PET_PRIORITY", "Alimentos, limpeza, higiene doméstica e pet food em SP→MG/RJ", validateStFoodCleaningPetPriority()),
     moduleResult("ICMS_GENERAL_NATIONAL", "ICMS modal nas 27 UFs e DIFAL/FCP em recortes prioritários", validateIcmsGeneralNational()),
     moduleResult("ISS_DEEP_EXPANSION", "ISS 17.01 auditado em 50 municípios", validateIssDeepCoverage()),
+    moduleResult("ISS_RECURRING_PRIORITY", "ISS recorrente em 180 combinações município-item", validateIssRecurringPriority()),
     moduleResult("SIMPLES_NATIONAL_DEEP", "Simples Nacional em 20 atividades e cinco anexos", validateSimplesNationalDeep()),
     moduleResult("PIS_COFINS_DEEP", "PIS/Cofins por regime, produto, papel e crédito", validatePisCofinsDeep()),
     moduleResult("SERVICE_WITHHOLDINGS_DEEP", "IRRF, CSRF, INSS e ISS em serviços recorrentes", validateServiceWithholdingsDeep()),
@@ -98,6 +104,7 @@ export function validateNationalCoverageAutomatically() {
   const foodCleaningPet = stFoodCleaningPetMetrics();
   const icmsGeneral = icmsGeneralNationalMetrics();
   const issDeep = issDeepReferenceMetrics();
+  const issRecurring = issRecurringPriorityMetrics();
   const simples = simplesNationalDeepMetrics();
   const pisCofins = pisCofinsDeepMetrics();
   const withholdings = serviceWithholdingsDeepMetrics();
@@ -119,9 +126,9 @@ export function validateNationalCoverageAutomatically() {
       modulesPassed: modules.filter((module) => module.passed).length,
       totalRuns: calculation.totalRuns
         + constructionElectrical.reproducedMemories + constructionElectrical.safeFailureScenarios
-        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + issDeep.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases,
+        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases,
       referenceReproduced: calculation.referenceReproduced + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories,
-      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases,
+      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases,
       failed: calculation.failed,
     },
     modules,
@@ -148,6 +155,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStFoodCleaningPetPriority(),
     hashIcmsGeneralNational(),
     hashIssDeepCoverage(),
+    hashIssRecurringPriority(),
     hashSimplesNationalDeep(),
     hashPisCofinsDeep(),
     hashServiceWithholdingsDeep(),

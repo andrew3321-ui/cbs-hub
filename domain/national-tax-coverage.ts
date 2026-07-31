@@ -1,4 +1,5 @@
 import { issDeepCityProfiles, issDeepProfileByIbge, issDeepServiceCoverage, issDeepSources } from "./iss-deep-coverage.ts";
+import { ISS_RECURRING_PRIORITY_VERSION, issRecurringPriorityCells, issRecurringPriorityItems } from "./iss-recurring-priority.ts";
 import {
   ICMS_GENERAL_NATIONAL_CHECKED_AT,
   ICMS_GENERAL_NATIONAL_VERSION,
@@ -34,8 +35,8 @@ import {
   taxReformSectorSources,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.30-v84";
-export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-30";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v89";
+export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-31";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
 export type UfCode = IcmsUfCode;
@@ -218,7 +219,7 @@ export function coverageMetrics() {
 }
 
 export async function hashNationalCoverage() {
-  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, icmsGeneralVersion: ICMS_GENERAL_NATIONAL_VERSION, icmsGeneralProfiles: icmsStateGeneralProfiles, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, issDeepServiceCoverage, ipiTipiVersion: IPI_TIPI_DEEP_VERSION, ipiTipiProfiles: ipiTipiPriorityProfiles, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
+  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, icmsGeneralVersion: ICMS_GENERAL_NATIONAL_VERSION, icmsGeneralProfiles: icmsStateGeneralProfiles, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, issDeepServiceCoverage, issRecurringVersion: ISS_RECURRING_PRIORITY_VERSION, issRecurringPriorityItems, issRecurringPriorityCells, ipiTipiVersion: IPI_TIPI_DEEP_VERSION, ipiTipiProfiles: ipiTipiPriorityProfiles, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

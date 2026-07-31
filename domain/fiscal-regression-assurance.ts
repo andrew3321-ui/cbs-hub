@@ -87,6 +87,13 @@ import {
   validateIssDeepCoverage,
 } from "./iss-deep-coverage.ts";
 import {
+  ISS_RECURRING_PRIORITY_SOURCE,
+  ISS_RECURRING_PRIORITY_VERSION,
+  hashIssRecurringPriority,
+  issRecurringPriorityMetrics,
+  validateIssRecurringPriority,
+} from "./iss-recurring-priority.ts";
+import {
   SIMPLES_NATIONAL_DEEP_VERSION,
   hashSimplesNationalDeep,
   simplesNationalDeepMetrics,
@@ -219,6 +226,18 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     metrics: issDeepReferenceMetrics,
     sourceCodes: () => issDeepSources.map((source) => source.code).sort(),
     requiredGates: ["município e item da LC 116", "código municipal", "alíquota e vigência", "local de incidência", "retenção e responsável", "exceções, benefícios e regimes especiais"],
+  },
+  {
+    code: "ISS_RECURRING_PRIORITY",
+    label: "ISS recorrente — 12 itens em 15 municípios",
+    ruleCodes: ["ISS-DEEP-NATIONAL", "ISS-RECURRING-PRIORITY-V89"],
+    version: ISS_RECURRING_PRIORITY_VERSION,
+    validate: validateIssRecurringPriority,
+    hash: hashIssRecurringPriority,
+    testKinds: ALL_TEST_KINDS,
+    metrics: issRecurringPriorityMetrics,
+    sourceCodes: () => [ISS_RECURRING_PRIORITY_SOURCE.code],
+    requiredGates: ["serviço representativo", "município", "subatividade e código municipal", "alíquota e vigência", "incidência", "tomador e retenção"],
   },
   {
     code: "ICMS_GENERAL_NATIONAL",
