@@ -75,6 +75,13 @@ import {
   icmsGeneralSources,
   validateIcmsGeneralNational,
 } from "./icms-general-national.ts";
+import {
+  ISS_DEEP_EXPANSION_VERSION,
+  hashIssDeepExpansion,
+  issDeepExpansionCities,
+  issDeepExpansionSources,
+  validateIssDeepExpansion,
+} from "./iss-deep-expansion.ts";
 
 export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v2";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-30";
@@ -114,6 +121,22 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 ];
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
+  {
+    code: "ISS_DEEP_EXPANSION",
+    label: "ISS profundo — segundo lote de 25 municípios",
+    ruleCodes: ["ISS-DEEP-NATIONAL", "ISS-DEEP-EXPANSION-V79"],
+    version: ISS_DEEP_EXPANSION_VERSION,
+    validate: validateIssDeepExpansion,
+    hash: hashIssDeepExpansion,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => ({
+      deterministicCases: issDeepExpansionCities.length,
+      calculatedMemories: 0,
+      safelyBlockedCases: issDeepExpansionCities.length,
+    }),
+    sourceCodes: () => issDeepExpansionSources.map((source) => source.code).sort(),
+    requiredGates: ["município e item da LC 116", "código municipal", "alíquota e vigência", "local de incidência", "retenção e responsável", "exceções, benefícios e regimes especiais"],
+  },
   {
     code: "ICMS_GENERAL_NATIONAL",
     label: "ICMS modal, FCP e DIFAL condicionais nas 27 UFs",

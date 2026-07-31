@@ -26,8 +26,12 @@ import {
   icmsGeneralNationalMetrics,
   validateIcmsGeneralNational,
 } from "./icms-general-national.ts";
+import {
+  hashIssDeepExpansion,
+  validateIssDeepExpansion,
+} from "./iss-deep-expansion.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v78";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v79";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-30";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -53,6 +57,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("CONSTRUCTION_ELECTRICAL_PRIORITY", "Materiais de construção, ferramentas e elétricos em SP→MG/RJ", validateStConstructionElectricalPriority()),
     moduleResult("FOOD_CLEANING_PET_PRIORITY", "Alimentos, limpeza, higiene doméstica e pet food em SP→MG/RJ", validateStFoodCleaningPetPriority()),
     moduleResult("ICMS_GENERAL_NATIONAL", "ICMS modal, FCP e DIFAL condicionais nas 27 UFs", validateIcmsGeneralNational()),
+    moduleResult("ISS_DEEP_EXPANSION", "ISS profundo estruturado em 50 municípios", validateIssDeepExpansion()),
   ];
   const calculation = stSpCalculationValidationMetrics();
   const constructionElectrical = stConstructionElectricalMetrics();
@@ -74,9 +79,9 @@ export function validateNationalCoverageAutomatically() {
       modulesPassed: modules.filter((module) => module.passed).length,
       totalRuns: calculation.totalRuns
         + constructionElectrical.reproducedMemories + constructionElectrical.safeFailureScenarios
-        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.referenceRuns + 1,
+        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.referenceRuns + 26,
       referenceReproduced: calculation.referenceReproduced + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.referenceRuns - 1,
-      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + 1,
+      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + 26,
       failed: calculation.failed,
     },
     modules,
@@ -102,6 +107,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStConstructionElectricalPriority(),
     hashStFoodCleaningPetPriority(),
     hashIcmsGeneralNational(),
+    hashIssDeepExpansion(),
   ]);
   const payload = JSON.stringify({ version: NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, moduleHashes });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));

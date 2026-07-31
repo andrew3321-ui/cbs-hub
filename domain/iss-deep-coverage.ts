@@ -1,5 +1,12 @@
-export const ISS_DEEP_VERSION = "2026.07.29-v75";
-export const ISS_DEEP_CHECKED_AT = "2026-07-29";
+import {
+  ISS_DEEP_EXPANSION_CHECKED_AT,
+  ISS_DEEP_EXPANSION_VERSION,
+  issDeepExpansionCities,
+  issDeepExpansionSources,
+} from "./iss-deep-expansion.ts";
+
+export const ISS_DEEP_VERSION = "2026.07.31-v79";
+export const ISS_DEEP_CHECKED_AT = "2026-07-30";
 
 export const ISS_DEEP_TECHNICAL_CHECKS = [
   "unique_profile_and_ibge",
@@ -121,7 +128,7 @@ export type IssDeepServiceCoverage = {
     rateEvidenceStatus: "exact_municipal_rule" | "pending_exact_municipal_table";
     effectiveRuleStatus: "exact" | "pending_exact_effective_rule";
     withholdingResponsibilityStatus: "exact" | "requires_operation_facts";
-    sourceLinkStatus: "verified_at_least_one_official_source";
+    sourceLinkStatus: "verified_at_least_one_official_source" | "official_source_catalogued_recheck_required";
     verifiedSourceCodes: string[];
     pendingSourceCodes: string[];
     conclusion: string;
@@ -148,11 +155,15 @@ const verifiedHttpsSourceCodes = new Set([
   "ISS-VIX-PORTAL", "ISS-VIX-CNAE", "ISS-FLN-LC7", "ISS-FLN-CAMARA", "ISS-FLN-NFSE",
   "ISS-BEL-ATUAL-2026", "ISS-AJU-CTM",
   "ISS-AJU-DESON",
+  ...issDeepExpansionSources
+    .filter((item) => !["ISS-GRU-LEGIS", "ISS-CVL-RISS"].includes(item.code))
+    .map((item) => item.code),
 ]);
 
 const tlsCompatibilitySourceCodes = new Set([
   "ISS-RJ-ALIQUOTAS", "ISS-SSA-LEGIS", "ISS-SA-PORTAL", "ISS-SG-LEGIS",
   "ISS-AJU-CTM", "ISS-AJU-DESON",
+  "ISS-RAO-RISS",
 ]);
 
 const source = (input: Omit<IssDeepSource, "checkedAt" | "linkAudit">): IssDeepSource => ({
@@ -227,6 +238,7 @@ export const issDeepSources: IssDeepSource[] = [
   source({ code: "ISS-FLN-NFSE", title: "NFPS-e — códigos e grade de validação tributária", publisher: "Prefeitura de Florianópolis", url: "https://nfps-e.pmf.sc.gov.br/faq/", kind: "operational_guidance", legalReference: "CNAE, CFPS, CST e grade municipal de validação" }),
   source({ code: "ISS-AJU-CTM", title: "Código Tributário de Aracaju — atualizado em 2025", publisher: "Prefeitura de Aracaju", url: "https://transparencia.aracaju.se.gov.br/wp-content/uploads/desoneracoes/CTMA_ATUALIZADO_2025.pdf", kind: "municipal_law", legalReference: "arts. 98 a 131 e lista de serviços" }),
   source({ code: "ISS-AJU-DESON", title: "Desonerações e benefícios fiscais municipais", publisher: "Prefeitura de Aracaju", url: "https://transparencia.aracaju.se.gov.br/prefeitura/prestacao-de-contas/", kind: "operational_guidance", legalReference: "benefícios de ISS e respectivos instrumentos legais" }),
+  ...issDeepExpansionSources.map(source),
 ];
 
 const commonRequiredFacts = [
@@ -283,6 +295,14 @@ const citySeeds = [
   { code: "ISS-DEEP-ES-VITORIA", ibgeCode: "3205309", city: "Vitória", uf: "ES", sourceCodes: ["ISS-VIX-PORTAL", "ISS-VIX-CNAE"] },
   { code: "ISS-DEEP-SC-FLORIANOPOLIS", ibgeCode: "4205407", city: "Florianópolis", uf: "SC", sourceCodes: ["ISS-FLN-LC7", "ISS-FLN-CAMARA", "ISS-FLN-NFSE"] },
   { code: "ISS-DEEP-SE-ARACAJU", ibgeCode: "2800308", city: "Aracaju", uf: "SE", sourceCodes: ["ISS-AJU-CTM", "ISS-AJU-DESON"] },
+  ...issDeepExpansionCities.map((item) => ({
+    code: item.code,
+    ibgeCode: item.ibgeCode,
+    city: item.city,
+    uf: item.uf,
+    sourceCodes: item.sourceCodes,
+    rateReferenceStatus: "pending_exact_table" as const,
+  })),
 ] as const;
 
 type StandardConsultingSeedInput = {
@@ -744,18 +764,22 @@ function buildServiceAudit(
 ): IssDeepServiceCoverage["audit"] {
   const verifiedSourceCodes = sourceCodes.filter((code) => sourceByCode.get(code)?.linkAudit.status === "verified_reachable");
   const pendingSourceCodes = sourceCodes.filter((code) => !verifiedSourceCodes.includes(code));
-  if (!verifiedSourceCodes.length) throw new Error(`iss_deep_functional_source_not_found:${sourceCodes.join(",")}`);
+  if (exact && !verifiedSourceCodes.length) throw new Error(`iss_deep_functional_source_not_found:${sourceCodes.join(",")}`);
   return {
     municipalClassifierStatus: exact ? "exact" : "pending_exact_classifier",
     rateEvidenceStatus: exact ? "exact_municipal_rule" : "pending_exact_municipal_table",
     effectiveRuleStatus: exact ? "exact" : "pending_exact_effective_rule",
     withholdingResponsibilityStatus: exact ? "exact" : "requires_operation_facts",
-    sourceLinkStatus: "verified_at_least_one_official_source",
+    sourceLinkStatus: verifiedSourceCodes.length
+      ? "verified_at_least_one_official_source"
+      : "official_source_catalogued_recheck_required",
     verifiedSourceCodes,
     pendingSourceCodes,
     conclusion: exact
       ? "Código, alíquota, vigência, incidência e responsável estão versionados exclusivamente para o cenário controlado publicado."
-      : "O serviço está estruturado e possui fonte municipal funcional, mas o cálculo permanece bloqueado até localizar código, alíquota, vigência e responsabilidade exatos.",
+      : verifiedSourceCodes.length
+        ? "O serviço está estruturado e possui fonte municipal funcional, mas o cálculo permanece bloqueado até localizar código, alíquota, vigência e responsabilidade exatos."
+        : "A fonte oficial foi catalogada, mas o servidor municipal exige nova conferência de disponibilidade; código, alíquota, vigência e responsabilidade seguem bloqueados.",
   };
 }
 
@@ -1208,3 +1232,9 @@ export const issDeepMetrics = {
   professionallyApprovedCities: 0,
   automaticHomologation: false,
 } as const;
+
+export {
+  ISS_DEEP_EXPANSION_CHECKED_AT,
+  ISS_DEEP_EXPANSION_VERSION,
+  issDeepExpansionCities,
+};

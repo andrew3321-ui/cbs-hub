@@ -8,7 +8,7 @@ import {
   type IcmsUfCode,
 } from "./icms-general-national.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v78";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v79";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-30";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";

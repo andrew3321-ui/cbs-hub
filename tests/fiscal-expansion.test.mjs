@@ -11,7 +11,7 @@ import {
 import { cityCoverage, coverageSources, recurringScenarios, stateCoverage, stSegments } from "../domain/national-tax-coverage.ts";
 import { fiscalAutomaticAssuranceCapacity } from "../domain/fiscal-automatic-assurance.ts";
 
-test("V56 preserves a deterministic national backlog without overstating coverage", () => {
+test("V79 preserves a deterministic national backlog without overstating coverage", () => {
   const byScope = (scope) => fiscalExpansionBacklog.filter((item) => item.scope === scope);
   assert.equal(byScope("icms").length, 27);
   assert.equal(byScope("iss").length, 50);
@@ -35,7 +35,7 @@ test("ordinary pipeline ends in server-side automatic verification", () => {
 test("monthly metrics expose actual gaps instead of converting targets into achievements", () => {
   const metrics = expansionMetrics(fiscalExpansionBacklog);
   assert.equal(metrics.actual.icmsBundles, 27);
-  assert.equal(metrics.actual.issDeepCities, 25);
+  assert.equal(metrics.actual.issDeepCities, 50);
   assert.equal(metrics.actual.stRouteBundles, 25);
   assert.equal(metrics.actual.officialSources, coverageSources.length + stateCoverage.length);
   assert.equal(metrics.actual.testedBundles, fiscalAutomaticAssuranceCapacity().testPacks);
