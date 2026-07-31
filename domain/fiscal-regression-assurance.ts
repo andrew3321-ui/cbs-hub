@@ -41,6 +41,13 @@ import {
   validateStColdBeverageSpOrigin,
 } from "./st-cold-beverages-sp-origin.ts";
 import {
+  ST_PHARMA_COSMETICS_PRIORITY_VERSION,
+  hashStPharmaCosmeticsPriority,
+  stPharmaCosmeticsMetrics,
+  stPharmaCosmeticsSources,
+  validateStPharmaCosmeticsPriority,
+} from "./st-pharma-cosmetics-priority.ts";
+import {
   TAX_REFORM_IMPACT_ENGINE_VERSION,
   hashTaxReformImpactModel,
   taxReformImpactCasePasses,
@@ -229,6 +236,25 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     },
     sourceCodes: () => stColdBeverageSpOriginSources.map((source) => source.code).sort(),
     requiredGates: ["perfil e destino compatíveis", "regime normal", "responsabilidade", "vigência", "limite estadual de 80%", "alíquotas/FCP", "documentos"],
+  },
+  {
+    code: "PHARMA_COSMETICS_PRIORITY",
+    label: "Medicamentos, cosméticos e perfumaria nas rotas prioritárias",
+    ruleCodes: ["NATIONAL-COVERAGE-V27", "PHARMA_COSMETICS_PRIORITY"],
+    version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,
+    validate: validateStPharmaCosmeticsPriority,
+    hash: hashStPharmaCosmeticsPriority,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = stPharmaCosmeticsMetrics();
+      return {
+        deterministicCases: metrics.controlledCells,
+        calculatedMemories: metrics.deterministicMemories,
+        safelyBlockedCases: metrics.safeFailures,
+      };
+    },
+    sourceCodes: () => stPharmaCosmeticsSources.map((source) => source.code).sort(),
+    requiredGates: ["NCM/CEST e descrição", "rota e vigência", "regra do destino", "tratamento especial", "documentos", "separação do PIS/Cofins monofásico"],
   },
 ] as const;
 

@@ -11,6 +11,7 @@ import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, stA
 import { hashStColdBeveragePriority, stColdBeverageApplicabilityMatrix, stColdBeverageMetrics, stColdBeverageRoutes, stColdBeverageSources, ST_COLD_BEVERAGE_OPERATION_FACT_LABELS, ST_COLD_BEVERAGE_PRODUCTS, ST_COLD_BEVERAGES_PRIORITY_VERSION, ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM, ST_COLD_BEVERAGES_SUPPORTED_PERIOD, validateStColdBeveragePriority } from "../../../../domain/st-cold-beverages-priority";
 import { hashStColdBeverageSpDestination, stColdBeverageSpDestinationMetrics, stColdBeverageSpReferenceRuns, stColdBeverageSpSources, ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD, ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES, ST_COLD_BEVERAGES_SP_DESTINATION_VERSION, ST_COLD_BEVERAGES_SP_FACT_LABELS, ST_COLD_BEVERAGES_SP_PMPF_PROFILES, validateStColdBeverageSpDestination } from "../../../../domain/st-cold-beverages-sp-destination";
 import { hashStColdBeverageSpOrigin, stColdBeverageSpOriginMetrics, stColdBeverageSpOriginReferenceRuns, stColdBeverageSpOriginSources, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD, ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES, ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES, ST_COLD_BEVERAGES_SP_ORIGIN_VERSION, validateStColdBeverageSpOrigin } from "../../../../domain/st-cold-beverages-sp-origin";
+import { hashStPharmaCosmeticsPriority, stPharmaCosmeticsCoverageCells, stPharmaCosmeticsLegalRoutes, stPharmaCosmeticsMetrics, stPharmaCosmeticsReferenceRuns, stPharmaCosmeticsSources, stPharmaCosmeticsStateRules, ST_PHARMA_COSMETICS_FACT_LABELS, ST_PHARMA_COSMETICS_PRIORITY_VERSION, ST_PHARMA_COSMETICS_PRODUCTS, ST_PHARMA_COSMETICS_ROUTES, validateStPharmaCosmeticsPriority } from "../../../../domain/st-pharma-cosmetics-priority";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
@@ -32,6 +33,7 @@ async function publicCoverage() {
   const coldBeveragesFingerprint = (await hashStColdBeveragePriority()).slice(0, 12);
   const coldBeveragesSpFingerprint = (await hashStColdBeverageSpDestination()).slice(0, 12);
   const coldBeveragesSpOriginFingerprint = (await hashStColdBeverageSpOrigin()).slice(0, 12);
+  const pharmaCosmeticsFingerprint = (await hashStPharmaCosmeticsPriority()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const regressionReport = await buildFiscalRegressionReport();
   const coverageIndicator = await buildPublicCoverageIndicator();
@@ -173,6 +175,21 @@ async function publicCoverage() {
       runs: stColdBeverageSpOriginReferenceRuns,
       sources: stColdBeverageSpOriginSources,
       policy: "Escopo fechado para cinco perfis de alto giro em SP→MG e cinco em SP→RJ, sempre no regime normal e entre contribuintes. O motor preserva a diferença jurídica da trava de 80%, separa ICMS-ST e FCP e bloqueia qualquer perfil, vigência ou fato divergente.",
+    },
+    stPharmaCosmeticsPriority: {
+      version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,
+      fingerprint: pharmaCosmeticsFingerprint,
+      validation: validateStPharmaCosmeticsPriority(),
+      metrics: stPharmaCosmeticsMetrics(),
+      factLabels: ST_PHARMA_COSMETICS_FACT_LABELS,
+      products: ST_PHARMA_COSMETICS_PRODUCTS,
+      routes: ST_PHARMA_COSMETICS_ROUTES,
+      legalRoutes: stPharmaCosmeticsLegalRoutes,
+      stateRules: stPharmaCosmeticsStateRules,
+      cells: stPharmaCosmeticsCoverageCells,
+      runs: stPharmaCosmeticsReferenceRuns,
+      sources: stPharmaCosmeticsSources,
+      policy: "A ordem é heurística operacional interna. A memória de R$ 0,00 representa apenas ICMS-ST não aplicável nos recortes de destino paulista comprovados; não é isenção e não conclui ICMS próprio, PIS/Cofins monofásico, IPI ou tratamento especial. MG, RJ e PR possuem fontes e parâmetros catalogados, mas permanecem condicionais ou não suportados até o fechamento dos fatos da operação.",
     },
     recurringScenarios,
     sources: coverageSources,

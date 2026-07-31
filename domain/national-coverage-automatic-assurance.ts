@@ -10,9 +10,10 @@ import { hashStAutoPartsHighUseCorridors, validateStAutoPartsHighUseCorridors } 
 import { hashStColdBeveragePriority, validateStColdBeveragePriority } from "./st-cold-beverages-priority.ts";
 import { hashStColdBeverageSpDestination, validateStColdBeverageSpDestination } from "./st-cold-beverages-sp-destination.ts";
 import { hashStColdBeverageSpOrigin, validateStColdBeverageSpOrigin } from "./st-cold-beverages-sp-origin.ts";
+import { hashStPharmaCosmeticsPriority, validateStPharmaCosmeticsPriority } from "./st-pharma-cosmetics-priority.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.25-v70";
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-25";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.30-v72";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-30";
 
 type Validation = { passed: boolean; errors: string[] };
 
@@ -33,6 +34,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("COLD_BEVERAGES_PRIORITY", "Bebidas frias por produto, rota e data", validateStColdBeveragePriority()),
     moduleResult("COLD_BEVERAGES_SP_DESTINATION", "PMPF de bebidas com destino a São Paulo", validateStColdBeverageSpDestination()),
     moduleResult("COLD_BEVERAGES_SP_ORIGIN", "PMPF de bebidas de SP para MG e RJ", validateStColdBeverageSpOrigin()),
+    moduleResult("PHARMA_COSMETICS_PRIORITY", "Medicamentos, cosméticos e perfumaria prioritários", validateStPharmaCosmeticsPriority()),
   ];
   const calculation = stSpCalculationValidationMetrics();
   const errors = modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`));
@@ -73,6 +75,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStColdBeveragePriority(),
     hashStColdBeverageSpDestination(),
     hashStColdBeverageSpOrigin(),
+    hashStPharmaCosmeticsPriority(),
   ]);
   const payload = JSON.stringify({ version: NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, moduleHashes });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));
