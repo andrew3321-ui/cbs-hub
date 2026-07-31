@@ -12,6 +12,7 @@ import { hashStColdBeveragePriority, stColdBeverageApplicabilityMatrix, stColdBe
 import { hashStColdBeverageSpDestination, stColdBeverageSpDestinationMetrics, stColdBeverageSpReferenceRuns, stColdBeverageSpSources, ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD, ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES, ST_COLD_BEVERAGES_SP_DESTINATION_VERSION, ST_COLD_BEVERAGES_SP_FACT_LABELS, ST_COLD_BEVERAGES_SP_PMPF_PROFILES, validateStColdBeverageSpDestination } from "../../../../domain/st-cold-beverages-sp-destination";
 import { hashStColdBeverageSpOrigin, stColdBeverageSpOriginMetrics, stColdBeverageSpOriginReferenceRuns, stColdBeverageSpOriginSources, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD, ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES, ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES, ST_COLD_BEVERAGES_SP_ORIGIN_VERSION, validateStColdBeverageSpOrigin } from "../../../../domain/st-cold-beverages-sp-origin";
 import { hashStPharmaCosmeticsPriority, stPharmaCosmeticsCoverageCells, stPharmaCosmeticsLegalRoutes, stPharmaCosmeticsMetrics, stPharmaCosmeticsReferenceRuns, stPharmaCosmeticsSources, stPharmaCosmeticsStateRules, ST_PHARMA_COSMETICS_FACT_LABELS, ST_PHARMA_COSMETICS_PRIORITY_VERSION, ST_PHARMA_COSMETICS_PRODUCTS, ST_PHARMA_COSMETICS_ROUTES, validateStPharmaCosmeticsPriority } from "../../../../domain/st-pharma-cosmetics-priority";
+import { hashStConstructionElectricalPriority, stConstructionElectricalDossiers, stConstructionElectricalMetrics, stConstructionElectricalNegativeRuns, stConstructionElectricalReferenceRuns, stConstructionElectricalSources, ST_CONSTRUCTION_ELECTRICAL_FACT_LABELS, ST_CONSTRUCTION_ELECTRICAL_PERIOD, ST_CONSTRUCTION_ELECTRICAL_PRODUCTS, ST_CONSTRUCTION_ELECTRICAL_ROUTES, ST_CONSTRUCTION_ELECTRICAL_VERSION, validateStConstructionElectricalPriority } from "../../../../domain/st-construction-electrical-priority";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
@@ -34,6 +35,7 @@ async function publicCoverage() {
   const coldBeveragesSpFingerprint = (await hashStColdBeverageSpDestination()).slice(0, 12);
   const coldBeveragesSpOriginFingerprint = (await hashStColdBeverageSpOrigin()).slice(0, 12);
   const pharmaCosmeticsFingerprint = (await hashStPharmaCosmeticsPriority()).slice(0, 12);
+  const constructionElectricalFingerprint = (await hashStConstructionElectricalPriority()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const regressionReport = await buildFiscalRegressionReport();
   const coverageIndicator = await buildPublicCoverageIndicator();
@@ -190,6 +192,21 @@ async function publicCoverage() {
       runs: stPharmaCosmeticsReferenceRuns,
       sources: stPharmaCosmeticsSources,
       policy: "A ordem é heurística operacional interna. A memória de R$ 0,00 representa apenas ICMS-ST não aplicável nos recortes de destino paulista comprovados; não é isenção e não conclui ICMS próprio, PIS/Cofins monofásico, IPI ou tratamento especial. MG, RJ e PR possuem fontes e parâmetros catalogados, mas permanecem condicionais ou não suportados até o fechamento dos fatos da operação.",
+    },
+    stConstructionElectricalPriority: {
+      version: ST_CONSTRUCTION_ELECTRICAL_VERSION,
+      fingerprint: constructionElectricalFingerprint,
+      validation: validateStConstructionElectricalPriority(),
+      metrics: stConstructionElectricalMetrics(),
+      supportedPeriod: ST_CONSTRUCTION_ELECTRICAL_PERIOD,
+      factLabels: ST_CONSTRUCTION_ELECTRICAL_FACT_LABELS,
+      products: ST_CONSTRUCTION_ELECTRICAL_PRODUCTS,
+      routes: ST_CONSTRUCTION_ELECTRICAL_ROUTES,
+      referenceRuns: stConstructionElectricalReferenceRuns,
+      negativeRuns: stConstructionElectricalNegativeRuns,
+      sources: stConstructionElectricalSources,
+      dossiers: stConstructionElectricalDossiers,
+      policy: "Escopo fechado para seis identidades fiscais de construção, acabamento, ferramentas e elétricos nas rotas SP→MG e SP→RJ. NCM/CEST, revenda, vigência, responsabilidade, MVA, alíquotas, FCP/FECP e exclusões são fatos obrigatórios; divergência ou ausência bloqueia o valor.",
     },
     recurringScenarios,
     sources: coverageSources,

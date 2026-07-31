@@ -48,6 +48,13 @@ import {
   validateStPharmaCosmeticsPriority,
 } from "./st-pharma-cosmetics-priority.ts";
 import {
+  ST_CONSTRUCTION_ELECTRICAL_VERSION,
+  hashStConstructionElectricalPriority,
+  stConstructionElectricalMetrics,
+  stConstructionElectricalSources,
+  validateStConstructionElectricalPriority,
+} from "./st-construction-electrical-priority.ts";
+import {
   TAX_REFORM_IMPACT_ENGINE_VERSION,
   hashTaxReformImpactModel,
   taxReformImpactCasePasses,
@@ -255,6 +262,25 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     },
     sourceCodes: () => stPharmaCosmeticsSources.map((source) => source.code).sort(),
     requiredGates: ["NCM/CEST e descrição", "rota e vigência", "regra do destino", "tratamento especial", "documentos", "separação do PIS/Cofins monofásico"],
+  },
+  {
+    code: "CONSTRUCTION_ELECTRICAL_PRIORITY",
+    label: "Construção, acabamento, ferramentas e materiais elétricos em SP→MG/RJ",
+    ruleCodes: ["NATIONAL-COVERAGE-V27", "CONSTRUCTION_ELECTRICAL_PRIORITY"],
+    version: ST_CONSTRUCTION_ELECTRICAL_VERSION,
+    validate: validateStConstructionElectricalPriority,
+    hash: hashStConstructionElectricalPriority,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = stConstructionElectricalMetrics();
+      return {
+        deterministicCases: metrics.reproducedMemories + metrics.safeFailureScenarios,
+        calculatedMemories: metrics.reproducedMemories,
+        safelyBlockedCases: metrics.safeFailureScenarios,
+      };
+    },
+    sourceCodes: () => stConstructionElectricalSources.map((source) => source.code).sort(),
+    requiredGates: ["NCM e CEST exatos", "finalidade de revenda", "vigência", "responsabilidade tributária", "MVA e alíquotas do destino", "FCP/FECP", "exclusões e tratamentos especiais", "documentos"],
   },
 ] as const;
 

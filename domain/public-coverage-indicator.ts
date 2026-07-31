@@ -1,6 +1,13 @@
 import { buildFiscalRegressionReport } from "./fiscal-regression-assurance.ts";
 import { issDeepServiceCoverage } from "./iss-deep-coverage.ts";
 import {
+  ST_CONSTRUCTION_ELECTRICAL_CHECKED_AT,
+  ST_CONSTRUCTION_ELECTRICAL_PRODUCTS,
+  ST_CONSTRUCTION_ELECTRICAL_VERSION,
+  stConstructionElectricalReferenceRuns,
+  stConstructionElectricalSources,
+} from "./st-construction-electrical-priority.ts";
+import {
   cityCoverage,
   coverageSources,
   NATIONAL_COVERAGE_CHECKED_AT,
@@ -12,8 +19,8 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.29-v4";
-export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-29";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.30-v5";
+export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-30";
 
 export type PublicCoverageMaturity = {
   catalogued: boolean;
@@ -206,6 +213,30 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
           ? `Recorte exato versionado para o item ${item.lc116Item}; somente o cenário controlado publicado pode calcular.`
           : item.blockers[0] ?? "O serviço municipal permanece bloqueado por regra exata ausente.",
         blockers: item.blockers,
+      });
+    }),
+    ...stConstructionElectricalReferenceRuns.map((run) => {
+      const product = ST_CONSTRUCTION_ELECTRICAL_PRODUCTS.find((item) => item.code === run.productCode);
+      return entry({
+        code: `ST-CONSTRUCTION-ELECTRICAL-${run.key}`,
+        tax: "ICMS/ST",
+        title: `${product?.label ?? run.productCode} - ${run.route}`,
+        dimension: "route" as const,
+        jurisdiction: run.route,
+        uf: run.route.slice(-2),
+        municipality: null,
+        route: run.route,
+        product: product?.label ?? run.productCode,
+        version: ST_CONSTRUCTION_ELECTRICAL_VERSION,
+        status: "supported",
+        maturity: maturity({ catalogued: true, structured: true, tested: true }),
+        checkedAt: ST_CONSTRUCTION_ELECTRICAL_CHECKED_AT,
+        officialSources: stConstructionElectricalSources
+          .filter((source) => run.result.sourceCodes.includes(source.code))
+          .map(({ code, title, publisher, url, checkedAt }) => ({ code, title, publisher, url, checkedAt })),
+        regression: { cases: regressionCases, failures: regressionFailures },
+        objectiveReason: `Memória determinística em centavos reproduzida para CEST ${product?.cest ?? "não localizado"} na rota ${run.route}, com responsabilidade ${run.result.responsibility === "origin_remitter" ? "do remetente" : "do destinatário na entrada"}.`,
+        blockers: [],
       });
     }),
     ...stSegments.map((item) => entry({
