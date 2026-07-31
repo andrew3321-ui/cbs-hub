@@ -19,6 +19,7 @@ import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
 import { withApiTelemetry } from "../../../api-infrastructure";
+import { hashOfficialSourceCertification, officialSourceAffectedRuleReport, officialSourceCertificationMetrics, officialSourceInventory, officialSourceLiveProbeSnapshot, OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT, OFFICIAL_SOURCE_CERTIFICATION_VERSION, validateOfficialSourceCertification } from "../../../../domain/official-source-certification";
 
 async function publicCoverage() {
   const fingerprint = (await hashNationalCoverage()).slice(0, 12);
@@ -41,6 +42,7 @@ async function publicCoverage() {
   const foodCleaningPetFingerprint = (await hashStFoodCleaningPetPriority()).slice(0, 12);
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
+  const sourceCertificationFingerprint = (await hashOfficialSourceCertification()).slice(0, 12);
   const regressionReport = await buildFiscalRegressionReport();
   const coverageIndicator = await buildPublicCoverageIndicator();
   return Response.json({
@@ -53,6 +55,17 @@ async function publicCoverage() {
     },
     regressionReport,
     coverageIndicator,
+    sourceCertification: {
+      version: OFFICIAL_SOURCE_CERTIFICATION_VERSION,
+      checkedAt: OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT,
+      fingerprint: sourceCertificationFingerprint,
+      validation: validateOfficialSourceCertification(),
+      metrics: officialSourceCertificationMetrics(),
+      liveProbe: officialSourceLiveProbeSnapshot,
+      affectedRules: officialSourceAffectedRuleReport(),
+      sources: officialSourceInventory,
+      policy: "Fonte confirmada exige identidade, emissor, dispositivo, vigência e consulta estruturados. Restrição técnica do portal permanece pendente; URL definitivamente ausente bloqueia a evidência e nunca é promovida a regra suportada.",
+    },
     metrics: coverageMetrics(),
     states: stateCoverage,
     icmsGeneral: {

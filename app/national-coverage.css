@@ -7,7 +7,7 @@
 .coverage-indicator-panel>header span{display:block;color:#236d64;font-size:9px;font-weight:900;letter-spacing:.12em}
 .coverage-indicator-panel>header h3{margin:5px 0 0;font-size:18px}
 .coverage-indicator-panel>header b{padding:7px 10px;border-radius:999px;background:#e8f5d8;color:#4f7520;font-size:10px;white-space:nowrap}
-.coverage-indicator-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.coverage-indicator-stats{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
 .coverage-indicator-stats article{display:grid;gap:4px;padding:13px;border:1px solid #dce7e3;border-radius:11px;background:#f8fbfa}
 .coverage-indicator-stats span,.coverage-indicator-stats small{color:#657a76;font-size:9px}
 .coverage-indicator-stats strong{font-size:18px}

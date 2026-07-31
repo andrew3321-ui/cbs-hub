@@ -54,7 +54,7 @@ const seeds: ExpansionSeed[] = [
   },
   {
     ibgeCode: "3549904", city: "São José dos Campos", uf: "SP", slug: "SP-SAO-JOSE-DOS-CAMPOS",
-    source: { code: "ISS-SJC-LEGIS", title: "Legislação municipal tributária e Lei Complementar nº 272/2003", publisher: "Prefeitura de São José dos Campos", url: "https://servicos.sjc.sp.gov.br/Legislacao/?Tipo=LC", kind: "municipal_law", legalReference: "Lei Complementar nº 272/2003 e alterações, ISSQN" },
+    source: { code: "ISS-SJC-LEGIS", title: "Lei Complementar nº 272/2003", publisher: "Prefeitura de São José dos Campos", url: "https://servicos.sjc.sp.gov.br/Legislacao/Arquivos/LeisComplementares/2003/LC_2003_00000272.pdf", kind: "municipal_law", legalReference: "Lei Complementar nº 272/2003 e alterações, ISSQN" },
     priorityServiceItems: ["1.07", "14.01", "17.01"], rankingBasis: "polo tecnológico e industrial de alto valor agregado",
   },
   {
