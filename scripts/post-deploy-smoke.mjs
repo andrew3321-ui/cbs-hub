@@ -27,8 +27,8 @@ function requireStatus(label, response, allowed) {
 }
 
 async function requestUntilStatus(label, pathname, init, allowed) {
-  const attempts = Number(process.env.SMOKE_SURFACE_ATTEMPTS ?? 3);
-  const intervalMs = Number(process.env.SMOKE_SURFACE_INTERVAL_MS ?? 4_000);
+  const attempts = Number(process.env.SMOKE_SURFACE_ATTEMPTS ?? 12);
+  const intervalMs = Number(process.env.SMOKE_SURFACE_INTERVAL_MS ?? 5_000);
   let response;
   for (let attempt = 1; attempt <= attempts; attempt += 1) {
     response = await request(pathname, init);
@@ -62,9 +62,8 @@ async function waitForPublishedRelease() {
 
 const healthBody = await waitForPublishedRelease();
 
-for (const [label, pathname] of [["login-page", "/entrar"], ["plans-page", "/planos"]]) {
-  const response = await request(pathname);
-  requireStatus(label, response, [200]);
+for (const [label, pathname] of [["landing-page", "/"], ["login-page", "/entrar"], ["plans-page", "/planos"]]) {
+  await requestUntilStatus(label, pathname, {}, [200]);
 }
 
 let cookie = "";

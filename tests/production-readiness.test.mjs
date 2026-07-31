@@ -40,6 +40,10 @@ test("quality gate and Workers Builds block publishing before checks and migrati
   assert.match(deploy, /d1", "migrations", "apply"/);
   assert.match(deploy, /"deploy", "--config", "dist\/server\/wrangler\.json"/);
   assert.match(deploy, /post-deploy-smoke\.mjs/);
+  assert.match(deploy, /currentVersionId/);
+  assert.match(deploy, /Automatic rollback after post-deploy smoke failure/);
+  assert.match(deploy, /ls-remote/);
+  assert.match(deploy, /Publicação obsoleta bloqueada/);
 });
 
 test("release metadata, structured alerts and smoke coverage are declared", () => {
@@ -57,6 +61,7 @@ test("release metadata, structured alerts and smoke coverage are declared", () =
   assert.match(smoke, /SMOKE_RELEASE_ATTEMPTS/);
   assert.match(smoke, /requestUntilStatus/);
   assert.match(smoke, /SMOKE_SURFACE_ATTEMPTS/);
+  assert.match(smoke, /landing-page/);
   for (const surface of ["/api/auth/login", "/api/deterministic-tax-lab", "/api/billing", "/relatorio/"]) {
     assert.match(smoke, new RegExp(surface.replaceAll("/", "\\/")));
   }
