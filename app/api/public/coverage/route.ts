@@ -21,6 +21,7 @@ import { hashStSectoralPriorityExpansion, stSectoralPriorityCases, stSectoralPri
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { hashSimplesNationalDeep, simplesActivityProfiles, simplesAnnexTables, simplesEligibilityGates, simplesExclusionRules, simplesNationalDeepMetrics, simplesNationalReferenceCases, simplesNationalSources, simplesSegregationRules, SIMPLES_NATIONAL_DEEP_CHECKED_AT, SIMPLES_NATIONAL_DEEP_VERSION, validateSimplesNationalDeep } from "../../../../domain/simples-national-deep";
 import { hashPisCofinsDeep, pisCofinsCreditHypotheses, pisCofinsDeepMetrics, pisCofinsDeepSources, pisCofinsProductProfiles, pisCofinsReferenceCases, PIS_COFINS_DEEP_CHECKED_AT, PIS_COFINS_DEEP_SUPPORTED_PERIOD, PIS_COFINS_DEEP_VERSION, PIS_COFINS_LC224_EFFECTIVE_FROM, validatePisCofinsDeep } from "../../../../domain/pis-cofins-deep";
+import { hashServiceWithholdingsDeep, serviceWithholdingProfiles, serviceWithholdingReferenceCases, serviceWithholdingRuleControls, serviceWithholdingSources, serviceWithholdingsDeepMetrics, SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT, SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD, SERVICE_WITHHOLDINGS_DEEP_VERSION, validateServiceWithholdingsDeep } from "../../../../domain/service-withholdings-deep";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
@@ -52,6 +53,7 @@ async function publicCoverage() {
   const sectoralPriorityFingerprint = (await hashStSectoralPriorityExpansion()).slice(0, 12);
   const simplesNationalFingerprint = (await hashSimplesNationalDeep()).slice(0, 12);
   const pisCofinsFingerprint = (await hashPisCofinsDeep()).slice(0, 12);
+  const serviceWithholdingsFingerprint = (await hashServiceWithholdingsDeep()).slice(0, 12);
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const sourceCertificationFingerprint = (await hashOfficialSourceCertification()).slice(0, 12);
@@ -295,6 +297,19 @@ async function publicCoverage() {
       referenceCases: pisCofinsReferenceCases,
       sources: pisCofinsDeepSources,
       policy: "NCM exato na tabela oficial, papel na cadeia, documento, receita segregada, vínculo, incidência da aquisição e vigência são gates. Créditos com método específico nunca herdam automaticamente 1,65% e 7,60%.",
+    },
+    serviceWithholdingsDeep: {
+      version: SERVICE_WITHHOLDINGS_DEEP_VERSION,
+      checkedAt: SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT,
+      supportedPeriod: SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD,
+      fingerprint: serviceWithholdingsFingerprint,
+      validation: validateServiceWithholdingsDeep(),
+      metrics: serviceWithholdingsDeepMetrics(),
+      profiles: serviceWithholdingProfiles,
+      ruleControls: serviceWithholdingRuleControls,
+      referenceCases: serviceWithholdingReferenceCases,
+      sources: serviceWithholdingSources,
+      policy: "IRRF, CSRF, INSS e ISS são resolvidos em livros independentes. O líquido somente existe quando contrato, partes, regime, fatos, bases, cessão ou empreitada, CPRB, município, lei, responsabilidade e simultaneidade estão integralmente confirmados.",
     },
     stPharmaCosmeticsPriority: {
       version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,

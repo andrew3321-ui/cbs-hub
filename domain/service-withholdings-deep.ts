@@ -1,5 +1,9 @@
-export const SERVICE_WITHHOLDINGS_DEEP_VERSION = "2026.07.31-v82";
-export const SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT = "2026-07-30";
+export const SERVICE_WITHHOLDINGS_DEEP_VERSION = "2026.07.31-v95";
+export const SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT = "2026-07-31";
+export const SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD = {
+  from: "2026-01-01",
+  to: "2026-12-31",
+} as const;
 
 export type WithholdingPayerType = "private_legal_entity" | "federal_public_body" | "state_or_municipal_public_body" | "individual";
 export type WithholdingRegime = "normal" | "simples" | "mei" | "immune_or_exempt" | "not_applicable";
@@ -78,6 +82,30 @@ export type WithholdingTrack = {
   blockers: string[];
   warnings: string[];
   sourceCodes: string[];
+  ruleVersion: string;
+  effectiveFrom: string;
+};
+
+export type ServiceWithholdingRuleControl = {
+  code: string;
+  tax: WithholdingTrack["tax"];
+  version: string;
+  effectiveFrom: string;
+  taxableEvent: string;
+  responsible: string;
+  dueRule: string;
+  dispensationRule: string;
+  sourceCodes: string[];
+};
+
+export type ServiceWithholdingReferenceCase = {
+  code: string;
+  kind: "combined_memory" | "waiver_boundary" | "safe_block";
+  profileCode: string;
+  input: ServiceWithholdingInput;
+  expectedStatus: ServiceWithholdingResult["status"];
+  expectedTrackAmounts: Record<WithholdingTrack["tax"], number | null>;
+  expectedNetPaymentCents: number | null;
 };
 
 export type ServiceWithholdingResult = {
@@ -131,6 +159,15 @@ export const serviceWithholdingSources: ServiceWithholdingSource[] = [
     checkedAt: SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT,
   },
   {
+    code: "RET-L-11196",
+    title: "Lei nº 11.196/2005 — prazos de retenções federais",
+    publisher: "Presidência da República",
+    url: "https://www.planalto.gov.br/ccivil_03/_ato2004-2006/2005/lei/l11196.htm",
+    legalReference: "arts. 70 e 74; recolhimento de IRRF e contribuições retidas",
+    effectiveFrom: "2006-01-01",
+    checkedAt: SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT,
+  },
+  {
     code: "RET-IN-SRF-459",
     title: "Instrução Normativa SRF nº 459/2004 — CSRF em serviços",
     publisher: "Receita Federal",
@@ -159,11 +196,20 @@ export const serviceWithholdingSources: ServiceWithholdingSource[] = [
   },
   {
     code: "RET-RFB-REINF",
-    title: "Perguntas frequentes da EFD-Reinf",
+    title: "EFD-Reinf — prazo oficial do evento R-2010",
     publisher: "Receita Federal",
-    url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/perguntas-frequentes/sped/efd-reinf/efdr",
-    legalReference: "R-2010/R-2020, R-4010/R-4020 e prazo geral até o dia 15 do mês seguinte",
+    url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/perguntas-frequentes/sped/efd-reinf/efdr/2-eventos-da-efd-reinf/2-3-4-qual-prazo-para",
+    legalReference: "R-2010 até o dia 15 do mês posterior à emissão da nota ou antes do R-2099; antecipação sem expediente bancário",
     effectiveFrom: "2026-04-13",
+    checkedAt: SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT,
+  },
+  {
+    code: "RET-L-12546",
+    title: "Lei nº 12.546/2011 — retenção previdenciária na CPRB",
+    publisher: "Presidência da República",
+    url: "https://www.planalto.gov.br/ccivil_03/_ato2011-2014/2011/lei/l12546compilado.htm",
+    legalReference: "arts. 7º, § 6º, e 8º, § 5º; retenção de 3,5% somente para atividade e cessão abrangidas",
+    effectiveFrom: "2014-06-20",
     checkedAt: SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT,
   },
   {
@@ -195,6 +241,53 @@ export const serviceWithholdingSources: ServiceWithholdingSource[] = [
   },
 ];
 
+export const serviceWithholdingRuleControls: ServiceWithholdingRuleControl[] = [
+  {
+    code: "RET-CONTROL-IRRF",
+    tax: "IRRF",
+    version: "IRRF-PJ-2018.11+PRAZO-2006.01",
+    effectiveFrom: "2018-11-23",
+    taxableEvent: "pagamento ou crédito, o que ocorrer primeiro",
+    responsible: "fonte pagadora identificada",
+    dueRule: "último dia útil do segundo decêndio do mês subsequente, salvo código com período próprio",
+    dispensationRule: "valor calculado igual ou inferior a R$ 10,00 por pagamento ou crédito, quando a hipótese legal permitir",
+    sourceCodes: ["RET-RIR-2018", "RET-RFB-MAFON", "RET-L-11196"],
+  },
+  {
+    code: "RET-CONTROL-CSRF",
+    tax: "CSRF",
+    version: "CSRF-PJ-2015.06",
+    effectiveFrom: "2015-06-22",
+    taxableEvent: "pagamento à pessoa jurídica beneficiária",
+    responsible: "pessoa jurídica pagadora",
+    dueRule: "último dia útil do segundo decêndio do mês subsequente ao pagamento",
+    dispensationRule: "retenção conjunta igual ou inferior a R$ 10,00; imunidades, isenções e retenções parciais permanecem segregadas",
+    sourceCodes: ["RET-L-10833", "RET-L-13137", "RET-IN-SRF-459"],
+  },
+  {
+    code: "RET-CONTROL-INSS",
+    tax: "INSS",
+    version: "INSS-CESSAO-2022.10+ALTERACOES-2025.10",
+    effectiveFrom: "2022-10-19",
+    taxableEvent: "emissão da nota fiscal, fatura ou recibo da cessão ou empreitada",
+    responsible: "empresa contratante, após classificar execução, atividade e exceções",
+    dueRule: "recolhimento até o dia 20 do mês subsequente; R-2010 até o dia 15 ou antes do R-2099, com antecipações legais",
+    dispensationRule: "11% como regra estruturada; 3,5% somente com atividade CPRB, cessão e opção anual comprovadas",
+    sourceCodes: ["RET-L-8212", "RET-IN-RFB-2110", "RET-L-12546", "RET-RFB-REINF"],
+  },
+  {
+    code: "RET-CONTROL-ISS",
+    tax: "ISS",
+    version: "ISS-LC116+LEI-MUNICIPAL-OBRIGATORIA",
+    effectiveFrom: "2003-08-01",
+    taxableEvent: "prestação do serviço no local definido pela LC 116 e pela regra municipal aplicável",
+    responsible: "prestador ou terceiro expressamente atribuído por lei municipal",
+    dueRule: "data municipal obrigatória; nenhum vencimento nacional é inferido",
+    dispensationRule: "retenção, benefício e regime especial somente após lei municipal, item, vigência e responsável confirmados",
+    sourceCodes: ["RET-LC-116", "RET-LC-123"],
+  },
+];
+
 function profile(
   rank: number,
   code: string,
@@ -205,9 +298,9 @@ function profile(
   inssCandidate: ServiceWithholdingProfile["inssCandidate"],
 ): ServiceWithholdingProfile {
   const sourceCodes = ["RET-LC-116"];
-  if (irrfCandidateRateBps !== null) sourceCodes.push("RET-RIR-2018", "RET-RFB-MAFON");
+  if (irrfCandidateRateBps !== null) sourceCodes.push("RET-RIR-2018", "RET-RFB-MAFON", "RET-L-11196");
   if (csrfCandidate) sourceCodes.push("RET-L-10833", "RET-L-13137", "RET-IN-SRF-459");
-  if (inssCandidate !== "none") sourceCodes.push("RET-L-8212", "RET-IN-RFB-2110");
+  if (inssCandidate !== "none") sourceCodes.push("RET-L-8212", "RET-IN-RFB-2110", "RET-L-12546", "RET-RFB-REINF");
   return {
     rank,
     code,
@@ -238,6 +331,31 @@ export const serviceWithholdingProfiles: ServiceWithholdingProfile[] = [
   profile(13, "CIVIL_CONSTRUCTION", "Execução de obra de construção civil", ["7.02", "7.05"], null, false, "labor_assignment_or_contract"),
   profile(14, "INSTALLATION_ASSEMBLY", "Instalação e montagem executadas no tomador", ["7.02", "14.06"], null, false, "labor_assignment_only"),
   profile(15, "TECHNICAL_MAINTENANCE", "Manutenção técnica de máquinas e equipamentos", ["14.01"], null, true, "labor_assignment_only"),
+  profile(16, "AUDIT", "Auditoria contábil, financeira e operacional", ["17.19"], 150, true, "none"),
+  profile(17, "TAX_ADVISORY", "Consultoria e assessoria tributária", ["17.20"], 150, true, "none"),
+  profile(18, "ARCHITECTURE_DESIGN", "Arquitetura, urbanismo e projetos técnicos", ["7.01"], 150, true, "none"),
+  profile(19, "AGRONOMY", "Agronomia, levantamentos e assistência técnica", ["7.01"], 150, true, "none"),
+  profile(20, "SOFTWARE_DEVELOPMENT", "Programação e desenvolvimento de software", ["1.04"], 150, true, "none"),
+  profile(21, "SOFTWARE_SUPPORT", "Suporte técnico e manutenção de programas", ["1.07"], 150, true, "none"),
+  profile(22, "DATA_PROCESSING", "Processamento, armazenamento e tratamento de dados", ["1.03"], 150, true, "none"),
+  profile(23, "MARKET_RESEARCH", "Pesquisa, coleta e análise de mercado", ["17.01"], 150, true, "none"),
+  profile(24, "COLLECTION", "Cobrança e administração de contas a receber", ["17.22"], 150, true, "none"),
+  profile(25, "ASSET_ADMINISTRATION", "Administração de bens, negócios e interesses", ["17.12"], 150, true, "none"),
+  profile(26, "MEDICAL", "Medicina e consultas em saúde", ["4.01"], 150, true, "none"),
+  profile(27, "DENTAL", "Odontologia e serviços correlatos", ["4.12"], 150, true, "none"),
+  profile(28, "HEALTH_LABORATORY", "Análises clínicas e serviços laboratoriais", ["4.02"], 150, true, "none"),
+  profile(29, "HOSPITAL", "Serviços hospitalares, clínicas e pronto atendimento", ["4.03"], 150, true, "none"),
+  profile(30, "RECRUITMENT", "Recrutamento, seleção e colocação de mão de obra", ["17.04"], 150, true, "none"),
+  profile(31, "INDUSTRIAL_CLEANING", "Limpeza técnica e industrial recorrente", ["7.10"], 100, true, "labor_assignment_or_contract"),
+  profile(32, "CONSERVATION", "Conservação e zeladoria de instalações", ["7.10"], 100, true, "labor_assignment_or_contract"),
+  profile(33, "GARDENING", "Jardinagem e conservação de áreas verdes", ["7.11"], 100, true, "labor_assignment_only"),
+  profile(34, "PEST_CONTROL", "Dedetização, desinfecção e controle de pragas", ["7.13"], 100, true, "labor_assignment_only"),
+  profile(35, "SURVEILLANCE", "Vigilância patrimonial e monitoramento presencial", ["11.02"], 100, true, "labor_assignment_or_contract"),
+  profile(36, "ESCORT", "Escolta e proteção de pessoas, bens e cargas", ["11.02"], 100, true, "labor_assignment_only"),
+  profile(37, "TEMPORARY_LABOR", "Trabalho temporário e colocação à disposição", ["17.05"], 100, true, "labor_assignment_or_contract"),
+  profile(38, "CIVIL_CONSTRUCTION_TOTAL", "Construção civil por empreitada total", ["7.02", "7.05"], null, false, "labor_assignment_or_contract"),
+  profile(39, "ELECTRICAL_INSTALLATION", "Instalações elétricas executadas no tomador", ["7.02", "14.06"], null, false, "labor_assignment_only"),
+  profile(40, "ELEVATOR_MAINTENANCE", "Manutenção recorrente de elevadores e equipamentos", ["14.01"], null, true, "labor_assignment_only"),
 ];
 
 function safeCents(value: number | null, field: string) {
@@ -260,8 +378,17 @@ function validIsoDate(value: string) {
   return /^\d{4}-\d{2}-\d{2}$/.test(value) && !Number.isNaN(Date.parse(`${value}T00:00:00Z`));
 }
 
-function track(input: Omit<WithholdingTrack, "warnings" | "blockers"> & { blockers?: string[]; warnings?: string[] }): WithholdingTrack {
-  return { ...input, blockers: input.blockers ?? [], warnings: input.warnings ?? [] };
+function track(input: Omit<WithholdingTrack, "warnings" | "blockers" | "ruleVersion" | "effectiveFrom"> & { blockers?: string[]; warnings?: string[] }): WithholdingTrack {
+  const control = serviceWithholdingRuleControls.find((item) => item.tax === input.tax);
+  if (!control) throw new Error(`missing_${input.tax.toLowerCase()}_rule_control`);
+  return {
+    ...input,
+    blockers: input.blockers ?? [],
+    warnings: input.warnings ?? [],
+    sourceCodes: [...new Set([...input.sourceCodes, ...control.sourceCodes])],
+    ruleVersion: control.version,
+    effectiveFrom: control.effectiveFrom,
+  };
 }
 
 function commonBlockers(input: ServiceWithholdingInput) {
@@ -319,9 +446,15 @@ function csrfTrack(input: ServiceWithholdingInput, profile: ServiceWithholdingPr
 function inssTrack(input: ServiceWithholdingInput, profile: ServiceWithholdingProfile): WithholdingTrack {
   const sourceCodes = ["RET-L-8212", "RET-IN-RFB-2110", "RET-RFB-REINF"];
   if (input.inssExecutionMode === "none" && profile.inssCandidate === "none") return track({ tax: "INSS", status: "not_applicable", rateBps: 0, baseCents: input.inssBaseCents, amountCents: 0, taxableEvent: "emissão da nota, fatura ou recibo", responsible: "empresa contratante", dueRule: "sem hipótese previdenciária neste perfil informado", sourceCodes });
-  if (input.inssExecutionMode === "total_contract") return track({ tax: "INSS", status: "not_applicable", rateBps: 0, baseCents: input.inssBaseCents, amountCents: 0, taxableEvent: "emissão da nota, fatura ou recibo", responsible: "empresa contratante", dueRule: "empreitada total segue solidariedade e exceções próprias", sourceCodes, warnings: ["não reutilizar esta dispensa para cessão de mão de obra ou empreitada parcial"] });
+  if (input.inssExecutionMode === "total_contract") {
+    const blockers = [...commonBlockers(input)];
+    if (!input.inssExecutionConfirmed) blockers.push("empreitada total e responsabilidade solidária não confirmadas");
+    blockers.push("empreitada total exige decisão documentada sobre retenção facultativa para elisão da solidariedade e exceções do art. 135 da IN RFB 2.110/2022");
+    return track({ tax: "INSS", status: "blocked", rateBps: null, baseCents: input.inssBaseCents, amountCents: null, taxableEvent: "emissão da nota, fatura ou recibo", responsible: "contratante ou responsável solidário após classificação da obra", dueRule: "prazo depende da retenção documentada e da escrituração da obra", sourceCodes, blockers });
+  }
   const blockers = [...commonBlockers(input)];
   if (profile.inssCandidate === "none") blockers.push("perfil não demonstra cessão de mão de obra ou empreitada sujeita à retenção");
+  if (profile.inssCandidate === "labor_assignment_only" && input.inssExecutionMode !== "labor_assignment") blockers.push("perfil exige cessão ou colocação de mão de obra; empreitada parcial não pode ser presumida");
   if (!input.inssExecutionConfirmed || input.inssExecutionMode === "none") blockers.push("modo de execução previdenciário não confirmado");
   if (!input.inssRateStatusConfirmed || input.inssRateStatus === "not_applicable") blockers.push("indicador de CPRB e alíquota previdenciária não confirmados");
   if ((input.beneficiaryRegime === "simples" || input.beneficiaryRegime === "mei") && !input.simplesAnnexIVConfirmed) blockers.push("prestador do Simples exige confirmação do Anexo IV e da hipótese previdenciária");
@@ -369,6 +502,23 @@ export function calculateServiceWithholdings(input: ServiceWithholdingInput): Se
       blockers: ["serviço fora dos perfis recorrentes estruturados"],
       warnings: [],
       sourceCodes: [],
+      version: SERVICE_WITHHOLDINGS_DEEP_VERSION,
+      checkedAt: SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT,
+    };
+  }
+  if (
+    input.calculationDate < SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD.from
+    || input.calculationDate > SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD.to
+  ) {
+    return {
+      status: "blocked",
+      profile,
+      tracks: [],
+      totalWithheldCents: null,
+      netPaymentCents: null,
+      blockers: [`data fora da vigência suportada (${SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD.from} a ${SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD.to})`],
+      warnings: ["A regra deve ser versionada novamente antes de calcular outro período."],
+      sourceCodes: profile.sourceCodes,
       version: SERVICE_WITHHOLDINGS_DEEP_VERSION,
       checkedAt: SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT,
     };
@@ -433,22 +583,124 @@ const baseInput: ServiceWithholdingInput = {
   simultaneousDeductionsConfirmed: true,
 };
 
+function referenceInput(profile: ServiceWithholdingProfile, grossPaymentCents: number): ServiceWithholdingInput {
+  const totalContract = profile.code === "CIVIL_CONSTRUCTION_TOTAL";
+  const previdenciaryCandidate = profile.inssCandidate !== "none";
+  return {
+    ...baseInput,
+    serviceCode: profile.code,
+    grossPaymentCents,
+    irrfBaseCents: grossPaymentCents,
+    csrfBaseCents: grossPaymentCents,
+    inssBaseCents: grossPaymentCents,
+    issBaseCents: grossPaymentCents,
+    municipalServiceItem: profile.lc116Items[0] ?? null,
+    issWithholdingStatus: "applies",
+    issRateBps: 300,
+    inssExecutionMode: totalContract ? "total_contract" : previdenciaryCandidate ? "labor_assignment" : "none",
+    inssRateStatus: previdenciaryCandidate && !totalContract ? "standard_11" : "not_applicable",
+    simplesAnnexIVConfirmed: true,
+  };
+}
+
+function expectedAmounts(profile: ServiceWithholdingProfile, cents: number, kind: ServiceWithholdingReferenceCase["kind"]) {
+  if (kind === "safe_block") {
+    return {
+      IRRF: profile.irrfCandidateRateBps === null ? 0 : null,
+      CSRF: profile.csrfCandidate ? null : 0,
+      INSS: profile.inssCandidate === "none" ? 0 : null,
+      ISS: null,
+    } satisfies ServiceWithholdingReferenceCase["expectedTrackAmounts"];
+  }
+  const waiver = kind === "waiver_boundary";
+  const irrfCalculated = profile.irrfCandidateRateBps === null ? 0 : multiplyCents(cents, profile.irrfCandidateRateBps);
+  const csrfCalculated = profile.csrfCandidate ? multiplyCents(cents, 465) : 0;
+  return {
+    IRRF: waiver && irrfCalculated <= 1_000 ? 0 : irrfCalculated,
+    CSRF: waiver && csrfCalculated <= 1_000 ? 0 : csrfCalculated,
+    INSS: profile.code === "CIVIL_CONSTRUCTION_TOTAL" ? null : profile.inssCandidate === "none" ? 0 : multiplyCents(cents, 1100),
+    ISS: multiplyCents(cents, 300),
+  } satisfies ServiceWithholdingReferenceCase["expectedTrackAmounts"];
+}
+
+export const serviceWithholdingReferenceCases: ServiceWithholdingReferenceCase[] = serviceWithholdingProfiles.flatMap((profile) => {
+  const combinedInput = referenceInput(profile, 10_000_000);
+  const waiverInput = referenceInput(profile, 20_000);
+  const totalContract = profile.code === "CIVIL_CONSTRUCTION_TOTAL";
+  const combinedAmounts = expectedAmounts(profile, 10_000_000, "combined_memory");
+  const waiverAmounts = expectedAmounts(profile, 20_000, "waiver_boundary");
+  const combinedTotal = Object.values(combinedAmounts).every((amount) => amount !== null)
+    ? Object.values(combinedAmounts).reduce<number>((sum, amount) => sum + (amount ?? 0), 0)
+    : null;
+  const waiverTotal = Object.values(waiverAmounts).every((amount) => amount !== null)
+    ? Object.values(waiverAmounts).reduce<number>((sum, amount) => sum + (amount ?? 0), 0)
+    : null;
+  return [
+    {
+      code: `${profile.code}-COMBINED`,
+      kind: "combined_memory" as const,
+      profileCode: profile.code,
+      input: combinedInput,
+      expectedStatus: totalContract ? "partially_calculated" as const : "calculated_reference" as const,
+      expectedTrackAmounts: combinedAmounts,
+      expectedNetPaymentCents: combinedTotal === null ? null : combinedInput.grossPaymentCents! - combinedTotal,
+    },
+    {
+      code: `${profile.code}-WAIVER`,
+      kind: "waiver_boundary" as const,
+      profileCode: profile.code,
+      input: waiverInput,
+      expectedStatus: totalContract ? "partially_calculated" as const : "calculated_reference" as const,
+      expectedTrackAmounts: waiverAmounts,
+      expectedNetPaymentCents: waiverTotal === null ? null : waiverInput.grossPaymentCents! - waiverTotal,
+    },
+    {
+      code: `${profile.code}-BLOCKED`,
+      kind: "safe_block" as const,
+      profileCode: profile.code,
+      input: { ...combinedInput, serviceNatureConfirmed: false, contractAndDocumentConfirmed: false, simultaneousDeductionsConfirmed: false },
+      expectedStatus: "blocked" as const,
+      expectedTrackAmounts: expectedAmounts(profile, 10_000_000, "safe_block"),
+      expectedNetPaymentCents: null,
+    },
+  ];
+});
+
 export function serviceWithholdingsDeepMetrics() {
+  const calculatedMemories = serviceWithholdingReferenceCases.filter((referenceCase) => {
+    if (referenceCase.kind !== "combined_memory") return false;
+    const result = calculateServiceWithholdings(referenceCase.input);
+    return result.netPaymentCents !== null && result.tracks.filter((item) => item.status === "calculated_reference").length >= 2;
+  }).length;
   return {
     prioritizedServices: serviceWithholdingProfiles.length,
+    contractualProfiles: serviceWithholdingProfiles.length,
     separateLedgers: 4,
-    deterministicCases: serviceWithholdingProfiles.length + 12,
-    calculatedMemories: 6,
-    safelyBlockedCases: serviceWithholdingProfiles.length + 6,
+    versionedRuleControls: serviceWithholdingRuleControls.length,
+    deterministicCases: serviceWithholdingReferenceCases.length,
+    calculatedMemories,
+    safelyBlockedCases: serviceWithholdingReferenceCases.filter((item) => item.expectedStatus === "blocked").length,
   };
 }
 
 export function validateServiceWithholdingsDeep() {
   const errors: string[] = [];
-  if (serviceWithholdingProfiles.length !== 15) errors.push("fifteen_priority_services_required");
+  if (serviceWithholdingProfiles.length !== 40) errors.push("forty_contractual_profiles_required");
   if (new Set(serviceWithholdingProfiles.map((item) => item.code)).size !== serviceWithholdingProfiles.length) errors.push("duplicate_service_profile");
   if (!serviceWithholdingProfiles.every((item, index) => item.rank === index + 1 && item.sourceCodes.length > 0 && item.version === SERVICE_WITHHOLDINGS_DEEP_VERSION)) errors.push("rank_or_evidence_incomplete");
   if (!serviceWithholdingSources.every((item) => item.url.startsWith("https://") && item.checkedAt === SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT)) errors.push("official_source_metadata_invalid");
+  const sourceCodes = new Set(serviceWithholdingSources.map((item) => item.code));
+  if (serviceWithholdingRuleControls.length !== 4 || new Set(serviceWithholdingRuleControls.map((item) => item.tax)).size !== 4) errors.push("four_versioned_ledger_controls_required");
+  if (!serviceWithholdingRuleControls.every((item) => item.version && item.effectiveFrom && item.taxableEvent && item.responsible && item.dueRule && item.dispensationRule && item.sourceCodes.every((code) => sourceCodes.has(code)))) errors.push("versioned_rule_control_incomplete");
+  if (serviceWithholdingReferenceCases.length !== 120 || new Set(serviceWithholdingReferenceCases.map((item) => item.code)).size !== 120) errors.push("one_hundred_twenty_reference_cases_required");
+  if (!serviceWithholdingProfiles.every((profile) => serviceWithholdingReferenceCases.filter((item) => item.profileCode === profile.code).length === 3)) errors.push("three_cases_per_profile_required");
+  for (const referenceCase of serviceWithholdingReferenceCases) {
+    const result = calculateServiceWithholdings(referenceCase.input);
+    const actualAmounts = Object.fromEntries(result.tracks.map((item) => [item.tax, item.amountCents]));
+    if (result.status !== referenceCase.expectedStatus || result.netPaymentCents !== referenceCase.expectedNetPaymentCents || JSON.stringify(actualAmounts) !== JSON.stringify(referenceCase.expectedTrackAmounts)) errors.push(`reference_case_failed:${referenceCase.code}`);
+    if (!result.tracks.every((item) => item.ruleVersion && item.effectiveFrom && item.dueRule && item.responsible)) errors.push(`ledger_metadata_failed:${referenceCase.code}`);
+  }
+  if (serviceWithholdingsDeepMetrics().calculatedMemories < 30) errors.push("thirty_combined_memories_required");
 
   const professional = calculateServiceWithholdings(baseInput);
   if (professional.status !== "calculated_reference" || professional.tracks.find((item) => item.tax === "IRRF")?.amountCents !== 150_000 || professional.tracks.find((item) => item.tax === "CSRF")?.amountCents !== 465_000) errors.push("professional_service_memory_failed");
@@ -480,6 +732,11 @@ export function validateServiceWithholdingsDeep() {
   const missing = calculateServiceWithholdings({ ...baseInput, serviceNatureConfirmed: false, municipalLawConfirmed: false, simultaneousDeductionsConfirmed: false });
   if (missing.status !== "blocked" || missing.netPaymentCents !== null || missing.blockers.length === 0) errors.push("missing_facts_fail_close_failed");
 
+  const beforeSupportedPeriod = calculateServiceWithholdings({ ...baseInput, calculationDate: "2025-12-31" });
+  const afterSupportedPeriod = calculateServiceWithholdings({ ...baseInput, calculationDate: "2027-01-01" });
+  if (beforeSupportedPeriod.status !== "blocked" || beforeSupportedPeriod.tracks.length !== 0 || beforeSupportedPeriod.netPaymentCents !== null) errors.push("supported_period_lower_gate_failed");
+  if (afterSupportedPeriod.status !== "blocked" || afterSupportedPeriod.tracks.length !== 0 || afterSupportedPeriod.netPaymentCents !== null) errors.push("supported_period_upper_gate_failed");
+
   return { passed: errors.length === 0, errors };
 }
 
@@ -487,8 +744,11 @@ export async function hashServiceWithholdingsDeep() {
   const payload = JSON.stringify({
     version: SERVICE_WITHHOLDINGS_DEEP_VERSION,
     checkedAt: SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT,
+    supportedPeriod: SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD,
     sources: serviceWithholdingSources,
+    controls: serviceWithholdingRuleControls,
     profiles: serviceWithholdingProfiles,
+    cases: serviceWithholdingReferenceCases,
     metrics: serviceWithholdingsDeepMetrics(),
   });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));

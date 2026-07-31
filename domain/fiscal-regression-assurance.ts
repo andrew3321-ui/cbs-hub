@@ -201,7 +201,7 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   {
     code: "SERVICE_WITHHOLDINGS_DEEP",
     label: "Retenções — IRRF, CSRF, INSS e ISS em serviços recorrentes",
-    ruleCodes: ["RET-IRRF-CSRF", "RET-INSS-SERVICES", "RET-ISS-MUNICIPAL", "SERVICE-WITHHOLDINGS-DEEP-V82"],
+    ruleCodes: ["RET-IRRF-CSRF", "RET-INSS-SERVICES", "RET-ISS-MUNICIPAL", "SERVICE-WITHHOLDINGS-DEEP-V95"],
     version: SERVICE_WITHHOLDINGS_DEEP_VERSION,
     validate: validateServiceWithholdingsDeep,
     hash: hashServiceWithholdingsDeep,

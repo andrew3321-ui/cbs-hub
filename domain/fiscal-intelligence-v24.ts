@@ -286,7 +286,7 @@ function evaluateWithholdings(facts: FiscalIntelligenceFacts): EvaluationParts {
   } else decisionTrace.push(trace("IRRF-SERVICES-1-1-5", "blocked", "Partes, regime ou tratamento impedem apresentar referência privada."));
 
   if (["labor_assignment", "construction", "cleaning_maintenance"].includes(facts.serviceNature)) {
-    findings.push(finding("INSS-RETENTION-TRIAGE", "Retenção previdenciária", "11% ou 3,5% · trilha separada", "Modo de execução, lista dos serviços, CPRB, base, deduções, contrato e regime do prestador definem a memória; empreitada total não herda a conclusão da empreitada parcial.", ["RET-L-8212", "RET-IN-RFB-2110"], "additional_obligation"));
+    findings.push(finding("INSS-RETENTION-TRIAGE", "Retenção previdenciária", "11% ou 3,5% · trilha separada", "Modo de execução, lista dos serviços, opção anual pela CPRB, base, deduções, contrato e regime do prestador definem a memória; empreitada total não herda a conclusão da empreitada parcial.", ["RET-L-8212", "RET-IN-RFB-2110", "RET-L-12546"], "additional_obligation"));
   }
   findings.push(finding("ISS-RETENTION-TRIAGE", "ISS retido", "Lei municipal obrigatória", "Item da LC 116, município competente, responsável, base, alíquota entre 2% e 5% e vencimento municipal permanecem separados das retenções federais.", ["RET-LC-116", "RET-LC-123"], "additional_obligation"));
   findings.push(finding("REINF-EVIDENCE", "Escrituração das retenções", "EFD-Reinf até dia 15", "R-2010/R-2020 registram serviços com retenção previdenciária; R-4010/R-4020 registram rendimentos e retenções. A DCTFWeb não corrige fato informado incorretamente.", ["RET-RFB-REINF"], "additional_obligation"));
@@ -301,7 +301,7 @@ function evaluateWithholdings(facts: FiscalIntelligenceFacts): EvaluationParts {
     ],
     decisionTrace,
     headline: facts.payerType === "public_entity" ? "Retenções: pagador público exige tabela própria" : findings.some((item) => item.code === "CSRF-POTENTIAL-4-65") ? "Retenções: IRRF, CSRF, INSS e ISS separados" : "Retenções: classificação ainda necessária",
-    summary: "A V82 estrutura 15 serviços recorrentes e impede que alíquota, dispensa, base, responsável ou prazo de um tributo sejam emprestados a outro. Nenhum líquido é concluído pela busca textual.",
+    summary: "A V95 estrutura 40 perfis contratuais, 120 casos e 39 memórias combinadas e impede que alíquota, dispensa, base, responsável ou prazo de um tributo sejam emprestados a outro. Nenhum líquido é concluído pela busca textual.",
   };
 }
 
