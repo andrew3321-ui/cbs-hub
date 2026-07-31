@@ -96,6 +96,13 @@ import {
   pisCofinsDeepSources,
   validatePisCofinsDeep,
 } from "./pis-cofins-deep.ts";
+import {
+  SERVICE_WITHHOLDINGS_DEEP_VERSION,
+  hashServiceWithholdingsDeep,
+  serviceWithholdingSources,
+  serviceWithholdingsDeepMetrics,
+  validateServiceWithholdingsDeep,
+} from "./service-withholdings-deep.ts";
 
 export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v2";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-30";
@@ -135,6 +142,18 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 ];
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
+  {
+    code: "SERVICE_WITHHOLDINGS_DEEP",
+    label: "Retenções — IRRF, CSRF, INSS e ISS em serviços recorrentes",
+    ruleCodes: ["RET-IRRF-CSRF", "RET-INSS-SERVICES", "RET-ISS-MUNICIPAL", "SERVICE-WITHHOLDINGS-DEEP-V82"],
+    version: SERVICE_WITHHOLDINGS_DEEP_VERSION,
+    validate: validateServiceWithholdingsDeep,
+    hash: hashServiceWithholdingsDeep,
+    testKinds: ALL_TEST_KINDS,
+    metrics: serviceWithholdingsDeepMetrics,
+    sourceCodes: () => serviceWithholdingSources.map((source) => source.code).sort(),
+    requiredGates: ["serviço efetivo", "pagador e beneficiário", "regime documentado", "base e fato gerador por tributo", "cessão, empreitada e CPRB", "município, item e lei do ISS", "dispensas e limites", "simultaneidade antes do líquido"],
+  },
   {
     code: "PIS_COFINS_DEEP",
     label: "PIS/Cofins — monofásico, alíquota zero e créditos por segmento",

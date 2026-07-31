@@ -609,7 +609,7 @@ export const fiscalSimulationCases: FiscalSimulationCase[] = [
     scenario: "Pagamento bruto de R$ 100 mil com IRRF, CSRF, INSS e ISS parametrizado a 3%.",
     operationPeriod: "07/2026",
     kind: "calculated_reference",
-    input: { module: "federal_withholdings", grossPaymentCents: 10_000_000, irrfApplies: true, csrfApplies: true, inssApplies: true, issWithheld: true, issRateBps: 300, serviceNatureConfirmed: true, payerResponsible: true, beneficiaryRegimeChecked: true, municipalResponsibilityChecked: true },
+    input: { module: "federal_withholdings", grossPaymentCents: 10_000_000, irrfApplies: true, irrfRateBps: 150, csrfApplies: true, inssApplies: true, inssRateBps: 1100, issWithheld: true, issRateBps: 300, serviceNatureConfirmed: true, payerResponsible: true, beneficiaryRegimeChecked: true, municipalResponsibilityChecked: true, basesReconciled: true, paymentEventsConfirmed: true, simultaneousDeductionsConfirmed: true },
     expected: { status: "calculated_reference", lines: [{ code: "irrf", amountCents: 150_000, rateBps: 150 }, { code: "csrf", amountCents: 465_000, rateBps: 465 }, { code: "inss", amountCents: 1_100_000, rateBps: 1100 }, { code: "iss", amountCents: 300_000, rateBps: 300 }, { code: "net_payment", amountCents: 7_985_000 }], blockerCount: 0 },
     expectedProfessionalConclusion: "Cada retencao deve manter base, aliquota, responsavel e impacto liquido separados.",
   },

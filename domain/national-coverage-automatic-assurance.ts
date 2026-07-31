@@ -40,8 +40,13 @@ import {
   pisCofinsDeepMetrics,
   validatePisCofinsDeep,
 } from "./pis-cofins-deep.ts";
+import {
+  hashServiceWithholdingsDeep,
+  serviceWithholdingsDeepMetrics,
+  validateServiceWithholdingsDeep,
+} from "./service-withholdings-deep.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v81";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v82";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-30";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -70,6 +75,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("ISS_DEEP_EXPANSION", "ISS profundo estruturado em 50 municípios", validateIssDeepExpansion()),
     moduleResult("SIMPLES_NATIONAL_DEEP", "Simples Nacional em 20 atividades e cinco anexos", validateSimplesNationalDeep()),
     moduleResult("PIS_COFINS_DEEP", "PIS/Cofins por regime, produto, papel e crédito", validatePisCofinsDeep()),
+    moduleResult("SERVICE_WITHHOLDINGS_DEEP", "IRRF, CSRF, INSS e ISS em serviços recorrentes", validateServiceWithholdingsDeep()),
   ];
   const calculation = stSpCalculationValidationMetrics();
   const constructionElectrical = stConstructionElectricalMetrics();
@@ -77,6 +83,7 @@ export function validateNationalCoverageAutomatically() {
   const icmsGeneral = icmsGeneralNationalMetrics();
   const simples = simplesNationalDeepMetrics();
   const pisCofins = pisCofinsDeepMetrics();
+  const withholdings = serviceWithholdingsDeepMetrics();
   const errors = modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`));
   if (calculation.failed !== 0) errors.push(`ST_CALCULATION_RUNS:${calculation.failed}_engine_failures`);
   const passed = modules.every((module) => module.passed) && errors.length === 0;
@@ -93,9 +100,9 @@ export function validateNationalCoverageAutomatically() {
       modulesPassed: modules.filter((module) => module.passed).length,
       totalRuns: calculation.totalRuns
         + constructionElectrical.reproducedMemories + constructionElectrical.safeFailureScenarios
-        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.referenceRuns + 26 + simples.deterministicCases + pisCofins.deterministicCases,
-      referenceReproduced: calculation.referenceReproduced + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.referenceRuns - 1 + simples.calculatedMemories + pisCofins.calculatedMemories,
-      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + 26 + simples.safelyBlockedCases + pisCofins.safelyBlockedCases,
+        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.referenceRuns + 26 + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases,
+      referenceReproduced: calculation.referenceReproduced + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.referenceRuns - 1 + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories,
+      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + 26 + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases,
       failed: calculation.failed,
     },
     modules,
@@ -124,6 +131,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashIssDeepExpansion(),
     hashSimplesNationalDeep(),
     hashPisCofinsDeep(),
+    hashServiceWithholdingsDeep(),
   ]);
   const payload = JSON.stringify({ version: NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, moduleHashes });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));

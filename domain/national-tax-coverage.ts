@@ -18,8 +18,13 @@ import {
   pisCofinsDeepSources,
   pisCofinsProductProfiles,
 } from "./pis-cofins-deep.ts";
+import {
+  SERVICE_WITHHOLDINGS_DEEP_VERSION,
+  serviceWithholdingProfiles,
+  serviceWithholdingSources,
+} from "./service-withholdings-deep.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v81";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v82";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-30";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
@@ -59,6 +64,7 @@ export const coverageSources: CoverageSource[] = [
   ...issDeepSources,
   ...simplesNationalSources,
   ...pisCofinsDeepSources,
+  ...serviceWithholdingSources,
 ];
 
 const state = (uf: UfCode, name: string, region: StateCoverage["region"], officialPortal: string): StateCoverage => {
@@ -162,7 +168,7 @@ export const recurringScenarios: ScenarioCoverage[] = [
   { code: "PIS-COFINS-SPECIAL", tax: "PIS/Cofins", title: "Monofásico, alíquota zero e suspensão", status: "partial", supported: [`${pisCofinsProductProfiles.length} perfis prioritários por NCM como candidatos`, "papel de fabricante/importador separado da revenda", "vigência de 2026 e LC 224/2025 tratadas explicitamente"], blockers: ["NCM exato nas tabelas oficiais, papel, documento, operação, vigência e alíquota pós-2026 são obrigatórios"] },
   { code: "IRPJ-CSLL-PRESUMED", tax: "IRPJ/CSLL", title: "Lucro Presumido por atividade", status: "partial", supported: ["bases de IRPJ e CSLL, adicional e acrescimos de 2026 em memoria"], blockers: ["atividade, receita, ganhos, regime e tratamentos especiais precisam ser segregados"] },
   { code: "IRPJ-CSLL-REAL", tax: "IRPJ/CSLL", title: "Lucro Real com adicoes/exclusoes", status: "partial", supported: ["base antes da compensacao, limite de 30%, IRPJ, adicional e CSLL"], blockers: ["LALUR/LACS, contabilidade, adicoes, exclusoes e compensacoes precisam estar conciliados"] },
-  { code: "RET-IRRF-CSRF", tax: "Retencoes", title: "IRRF, CSRF, INSS e ISS em servicos", status: "partial", supported: ["retencoes separadas por hipotese e responsavel", "pagamento liquido de referencia sem presumir dispensas"], blockers: ["servico, beneficiario, responsabilidade do tomador, dispensas e competencia municipal precisam ser confirmados"] },
+  { code: "RET-IRRF-CSRF", tax: "Retenções", title: "IRRF, CSRF, INSS e ISS em serviços recorrentes", status: "partial", supported: [`${serviceWithholdingProfiles.length} perfis priorizados em ${SERVICE_WITHHOLDINGS_DEEP_VERSION}`, "quatro livros independentes por fato gerador, responsável, base, limite e prazo", "IRRF de 1%/1,5%, CSRF de 4,65%, INSS de 11%/3,5% e ISS municipal somente após seus próprios gates", "memórias em centavos e líquido bloqueado sem simultaneidade comprovada"], blockers: ["órgão público exige tabela própria", "INSS exige modo de execução, CPRB e deduções", "ISS exige município, item, lei, alíquota, responsabilidade e vencimento", "dispensas de um tributo nunca são reutilizadas em outro"] },
   { code: "IPI-TIPI", tax: "IPI", title: "IPI/TIPI por NCM e operacao", status: "partial", supported: ["base, aliquota TIPI parametrizada e IPI de referencia"], blockers: ["NCM, aliquota vigente, industrializacao/importacao e beneficios precisam ser confirmados"] },
 ];
 

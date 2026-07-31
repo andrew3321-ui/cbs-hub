@@ -14,11 +14,12 @@ test("versioned regression report exposes module, rule, evidence and maturity wi
   const report = await buildFiscalRegressionReport();
   assert.equal(report.reportVersion, FISCAL_REGRESSION_REPORT_VERSION);
   assert.equal(report.status, "automatically_verified", JSON.stringify(report.errors));
-  assert.equal(report.metrics.modules, 14);
+  assert.equal(report.metrics.modules, 15);
   assert.ok(report.modules.some((module) => module.code === "ICMS_GENERAL_NATIONAL"));
   assert.ok(report.modules.some((module) => module.code === "ISS_DEEP_EXPANSION"));
   assert.ok(report.modules.some((module) => module.code === "SIMPLES_NATIONAL_DEEP"));
   assert.ok(report.modules.some((module) => module.code === "PIS_COFINS_DEEP"));
+  assert.ok(report.modules.some((module) => module.code === "SERVICE_WITHHOLDINGS_DEEP"));
   assert.equal(report.metrics.modulesPassed, report.metrics.modules);
   assert.equal(report.metrics.catalogued, report.metrics.modules);
   assert.equal(report.metrics.structured, report.metrics.modules);

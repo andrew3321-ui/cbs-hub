@@ -5,8 +5,8 @@ import { assessFederalPme, federalPmeRules, federalPmeSources, hashFederalPmeCat
 
 const base = { regime: "simples", hasEmployees: false, paysIndividuals: false, hasServiceWithholdings: false, hiresLaborAssignmentOrConstruction: false, manufacturesOrImports: false, usesListedTaxBenefits: false, hasFederalTaxesOutsideUnifiedRegime: false, subjectToCprb: false, issuesFiscalDocuments: true, distributesProfits: false, inactive: false, keepsFullAccounting: true };
 
-test("V26 federal PME catalog links every control to checked official evidence", () => {
-  assert.equal(federalPmeRules.length, 31);
+test("V82 federal PME catalog links every control to checked official evidence", () => {
+  assert.equal(federalPmeRules.length, 32);
   assert.ok(federalPmeSources.length >= 20);
   const sourceCodes = new Set(federalPmeSources.map((source) => source.code));
   assert.ok(federalPmeRules.every((rule) => rule.sourceCodes.length > 0 && rule.sourceCodes.every((code) => sourceCodes.has(code))));

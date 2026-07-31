@@ -1,4 +1,5 @@
 import { pisCofinsDeepSources } from "./pis-cofins-deep.ts";
+import { serviceWithholdingProfiles, serviceWithholdingSources } from "./service-withholdings-deep.ts";
 
 export type FiscalIntelligenceStatus = "out_of_scope" | "needs_information" | "conditional";
 
@@ -193,6 +194,7 @@ const nationalSources: FiscalKnowledgeSource[] = [
   { code: "RFB-REINF-2026", title: "EFD-Reinf · retenções na fonte de pessoa jurídica", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/perguntas-frequentes/sped/efd-reinf/efdr/1-geral/1-17-as-informacoes-sobre", legalReference: "eventos R-4020 e R-4080", sourceUpdatedAt: "2026-04-13", checkedAt: CHECKED_AT, primary: false },
   { code: "RFB-INSS-PJ", title: "Contribuições previdenciárias das pessoas jurídicas", publisher: "Receita Federal do Brasil", url: "https://www.gov.br/receitafederal/pt-br/assuntos/orientacao-tributaria/tributos/contribuicoes-previdenciarias-pj", legalReference: "retenção em cessão de mão de obra e empreitada", sourceUpdatedAt: null, checkedAt: CHECKED_AT, primary: false },
   ...pisCofinsDeepSources.map((source) => ({ ...source, sourceUpdatedAt: source.effectiveFrom, primary: source.publisher === "Presidência da República" })),
+  ...serviceWithholdingSources.map((source) => ({ ...source, sourceUpdatedAt: source.effectiveFrom, primary: source.publisher === "Presidência da República" })),
 ];
 
 const nationalRules: ManualRule[] = [
@@ -215,8 +217,12 @@ const nationalRules: ManualRule[] = [
   { code: "IRPJ-CSLL-2026-GATE", title: "Alterações de benefícios em 2026", conclusion: "Benefícios e percentuais de presunção podem exigir ajustes específicos em 2026 antes de qualquer cálculo.", sourceCodes: ["RFB-BENEFITS-2026", "L-9249-1995"] },
   { code: "RTC-2026-TEST-YEAR", title: "IBS e CBS no ano-teste de 2026", conclusion: "O documento deve destacar CBS e IBS conforme o leiaute; a dispensa de recolhimento depende do cumprimento das obrigações aplicáveis.", sourceCodes: ["LC-214-2025", "RFB-RTC-2026"] },
   { code: "CSRF-SERVICES-4-65", title: "Retenção conjunta em serviços abrangidos", conclusion: "Serviços do art. 30 podem sofrer retenção conjunta de 4,65%, sujeita a natureza do serviço, partes e exceções.", sourceCodes: ["L-10833-2003"] },
+  { code: "IRRF-SERVICES-1-1-5", title: "IRRF por natureza do serviço", conclusion: "Serviços profissionais usam referência de 1,5%; limpeza, conservação, segurança, vigilância e locação de mão de obra usam 1%, sempre com hipótese, beneficiário, dispensa e código confirmados.", sourceCodes: ["RET-RIR-2018", "RET-RFB-MAFON"] },
+  { code: "CSRF-LIMIT-10", title: "Dispensa da CSRF calculada", conclusion: "A retenção conjunta igual ou inferior a R$ 10 é dispensada; o antigo corte de pagamento de R$ 5.000 não é reutilizado.", sourceCodes: ["RET-L-13137"] },
+  { code: "WITHHOLDING-PUBLIC-TABLE", title: "Pagador público usa tabela própria", conclusion: "Órgãos e entidades públicas exigem o enquadramento e a tabela da IN RFB nº 1.234/2012 ou do convênio aplicável.", sourceCodes: ["RET-IN-RFB-1234"] },
   { code: "WITHHOLDING-REINF-EVIDENCE", title: "Escrituração das retenções", conclusion: "Retenções de pessoa jurídica são informadas nos eventos aplicáveis da EFD-Reinf.", sourceCodes: ["RFB-REINF-2026"] },
-  { code: "INSS-RETENTION-GATE", title: "Retenção previdenciária em serviços", conclusion: "Cessão de mão de obra e empreitada abrem uma trilha previdenciária separada, com base, deduções e exceções próprias.", sourceCodes: ["RFB-INSS-PJ"] },
+  { code: "INSS-RETENTION-GATE", title: "Retenção previdenciária em serviços", conclusion: "Cessão de mão de obra e empreitada abrem uma trilha separada de 11% ou 3,5% conforme CPRB, modo de execução, base, deduções e exceções.", sourceCodes: ["RET-L-8212", "RET-IN-RFB-2110", "RET-RFB-REINF"] },
+  { code: "ISS-WITHHOLDING-MUNICIPAL-GATE", title: "Retenção de ISS depende do município", conclusion: "Item da LC 116, município competente, lei local, alíquota, responsável, base e vencimento precisam ser confirmados sem herdar conclusões federais.", sourceCodes: ["RET-LC-116", "RET-LC-123"] },
 ];
 
 const nationalTopics: NationalFiscalTopic[] = [
@@ -227,15 +233,15 @@ const nationalTopics: NationalFiscalTopic[] = [
   { code: "SIMPLES-NACIONAL", tax: "SIMPLES", title: "Simples Nacional", coverageLevel: "structured_triage", requiredFacts: ["cnae", "businessActivity", "productDescription", "specialTreatment"], supportedOutputs: ["20 perfis CNAE prioritários", "trilha dos Anexos I a V e fator R", "segregação de receitas", "limite e sublimite de 2026", "tributos fora do DAS"], hardStops: ["DAS sem RBT12 e composição mensal", "anexo apenas pelo CNAE", "impedimentos não conferidos", "ST, monofásico, exportação ou retenção não segregados"], sourceCodes: ["LC-123-2006", "CGSN-140-2018", "CGSN-PORTARIA-54-2025", "CNAE-CONCLA"], examples: ["Em qual anexo do Simples entra uma consultoria?", "Como o fator R muda a tributação de serviços?", "Qual o efeito do sublimite de 2026?"] },
   { code: "IRPJ-CSLL", tax: "IRPJ_CSLL", title: "IRPJ e CSLL", coverageLevel: "structured_triage", requiredFacts: ["incomeTaxRegime", "businessActivity", "productDescription", "specialTreatment"], supportedOutputs: ["alíquotas nominais", "base conforme regime e atividade", "adicional de IRPJ e alerta 2026"], hardStops: ["base presumida sem separar atividades", "benefício de 2026 não classificado", "instituição financeira não identificada"], sourceCodes: ["L-9249-1995", "RFB-IRPJ", "RFB-CSLL", "RFB-BENEFITS-2026"], examples: ["Quais as alíquotas de IRPJ e CSLL no lucro presumido?", "Prestação de serviços usa qual base presumida?"] },
   { code: "IBS-CBS-2026", tax: "IBS_CBS", title: "IBS e CBS em 2026", coverageLevel: "operational_reference", requiredFacts: ["operationType", "businessActivity", "specialTreatment"], supportedOutputs: ["destaque teste de CBS 0,9% e IBS 0,1%", "dispensa condicionada de recolhimento", "obrigações documentais"], hardStops: ["tratar destaque como saldo a recolher", "ignorar nota técnica do documento", "regime específico não mapeado"], sourceCodes: ["LC-214-2025", "RFB-RTC-2026"], examples: ["Como destacar IBS e CBS em 2026?", "IBS e CBS geram valor a pagar no ano-teste?"] },
-  { code: "WITHHOLDINGS-SERVICES", tax: "WITHHOLDINGS", title: "Retenções sobre serviços", coverageLevel: "structured_triage", requiredFacts: ["productDescription", "payerType", "paymentRecipientType", "serviceNature", "issuerTaxRegime", "specialTreatment"], supportedOutputs: ["triagem de IRRF e CSRF", "trilha previdenciária", "evento EFD-Reinf"], hardStops: ["percentual sem natureza do serviço", "órgão público tratado como tomador privado", "dispensa do Simples sem declaração"], sourceCodes: ["L-10833-2003", "RFB-REINF-2026", "RFB-INSS-PJ"], examples: ["Consultoria entre duas empresas tem retenção de PIS, Cofins e CSLL?", "Cessão de mão de obra exige retenção previdenciária?"] },
+  { code: "WITHHOLDINGS-SERVICES", tax: "WITHHOLDINGS", title: "Retenções sobre serviços", coverageLevel: "structured_triage", requiredFacts: ["productDescription", "payerType", "paymentRecipientType", "serviceNature", "issuerTaxRegime", "specialTreatment"], supportedOutputs: [`${serviceWithholdingProfiles.length} perfis recorrentes`, "IRRF, CSRF, INSS e ISS em quatro livros independentes", "limites, dispensas, responsáveis e prazos por tributo", "eventos EFD-Reinf e bloqueio do líquido sem simultaneidade"], hardStops: ["percentual sem natureza, partes, regime e fato gerador", "órgão público tratado como tomador privado", "CPRB, cessão, empreitada ou deduções não confirmadas", "ISS sem município, item, lei, alíquota e responsabilidade"], sourceCodes: ["RET-RIR-2018", "RET-RFB-MAFON", "RET-L-10833", "RET-L-13137", "RET-IN-RFB-2110", "RET-IN-RFB-1234", "RET-LC-116", "RET-RFB-REINF"], examples: ["Consultoria entre duas empresas tem IRRF e CSRF?", "Limpeza com cessão de mão de obra exige INSS e ISS retido?", "Órgão público pode usar a retenção privada de 4,65%?"] },
 ];
 
 export const spMgAutoPartsKnowledge: FiscalIntelligenceDefinition = {
   schemaVersion: "manual-fiscal-intelligence.v1",
-  engineVersion: "cbshub-manual-fiscal-1.2.0",
+  engineVersion: "cbshub-manual-fiscal-1.3.0",
   baseCode: "FISCAL-MANUAL-BR",
-  version: "1.3.0",
-  name: "Inteligência Fiscal Manual Brasil · V81",
+  version: "1.4.0",
+  name: "Inteligência Fiscal Manual Brasil · V82",
   assuranceLevel: "pilot_conditional",
   coverage: { tax: "ICMS", originState: "SP", destinationState: "MG", segment: "auto_parts" },
   ontology: {

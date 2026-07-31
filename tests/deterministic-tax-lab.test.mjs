@@ -120,13 +120,21 @@ test("Lucro Real calculates IRPJ, additional and CSLL with loss compensation cap
 });
 
 test("Federal withholdings keep IRRF, CSRF, INSS and ISS separated by responsibility", () => {
-  const output = calculateFederalWithholdings({ grossPaymentCents: 10_000_000, irrfApplies: true, csrfApplies: true, inssApplies: true, issWithheld: true, issRateBps: 300, serviceNatureConfirmed: true, payerResponsible: true, beneficiaryRegimeChecked: true, municipalResponsibilityChecked: true });
+  const output = calculateFederalWithholdings({ grossPaymentCents: 10_000_000, irrfApplies: true, irrfRateBps: 150, csrfApplies: true, inssApplies: true, inssRateBps: 1100, issWithheld: true, issRateBps: 300, serviceNatureConfirmed: true, payerResponsible: true, beneficiaryRegimeChecked: true, municipalResponsibilityChecked: true, basesReconciled: true, paymentEventsConfirmed: true, simultaneousDeductionsConfirmed: true });
   assert.equal(output.status, "calculated_reference");
   assert.equal(output.lines.find((line) => line.code === "irrf").amountCents, 150_000);
   assert.equal(output.lines.find((line) => line.code === "csrf").amountCents, 465_000);
   assert.equal(output.lines.find((line) => line.code === "inss").amountCents, 1_100_000);
   assert.equal(output.lines.find((line) => line.code === "iss").amountCents, 300_000);
   assert.equal(output.lines.find((line) => line.code === "net_payment").amountCents, 7_985_000);
+});
+
+test("Federal withholdings block the net amount when ledgers or rates are not reconciled", () => {
+  const output = calculateFederalWithholdings({ grossPaymentCents: 10_000_000, irrfApplies: true, csrfApplies: true, inssApplies: true, issWithheld: false, issRateBps: 0, serviceNatureConfirmed: true, payerResponsible: true, beneficiaryRegimeChecked: true, municipalResponsibilityChecked: true });
+  assert.equal(output.status, "blocked");
+  assert.equal(output.lines.find((line) => line.code === "irrf").amountCents, null);
+  assert.equal(output.lines.find((line) => line.code === "inss").amountCents, null);
+  assert.equal(output.lines.find((line) => line.code === "net_payment").amountCents, null);
 });
 
 test("IPI/TIPI requires NCM and confirmed rate before releasing the reference", () => {

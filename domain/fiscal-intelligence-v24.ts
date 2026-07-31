@@ -248,17 +248,45 @@ function evaluateWithholdings(facts: FiscalIntelligenceFacts): EvaluationParts {
   const decisionTrace: FiscalDecisionTrace[] = [];
   const privatePjToPj = facts.payerType === "private_legal_entity" && facts.paymentRecipientType === "legal_entity";
   const listedService = ["professional", "cleaning_maintenance", "labor_assignment"].includes(facts.serviceNature);
-  if (privatePjToPj && listedService && facts.issuerTaxRegime === "normal" && facts.specialTreatment !== "exists") {
-    findings.push(finding("CSRF-POTENTIAL-4-65", "CSRF potencial", "4,65%", "Referência conjunta de CSLL 1%, Cofins 3% e PIS 0,65% para serviços abrangidos. Natureza, pagamento, limite e exceções ainda precisam ser comprovados.", ["L-10833-2003"], "legal_range"));
+  if (facts.payerType === "public_entity") {
+    findings.push(finding("PUBLIC-WITHHOLDING-TABLE", "Pagador público", "Tabela própria obrigatória", "A IN RFB nº 1.234/2012 e o enquadramento do ente prevalecem; a referência privada de 4,65% não foi reutilizada.", ["RET-IN-RFB-1234"], "compliance_gate"));
+    decisionTrace.push(trace("WITHHOLDING-PUBLIC-TABLE", "blocked", "A natureza do bem ou serviço e a tabela do ente pagador ainda não foram confirmadas."));
+  } else if (privatePjToPj && listedService && facts.issuerTaxRegime === "normal" && facts.specialTreatment !== "exists") {
+    findings.push(finding("CSRF-POTENTIAL-4-65", "CSRF potencial", "4,65%", "CSLL 1%, Cofins 3% e PIS/Pasep 0,65% para serviço abrangido. O pagamento, o valor calculado superior a R$ 10, dispensas e retenções parciais ainda precisam ser comprovados.", ["RET-L-10833", "RET-L-13137", "RET-IN-SRF-459"], "legal_range"));
     decisionTrace.push(trace("CSRF-SERVICES-4-65", "applied", "Partes privadas, beneficiário PJ no regime normal e serviço potencialmente abrangido foram informados."));
   } else if (facts.issuerTaxRegime === "simples" && facts.paymentRecipientType === "legal_entity") {
-    findings.push(finding("CSRF-SIMPLES-DISPENSATION", "CSRF sobre receita própria do Simples", "Em regra, dispensada", "A condição de optante e a declaração/documentação precisam ser confirmadas; IRRF e retenção previdenciária seguem análises próprias.", ["L-10833-2003"], "regime_reference"));
-    decisionTrace.push(trace("CSRF-SERVICES-4-65", "not_applicable", "Beneficiário informou opção pelo Simples Nacional."));
+    findings.push(finding("CSRF-SIMPLES-DISPENSATION", "CSRF sobre receita própria do Simples", "Dispensa condicionada", "A opção e a documentação do beneficiário precisam estar válidas no fato gerador; a conclusão não afasta INSS ou ISS.", ["RET-L-10833", "RET-IN-SRF-459"], "regime_reference"));
+    decisionTrace.push(trace("CSRF-SERVICES-4-65", "not_applicable", "Beneficiário informou opção pelo Simples Nacional; a prova documental continua obrigatória."));
   } else decisionTrace.push(trace("CSRF-SERVICES-4-65", "blocked", "Partes, regime ou natureza do serviço ainda não sustentam a retenção conjunta."));
-  if (["labor_assignment", "construction"].includes(facts.serviceNature)) findings.push(finding("INSS-RETENTION-TRIAGE", "Retenção previdenciária", "Análise separada", "Cessão de mão de obra ou empreitada abre controle próprio de base, deduções, dispensa e documentação.", ["RFB-INSS-PJ"], "additional_obligation"));
-  findings.push(finding("REINF-EVIDENCE", "Escrituração da retenção", "EFD-Reinf", "Pagamentos a pessoa jurídica com retenção usam os eventos aplicáveis, como R-4020 ou R-4080 conforme o caso.", ["RFB-REINF-2026"], "additional_obligation"));
-  decisionTrace.push(trace("WITHHOLDING-REINF-EVIDENCE", "applied", "A obrigação de evidência foi exposta sem definir código ou vencimento sem o fato completo."));
-  return { findings, scenarioBranches: [scenario("WITHHOLDING-PRIVATE", "PJ privada pagando PJ", "IRRF/CSRF conforme serviço", "Natureza listada e ausência de dispensa.", "Confirmar momento do pagamento, limites e exceções.", "baseline", ["L-10833-2003"]), scenario("WITHHOLDING-PUBLIC", "Órgão público pagador", "Tabela própria", "Pagamento por órgão ou entidade pública.", "Não reutilizar automaticamente a regra de tomador privado.", "exception", ["RFB-REINF-2026"]), scenario("WITHHOLDING-INSS", "Cessão ou empreitada", "Trilha previdenciária", "Execução com cessão de mão de obra ou empreitada.", "Separar INSS das retenções sobre renda e contribuições.", "additional", ["RFB-INSS-PJ"])], decisionTrace, headline: findings.some((item) => item.code === "CSRF-POTENTIAL-4-65") ? "Retenções: CSRF potencial de 4,65%" : "Retenções: classificação ainda necessária", summary: "A plataforma separou CSRF, IRRF, retenção previdenciária e EFD-Reinf. Nenhum percentual foi aplicado fora da natureza e das partes informadas." };
+
+  if (privatePjToPj && facts.issuerTaxRegime === "normal" && facts.specialTreatment !== "exists") {
+    if (facts.serviceNature === "professional") {
+      findings.push(finding("IRRF-PROFESSIONAL-1-5", "IRRF potencial em serviço profissional", "1,5%", "Pagamento ou crédito, código de receita, beneficiário e dispensa precisam ser confirmados; valor calculado igual ou inferior a R$ 10 pode ser dispensado.", ["RET-RIR-2018", "RET-RFB-MAFON"], "legal_range"));
+      decisionTrace.push(trace("IRRF-SERVICES-1-1-5", "applied", "Natureza profissional candidata identificada."));
+    } else if (["cleaning_maintenance", "labor_assignment"].includes(facts.serviceNature)) {
+      findings.push(finding("IRRF-CLEANING-LABOR-1", "IRRF potencial", "1%", "A referência alcança limpeza, conservação, segurança, vigilância e locação de mão de obra quando a atividade real coincidir.", ["RET-RIR-2018", "RET-RFB-MAFON"], "legal_range"));
+      decisionTrace.push(trace("IRRF-SERVICES-1-1-5", "applied", "Serviço candidato à referência de 1% identificado."));
+    } else decisionTrace.push(trace("IRRF-SERVICES-1-1-5", "blocked", "Natureza informada não conclui hipótese de IRRF."));
+  } else decisionTrace.push(trace("IRRF-SERVICES-1-1-5", "blocked", "Partes, regime ou tratamento impedem apresentar referência privada."));
+
+  if (["labor_assignment", "construction", "cleaning_maintenance"].includes(facts.serviceNature)) {
+    findings.push(finding("INSS-RETENTION-TRIAGE", "Retenção previdenciária", "11% ou 3,5% · trilha separada", "Modo de execução, lista dos serviços, CPRB, base, deduções, contrato e regime do prestador definem a memória; empreitada total não herda a conclusão da empreitada parcial.", ["RET-L-8212", "RET-IN-RFB-2110"], "additional_obligation"));
+  }
+  findings.push(finding("ISS-RETENTION-TRIAGE", "ISS retido", "Lei municipal obrigatória", "Item da LC 116, município competente, responsável, base, alíquota entre 2% e 5% e vencimento municipal permanecem separados das retenções federais.", ["RET-LC-116", "RET-LC-123"], "additional_obligation"));
+  findings.push(finding("REINF-EVIDENCE", "Escrituração das retenções", "EFD-Reinf até dia 15", "R-2010/R-2020 registram serviços com retenção previdenciária; R-4010/R-4020 registram rendimentos e retenções. A DCTFWeb não corrige fato informado incorretamente.", ["RET-RFB-REINF"], "additional_obligation"));
+  decisionTrace.push(trace("WITHHOLDING-REINF-EVIDENCE", "applied", "A obrigação de evidência foi separada do fato gerador e do vencimento de cada tributo."));
+  return {
+    findings,
+    scenarioBranches: [
+      scenario("WITHHOLDING-PRIVATE", "PJ privada pagando PJ", "Quatro livros independentes", "Natureza, partes e regime confirmados.", "IRRF, CSRF, INSS e ISS conservam bases, responsáveis e prazos próprios.", "baseline", ["RET-RIR-2018", "RET-L-10833", "RET-IN-RFB-2110", "RET-LC-116"]),
+      scenario("WITHHOLDING-PUBLIC", "Órgão público pagador", "Tabela própria", "Pagamento por órgão ou entidade pública.", "Bloquear a regra privada até confirmar a IN RFB nº 1.234/2012 e o ente.", "exception", ["RET-IN-RFB-1234"]),
+      scenario("WITHHOLDING-SIMPLES", "Prestador do Simples", "Dispensas não transitivas", "Opção e documento válidos.", "IRRF/CSRF podem ser dispensados, mas INSS e ISS permanecem em análises próprias.", "exception", ["RET-IN-SRF-459", "RET-LC-123", "RET-IN-RFB-2110"]),
+      scenario("WITHHOLDING-INSS", "Cessão ou empreitada", "11% ou 3,5%", "Execução, CPRB, base e deduções confirmadas.", "Reinf e DCTFWeb recebem a memória previdenciária separada.", "additional", ["RET-L-8212", "RET-IN-RFB-2110", "RET-RFB-REINF"]),
+    ],
+    decisionTrace,
+    headline: facts.payerType === "public_entity" ? "Retenções: pagador público exige tabela própria" : findings.some((item) => item.code === "CSRF-POTENTIAL-4-65") ? "Retenções: IRRF, CSRF, INSS e ISS separados" : "Retenções: classificação ainda necessária",
+    summary: "A V82 estrutura 15 serviços recorrentes e impede que alíquota, dispensa, base, responsável ou prazo de um tributo sejam emprestados a outro. Nenhum líquido é concluído pela busca textual.",
+  };
 }
 
 function evaluateTopic(topic: NationalFiscalTopic, facts: FiscalIntelligenceFacts): EvaluationParts {

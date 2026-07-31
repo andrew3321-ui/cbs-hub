@@ -306,37 +306,51 @@ export function calculateRealProfitFederal(input: RealProfitFederalInput): LabRe
 export type FederalWithholdingsInput = {
   grossPaymentCents: number;
   irrfApplies: boolean;
+  irrfRateBps?: number | null;
   csrfApplies: boolean;
   inssApplies: boolean;
+  inssRateBps?: number | null;
   issWithheld: boolean;
   issRateBps: number;
   serviceNatureConfirmed: boolean;
   payerResponsible: boolean;
   beneficiaryRegimeChecked: boolean;
   municipalResponsibilityChecked: boolean;
+  basesReconciled?: boolean;
+  paymentEventsConfirmed?: boolean;
+  simultaneousDeductionsConfirmed?: boolean;
 };
 export function calculateFederalWithholdings(input: FederalWithholdingsInput): LabResult {
   const gross = safeInteger(input.grossPaymentCents, "gross_payment");
   const issRate = safeInteger(input.issRateBps, "iss_rate", 0, 500);
-  const irrf = input.irrfApplies ? multiplyCentsByBps(gross, 150) : 0;
+  const irrfRate = input.irrfApplies && Number.isSafeInteger(input.irrfRateBps) ? safeInteger(input.irrfRateBps, "irrf_rate", 0, 150) : null;
+  const inssRate = input.inssApplies && Number.isSafeInteger(input.inssRateBps) ? safeInteger(input.inssRateBps, "inss_rate", 0, 1100) : null;
+  const irrf = input.irrfApplies && irrfRate !== null ? multiplyCentsByBps(gross, irrfRate) : input.irrfApplies ? null : 0;
   const csrf = input.csrfApplies ? multiplyCentsByBps(gross, 465) : 0;
-  const inss = input.inssApplies ? multiplyCentsByBps(gross, 1100) : 0;
+  const inss = input.inssApplies && inssRate !== null ? multiplyCentsByBps(gross, inssRate) : input.inssApplies ? null : 0;
   const iss = input.issWithheld ? multiplyCentsByBps(gross, issRate) : 0;
   const verifiedFacts = facts([
     ["natureza do serviço e hipótese de retenção confirmadas", input.serviceNatureConfirmed],
     ["responsável pela retenção identificado", input.payerResponsible],
     ["regime do beneficiário e dispensas foram verificados", input.beneficiaryRegimeChecked],
     ["responsabilidade municipal do ISS foi conferida", !input.issWithheld || input.municipalResponsibilityChecked],
+    ["bases de IRRF, CSRF, INSS e ISS foram conciliadas separadamente", input.basesReconciled === true],
+    ["pagamento, crédito, emissão e prestação foram classificados por tributo", input.paymentEventsConfirmed === true],
   ]);
   const issues: LabIssue[] = [...missingFacts(verifiedFacts)];
+  if (input.irrfApplies && irrfRate === null) issues.push({ code: "irrf_rate_required", severity: "blocker", message: "Informe 1% ou 1,5% somente após classificar a natureza e o código do IRRF." });
+  if (input.inssApplies && ![350, 1100].includes(inssRate ?? -1)) issues.push({ code: "inss_rate_required", severity: "blocker", message: "Informe 11% ou 3,5% após confirmar cessão/empreitada, CPRB, base e deduções." });
+  if (!input.simultaneousDeductionsConfirmed) issues.push({ code: "net_payment_blocked", severity: "warning", message: "O líquido permanece bloqueado até confirmar que todas as retenções pertencem ao mesmo pagamento e podem ser deduzidas simultaneamente." });
+  const canCalculateNet = issues.every((issue) => issue.severity !== "blocker") && input.simultaneousDeductionsConfirmed === true && irrf !== null && inss !== null;
+  const total = canCalculateNet ? irrf + csrf + inss + iss : null;
   return result("federal_withholdings", "Retenções — IRRF, CSRF, INSS e ISS", [
     { code: "gross_payment", label: "Valor bruto do pagamento", formula: "Valor informado", amountCents: gross },
-    { code: "irrf", label: "IRRF retido", formula: input.irrfApplies ? "Base × 1,5%" : "Hipótese não marcada", amountCents: irrf, rateBps: input.irrfApplies ? 150 : 0 },
+    { code: "irrf", label: "IRRF retido", formula: input.irrfApplies ? "Base própria × alíquota confirmada de 1% ou 1,5%" : "Hipótese não marcada", amountCents: irrf, rateBps: input.irrfApplies ? irrfRate : 0 },
     { code: "csrf", label: "CSRF retida", formula: input.csrfApplies ? "Base × 4,65%" : "Hipótese não marcada", amountCents: csrf, rateBps: input.csrfApplies ? 465 : 0 },
-    { code: "inss", label: "INSS retido", formula: input.inssApplies ? "Base × 11%" : "Hipótese não marcada", amountCents: inss, rateBps: input.inssApplies ? 1100 : 0 },
+    { code: "inss", label: "INSS retido", formula: input.inssApplies ? "Base própria × 11% ou 3,5% conforme CPRB" : "Hipótese não marcada", amountCents: inss, rateBps: input.inssApplies ? inssRate : 0 },
     { code: "iss", label: "ISS retido", formula: input.issWithheld ? "Base × alíquota municipal informada" : "Sem retenção municipal informada", amountCents: iss, rateBps: input.issWithheld ? issRate : 0 },
-    { code: "net_payment", label: "Pagamento líquido de referência", formula: "Bruto - retenções separadas", amountCents: Math.max(0, gross - irrf - csrf - inss - iss) },
-  ], issues, [labSources.rir2018, labSources.law9430, labSources.cofinsNonCumulativeLaw, labSources.inssCessao, labSources.iss], verifiedFacts, "Retenções mantidas por hipótese e responsável; nenhuma dispensa é presumida.");
+    { code: "net_payment", label: "Pagamento líquido de referência", formula: canCalculateNet ? "Bruto − retenções simultâneas e conciliadas" : "Bloqueado: livros ou fatos ainda não conciliados", amountCents: total === null ? null : Math.max(0, gross - total) },
+  ], issues, [labSources.rir2018, labSources.law9430, labSources.cofinsNonCumulativeLaw, labSources.inssCessao, labSources.iss], verifiedFacts, "IRRF, CSRF, INSS e ISS mantidos em livros independentes; dispensa ou base de um tributo não é emprestada a outro.");
 }
 
 export type IpiTipiInput = {

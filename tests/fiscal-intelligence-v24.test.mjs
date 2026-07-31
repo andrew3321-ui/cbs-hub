@@ -15,12 +15,12 @@ const nationalIcmsFacts = {
   specialTreatment: "none",
 };
 
-test("V81 ships eight controlled tax modules backed only by an expanded versioned base", () => {
+test("V82 ships eight controlled tax modules backed only by an expanded versioned base", () => {
   assert.equal(fiscalTopicCatalog().length, 8);
-  assert.equal(spMgAutoPartsKnowledge.version, "1.3.0");
+  assert.equal(spMgAutoPartsKnowledge.version, "1.4.0");
   assert.equal(spMgAutoPartsKnowledge.baseCode, "FISCAL-MANUAL-BR");
-  assert.ok(spMgAutoPartsKnowledge.rules.length >= 24);
-  assert.ok(spMgAutoPartsKnowledge.sources.length >= 31);
+  assert.ok(spMgAutoPartsKnowledge.rules.length >= 28);
+  assert.ok(spMgAutoPartsKnowledge.sources.length >= 42);
   assert.ok(spMgAutoPartsKnowledge.sources.filter((source) => source.primary).length >= 20);
   assert.ok(spMgAutoPartsKnowledge.nationalTopics.every((topic) => topic.requiredFacts.length > 0 && topic.hardStops.length > 0));
 });
@@ -147,6 +147,29 @@ test("service withholding separates potential CSRF, Simples dispensation and Rei
   const simples = evaluateExpandedFiscalQuestion("Retencao em servico do Simples", { ...base, issuerTaxRegime: "simples" });
   assert.equal(simples.findings.some((item) => item.code === "CSRF-POTENTIAL-4-65"), false);
   assert.equal(simples.findings.some((item) => item.code === "CSRF-SIMPLES-DISPENSATION"), true);
+});
+
+test("withholding search separates IRRF, INSS, ISS and public-body tables", () => {
+  const professional = evaluateExpandedFiscalQuestion("Retencoes em consultoria", {
+    tax: "WITHHOLDINGS", productDescription: "consultoria empresarial", payerType: "private_legal_entity",
+    paymentRecipientType: "legal_entity", serviceNature: "professional", issuerTaxRegime: "normal", specialTreatment: "none",
+  });
+  assert.equal(professional.findings.find((item) => item.code === "IRRF-PROFESSIONAL-1-5")?.value, "1,5%");
+  assert.equal(professional.findings.some((item) => item.code === "ISS-RETENTION-TRIAGE"), true);
+  assert.match(professional.summary, /Nenhum líquido/i);
+
+  const labor = evaluateExpandedFiscalQuestion("Retencoes em cessao de mao de obra", {
+    tax: "WITHHOLDINGS", productDescription: "limpeza com cessao", payerType: "private_legal_entity",
+    paymentRecipientType: "legal_entity", serviceNature: "labor_assignment", issuerTaxRegime: "normal", specialTreatment: "none",
+  });
+  assert.equal(labor.findings.find((item) => item.code === "INSS-RETENTION-TRIAGE")?.value, "11% ou 3,5% · trilha separada");
+
+  const publicBody = evaluateExpandedFiscalQuestion("Retencoes em pagamento de orgao publico", {
+    tax: "WITHHOLDINGS", productDescription: "consultoria", payerType: "public_entity",
+    paymentRecipientType: "legal_entity", serviceNature: "professional", issuerTaxRegime: "normal", specialTreatment: "none",
+  });
+  assert.equal(publicBody.findings.find((item) => item.code === "PUBLIC-WITHHOLDING-TABLE")?.value, "Tabela própria obrigatória");
+  assert.equal(publicBody.findings.some((item) => item.code === "CSRF-POTENTIAL-4-65"), false);
 });
 
 test("deep SP to MG auto-parts dossier remains isolated and conditionally calculation-eligible", () => {
