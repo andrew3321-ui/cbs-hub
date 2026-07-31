@@ -1,11 +1,10 @@
 import { eq } from "drizzle-orm";
 import { createSession, CURRENT_PASSWORD_ITERATIONS, hashPassword, normalizeEmail, sessionCookieHeader, verifyPassword } from "../../../auth";
-import { ensureScenarioSchema, getDb } from "../../../../db";
+import { getDb } from "../../../../db";
 import { users } from "../../../../db/schema";
 
 export async function POST(request: Request) {
   try {
-    await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;
     const email = normalizeEmail(typeof payload.email === "string" ? payload.email : "");
     const password = typeof payload.password === "string" ? payload.password : "";

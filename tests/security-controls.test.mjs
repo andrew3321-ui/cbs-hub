@@ -75,6 +75,7 @@ test("authentication uses the runtime-supported password derivation cost and sho
   assert.match(auth, /value\.length >= 12/);
   assert.match(auth, /HttpOnly; SameSite=Lax; Priority=High/);
   assert.match(login, /passwordUpgrade/);
+  assert.doesNotMatch(login, /ensureScenarioSchema/, "login must rely on applied migrations instead of cold-start DDL");
 });
 
 test("LGPD center exposes access and deletion without exporting authentication secrets", () => {
