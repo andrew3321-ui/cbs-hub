@@ -1,7 +1,7 @@
 import { and, eq, gt, lt } from "drizzle-orm";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ensureScenarioSchema, getDb } from "../db";
+import { getDb } from "../db";
 import { sessions, users } from "../db/schema";
 
 const SESSION_COOKIE = "mc_session";
@@ -73,7 +73,6 @@ export function constantTimeEqual(left: string, right: string) {
 }
 
 export async function createSession(userId: number) {
-  await ensureScenarioSchema();
   const token = randomHex(32);
   const id = await sha256(token);
   const expiresAt = new Date(Date.now() + SESSION_SECONDS * 1000).toISOString();
@@ -97,7 +96,6 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return null;
-  await ensureScenarioSchema();
   const sessionId = await sha256(token);
   const [row] = await getDb()
     .select({ id: users.id, name: users.name, email: users.email })
@@ -118,7 +116,6 @@ export async function destroyCurrentSession() {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE)?.value;
   if (!token) return;
-  await ensureScenarioSchema();
   await getDb().delete(sessions).where(eq(sessions.id, await sha256(token)));
 }
 

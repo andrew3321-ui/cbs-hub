@@ -23,6 +23,16 @@ export function ensureScenarioSchema() {
     throw new Error("Cloudflare D1 binding `DB` is unavailable.");
   }
 
+  // Workers Builds applies every D1 migration before publishing a release.
+  // Never replay the legacy bootstrap DDL inside a production request: the
+  // batch is intentionally comprehensive and can exceed the Worker runtime
+  // ceiling, making otherwise healthy authentication and API calls fail.
+  const release = (env as unknown as { CF_VERSION_METADATA?: { id?: string } }).CF_VERSION_METADATA;
+  if (release?.id) {
+    scenarioSchemaReady ??= env.DB.prepare("SELECT 1 AS schema_ready").first();
+    return scenarioSchemaReady;
+  }
+
   scenarioSchemaReady ??= (async () => {
     await env.DB.batch([
       env.DB.prepare(`

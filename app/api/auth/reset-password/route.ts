@@ -1,11 +1,10 @@
 import { eq } from "drizzle-orm";
 import { constantTimeEqual, hashPassword, hashRecoveryKey, normalizeEmail, passwordIsStrong } from "../../../auth";
-import { ensureScenarioSchema, getDb } from "../../../../db";
+import { getDb } from "../../../../db";
 import { sessions, users } from "../../../../db/schema";
 
 export async function POST(request: Request) {
   try {
-    await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;
     const email = normalizeEmail(typeof payload.email === "string" ? payload.email : "");
     const recoveryKey = typeof payload.recoveryKey === "string" ? payload.recoveryKey : "";

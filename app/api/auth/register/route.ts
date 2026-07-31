@@ -1,7 +1,7 @@
 import { and, count, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { createRecoveryKey, createSession, hashPassword, hashRecoveryKey, normalizeEmail, passwordIsStrong, sessionCookieHeader } from "../../../auth";
-import { ensureScenarioSchema, getDb } from "../../../../db";
+import { getDb } from "../../../../db";
 import { accountingWorkspaces, companies, trialDeviceClaims, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
 import { sha256Hex } from "../../../workspace";
 import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../plan-entitlements";
@@ -16,7 +16,6 @@ export async function POST(request: Request) {
   let acceptedInvitationId: number | null = null;
   let createdTrialClaimId: number | null = null;
   try {
-    await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;
     const name = typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ").slice(0, 100) : "";
     const email = normalizeEmail(typeof payload.email === "string" ? payload.email : "");

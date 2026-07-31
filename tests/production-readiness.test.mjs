@@ -47,6 +47,13 @@ test("quality gate and Workers Builds block publishing before checks and migrati
   assert.match(deploy, /SMOKE_PREVIOUS_RELEASE_ID/);
 });
 
+test("published Workers never replay legacy schema DDL during requests", () => {
+  const database = read("../db/index.ts");
+  assert.match(database, /CF_VERSION_METADATA/);
+  assert.match(database, /SELECT 1 AS schema_ready/);
+  assert.match(database, /Never replay the legacy bootstrap DDL inside a production request/);
+});
+
 test("release metadata, structured alerts and smoke coverage are declared", () => {
   const worker = read("../worker/index.ts");
   const health = read("../app/api/health/route.ts");

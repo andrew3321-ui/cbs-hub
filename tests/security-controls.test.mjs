@@ -70,12 +70,17 @@ test("worker applies layered request and response defenses", () => {
 test("authentication uses the runtime-supported password derivation cost and short sessions", () => {
   const auth = read("../app/auth.ts");
   const login = read("../app/api/auth/login/route.ts");
+  const register = read("../app/api/auth/register/route.ts");
+  const reset = read("../app/api/auth/reset-password/route.ts");
+  const workspace = read("../app/workspace.ts");
   assert.match(auth, /CURRENT_PASSWORD_ITERATIONS = 100_000/);
   assert.match(auth, /SESSION_SECONDS = 60 \* 60 \* 24 \* 7/);
   assert.match(auth, /value\.length >= 12/);
   assert.match(auth, /HttpOnly; SameSite=Lax; Priority=High/);
   assert.match(login, /passwordUpgrade/);
-  assert.doesNotMatch(login, /ensureScenarioSchema/, "login must rely on applied migrations instead of cold-start DDL");
+  for (const source of [auth, login, register, reset, workspace]) {
+    assert.doesNotMatch(source, /ensureScenarioSchema/, "critical account access must rely on applied migrations instead of cold-start DDL");
+  }
 });
 
 test("LGPD center exposes access and deletion without exporting authentication secrets", () => {

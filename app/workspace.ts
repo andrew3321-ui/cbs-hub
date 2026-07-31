@@ -1,5 +1,5 @@
 import { and, eq } from "drizzle-orm";
-import { ensureScenarioSchema, getDb } from "../db";
+import { getDb } from "../db";
 import { accountingWorkspaces, workspaceMembers } from "../db/schema";
 import { roleHasPermission } from "../domain/workspace-authorization";
 
@@ -16,7 +16,6 @@ export type WorkspaceContext = {
 };
 
 export async function getWorkspaceContext(userId: number): Promise<WorkspaceContext | null> {
-  await ensureScenarioSchema();
   const [row] = await getDb()
     .select({
       id: accountingWorkspaces.id,
