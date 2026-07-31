@@ -144,8 +144,9 @@ test("IBS/CBS catalog exposes sector transition without lending the regular form
   assert.ok(topic);
   assert.match(topic.title, /2026 a 2033/);
   assert.ok(topic.supportedOutputs.some((item) => /12 perfis setoriais/.test(item)));
-  assert.ok(topic.supportedOutputs.some((item) => /144 cenários determinísticos/.test(item)));
-  assert.ok(topic.hardStops.some((item) => /financeiro, combustível ou imobiliário/.test(item)));
+  assert.ok(topic.supportedOutputs.some((item) => /232 cenários determinísticos/.test(item)));
+  assert.ok(topic.supportedOutputs.some((item) => /financeiro, combustíveis e imóveis/.test(item)));
+  assert.ok(topic.hardStops.some((item) => /fórmula geral em financeiro, combustível ou imóvel/.test(item)));
   assert.ok(topic.sourceCodes.includes("RTC-CGIBS-DERE"));
   assert.ok(spMgAutoPartsKnowledge.rules.some((item) => item.code === "RTC-SECTOR-REDUCTION-GATE"));
   assert.ok(spMgAutoPartsKnowledge.rules.some((item) => item.code === "RTC-SPECIFIC-REGIME-GATE"));

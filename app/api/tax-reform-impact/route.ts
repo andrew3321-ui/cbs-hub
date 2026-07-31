@@ -11,9 +11,12 @@ import {
 } from "../../../domain/tax-reform-impact";
 import {
   TAX_REFORM_SECTOR_VERSION,
+  financialSpecificCombinedRateSchedule,
+  fuelSpecificProductCatalog,
   taxReformSectorMetrics,
   taxReformSectorProfiles,
   taxReformSectorSources,
+  taxReformSpecificCases,
 } from "../../../domain/tax-reform-sector-scenarios";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
@@ -76,6 +79,15 @@ async function getModel() {
       metrics: taxReformSectorMetrics(),
       profiles: taxReformSectorProfiles,
       sources: taxReformSectorSources,
+      financialSpecificCombinedRateSchedule,
+      fuelSpecificProductCatalog,
+      specificCases: taxReformSpecificCases.map(({ code, kind, expectedCoverage, expectedGrossCents }) => ({
+        code,
+        kind,
+        expectedCoverage,
+        expectedGrossCents,
+      })),
+      policy: "Casos de combustível usam parâmetros sintéticos controlados para provar a fórmula; produção somente aceita alíquota ad rem e ato oficial explicitamente confirmados. Nenhuma memória específica produz saldo líquido.",
     },
     rules: taxReformTransitionRules,
     sources: taxReformSources,

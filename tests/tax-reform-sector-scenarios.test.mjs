@@ -3,13 +3,18 @@ import test from "node:test";
 
 import {
   TAX_REFORM_SECTOR_VERSION,
+  calculateTaxReformSpecificRegime,
   calculateTaxReformSectorScenario,
+  financialSpecificCombinedRateSchedule,
+  fuelSpecificProductCatalog,
   hashTaxReformSectorCatalog,
   taxReformSectorCasePasses,
   taxReformSectorCases,
   taxReformSectorMetrics,
   taxReformSectorProfiles,
   taxReformSectorSources,
+  taxReformSpecificCasePasses,
+  taxReformSpecificCases,
   validateTaxReformSectorCatalog,
 } from "../domain/tax-reform-sector-scenarios.ts";
 
@@ -35,8 +40,8 @@ const standard2033 = {
   ancillaryObligations2026Confirmed: true,
 };
 
-test("V84 ranks twelve recurring sectors without treating specific regimes as standard", () => {
-  assert.equal(TAX_REFORM_SECTOR_VERSION, "2026.07.30-v84");
+test("V97 ranks twelve recurring sectors without treating specific regimes as standard", () => {
+  assert.equal(TAX_REFORM_SECTOR_VERSION, "2026.07.31-v97");
   assert.equal(taxReformSectorProfiles.length, 12);
   assert.deepEqual(taxReformSectorProfiles.map((item) => item.rank), Array.from({ length: 12 }, (_, index) => index + 1));
   assert.equal(taxReformSectorProfiles.filter((item) => item.treatment === "specific_regime").length, 3);
@@ -90,6 +95,46 @@ test("specific financial, fuel and real estate regimes fail closed", () => {
   }
 });
 
+test("financial specific memories use only the combined annual rates fixed by LC 227", () => {
+  assert.deepEqual(financialSpecificCombinedRateSchedule.map((item) => [item.year, item.combinedRateBps]), [
+    [2027, 1_085], [2028, 1_085], [2029, 1_100], [2030, 1_115],
+    [2031, 1_130], [2032, 1_150], [2033, 1_250],
+  ]);
+  const referenceCase = taxReformSpecificCases.find((item) => item.code === "financial_credit_exchange_securities-2033-POSITIVE");
+  const result = calculateTaxReformSpecificRegime(referenceCase.input);
+  assert.equal(result.coverage, "supported");
+  assert.equal(result.taxableBaseCents, 9_000_000);
+  assert.equal(result.totalGrossCents, 1_125_000);
+  assert.equal(result.netPayableCents, null);
+  assert.ok(result.warnings.some((item) => item.includes("não inventa a repartição")));
+});
+
+test("fuel memories require exact product, quantity, unit, act and ad rem rates", () => {
+  assert.equal(fuelSpecificProductCatalog.length, 12);
+  const supported = taxReformSpecificCases.find((item) => item.code === "FUEL-GASOLINE_AND_STREAMS-POSITIVE");
+  assert.equal(calculateTaxReformSpecificRegime(supported.input).totalGrossCents, 1_500);
+  for (const code of ["FUEL-GASOLINE_AND_STREAMS-MISSING-ACT", "FUEL-MISSING-QUANTITY", "FUEL-ESTIMATED-FUTURE-RATE", "FUEL-PENDING-ACT"]) {
+    const testCase = taxReformSpecificCases.find((item) => item.code === code);
+    const result = calculateTaxReformSpecificRegime(testCase.input);
+    assert.equal(result.coverage, "partial", code);
+    assert.equal(result.totalGrossCents, null, code);
+    assert.equal(result.lines.length, 0, code);
+  }
+});
+
+test("real estate memories apply base reducers before the legal 50 and 70 percent rate reductions", () => {
+  const sale = taxReformSpecificCases.find((item) => item.code === "real_estate_sale-2033-POSITIVE");
+  const rent = taxReformSpecificCases.find((item) => item.code === "real_estate_rent-2033-POSITIVE");
+  const saleResult = calculateTaxReformSpecificRegime(sale.input);
+  const rentResult = calculateTaxReformSpecificRegime(rent.input);
+  assert.equal(saleResult.taxableBaseCents, 8_500_000);
+  assert.equal(saleResult.lines.find((item) => item.code === "REAL-ESTATE-CBS-GROSS").rateBps, 450);
+  assert.equal(saleResult.totalGrossCents, 1_147_500);
+  assert.equal(rentResult.taxableBaseCents, 9_840_000);
+  assert.equal(rentResult.lines.find((item) => item.code === "REAL-ESTATE-CBS-GROSS").rateBps, 270);
+  assert.equal(rentResult.totalGrossCents, 797_040);
+});
+
 test("2026 differentiated treatments remain blocked until their operational recort is proved", () => {
   const result = calculateTaxReformSectorScenario({
     ...standard2033,
@@ -120,16 +165,26 @@ test("pending credit, source, operation and ZFM decisions block the annual total
   }
 });
 
-test("all 144 sector cases reproduce supported and safely blocked outputs", () => {
+test("all general and specific sector cases reproduce supported and safely blocked outputs", () => {
   assert.equal(taxReformSectorCases.length, 144);
   assert.equal(taxReformSectorCases.every(taxReformSectorCasePasses), true);
+  assert.equal(taxReformSpecificCases.length, 88);
+  assert.equal(taxReformSpecificCases.every(taxReformSpecificCasePasses), true);
   const metrics = taxReformSectorMetrics();
-  assert.equal(metrics.deterministicCases, 144);
-  assert.equal(metrics.calculatedMemories + metrics.safelyBlockedCases, 144);
+  assert.deepEqual(metrics, {
+    profiles: 12,
+    years: 8,
+    specificRegimes: 3,
+    specificCases: 88,
+    deterministicCases: 232,
+    calculatedMemories: 107,
+    safelyBlockedCases: 125,
+    officialSources: 7,
+  });
 });
 
 test("official evidence, validation and fingerprint are reproducible", async () => {
-  assert.equal(taxReformSectorSources.length, 6);
+  assert.equal(taxReformSectorSources.length, 7);
   assert.ok(taxReformSectorSources.every((item) => item.url.startsWith("https://") && item.legalReference.length > 20));
   assert.deepEqual(validateTaxReformSectorCatalog(), { ok: true, errors: [] });
   const first = await hashTaxReformSectorCatalog();

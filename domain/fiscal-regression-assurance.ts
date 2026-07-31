@@ -280,7 +280,7 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   {
     code: "RTC_SECTOR_SCENARIOS",
     label: "Reforma Tributária — cenários setoriais de 2026 a 2033",
-    ruleCodes: ["RTC-BR-TRANSITION", "RTC-SECTOR-SCENARIOS-V84"],
+    ruleCodes: ["RTC-BR-TRANSITION", "RTC-SECTOR-SCENARIOS-V97", "RTC-SPECIFIC-REGIMES-V97"],
     version: TAX_REFORM_SECTOR_VERSION,
     validate: () => {
       const validation = validateTaxReformSectorCatalog();

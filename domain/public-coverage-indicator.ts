@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v17";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v18";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "rtc-v97-specific-regimes",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "A Reforma passou a separar financeiro, combustíveis e imóveis em memórias próprias: 88 novos casos específicos, 40 memórias controladas e 48 bloqueios. Atos, alíquotas, bases, créditos, redutores e vigência pendentes continuam impedindo valor.",
+        affectedCodes: ["RTC_SECTOR_SCENARIOS", "FED-RTC-SECTOR-SCENARIOS"],
+        clientDataExposed: false,
+      },
       {
         id: "ipi-tipi-v96-fifty-exact-ncms",
         changedAt: "2026-07-31T00:00:00.000Z",

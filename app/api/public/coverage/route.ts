@@ -23,6 +23,7 @@ import { hashSimplesNationalDeep, simplesActivityProfiles, simplesAnnexTables, s
 import { hashPisCofinsDeep, pisCofinsCreditHypotheses, pisCofinsDeepMetrics, pisCofinsDeepSources, pisCofinsProductProfiles, pisCofinsReferenceCases, PIS_COFINS_DEEP_CHECKED_AT, PIS_COFINS_DEEP_SUPPORTED_PERIOD, PIS_COFINS_DEEP_VERSION, PIS_COFINS_LC224_EFFECTIVE_FROM, validatePisCofinsDeep } from "../../../../domain/pis-cofins-deep";
 import { hashServiceWithholdingsDeep, serviceWithholdingProfiles, serviceWithholdingReferenceCases, serviceWithholdingRuleControls, serviceWithholdingSources, serviceWithholdingsDeepMetrics, SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT, SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD, SERVICE_WITHHOLDINGS_DEEP_VERSION, validateServiceWithholdingsDeep } from "../../../../domain/service-withholdings-deep";
 import { hashIpiTipiDeep, ipiTipiDeepMetrics, ipiTipiDeepSources, ipiTipiDeterministicCases, ipiTipiPriorityProfiles, IPI_TIPI_DEEP_CHECKED_AT, IPI_TIPI_DEEP_SUPPORTED_PERIOD, IPI_TIPI_DEEP_VERSION, validateIpiTipiDeep } from "../../../../domain/ipi-tipi-deep";
+import { financialSpecificCombinedRateSchedule, fuelSpecificProductCatalog, hashTaxReformSectorCatalog, taxReformSectorMetrics, taxReformSectorProfiles, taxReformSectorSources, taxReformSpecificCases, TAX_REFORM_SECTOR_CHECKED_AT, TAX_REFORM_SECTOR_VERSION, validateTaxReformSectorCatalog } from "../../../../domain/tax-reform-sector-scenarios";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
@@ -56,6 +57,7 @@ async function publicCoverage() {
   const pisCofinsFingerprint = (await hashPisCofinsDeep()).slice(0, 12);
   const serviceWithholdingsFingerprint = (await hashServiceWithholdingsDeep()).slice(0, 12);
   const ipiTipiFingerprint = (await hashIpiTipiDeep()).slice(0, 12);
+  const taxReformSectorFingerprint = (await hashTaxReformSectorCatalog()).slice(0, 12);
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const sourceCertificationFingerprint = (await hashOfficialSourceCertification()).slice(0, 12);
@@ -282,6 +284,19 @@ async function publicCoverage() {
       referenceCases: ipiTipiDeterministicCases,
       sources: ipiTipiDeepSources,
       policy: "Somente NCM de oito dígitos e descrição, notas, Ex, papel, operação e vigência confirmados liberam memória. Benefício externo e devolução exigem regra documental própria; nenhum prefixo ou rótulo aproximado herda alíquota.",
+    },
+    taxReformSectorDeep: {
+      version: TAX_REFORM_SECTOR_VERSION,
+      checkedAt: TAX_REFORM_SECTOR_CHECKED_AT,
+      fingerprint: taxReformSectorFingerprint,
+      validation: validateTaxReformSectorCatalog(),
+      metrics: taxReformSectorMetrics(),
+      profiles: taxReformSectorProfiles,
+      financialSpecificCombinedRateSchedule,
+      fuelSpecificProductCatalog,
+      specificCases: taxReformSpecificCases,
+      sources: taxReformSectorSources,
+      policy: "Financeiro, combustíveis e imóveis usam memórias próprias. Ato, classificação, base, crédito, redutor, alíquota ou vigência pendentes bloqueiam o valor; parâmetros sintéticos da regressão nunca são promovidos a regra fiscal de produção.",
     },
     simplesNationalDeep: {
       version: SIMPLES_NATIONAL_DEEP_VERSION,
