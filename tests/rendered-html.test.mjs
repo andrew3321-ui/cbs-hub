@@ -360,7 +360,7 @@ test("versão 80 expande a inteligência fiscal sem promover triagem a cálculo 
   assert.match(api, /fiscalTopicCatalog\(definition\)/);
   assert.match(service, /pisCofinsRegime/);
   assert.match(definition, /FISCAL-MANUAL-BR/);
-  assert.match(definition, /Inteligência Fiscal Manual Brasil · V84/);
+  assert.match(definition, /Inteligência Fiscal Manual Brasil · V90/);
   for (const topic of ["ICMS-NATIONAL", "ISS-NATIONAL", "IPI-NATIONAL", "PIS-COFINS", "SIMPLES-NACIONAL", "IRPJ-CSLL", "IBS-CBS-2026", "WITHHOLDINGS-SERVICES"]) assert.match(definition, new RegExp(topic));
   assert.match(expanded, /calculationEligible: false/);
   assert.match(expanded, /IRRF, CSRF, INSS e ISS conservam bases, responsáveis e prazos próprios/);
