@@ -55,6 +55,13 @@ import {
   validateStConstructionElectricalPriority,
 } from "./st-construction-electrical-priority.ts";
 import {
+  ST_FOOD_CLEANING_PET_VERSION,
+  hashStFoodCleaningPetPriority,
+  stFoodCleaningPetMetrics,
+  stFoodCleaningPetSources,
+  validateStFoodCleaningPetPriority,
+} from "./st-food-cleaning-pet-priority.ts";
+import {
   TAX_REFORM_IMPACT_ENGINE_VERSION,
   hashTaxReformImpactModel,
   taxReformImpactCasePasses,
@@ -281,6 +288,25 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     },
     sourceCodes: () => stConstructionElectricalSources.map((source) => source.code).sort(),
     requiredGates: ["NCM e CEST exatos", "finalidade de revenda", "vigência", "responsabilidade tributária", "MVA e alíquotas do destino", "FCP/FECP", "exclusões e tratamentos especiais", "documentos"],
+  },
+  {
+    code: "FOOD_CLEANING_PET_PRIORITY",
+    label: "Alimentos, limpeza, higiene doméstica e pet food em SP→MG/RJ",
+    ruleCodes: ["NATIONAL-COVERAGE-V27", "FOOD_CLEANING_PET_PRIORITY"],
+    version: ST_FOOD_CLEANING_PET_VERSION,
+    validate: validateStFoodCleaningPetPriority,
+    hash: hashStFoodCleaningPetPriority,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = stFoodCleaningPetMetrics();
+      return {
+        deterministicCases: metrics.controlledCells + metrics.safeFailureScenarios + 1,
+        calculatedMemories: metrics.reproducedMemories + 1,
+        safelyBlockedCases: metrics.coverage.partial + metrics.safeFailureScenarios,
+      };
+    },
+    sourceCodes: () => stFoodCleaningPetSources.map((source) => source.code).sort(),
+    requiredGates: ["NCM, CEST e apresentação exatos", "rota e vigência", "responsabilidade", "MVA ou PMPF vigente", "alíquotas e FCP", "reduções, benefícios e exceções", "documentos e peso quando aplicável"],
   },
 ] as const;
 

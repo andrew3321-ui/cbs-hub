@@ -14,7 +14,7 @@ test("versioned regression report exposes module, rule, evidence and maturity wi
   const report = await buildFiscalRegressionReport();
   assert.equal(report.reportVersion, FISCAL_REGRESSION_REPORT_VERSION);
   assert.equal(report.status, "automatically_verified", JSON.stringify(report.errors));
-  assert.equal(report.metrics.modules, 9);
+  assert.equal(report.metrics.modules, 10);
   assert.equal(report.metrics.modulesPassed, report.metrics.modules);
   assert.equal(report.metrics.catalogued, report.metrics.modules);
   assert.equal(report.metrics.structured, report.metrics.modules);
@@ -72,6 +72,15 @@ test("rule changes reexecute only mapped modules and unknown rules fail closed",
   assert.equal(constructionElectrical.metrics.deterministicCases, 17);
   assert.equal(constructionElectrical.metrics.calculatedMemories, 12);
   assert.equal(constructionElectrical.metrics.safelyBlockedCases, 5);
+  assert.deepEqual(
+    fiscalRegressionModulesForRules(["FOOD_CLEANING_PET_PRIORITY"]),
+    ["FOOD_CLEANING_PET_PRIORITY"],
+  );
+  const foodCleaningPet = await buildFiscalRegressionReport(["FOOD_CLEANING_PET_PRIORITY"]);
+  assert.equal(foodCleaningPet.status, "automatically_verified");
+  assert.equal(foodCleaningPet.metrics.deterministicCases, 21);
+  assert.equal(foodCleaningPet.metrics.calculatedMemories, 8);
+  assert.equal(foodCleaningPet.metrics.safelyBlockedCases, 13);
 
   const unknown = await buildFiscalRegressionReport(["UNMAPPED-RULE"]);
   assert.equal(unknown.status, "blocked");

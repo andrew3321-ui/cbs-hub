@@ -8,6 +8,13 @@ import {
   stConstructionElectricalSources,
 } from "./st-construction-electrical-priority.ts";
 import {
+  ST_FOOD_CLEANING_PET_CHECKED_AT,
+  ST_FOOD_CLEANING_PET_PRODUCTS,
+  ST_FOOD_CLEANING_PET_VERSION,
+  stFoodCleaningPetReferenceRuns,
+  stFoodCleaningPetSources,
+} from "./st-food-cleaning-pet-priority.ts";
+import {
   cityCoverage,
   coverageSources,
   NATIONAL_COVERAGE_CHECKED_AT,
@@ -19,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.30-v5";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.30-v6";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-30";
 
 export type PublicCoverageMaturity = {
@@ -237,6 +244,32 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
         regression: { cases: regressionCases, failures: regressionFailures },
         objectiveReason: `Memória determinística em centavos reproduzida para CEST ${product?.cest ?? "não localizado"} na rota ${run.route}, com responsabilidade ${run.result.responsibility === "origin_remitter" ? "do remetente" : "do destinatário na entrada"}.`,
         blockers: [],
+      });
+    }),
+    ...stFoodCleaningPetReferenceRuns.map((run) => {
+      const product = ST_FOOD_CLEANING_PET_PRODUCTS.find((item) => item.code === run.productCode);
+      return entry({
+        code: `ST-FOOD-CLEANING-PET-${run.key}`,
+        tax: "ICMS/ST",
+        title: `${product?.label ?? run.productCode} - ${run.route}`,
+        dimension: "route" as const,
+        jurisdiction: run.route,
+        uf: run.route.slice(-2),
+        municipality: null,
+        route: run.route,
+        product: product?.label ?? run.productCode,
+        version: ST_FOOD_CLEANING_PET_VERSION,
+        status: run.result.coverageStatus,
+        maturity: maturity({ catalogued: true, structured: true, tested: true }),
+        checkedAt: ST_FOOD_CLEANING_PET_CHECKED_AT,
+        officialSources: stFoodCleaningPetSources
+          .filter((source) => run.result.sourceCodes.includes(source.code))
+          .map(({ code, title, publisher, url, checkedAt }) => ({ code, title, publisher, url, checkedAt })),
+        regression: { cases: regressionCases, failures: regressionFailures },
+        objectiveReason: run.result.status === "calculated_reference"
+          ? `Memória ${run.result.method?.toUpperCase()} reproduzida em centavos para o CEST ${product?.cest ?? "não localizado"} e sua apresentação exata.`
+          : "Produto e rota estão catalogados, mas os parâmetros do destino fluminense ainda não foram fechados.",
+        blockers: run.result.blockers,
       });
     }),
     ...stSegments.map((item) => entry({

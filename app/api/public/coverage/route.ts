@@ -13,6 +13,7 @@ import { hashStColdBeverageSpDestination, stColdBeverageSpDestinationMetrics, st
 import { hashStColdBeverageSpOrigin, stColdBeverageSpOriginMetrics, stColdBeverageSpOriginReferenceRuns, stColdBeverageSpOriginSources, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD, ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES, ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES, ST_COLD_BEVERAGES_SP_ORIGIN_VERSION, validateStColdBeverageSpOrigin } from "../../../../domain/st-cold-beverages-sp-origin";
 import { hashStPharmaCosmeticsPriority, stPharmaCosmeticsCoverageCells, stPharmaCosmeticsLegalRoutes, stPharmaCosmeticsMetrics, stPharmaCosmeticsReferenceRuns, stPharmaCosmeticsSources, stPharmaCosmeticsStateRules, ST_PHARMA_COSMETICS_FACT_LABELS, ST_PHARMA_COSMETICS_PRIORITY_VERSION, ST_PHARMA_COSMETICS_PRODUCTS, ST_PHARMA_COSMETICS_ROUTES, validateStPharmaCosmeticsPriority } from "../../../../domain/st-pharma-cosmetics-priority";
 import { hashStConstructionElectricalPriority, stConstructionElectricalDossiers, stConstructionElectricalMetrics, stConstructionElectricalNegativeRuns, stConstructionElectricalReferenceRuns, stConstructionElectricalSources, ST_CONSTRUCTION_ELECTRICAL_FACT_LABELS, ST_CONSTRUCTION_ELECTRICAL_PERIOD, ST_CONSTRUCTION_ELECTRICAL_PRODUCTS, ST_CONSTRUCTION_ELECTRICAL_ROUTES, ST_CONSTRUCTION_ELECTRICAL_VERSION, validateStConstructionElectricalPriority } from "../../../../domain/st-construction-electrical-priority";
+import { hashStFoodCleaningPetPriority, stFoodCleaningPetDossiers, stFoodCleaningPetMetrics, stFoodCleaningPetMvaFallbackRun, stFoodCleaningPetNegativeRuns, stFoodCleaningPetReferenceRuns, stFoodCleaningPetSources, ST_FOOD_CLEANING_PET_FACT_LABELS, ST_FOOD_CLEANING_PET_PERIOD, ST_FOOD_CLEANING_PET_PRODUCTS, ST_FOOD_CLEANING_PET_ROUTES, ST_FOOD_CLEANING_PET_VERSION, validateStFoodCleaningPetPriority } from "../../../../domain/st-food-cleaning-pet-priority";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
@@ -36,6 +37,7 @@ async function publicCoverage() {
   const coldBeveragesSpOriginFingerprint = (await hashStColdBeverageSpOrigin()).slice(0, 12);
   const pharmaCosmeticsFingerprint = (await hashStPharmaCosmeticsPriority()).slice(0, 12);
   const constructionElectricalFingerprint = (await hashStConstructionElectricalPriority()).slice(0, 12);
+  const foodCleaningPetFingerprint = (await hashStFoodCleaningPetPriority()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const regressionReport = await buildFiscalRegressionReport();
   const coverageIndicator = await buildPublicCoverageIndicator();
@@ -207,6 +209,22 @@ async function publicCoverage() {
       sources: stConstructionElectricalSources,
       dossiers: stConstructionElectricalDossiers,
       policy: "Escopo fechado para seis identidades fiscais de construção, acabamento, ferramentas e elétricos nas rotas SP→MG e SP→RJ. NCM/CEST, revenda, vigência, responsabilidade, MVA, alíquotas, FCP/FECP e exclusões são fatos obrigatórios; divergência ou ausência bloqueia o valor.",
+    },
+    stFoodCleaningPetPriority: {
+      version: ST_FOOD_CLEANING_PET_VERSION,
+      fingerprint: foodCleaningPetFingerprint,
+      validation: validateStFoodCleaningPetPriority(),
+      metrics: stFoodCleaningPetMetrics(),
+      supportedPeriod: ST_FOOD_CLEANING_PET_PERIOD,
+      factLabels: ST_FOOD_CLEANING_PET_FACT_LABELS,
+      products: ST_FOOD_CLEANING_PET_PRODUCTS,
+      routes: ST_FOOD_CLEANING_PET_ROUTES,
+      referenceRuns: stFoodCleaningPetReferenceRuns,
+      mvaFallbackRun: stFoodCleaningPetMvaFallbackRun,
+      negativeRuns: stFoodCleaningPetNegativeRuns,
+      sources: stFoodCleaningPetSources,
+      dossiers: stFoodCleaningPetDossiers,
+      policy: "Sete produtos e apresentações permanecem segregados entre alimentos, limpeza, higiene doméstica e pet food. SP→MG possui seis memórias por MVA e uma por PMPF vigente; SP→RJ é parcial e nunca recebe parâmetros mineiros. Produto, apresentação, data, benefício ou documento divergente bloqueiam o valor.",
     },
     recurringScenarios,
     sources: coverageSources,
