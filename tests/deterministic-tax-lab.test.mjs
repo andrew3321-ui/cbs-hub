@@ -3,7 +3,7 @@ import test from "node:test";
 import { calculateFederalWithholdings, calculateIcmsDifal, calculateIpiTipi, calculateIss, calculatePisCofins, calculatePisCofinsSpecial, calculatePresumedProfit2026, calculateRealProfitFederal, calculateRtc2026, calculateSimplesAnnexI, calculateSimplesServices, DETERMINISTIC_TAX_LAB_VERSION, labSources, multiplyCentsByBps } from "../domain/deterministic-tax-lab.ts";
 
 test("V33 uses integer fixed-point math instead of floating tax amounts", () => {
-  assert.equal(DETERMINISTIC_TAX_LAB_VERSION, "2026.07.27-v33");
+  assert.equal(DETERMINISTIC_TAX_LAB_VERSION, "2026.07.30-v83");
   assert.equal(multiplyCentsByBps(10_000_000, 365), 365_000);
   assert.equal(multiplyCentsByBps(1, 5000), 1);
 });
@@ -138,15 +138,16 @@ test("Federal withholdings block the net amount when ledgers or rates are not re
 });
 
 test("IPI/TIPI requires NCM and confirmed rate before releasing the reference", () => {
-  const output = calculateIpiTipi({ operation: "industrial_output", ipiBaseCents: 10_000_000, ipiRateBps: 650, ncmConfirmed: true, tipiRateConfirmed: true, industrializationOrImportConfirmed: true, exemptionsExcluded: true });
+  const output = calculateIpiTipi({ ncm: "84213100", calculationDate: "2026-07-30", operation: "industrial_output", taxpayerRole: "industrial", operationValueCents: 10_000_000, customsValueCents: null, importTaxCents: null, exchangeChargesCents: null, tipiExceptionCode: null, externalBenefit: "none", externalBenefitLegalReference: null, productDescriptionConfirmed: true, exactNcmConfirmed: true, tipiVersionConfirmed: true, sectionChapterNotesConfirmed: true, taxpayerRoleConfirmed: true, operationDocumented: true, tipiExceptionConfirmed: false, noListedExceptionAppliesConfirmed: true, externalBenefitValidityConfirmed: false, nonTaxableReasonConfirmed: false });
   assert.equal(output.status, "calculated_reference");
-  assert.equal(output.lines.find((line) => line.code === "ipi_reference").amountCents, 650_000);
-  assert.equal(output.lines.find((line) => line.code === "tipi_rate").rateBps, 650);
-  const blocked = calculateIpiTipi({ operation: "import", ipiBaseCents: 10_000_000, ipiRateBps: 650, ncmConfirmed: false, tipiRateConfirmed: false, industrializationOrImportConfirmed: false, exemptionsExcluded: false });
+  assert.equal(output.lines.find((line) => line.code === "ipi_due").amountCents, 520_000);
+  assert.equal(output.lines.find((line) => line.code === "tipi_rate").rateBps, 520);
+  const blocked = calculateIpiTipi({ ncm: "8421", calculationDate: "2026-07-30", operation: "import_clearance", taxpayerRole: "importer", operationValueCents: null, customsValueCents: 10_000_000, importTaxCents: 0, exchangeChargesCents: 0, tipiExceptionCode: null, externalBenefit: "none", externalBenefitLegalReference: null, productDescriptionConfirmed: false, exactNcmConfirmed: false, tipiVersionConfirmed: false, sectionChapterNotesConfirmed: false, taxpayerRoleConfirmed: false, operationDocumented: false, tipiExceptionConfirmed: false, noListedExceptionAppliesConfirmed: false, externalBenefitValidityConfirmed: false, nonTaxableReasonConfirmed: false });
   assert.equal(blocked.status, "blocked");
-  assert.equal(blocked.issues.filter((issue) => issue.severity === "blocker").length, 4);
+  assert.equal(blocked.lines.length, 0);
+  assert.ok(blocked.issues.filter((issue) => issue.severity === "blocker").length >= 7);
 });
 
 test("every deterministic module cites official HTTPS sources", () => {
-  assert.ok(Object.values(labSources).every((source) => source.url.startsWith("https://") && source.checkedAt === "2026-07-27"));
+  assert.ok(Object.values(labSources).every((source) => source.url.startsWith("https://") && source.checkedAt === "2026-07-30"));
 });

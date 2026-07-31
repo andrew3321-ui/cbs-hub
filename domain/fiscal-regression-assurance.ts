@@ -103,6 +103,13 @@ import {
   serviceWithholdingsDeepMetrics,
   validateServiceWithholdingsDeep,
 } from "./service-withholdings-deep.ts";
+import {
+  IPI_TIPI_DEEP_VERSION,
+  hashIpiTipiDeep,
+  ipiTipiDeepMetrics,
+  ipiTipiDeepSources,
+  validateIpiTipiDeep,
+} from "./ipi-tipi-deep.ts";
 
 export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v2";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-30";
@@ -142,6 +149,18 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 ];
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
+  {
+    code: "IPI_TIPI_DEEP",
+    label: "IPI/TIPI — NCMs prioritários de indústria e importação",
+    ruleCodes: ["IPI-TIPI", "IPI-TIPI-NCM-GATE", "IPI-TIPI-DEEP-V83"],
+    version: IPI_TIPI_DEEP_VERSION,
+    validate: validateIpiTipiDeep,
+    hash: hashIpiTipiDeep,
+    testKinds: ALL_TEST_KINDS,
+    metrics: ipiTipiDeepMetrics,
+    sourceCodes: () => ipiTipiDeepSources.map((source) => source.code).sort(),
+    requiredGates: ["NCM exato e descrição legal", "TIPI consolidada e notas", "operação e papel do contribuinte", "base interna ou aduaneira", "Ex aplicável", "benefício e vigência", "documento fiscal"],
+  },
   {
     code: "SERVICE_WITHHOLDINGS_DEEP",
     label: "Retenções — IRRF, CSRF, INSS e ISS em serviços recorrentes",

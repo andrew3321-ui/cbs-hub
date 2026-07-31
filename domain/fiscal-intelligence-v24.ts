@@ -16,6 +16,7 @@ import {
 } from "./fiscal-intelligence.ts";
 import { resolveSimplesActivity } from "./simples-national-deep.ts";
 import { classifyPisCofinsProduct } from "./pis-cofins-deep.ts";
+import { findIpiTipiProfile } from "./ipi-tipi-deep.ts";
 
 const DEFAULT_REFERENCE_DATE = "2026-07-30";
 
@@ -169,10 +170,25 @@ function evaluateIpi(facts: FiscalIntelligenceFacts): EvaluationParts {
   const findings: FiscalFinding[] = [];
   const decisionTrace: FiscalDecisionTrace[] = [];
   if (facts.ncm?.length === 8) {
-    findings.push(finding("IPI-TIPI-LOOKUP", "Consulta obrigatória à TIPI", `NCM ${facts.ncm}`, "O NCM foi estruturado, mas a alíquota não foi copiada para a resposta porque alterações da TIPI, notas complementares e destaques Ex precisam ser conferidos.", ["D-11158-2022-TIPI", "RFB-CLASSIF"], "compliance_gate"));
-    decisionTrace.push(trace("IPI-TIPI-NCM-GATE", "blocked", "NCM localizado; falta vincular uma versão integral e atualizada da TIPI antes de apresentar percentual."));
+    const profile = findIpiTipiProfile(facts.ncm);
+    if (profile) {
+      const formattedRate = `${(profile.nominalRateBps / 100).toFixed(2).replace(".", ",")}%`;
+      findings.push(finding(
+        "IPI-TIPI-EXACT-PROFILE",
+        "Referência nominal da TIPI consolidada",
+        formattedRate,
+        `NCM ${profile.ncm} · ${profile.description}. A referência nominal não é um cálculo liberado: descrição, notas, Ex, operação, papel, base, vigência e benefícios ainda precisam ser confirmados.`,
+        profile.sourceCodes,
+        "compliance_gate",
+      ));
+      decisionTrace.push(trace("IPI-TIPI-EXACT-PROFILE", "applied", `Perfil exato V83 localizado para o NCM ${profile.ncm}, com ${profile.exceptions.length} Ex catalogado(s).`));
+      decisionTrace.push(trace("IPI-TIPI-NCM-GATE", "blocked", "A memória permanece bloqueada até conferir descrição legal, notas, Ex, operação, contribuinte, base e benefício."));
+    } else {
+      findings.push(finding("IPI-TIPI-LOOKUP", "Consulta obrigatória à TIPI", `NCM ${facts.ncm}`, "O NCM completo não integra os quinze perfis prioritários. Consulte a TIPI e o Sistema Classif sem aplicar alíquota por aproximação.", ["IPI-RFB-TIPI-CONSOLIDATED", "IPI-RFB-NCM"], "compliance_gate"));
+      decisionTrace.push(trace("IPI-TIPI-NCM-GATE", "blocked", "NCM completo fora da base profunda V83; não houve fallback por prefixo."));
+    }
   } else decisionTrace.push(trace("IPI-TIPI-NCM-GATE", "blocked", "O NCM completo de oito dígitos é obrigatório."));
-  return { findings, scenarioBranches: [scenario("IPI-INDUSTRIALIZATION", "Produto industrializado", "Consultar TIPI", "Saída de estabelecimento industrial ou equiparado.", "Confirmar industrialização, equiparação e benefício.", "baseline", ["D-11158-2022-TIPI"]), scenario("IPI-IMPORT", "Importação", "Consultar TIPI", "Desembaraço de produto estrangeiro.", "Separar IPI-importação das demais cargas aduaneiras.", "additional", ["D-11158-2022-TIPI"])], decisionTrace, headline: "IPI: NCM e TIPI controlam a resposta", summary: "O funil identifica a hipótese de incidência e exige a tabela vigente; não transforma NCM em alíquota por aproximação." };
+  return { findings, scenarioBranches: [scenario("IPI-INDUSTRIALIZATION", "Produto industrializado", "Saída industrial", "Saída de estabelecimento industrial.", "Confirmar industrialização, NCM, notas, base, Ex e benefício.", "baseline", ["IPI-RFB-ORIENTATION", "IPI-RFB-TIPI-CONSOLIDATED"]), scenario("IPI-EQUIPARATED", "Equiparado a industrial", "Saída equiparada", "O estabelecimento se enquadra em hipótese legal de equiparação.", "Confirmar o dispositivo e o papel do estabelecimento.", "exception", ["IPI-D7212-RIPI"]), scenario("IPI-IMPORT", "Importação", "Desembaraço aduaneiro", "Produto estrangeiro submetido a desembaraço.", "Somar valor aduaneiro, tributo aduaneiro e encargos cambiais na base controlada.", "additional", ["IPI-RFB-IMPORT", "IPI-RFB-ORIENTATION"]), scenario("IPI-NON-TAXABLE-EXIT", "Revenda comum", "Saída comercial potencialmente não tributada", "Não há industrialização, importação própria nem equiparação.", "Comprovar a ausência de hipótese de contribuinte; rótulo de revenda isolado não basta.", "not_applicable", ["IPI-D7212-RIPI"])], decisionTrace, headline: findings.length ? "IPI: perfil TIPI localizado, conclusão ainda condicionada" : "IPI: NCM e TIPI controlam a resposta", summary: "A base V83 indexa NCMs exatos e seus Ex conhecidos, mas não transforma classificação ou taxa nominal em cálculo sem os fatos jurídicos e a base da operação." };
 }
 
 function evaluatePisCofins(facts: FiscalIntelligenceFacts): EvaluationParts {

@@ -1,4 +1,4 @@
-export const FEDERAL_PME_RULESET_VERSION = "2026.07.31-v82";
+export const FEDERAL_PME_RULESET_VERSION = "2026.07.30-v83";
 export const FEDERAL_PME_CHECKED_AT = "2026-07-30";
 
 export type FederalPmeRegime = "mei" | "simples" | "presumed" | "real";

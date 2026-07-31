@@ -15,9 +15,9 @@ const nationalIcmsFacts = {
   specialTreatment: "none",
 };
 
-test("V82 ships eight controlled tax modules backed only by an expanded versioned base", () => {
+test("V83 ships eight controlled tax modules backed only by an expanded versioned base", () => {
   assert.equal(fiscalTopicCatalog().length, 8);
-  assert.equal(spMgAutoPartsKnowledge.version, "1.4.0");
+  assert.equal(spMgAutoPartsKnowledge.version, "1.5.0");
   assert.equal(spMgAutoPartsKnowledge.baseCode, "FISCAL-MANUAL-BR");
   assert.ok(spMgAutoPartsKnowledge.rules.length >= 28);
   assert.ok(spMgAutoPartsKnowledge.sources.length >= 42);

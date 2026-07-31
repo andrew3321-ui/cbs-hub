@@ -1,7 +1,16 @@
 import { resolveInterstateIcms, type UfCode } from "./national-tax-coverage.ts";
+import {
+  calculateIpiTipiDeepReference,
+  IPI_TIPI_DEEP_CHECKED_AT,
+  IPI_TIPI_DEEP_VERSION,
+  ipiTipiDeepSources,
+  type IpiExternalBenefit,
+  type IpiOperation,
+  type IpiTaxpayerRole,
+} from "./ipi-tipi-deep.ts";
 
-export const DETERMINISTIC_TAX_LAB_VERSION = "2026.07.27-v33";
-export const DETERMINISTIC_TAX_LAB_CHECKED_AT = "2026-07-27";
+export const DETERMINISTIC_TAX_LAB_VERSION = "2026.07.30-v83";
+export const DETERMINISTIC_TAX_LAB_CHECKED_AT = "2026-07-30";
 
 export type LabModule = "simples_annex_i" | "simples_services" | "pis_cofins" | "pis_cofins_special" | "presumed_profit_2026" | "real_profit_federal" | "federal_withholdings" | "ipi_tipi" | "iss" | "icms_difal" | "rtc_2026";
 export type LabIssue = { code: string; severity: "blocker" | "warning"; message: string };
@@ -36,7 +45,7 @@ export const labSources = {
   law9430: { code: "LEI-9430-1996", title: "Lei nº 9.430/1996", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/l9430.htm", checkedAt },
   rir2018: { code: "D-9580-2018", title: "Decreto nº 9.580/2018", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/_ato2015-2018/2018/decreto/d9580.htm", checkedAt },
   inssCessao: { code: "LEI-8212-1991", title: "Lei nº 8.212/1991", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/l8212cons.htm", checkedAt },
-  ipi: { code: "RFB-TIPI-2026", title: "TIPI", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/legislacao/tipi-tabela-de-incidencia-do-imposto-sobre-produtos-industrializados", checkedAt },
+  ipi: { code: "IPI-RFB-TIPI-CONSOLIDATED", title: "TIPI consolidada — ADE RFB nº 1/2026", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/legislacao/documentos-e-arquivos/tipi.pdf", checkedAt },
   iss: { code: "LC-116-2003", title: "Lei Complementar nº 116/2003", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp116.htm", checkedAt },
   difal: { code: "LC-190-2022", title: "Lei Complementar nº 190/2022", publisher: "Presidência da República", url: "https://www.planalto.gov.br/ccivil_03/leis/lcp/lcp190.htm", checkedAt },
   rtc: { code: "RFB-RTC-2026", title: "Entenda a Reforma Tributária do Consumo", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo/entenda", checkedAt },
@@ -354,31 +363,67 @@ export function calculateFederalWithholdings(input: FederalWithholdingsInput): L
 }
 
 export type IpiTipiInput = {
-  operation: "industrial_output" | "import";
-  ipiBaseCents: number;
-  ipiRateBps: number;
-  ncmConfirmed: boolean;
-  tipiRateConfirmed: boolean;
-  industrializationOrImportConfirmed: boolean;
-  exemptionsExcluded: boolean;
+  ncm: string;
+  calculationDate: string;
+  operation: IpiOperation;
+  taxpayerRole: IpiTaxpayerRole;
+  operationValueCents: number | null;
+  customsValueCents: number | null;
+  importTaxCents: number | null;
+  exchangeChargesCents: number | null;
+  tipiExceptionCode: string | null;
+  externalBenefit: IpiExternalBenefit;
+  externalBenefitLegalReference: string | null;
+  productDescriptionConfirmed: boolean;
+  exactNcmConfirmed: boolean;
+  tipiVersionConfirmed: boolean;
+  sectionChapterNotesConfirmed: boolean;
+  taxpayerRoleConfirmed: boolean;
+  operationDocumented: boolean;
+  tipiExceptionConfirmed: boolean;
+  noListedExceptionAppliesConfirmed: boolean;
+  externalBenefitValidityConfirmed: boolean;
+  nonTaxableReasonConfirmed: boolean;
 };
 export function calculateIpiTipi(input: IpiTipiInput): LabResult {
-  if (!(["industrial_output", "import"] as string[]).includes(input.operation)) throw new Error("invalid_ipi_operation");
-  const base = safeInteger(input.ipiBaseCents, "ipi_base");
-  const rate = safeInteger(input.ipiRateBps, "ipi_rate", 0, 40000);
-  const ipi = multiplyCentsByBps(base, rate);
+  const deep = calculateIpiTipiDeepReference(input);
   const verifiedFacts = facts([
-    ["NCM e produto foram classificados", input.ncmConfirmed],
-    ["alíquota da TIPI vigente foi confirmada", input.tipiRateConfirmed],
-    ["industrialização ou importação é relevante na operação", input.industrializationOrImportConfirmed],
-    ["isenção, imunidade, suspensão, ZFM e regimes especiais foram excluídos", input.exemptionsExcluded],
+    ["NCM exato de oito dígitos foi confirmado", input.exactNcmConfirmed],
+    ["descrição legal da mercadoria foi conferida", input.productDescriptionConfirmed],
+    ["TIPI consolidada e suas notas foram conferidas", input.tipiVersionConfirmed && input.sectionChapterNotesConfirmed],
+    ["papel do contribuinte e documento da operação foram confirmados", input.taxpayerRoleConfirmed && input.operationDocumented],
+    ["Ex da TIPI foi decidido expressamente", input.tipiExceptionConfirmed || input.noListedExceptionAppliesConfirmed],
+    ["benefício externo está ausente ou possui regra jurídica dedicada", input.externalBenefit === "none"],
   ]);
-  const issues: LabIssue[] = [...missingFacts(verifiedFacts)];
-  return result("ipi_tipi", "IPI/TIPI — referência por NCM", [
-    { code: "ipi_base", label: "Base do IPI", formula: "Valor da operação/base de importação informada", amountCents: base },
-    { code: "tipi_rate", label: "Alíquota TIPI informada", formula: "Alíquota conferida na TIPI vigente", amountCents: null, rateBps: rate },
-    { code: "ipi_reference", label: "IPI de referência", formula: "Base × alíquota TIPI", amountCents: ipi, rateBps: rate },
-  ], issues, [labSources.ipi], verifiedFacts, `${input.operation === "import" ? "Importação" : "Saída industrial"} com NCM obrigatório e alíquota parametrizada.`);
+  const issues: LabIssue[] = [
+    ...deep.blockers.map((message, index) => ({ code: `ipi_blocker_${index + 1}`, severity: "blocker" as const, message })),
+    ...deep.warnings.map((message, index) => ({ code: `ipi_warning_${index + 1}`, severity: "warning" as const, message })),
+  ];
+  const sourceMap = new Map(ipiTipiDeepSources.map((source) => [source.code, source]));
+  const sources = deep.sourceCodes
+    .map((code) => sourceMap.get(code))
+    .filter((source): source is NonNullable<typeof source> => Boolean(source))
+    .map(({ code, title, publisher, url, checkedAt }) => ({ code, title, publisher, url, checkedAt }));
+  const operationLabel = {
+    industrial_output: "Saída industrial",
+    import_clearance: "Importação",
+    equiparated_output: "Saída de equiparado",
+    non_taxable_exit: "Saída comercial não tributada",
+  }[input.operation];
+  return {
+    module: "ipi_tipi",
+    title: "IPI/TIPI — referência exata por NCM",
+    status: deep.status === "blocked" ? "blocked" : "calculated_reference",
+    summary: deep.status === "blocked"
+      ? `Memória bloqueada em ${IPI_TIPI_DEEP_VERSION}; nenhum valor fiscal foi liberado.`
+      : `${operationLabel} · NCM ${deep.profile?.ncm} · ${deep.appliedException?.code ?? "alíquota nominal"} · base ${IPI_TIPI_DEEP_VERSION}.`,
+    lines: deep.lines,
+    issues,
+    sources,
+    facts: verifiedFacts,
+    engineVersion: DETERMINISTIC_TAX_LAB_VERSION,
+    disclaimer: `TIPI conferida em ${IPI_TIPI_DEEP_CHECKED_AT}. Créditos, ajustes, benefícios externos e saldo do período não são presumidos por esta memória.`,
+  };
 }
 
 export type IssInput = { serviceBaseCents: number; deductionsCents: number; municipalRateBps: number; withheld: boolean; serviceItemConfirmed: boolean; placeConfirmed: boolean; municipalRateConfirmed: boolean; municipalLawReference: string };
