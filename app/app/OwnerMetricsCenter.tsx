@@ -27,8 +27,6 @@ export default function OwnerMetricsCenter() {
 
   useEffect(() => {
     const controller = new AbortController();
-    setLoading(true);
-    setMessage("");
     fetch(`/api/admin/metrics?days=${days}`, { cache: "no-store", signal: controller.signal })
       .then(async (response) => {
         const payload = await response.json() as Payload & { error?: string };
@@ -42,13 +40,19 @@ export default function OwnerMetricsCenter() {
   }, [days]);
 
   const chartMax = useMemo(() => Math.max(1, ...(data?.daily.map((row) => Math.max(row.visitors, row.signups, row.trialsStarted)) ?? [1])), [data]);
+  function changePeriod(value: number) {
+    if (value === days) return;
+    setLoading(true);
+    setMessage("");
+    setDays(value);
+  }
   if (!data && loading) return <div className="page-content owner-metrics-page"><div className="billing-admin-loading">Consolidando métricas operacionais…</div></div>;
   if (!data) return <div className="page-content owner-metrics-page"><div className="billing-admin-loading">{message || "Métricas indisponíveis."}</div></div>;
 
   return <div className="page-content owner-metrics-page">
     <div className="page-heading owner-metrics-heading">
       <div><p className="kicker">VISÃO DO PROPRIETÁRIO · DADOS MINIMIZADOS</p><h1>Métricas da plataforma</h1><p>Acompanhe aquisição, ativação, trials e receita com definições estáveis e dados operacionais conciliados.</p></div>
-      <div className="owner-period" aria-label="Período das métricas">{[7, 30, 90].map((value) => <button type="button" className={days === value ? "active" : ""} onClick={() => setDays(value)} key={value}>{value} dias</button>)}</div>
+      <div className="owner-period" aria-label="Período das métricas">{[7, 30, 90].map((value) => <button type="button" className={days === value ? "active" : ""} onClick={() => changePeriod(value)} key={value}>{value} dias</button>)}</div>
     </div>
     {message && <div className="toast" role="status">{message}</div>}
 
