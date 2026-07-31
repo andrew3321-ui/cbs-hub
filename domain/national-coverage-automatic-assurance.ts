@@ -10,9 +10,14 @@ import { hashStAutoPartsHighUseCorridors, validateStAutoPartsHighUseCorridors } 
 import { hashStColdBeveragePriority, validateStColdBeveragePriority } from "./st-cold-beverages-priority.ts";
 import { hashStColdBeverageSpDestination, validateStColdBeverageSpDestination } from "./st-cold-beverages-sp-destination.ts";
 import { hashStColdBeverageSpOrigin, validateStColdBeverageSpOrigin } from "./st-cold-beverages-sp-origin.ts";
+import {
+  hashStConstructionElectricalPriority,
+  stConstructionElectricalMetrics,
+  validateStConstructionElectricalPriority,
+} from "./st-construction-electrical-priority.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.25-v70";
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-25";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.30-v72";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-30";
 
 type Validation = { passed: boolean; errors: string[] };
 
@@ -33,8 +38,10 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("COLD_BEVERAGES_PRIORITY", "Bebidas frias por produto, rota e data", validateStColdBeveragePriority()),
     moduleResult("COLD_BEVERAGES_SP_DESTINATION", "PMPF de bebidas com destino a São Paulo", validateStColdBeverageSpDestination()),
     moduleResult("COLD_BEVERAGES_SP_ORIGIN", "PMPF de bebidas de SP para MG e RJ", validateStColdBeverageSpOrigin()),
+    moduleResult("CONSTRUCTION_ELECTRICAL_PRIORITY", "Materiais de construção, ferramentas e elétricos em SP→MG/RJ", validateStConstructionElectricalPriority()),
   ];
   const calculation = stSpCalculationValidationMetrics();
+  const constructionElectrical = stConstructionElectricalMetrics();
   const errors = modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`));
   if (calculation.failed !== 0) errors.push(`ST_CALCULATION_RUNS:${calculation.failed}_engine_failures`);
   const passed = modules.every((module) => module.passed) && errors.length === 0;
@@ -49,9 +56,9 @@ export function validateNationalCoverageAutomatically() {
     metrics: {
       modules: modules.length,
       modulesPassed: modules.filter((module) => module.passed).length,
-      totalRuns: calculation.totalRuns,
-      referenceReproduced: calculation.referenceReproduced,
-      safelyBlocked: calculation.safelyBlocked,
+      totalRuns: calculation.totalRuns + constructionElectrical.reproducedMemories + constructionElectrical.safeFailureScenarios,
+      referenceReproduced: calculation.referenceReproduced + constructionElectrical.reproducedMemories,
+      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios,
       failed: calculation.failed,
     },
     modules,
@@ -73,6 +80,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStColdBeveragePriority(),
     hashStColdBeverageSpDestination(),
     hashStColdBeverageSpOrigin(),
+    hashStConstructionElectricalPriority(),
   ]);
   const payload = JSON.stringify({ version: NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, moduleHashes });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));

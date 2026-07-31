@@ -11,6 +11,7 @@ import { hashStAutoPartsHighUseCorridors, stAutoPartsHighUseCorridorMetrics, stA
 import { hashStColdBeveragePriority, stColdBeverageApplicabilityMatrix, stColdBeverageMetrics, stColdBeverageRoutes, stColdBeverageSources, ST_COLD_BEVERAGE_OPERATION_FACT_LABELS, ST_COLD_BEVERAGE_PRODUCTS, ST_COLD_BEVERAGES_PRIORITY_VERSION, ST_COLD_BEVERAGES_SP_WATER_EXCLUSION_FROM, ST_COLD_BEVERAGES_SUPPORTED_PERIOD, validateStColdBeveragePriority } from "../../../../domain/st-cold-beverages-priority";
 import { hashStColdBeverageSpDestination, stColdBeverageSpDestinationMetrics, stColdBeverageSpReferenceRuns, stColdBeverageSpSources, ST_COLD_BEVERAGES_SP_DESTINATION_PERIOD, ST_COLD_BEVERAGES_SP_DESTINATION_ROUTES, ST_COLD_BEVERAGES_SP_DESTINATION_VERSION, ST_COLD_BEVERAGES_SP_FACT_LABELS, ST_COLD_BEVERAGES_SP_PMPF_PROFILES, validateStColdBeverageSpDestination } from "../../../../domain/st-cold-beverages-sp-destination";
 import { hashStColdBeverageSpOrigin, stColdBeverageSpOriginMetrics, stColdBeverageSpOriginReferenceRuns, stColdBeverageSpOriginSources, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD, ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES, ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES, ST_COLD_BEVERAGES_SP_ORIGIN_VERSION, validateStColdBeverageSpOrigin } from "../../../../domain/st-cold-beverages-sp-origin";
+import { hashStConstructionElectricalPriority, stConstructionElectricalDossiers, stConstructionElectricalMetrics, stConstructionElectricalNegativeRuns, stConstructionElectricalReferenceRuns, stConstructionElectricalSources, ST_CONSTRUCTION_ELECTRICAL_FACT_LABELS, ST_CONSTRUCTION_ELECTRICAL_PERIOD, ST_CONSTRUCTION_ELECTRICAL_PRODUCTS, ST_CONSTRUCTION_ELECTRICAL_ROUTES, ST_CONSTRUCTION_ELECTRICAL_VERSION, validateStConstructionElectricalPriority } from "../../../../domain/st-construction-electrical-priority";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
@@ -32,6 +33,7 @@ async function publicCoverage() {
   const coldBeveragesFingerprint = (await hashStColdBeveragePriority()).slice(0, 12);
   const coldBeveragesSpFingerprint = (await hashStColdBeverageSpDestination()).slice(0, 12);
   const coldBeveragesSpOriginFingerprint = (await hashStColdBeverageSpOrigin()).slice(0, 12);
+  const constructionElectricalFingerprint = (await hashStConstructionElectricalPriority()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const regressionReport = await buildFiscalRegressionReport();
   const coverageIndicator = await buildPublicCoverageIndicator();
@@ -173,6 +175,21 @@ async function publicCoverage() {
       runs: stColdBeverageSpOriginReferenceRuns,
       sources: stColdBeverageSpOriginSources,
       policy: "Escopo fechado para cinco perfis de alto giro em SP→MG e cinco em SP→RJ, sempre no regime normal e entre contribuintes. O motor preserva a diferença jurídica da trava de 80%, separa ICMS-ST e FCP e bloqueia qualquer perfil, vigência ou fato divergente.",
+    },
+    stConstructionElectricalPriority: {
+      version: ST_CONSTRUCTION_ELECTRICAL_VERSION,
+      fingerprint: constructionElectricalFingerprint,
+      validation: validateStConstructionElectricalPriority(),
+      metrics: stConstructionElectricalMetrics(),
+      supportedPeriod: ST_CONSTRUCTION_ELECTRICAL_PERIOD,
+      factLabels: ST_CONSTRUCTION_ELECTRICAL_FACT_LABELS,
+      products: ST_CONSTRUCTION_ELECTRICAL_PRODUCTS,
+      routes: ST_CONSTRUCTION_ELECTRICAL_ROUTES,
+      referenceRuns: stConstructionElectricalReferenceRuns,
+      negativeRuns: stConstructionElectricalNegativeRuns,
+      sources: stConstructionElectricalSources,
+      dossiers: stConstructionElectricalDossiers,
+      policy: "Escopo fechado para seis identidades fiscais de construção, acabamento, ferramentas e elétricos nas rotas SP→MG e SP→RJ. NCM/CEST, revenda, vigência, responsabilidade, MVA, alíquotas, FCP/FECP e exclusões são fatos obrigatórios; divergência ou ausência bloqueia o valor.",
     },
     recurringScenarios,
     sources: coverageSources,
