@@ -17,6 +17,7 @@ import { hashStFoodCleaningPetPriority, stFoodCleaningPetDossiers, stFoodCleanin
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
+import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
 import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function publicCoverage() {
@@ -38,6 +39,7 @@ async function publicCoverage() {
   const pharmaCosmeticsFingerprint = (await hashStPharmaCosmeticsPriority()).slice(0, 12);
   const constructionElectricalFingerprint = (await hashStConstructionElectricalPriority()).slice(0, 12);
   const foodCleaningPetFingerprint = (await hashStFoodCleaningPetPriority()).slice(0, 12);
+  const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const regressionReport = await buildFiscalRegressionReport();
   const coverageIndicator = await buildPublicCoverageIndicator();
@@ -53,6 +55,17 @@ async function publicCoverage() {
     coverageIndicator,
     metrics: coverageMetrics(),
     states: stateCoverage,
+    icmsGeneral: {
+      version: ICMS_GENERAL_NATIONAL_VERSION,
+      checkedAt: ICMS_GENERAL_NATIONAL_CHECKED_AT,
+      fingerprint: icmsGeneralFingerprint,
+      validation: validateIcmsGeneralNational(),
+      metrics: icmsGeneralNationalMetrics(),
+      profiles: icmsStateGeneralProfiles,
+      sources: icmsGeneralSources,
+      referenceRuns: icmsGeneralReferenceRuns,
+      policy: "A alíquota modal é referência geral, não conclusão fiscal. NCM, finalidade, destinatário, ST, benefício, redução, diferimento, FCP e método estadual do DIFAL são portões obrigatórios; fórmula não comprovada bloqueia o valor.",
+    },
     cities: cityCoverage,
     issDeep: {
       version: ISS_DEEP_VERSION,

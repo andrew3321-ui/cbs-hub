@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.30-v6";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v7";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-30";
 
 export type PublicCoverageMaturity = {
@@ -174,7 +174,7 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       status: item.status,
       maturity: maturity({ catalogued: true, structured: true, tested: true }),
       checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
-      officialSources: sourceByCode([`SEFAZ-${item.uf}`, "LC-87-1996", "RSF-22-1989"]),
+      officialSources: sourceByCode([item.generalRateSourceCode, `SEFAZ-${item.uf}`, "LC-87-1996", "RSF-22-1989"]),
       regression: { cases: regressionCases, failures: regressionFailures },
       objectiveReason: item.blockers[0] ?? "Cobertura parcial por depender de regra estadual e fatos da operacao.",
       blockers: item.blockers,
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "icms-general-v78-27-ufs",
+        changedAt: "2026-07-30T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "As 27 UFs passaram a publicar alíquota modal, vigência, fonte estadual e fundo próprio; DIFAL/FCP só calculam nos recortes cuja fórmula e hipótese foram confirmadas.",
+        affectedCodes: stateCoverage.map((item) => `UF-${item.uf}`),
+        clientDataExposed: false,
+      },
       {
         id: "iss-deep-v75-25-exact-slices",
         changedAt: "2026-07-29T00:00:00.000Z",

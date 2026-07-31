@@ -3,11 +3,15 @@ import test from "node:test";
 import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, recurringScenarios, resolveInterstateIcms, stateCoverage, stSegments } from "../domain/national-tax-coverage.ts";
 import { inspectFiscalBatchText } from "../domain/fiscal-batch-import.ts";
 
-test("V27 exposes all 27 UFs without pretending internal rates are final", () => {
+test("V78 exposes modal rates for all 27 UFs without pretending product incidence is final", () => {
   assert.equal(stateCoverage.length, 27);
   assert.equal(new Set(stateCoverage.map((item) => item.uf)).size, 27);
   assert.ok(stateCoverage.every((item) => item.status === "partial"));
-  assert.ok(stateCoverage.every((item) => item.blockers.some((text) => text.includes("alíquota interna"))));
+  assert.ok(stateCoverage.every((item) => Number.isInteger(item.generalRateBps)));
+  assert.ok(stateCoverage.every((item) => item.generalRateSourceCode.startsWith("ICMS-")));
+  assert.ok(stateCoverage.every((item) => item.blockers.some((text) => text.includes("alíquota modal"))));
+  assert.equal(stateCoverage.find((item) => item.uf === "AL").generalRateBps, 2050);
+  assert.equal(stateCoverage.find((item) => item.uf === "AL").generalRateEffectiveFrom, "2026-04-01");
 });
 
 test("interstate resolver reproduces 7%, 12% and qualified imported 4%", () => {

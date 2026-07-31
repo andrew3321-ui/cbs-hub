@@ -21,8 +21,13 @@ import {
   stFoodCleaningPetMetrics,
   validateStFoodCleaningPetPriority,
 } from "./st-food-cleaning-pet-priority.ts";
+import {
+  hashIcmsGeneralNational,
+  icmsGeneralNationalMetrics,
+  validateIcmsGeneralNational,
+} from "./icms-general-national.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.30-v74";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v78";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-30";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -47,10 +52,12 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("PHARMA_COSMETICS_PRIORITY", "Medicamentos, cosméticos e perfumaria prioritários", validateStPharmaCosmeticsPriority()),
     moduleResult("CONSTRUCTION_ELECTRICAL_PRIORITY", "Materiais de construção, ferramentas e elétricos em SP→MG/RJ", validateStConstructionElectricalPriority()),
     moduleResult("FOOD_CLEANING_PET_PRIORITY", "Alimentos, limpeza, higiene doméstica e pet food em SP→MG/RJ", validateStFoodCleaningPetPriority()),
+    moduleResult("ICMS_GENERAL_NATIONAL", "ICMS modal, FCP e DIFAL condicionais nas 27 UFs", validateIcmsGeneralNational()),
   ];
   const calculation = stSpCalculationValidationMetrics();
   const constructionElectrical = stConstructionElectricalMetrics();
   const foodCleaningPet = stFoodCleaningPetMetrics();
+  const icmsGeneral = icmsGeneralNationalMetrics();
   const errors = modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`));
   if (calculation.failed !== 0) errors.push(`ST_CALCULATION_RUNS:${calculation.failed}_engine_failures`);
   const passed = modules.every((module) => module.passed) && errors.length === 0;
@@ -67,9 +74,9 @@ export function validateNationalCoverageAutomatically() {
       modulesPassed: modules.filter((module) => module.passed).length,
       totalRuns: calculation.totalRuns
         + constructionElectrical.reproducedMemories + constructionElectrical.safeFailureScenarios
-        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + 1,
-      referenceReproduced: calculation.referenceReproduced + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + 1,
-      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios,
+        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.referenceRuns + 1,
+      referenceReproduced: calculation.referenceReproduced + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.referenceRuns - 1,
+      safelyBlocked: calculation.safelyBlocked + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + 1,
       failed: calculation.failed,
     },
     modules,
@@ -94,6 +101,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStPharmaCosmeticsPriority(),
     hashStConstructionElectricalPriority(),
     hashStFoodCleaningPetPriority(),
+    hashIcmsGeneralNational(),
   ]);
   const payload = JSON.stringify({ version: NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION, moduleHashes });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));

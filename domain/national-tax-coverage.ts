@@ -1,13 +1,34 @@
 import { issDeepCityProfiles, issDeepProfileByIbge, issDeepServiceCoverage, issDeepSources } from "./iss-deep-coverage.ts";
+import {
+  ICMS_GENERAL_NATIONAL_CHECKED_AT,
+  ICMS_GENERAL_NATIONAL_VERSION,
+  icmsGeneralSources,
+  icmsStateGeneralProfileByUf,
+  icmsStateGeneralProfiles,
+  type IcmsUfCode,
+} from "./icms-general-national.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.07.30-v77";
+export const NATIONAL_COVERAGE_VERSION = "2026.07.31-v78";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-07-30";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
-export type UfCode = "AC" | "AL" | "AP" | "AM" | "BA" | "CE" | "DF" | "ES" | "GO" | "MA" | "MT" | "MS" | "MG" | "PA" | "PB" | "PR" | "PE" | "PI" | "RJ" | "RN" | "RS" | "RO" | "RR" | "SC" | "SP" | "SE" | "TO";
+export type UfCode = IcmsUfCode;
 
 export type CoverageSource = { code: string; title: string; publisher: string; url: string; checkedAt: string };
-export type StateCoverage = { uf: UfCode; name: string; region: "N" | "NE" | "CO" | "SE" | "S"; status: CoverageStatus; officialPortal: string; supported: string[]; blockers: string[] };
+export type StateCoverage = {
+  uf: UfCode;
+  name: string;
+  region: "N" | "NE" | "CO" | "SE" | "S";
+  status: CoverageStatus;
+  officialPortal: string;
+  generalRateBps: number;
+  generalRateEffectiveFrom: string;
+  generalRateSourceCode: string;
+  fundName: string;
+  generalFundRateBps: number | null;
+  supported: string[];
+  blockers: string[];
+};
 export type CityCoverage = { ibgeCode: string; city: string; uf: UfCode; status: CoverageStatus; rangeBps: [number, number]; depth: "structured" | "catalogued"; officialSourceCodes: string[]; structuredAt: string | null; supported: string[]; blockers: string[] };
 export type SegmentCoverage = { code: string; name: string; status: CoverageStatus; routes: string[]; supported: string[]; blockers: string[] };
 export type ScenarioCoverage = { code: string; tax: string; title: string; status: CoverageStatus; supported: string[]; blockers: string[] };
@@ -23,14 +44,34 @@ export const coverageSources: CoverageSource[] = [
   { code: "EFD-ICMS-IPI", title: "Guia Prático EFD-ICMS/IPI v3.2.2", publisher: "SPED", url: "https://sped.rfb.gov.br/arquivo/download/8112", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   { code: "RTC-CALCULATOR", title: "Calculadora oficial de tributos sobre consumo", publisher: "Receita Federal", url: "https://consumo.tributos.gov.br/servico/calcular-tributos-consumo/calculadora/regime-geral", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   { code: "RTC-MANUAL", title: "Manual de serviços da Reforma Tributária do Consumo", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/centrais-de-conteudo/publicacoes/manuais/reforma-tributaria-do-consumo/manual-servicos-rtc.pdf", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
+  ...icmsGeneralSources,
   ...issDeepSources,
 ];
 
-const state = (uf: UfCode, name: string, region: StateCoverage["region"], officialPortal: string): StateCoverage => ({
-  uf, name, region, officialPortal, status: "partial",
-  supported: ["rota interestadual padrão de 7%/12%", "mercadoria importada qualificada a 4%", "trilha de DIFAL/ST para revisão"],
-  blockers: ["alíquota interna depende da legislação vigente da UF e do produto", "FCP, benefício, redução, diferimento e regime especial exigem confirmação", "NCM/CEST, finalidade e cadastro do destinatário são fatos obrigatórios"],
-});
+const state = (uf: UfCode, name: string, region: StateCoverage["region"], officialPortal: string): StateCoverage => {
+  const profile = icmsStateGeneralProfileByUf.get(uf);
+  if (!profile) throw new Error(`missing_icms_general_profile:${uf}`);
+  return {
+    uf,
+    name,
+    region,
+    officialPortal,
+    status: "partial",
+    generalRateBps: profile.generalRateBps,
+    generalRateEffectiveFrom: profile.effectiveFrom,
+    generalRateSourceCode: profile.sourceCode,
+    fundName: profile.fund.name,
+    generalFundRateBps: profile.fund.generalRateBps,
+    supported: [
+      "alíquota modal interna versionada com fonte oficial",
+      "rota interestadual padrão de 7%/12%",
+      "mercadoria importada qualificada a 4%",
+      "FCP separado por fundo e hipótese",
+      "DIFAL somente nas UFs e perfis cuja fórmula foi comprovada",
+    ],
+    blockers: [...profile.blockers],
+  };
+};
 
 export const stateCoverage: StateCoverage[] = [
   state("AC", "Acre", "N", "https://sefaz.ac.gov.br/"), state("AL", "Alagoas", "NE", "https://www.sefaz.al.gov.br/"), state("AP", "Amapá", "N", "https://sefaz.portal.ap.gov.br/"),
@@ -138,11 +179,14 @@ export function coverageMetrics() {
     partial: all.filter((item) => item.status === "partial").length,
     notSupported: all.filter((item) => item.status === "not_supported").length,
     sourceCount: coverageSources.length,
+    icmsGeneralStates: icmsStateGeneralProfiles.length,
+    icmsGeneralVersion: ICMS_GENERAL_NATIONAL_VERSION,
+    icmsGeneralCheckedAt: ICMS_GENERAL_NATIONAL_CHECKED_AT,
   };
 }
 
 export async function hashNationalCoverage() {
-  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, issDeepServiceCoverage, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
+  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, icmsGeneralVersion: ICMS_GENERAL_NATIONAL_VERSION, icmsGeneralProfiles: icmsStateGeneralProfiles, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, issDeepServiceCoverage, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

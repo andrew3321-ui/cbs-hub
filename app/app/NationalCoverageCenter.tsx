@@ -3,7 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 type Status = "supported" | "partial" | "not_supported";
-type StateRow = { uf: string; name: string; region: string; status: Status; officialPortal: string; supported: string[]; blockers: string[] };
+type StateRow = { uf: string; name: string; region: string; status: Status; officialPortal: string; generalRateBps: number; generalRateEffectiveFrom: string; generalRateSourceCode: string; fundName: string; generalFundRateBps: number | null; supported: string[]; blockers: string[] };
 type CityRow = { ibgeCode: string; city: string; uf: string; status: Status; rangeBps: [number, number]; depth: "structured" | "catalogued"; officialSourceCodes: string[]; structuredAt: string | null; supported: string[]; blockers: string[] };
 type Segment = { code: string; name: string; status: Status; routes: string[]; supported: string[]; blockers: string[] };
 type StSpMgPackage = { segmentCode: string; segmentName: string; route: "SP-MG"; mgChapter: string; mgChapterTitle: string; sourceUrl: string; sourceTitle: string; checkedAt: string; legalStatus: "calculation_validated" | "legal_gate_structured"; calculationMethod: "mva" | "pmpf_or_mva" | "special_regime" | "depends_on_product"; mandatoryFacts: string[]; representativeRule: null | { cest: string; ncm: string; description: string; mvaOriginalBps: number; agreementCode: string; effectiveFrom: string; sourceExcerpt: string }; blockers: string[] };
@@ -229,7 +229,7 @@ export default function NationalCoverageCenter() {
   const [origin, setOrigin] = useState("SP");
   const [destination, setDestination] = useState("MG");
   const [importedQualified, setImportedQualified] = useState(false);
-  const [icmsResult, setIcmsResult] = useState<{ rateBps: number | null; reason: string } | null>(null);
+  const [icmsResult, setIcmsResult] = useState<{ rateBps: number | null; reason: string; destinationProfile: { generalRateBps: number; effectiveFrom: string; fundName: string; generalFundRateBps: number | null; classification: Status } } | null>(null);
   const [autoPartsRoute, setAutoPartsRoute] = useState("SP-MG");
   const [autoPartsProductCode, setAutoPartsProductCode] = useState("GENERAL_VEHICLE_PARTS_8708");
   const [autoPartsDate, setAutoPartsDate] = useState("");
@@ -344,8 +344,8 @@ export default function NationalCoverageCenter() {
   const calculateIcms = async (event: FormEvent) => {
     event.preventDefault(); setBusy("icms"); setError(""); setIcmsResult(null);
     try {
-      const payload = await json<{ result: { rateBps: number | null; reason: string } }>("/api/national-coverage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ origin, destination, importedQualified }) });
-      setIcmsResult(payload.result);
+      const payload = await json<{ result: { rateBps: number | null; reason: string }; destinationProfile: { generalRateBps: number; effectiveFrom: string; fundName: string; generalFundRateBps: number | null; classification: Status } }>("/api/national-coverage", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ origin, destination, importedQualified }) });
+      setIcmsResult({ ...payload.result, destinationProfile: payload.destinationProfile });
     } catch (cause) { setError(cause instanceof Error ? cause.message : "Cálculo bloqueado."); }
     finally { setBusy(""); }
   };
@@ -592,7 +592,7 @@ export default function NationalCoverageCenter() {
         <footer><p>{coverage.coverageIndicator.classificationPolicy.statement}</p><small>{coverage.coverageIndicator.privacy.statement}</small><code>{coverage.coverageIndicator.changeHistory.length} mudancas publicas sem dados de clientes</code></footer>
       </div>
       <div className="coverage-summary-grid">
-        <article><span>27</span><h3>Estados e Distrito Federal</h3><p>Rotas interestaduais nacionais e acesso direto ao portal oficial de cada UF.</p><b>Todos parciais até homologar alíquota interna, produto e exceções.</b></article>
+        <article><span>27</span><h3>Estados e Distrito Federal</h3><p>Alíquotas modais internas versionadas, rotas interestaduais e acesso à fonte oficial de cada UF.</p><b>A cobertura continua parcial: produto, FCP, benefício, DIFAL e exceções não são presumidos.</b></article>
         <article><span>{coverage.metrics.deepIssCities}</span><h3>ISS profundo estruturado</h3><p>Fontes municipais, classificadores, incidência, retenção e portão da alíquota exata.</p><b>Estruturado ainda não significa testado ou homologado.</b></article>
         <article><span>{coverage.stSpOriginMatrix.metrics.structuredCells}</span><h3>Matriz ST com origem em SP</h3><p>26 destinos cruzados com 25 segmentos, cada célula com fonte, evidências e bloqueios.</p><b>{coverage.stSpOriginMatrix.metrics.existingValidatedReferences} referências existentes · {coverage.stSpOriginMatrix.metrics.calculationsBlocked} células aguardam aprofundamento.</b></article>
         <article><span>Diário</span><h3>Monitor de fontes</h3><p>A primeira abertura do dia confere um lote rotativo de fontes primárias e compara cada uma com sua captura anterior.</p><b>O ciclo completo preserva recursos e nenhum sinal altera regra automaticamente.</b></article>
@@ -602,16 +602,16 @@ export default function NationalCoverageCenter() {
 
     {tab === "icms" && <section className="coverage-two-columns">
       <div className="coverage-column">
-        <div className="coverage-section-heading"><span>27 UFs</span><h2>ICMS geral nacional</h2><p>A alíquota interestadual é resolvida somente com fatos explícitos; a interna permanece bloqueada até conferência estadual.</p></div>
+        <div className="coverage-section-heading"><span>27 UFs</span><h2>ICMS geral nacional</h2><p>Alíquotas modais internas e interestaduais são versionadas; o cálculo só avança com produto, finalidade, FCP e exceções confirmados.</p></div>
         <form className="icms-reference-form" onSubmit={calculateIcms}>
           <label>Origem<select value={origin} onChange={(event) => setOrigin(event.target.value)}>{coverage.states.map((item) => <option key={item.uf}>{item.uf}</option>)}</select></label>
           <span>→</span>
           <label>Destino<select value={destination} onChange={(event) => setDestination(event.target.value)}>{coverage.states.map((item) => <option key={item.uf}>{item.uf}</option>)}</select></label>
           <label className="qualified-import"><input type="checkbox" checked={importedQualified} onChange={(event) => setImportedQualified(event.target.checked)} />Mercadoria cumpre os requisitos da Resolução 13/2012</label>
-          <button disabled={busy === "icms"} title={busy === "icms" ? "Aguarde a conferência da rota selecionada." : "Obtém apenas a referência interestadual; não calcula DIFAL, ST ou FCP."}>{busy === "icms" ? "Conferindo…" : "Obter referência"}</button>
+          <button disabled={busy === "icms"} title={busy === "icms" ? "Aguarde a conferência da rota selecionada." : "Obtém as referências interestadual e modal do destino sem presumir a incidência final."}>{busy === "icms" ? "Conferindo…" : "Obter referências"}</button>
         </form>
-        {icmsResult && <div className="icms-reference-result"><span>REFERÊNCIA INTERESTADUAL</span><strong>{icmsResult.rateBps === null ? "Bloqueada" : `${(icmsResult.rateBps / 100).toFixed(0)}%`}</strong><p>{icmsResult.reason}</p><small>Não calcula DIFAL, ST, FCP ou imposto líquido.</small></div>}
-        <div className="state-matrix">{coverage.states.map((item) => <a href={item.officialPortal} target="_blank" rel="noreferrer" key={item.uf}><b>{item.uf}</b><span>{item.name}</span><StatusPill status={item.status} /><i>↗</i></a>)}</div>
+        {icmsResult && <div className="icms-reference-result"><span>INTERESTADUAL / MODAL DO DESTINO</span><strong>{icmsResult.rateBps === null ? "Interna" : `${(icmsResult.rateBps / 100).toFixed(icmsResult.rateBps % 100 ? 1 : 0)}%`} · {(icmsResult.destinationProfile.generalRateBps / 100).toFixed(icmsResult.destinationProfile.generalRateBps % 100 ? 1 : 0)}%</strong><p>{icmsResult.reason}</p><small>Modal vigente desde {icmsResult.destinationProfile.effectiveFrom} · {icmsResult.destinationProfile.fundName} separado · DIFAL/ST permanecem condicionados aos fatos.</small></div>}
+        <div className="state-matrix">{coverage.states.map((item) => <a href={coverage.sources.find((source) => source.code === item.generalRateSourceCode)?.url ?? item.officialPortal} target="_blank" rel="noreferrer" key={item.uf}><b>{item.uf}</b><span>{item.name} · {(item.generalRateBps / 100).toFixed(item.generalRateBps % 100 ? 1 : 0)}%</span><StatusPill status={item.status} /><i>↗</i></a>)}</div>
       </div>
       <div className="coverage-column">
         <div className="coverage-section-heading"><span>SEGMENTOS PRIORITÁRIOS</span><h2>Substituição tributária profunda</h2><p>Cada segmento informa com transparência o que já entra na memória e o que ainda bloqueia a conclusão.</p></div>

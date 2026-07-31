@@ -68,9 +68,16 @@ import {
   taxReformImpactReferenceCases,
   taxReformSources,
 } from "./tax-reform-impact.ts";
+import {
+  ICMS_GENERAL_NATIONAL_VERSION,
+  hashIcmsGeneralNational,
+  icmsGeneralNationalMetrics,
+  icmsGeneralSources,
+  validateIcmsGeneralNational,
+} from "./icms-general-national.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v1";
-export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-26";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v2";
+export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-30";
 
 export type FiscalRegressionTestKind =
   | "positive"
@@ -107,6 +114,25 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 ];
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
+  {
+    code: "ICMS_GENERAL_NATIONAL",
+    label: "ICMS modal, FCP e DIFAL condicionais nas 27 UFs",
+    ruleCodes: ["NATIONAL-COVERAGE-V27", "ICMS-GENERAL-NATIONAL"],
+    version: ICMS_GENERAL_NATIONAL_VERSION,
+    validate: validateIcmsGeneralNational,
+    hash: hashIcmsGeneralNational,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = icmsGeneralNationalMetrics();
+      return {
+        deterministicCases: metrics.referenceRuns,
+        calculatedMemories: metrics.referenceRuns - 1,
+        safelyBlockedCases: 1,
+      };
+    },
+    sourceCodes: () => icmsGeneralSources.map((item) => item.code).sort(),
+    requiredGates: ["UF e vigência", "NCM completo", "destinatário e finalidade", "alíquota modal aplicável", "alíquota específica e benefício ausentes", "ST separada", "FCP por hipótese", "método estadual do DIFAL"],
+  },
   {
     code: "RTC_TRANSITION_IMPACT",
     label: "Impacto financeiro da transição CBS/IBS de 2026 a 2033",
