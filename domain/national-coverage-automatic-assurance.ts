@@ -63,8 +63,13 @@ import {
   taxReformSectorMetrics,
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
+import {
+  hashStSectoralPriorityExpansion,
+  stSectoralPriorityMetrics,
+  validateStSectoralPriorityExpansion,
+} from "./st-sectoral-priority-expansion.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v91";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v92";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-31";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -91,6 +96,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("PHARMA_COSMETICS_PRIORITY", "Medicamentos, cosméticos e perfumaria prioritários", validateStPharmaCosmeticsPriority()),
     moduleResult("CONSTRUCTION_ELECTRICAL_PRIORITY", "Materiais de construção, ferramentas e elétricos em SP→MG/RJ", validateStConstructionElectricalPriority()),
     moduleResult("FOOD_CLEANING_PET_PRIORITY", "Alimentos, limpeza, higiene doméstica e pet food em SP→MG/RJ", validateStFoodCleaningPetPriority()),
+    moduleResult("ST_SECTORAL_PRIORITY_EXPANSION", "Dez segmentos de ST auditados em dez rotas prioritárias", validateStSectoralPriorityExpansion()),
     moduleResult("ICMS_GENERAL_NATIONAL", "ICMS modal nas 27 UFs e DIFAL/FCP em recortes prioritários", validateIcmsGeneralNational()),
     moduleResult("ISS_DEEP_EXPANSION", "ISS 17.01 auditado em 50 municípios", validateIssDeepCoverage()),
     moduleResult("ISS_RECURRING_PRIORITY", "ISS recorrente em 180 combinações município-item", validateIssRecurringPriority()),
@@ -117,6 +123,7 @@ export function validateNationalCoverageAutomatically() {
   const taxReformSectors = taxReformSectorMetrics();
   const beveragesSc = stColdBeverageScMetrics();
   const beveragesAudit = stColdBeveragePriorityAuditMetrics();
+  const sectoral = stSectoralPriorityMetrics();
   const errors = modules.flatMap((module) => module.errors.map((error) => `${module.code}:${error}`));
   if (calculation.failed !== 0) errors.push(`ST_CALCULATION_RUNS:${calculation.failed}_engine_failures`);
   const passed = modules.every((module) => module.passed) && errors.length === 0;
@@ -135,10 +142,11 @@ export function validateNationalCoverageAutomatically() {
         + autoParts.deterministicProductRouteCases
         + beveragesSc.positiveMemories + beveragesSc.negativeGates
         + beveragesAudit.deterministicCases
+        + sectoral.deterministicCases
         + constructionElectrical.reproducedMemories + constructionElectrical.safeFailureScenarios
         + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases,
-      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories,
-      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases,
+      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + sectoral.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories,
+      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases,
       failed: calculation.failed + autoParts.failedProductRouteCases,
     },
     modules,
@@ -165,6 +173,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStPharmaCosmeticsPriority(),
     hashStConstructionElectricalPriority(),
     hashStFoodCleaningPetPriority(),
+    hashStSectoralPriorityExpansion(),
     hashIcmsGeneralNational(),
     hashIssDeepCoverage(),
     hashIssRecurringPriority(),

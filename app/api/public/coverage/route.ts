@@ -17,6 +17,7 @@ import { hashStColdBeveragePriorityAudit, stColdBeveragePriorityAuditCases, stCo
 import { hashStPharmaCosmeticsPriority, stPharmaCosmeticsCoverageCells, stPharmaCosmeticsLegalRoutes, stPharmaCosmeticsMetrics, stPharmaCosmeticsReferenceRuns, stPharmaCosmeticsSources, stPharmaCosmeticsStateRules, ST_PHARMA_COSMETICS_FACT_LABELS, ST_PHARMA_COSMETICS_PRIORITY_VERSION, ST_PHARMA_COSMETICS_PRODUCTS, ST_PHARMA_COSMETICS_ROUTES, validateStPharmaCosmeticsPriority } from "../../../../domain/st-pharma-cosmetics-priority";
 import { hashStConstructionElectricalPriority, stConstructionElectricalDossiers, stConstructionElectricalMetrics, stConstructionElectricalNegativeRuns, stConstructionElectricalReferenceRuns, stConstructionElectricalSources, ST_CONSTRUCTION_ELECTRICAL_FACT_LABELS, ST_CONSTRUCTION_ELECTRICAL_PERIOD, ST_CONSTRUCTION_ELECTRICAL_PRODUCTS, ST_CONSTRUCTION_ELECTRICAL_ROUTES, ST_CONSTRUCTION_ELECTRICAL_VERSION, validateStConstructionElectricalPriority } from "../../../../domain/st-construction-electrical-priority";
 import { hashStFoodCleaningPetPriority, stFoodCleaningPetDossiers, stFoodCleaningPetMetrics, stFoodCleaningPetMvaFallbackRun, stFoodCleaningPetNegativeRuns, stFoodCleaningPetReferenceRuns, stFoodCleaningPetSources, ST_FOOD_CLEANING_PET_FACT_LABELS, ST_FOOD_CLEANING_PET_PERIOD, ST_FOOD_CLEANING_PET_PRODUCTS, ST_FOOD_CLEANING_PET_ROUTES, ST_FOOD_CLEANING_PET_VERSION, validateStFoodCleaningPetPriority } from "../../../../domain/st-food-cleaning-pet-priority";
+import { hashStSectoralPriorityExpansion, stSectoralPriorityCases, stSectoralPriorityCells, stSectoralPriorityMetrics, ST_SECTORAL_PRIORITY_EXPANSION_CHECKED_AT, ST_SECTORAL_PRIORITY_EXPANSION_VERSION, ST_SECTORAL_RANKED_ROUTES, ST_SECTORAL_REPRESENTATIVES, validateStSectoralPriorityExpansion } from "../../../../domain/st-sectoral-priority-expansion";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
@@ -46,6 +47,7 @@ async function publicCoverage() {
   const pharmaCosmeticsFingerprint = (await hashStPharmaCosmeticsPriority()).slice(0, 12);
   const constructionElectricalFingerprint = (await hashStConstructionElectricalPriority()).slice(0, 12);
   const foodCleaningPetFingerprint = (await hashStFoodCleaningPetPriority()).slice(0, 12);
+  const sectoralPriorityFingerprint = (await hashStSectoralPriorityExpansion()).slice(0, 12);
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const sourceCertificationFingerprint = (await hashOfficialSourceCertification()).slice(0, 12);
@@ -248,6 +250,18 @@ async function publicCoverage() {
       cells: stColdBeveragePriorityAuditCells,
       cases: stColdBeveragePriorityAuditCases,
       policy: "Os oito corredores comerciais de maior prioridade interna são auditados nos dois sentidos e nas seis identidades. Suportado exige perfil exato no módulo do destino; ausência de parâmetro estadual resulta em não suportado, nunca em valor emprestado.",
+    },
+    stSectoralPriorityExpansion: {
+      version: ST_SECTORAL_PRIORITY_EXPANSION_VERSION,
+      checkedAt: ST_SECTORAL_PRIORITY_EXPANSION_CHECKED_AT,
+      fingerprint: sectoralPriorityFingerprint,
+      validation: validateStSectoralPriorityExpansion(),
+      metrics: stSectoralPriorityMetrics(),
+      rankedRoutes: ST_SECTORAL_RANKED_ROUTES,
+      representatives: ST_SECTORAL_REPRESENTATIVES,
+      cells: stSectoralPriorityCells,
+      cases: stSectoralPriorityCases,
+      policy: "A matriz ranqueia dez rotas por segmento por heurística operacional interna. Somente células com identidade, fonte, vigência, responsabilidade e memória já congeladas são suportadas; qualquer lacuna bloqueia o valor e proíbe reutilizar parâmetros de outra UF ou do sentido inverso.",
     },
     stPharmaCosmeticsPriority: {
       version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,

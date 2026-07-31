@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v12";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v13";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
 
 export type PublicCoverageMaturity = {
@@ -336,6 +336,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "st-sectoral-v92-ten-by-ten-audit",
+        changedAt: "2026-07-31T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "Dez segmentos de ST foram cruzados com dez rotas prioritárias, formando 100 células públicas. Somente memórias já sustentadas por identidade, fonte, vigência, parâmetros e responsabilidade permanecem suportadas; todas as lacunas falham fechadas.",
+        affectedCodes: ["ST_SECTORAL_PRIORITY_EXPANSION"],
+        clientDataExposed: false,
+      },
       {
         id: "cold-beverages-v91-priority-expansion",
         changedAt: "2026-07-31T00:00:00.000Z",

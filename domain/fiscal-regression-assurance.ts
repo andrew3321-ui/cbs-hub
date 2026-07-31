@@ -79,6 +79,12 @@ import {
   validateStFoodCleaningPetPriority,
 } from "./st-food-cleaning-pet-priority.ts";
 import {
+  ST_SECTORAL_PRIORITY_EXPANSION_VERSION,
+  hashStSectoralPriorityExpansion,
+  stSectoralPriorityMetrics,
+  validateStSectoralPriorityExpansion,
+} from "./st-sectoral-priority-expansion.ts";
+import {
   TAX_REFORM_IMPACT_ENGINE_VERSION,
   hashTaxReformImpactModel,
   taxReformImpactCasePasses,
@@ -516,6 +522,29 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     },
     sourceCodes: () => stFoodCleaningPetSources.map((source) => source.code).sort(),
     requiredGates: ["NCM, CEST e apresentação exatos", "rota e vigência", "responsabilidade", "MVA ou PMPF vigente", "alíquotas e FCP", "reduções, benefícios e exceções", "documentos e peso quando aplicável"],
+  },
+  {
+    code: "ST_SECTORAL_PRIORITY_EXPANSION",
+    label: "Dez segmentos de ST em dez rotas prioritárias",
+    ruleCodes: ["NATIONAL-COVERAGE-V92", "ST_SECTORAL_PRIORITY_EXPANSION"],
+    version: ST_SECTORAL_PRIORITY_EXPANSION_VERSION,
+    validate: validateStSectoralPriorityExpansion,
+    hash: hashStSectoralPriorityExpansion,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = stSectoralPriorityMetrics();
+      return {
+        deterministicCases: metrics.deterministicCases,
+        calculatedMemories: metrics.positiveMemories,
+        safelyBlockedCases: metrics.deterministicCases - metrics.positiveMemories,
+      };
+    },
+    sourceCodes: () => Array.from(new Set([
+      ...stPharmaCosmeticsSources.map((source) => source.code),
+      ...stConstructionElectricalSources.map((source) => source.code),
+      ...stFoodCleaningPetSources.map((source) => source.code),
+    ])).sort(),
+    requiredGates: ["produto/NCM/CEST exatos", "rota e sentido", "protocolo ou regra do destino", "MVA ou preço oficial", "alíquota interna e FCP", "vigência", "benefício e exceções", "responsabilidade tributária", "documentos"],
   },
 ] as const;
 
