@@ -190,12 +190,24 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
     <main className="auth-shell">
       <Link className="auth-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
       <section className="auth-layout">
-        <div className="auth-story">
+        <div className={`auth-story ${mode === "register" ? "auth-story-showcase-mode" : ""}`}>
           <span className="auth-story-label">DECISÕES FISCAIS. MARGENS PROTEGIDAS.</span>
           <h2>Seu escritório com método, versão e responsabilidade.</h2>
           <p>Organize as empresas atendidas, preserve o trabalho técnico e entregue relatórios com revisão explícita.</p>
+          {mode === "register" && <div className="auth-showcase" aria-label="Prévia real da plataforma CBSHub">
+            <div className="auth-showcase-heading">
+              <span><i /> VISÃO REAL DA PLATAFORMA</span>
+              <small>Fluxo completo</small>
+            </div>
+            <div className="auth-showcase-media">
+              <video autoPlay muted loop playsInline preload="metadata" poster="/media/cbshub-overview-completo-v2-poster.jpg">
+                <source src="/media/cbshub-overview-completo-v2.webm" type="video/webm" />
+              </video>
+              <span>Da operação ao dossiê revisável</span>
+            </div>
+          </div>}
           <div className="auth-story-points"><span><i>✓</i> Carteira privada por contador</span><span><i>✓</i> Versões assinadas e auditáveis</span><span><i>✓</i> Aprovação responsável antes da entrega</span></div>
-          <div className="auth-mini-panel"><span>EXPOSIÇÃO ESTIMADA</span><strong>+ R$ 13.665</strong><small>Reajuste recomendado <b>5,6%</b></small><i><em style={{height:"34%"}} /><em style={{height:"48%"}} /><em style={{height:"42%"}} /><em style={{height:"68%"}} /><em style={{height:"88%"}} /></i></div>
+          {mode !== "register" && <div className="auth-mini-panel"><span>EXPOSIÇÃO ESTIMADA</span><strong>+ R$ 13.665</strong><small>Reajuste recomendado <b>5,6%</b></small><i><em style={{height:"34%"}} /><em style={{height:"48%"}} /><em style={{height:"42%"}} /><em style={{height:"68%"}} /><em style={{height:"88%"}} /></i></div>}
         </div>
 
         <div className="auth-card">
