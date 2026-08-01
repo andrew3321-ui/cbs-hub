@@ -9,6 +9,13 @@ import {
   type GovernedNormativeSource,
 } from "../domain/normative-governance.ts";
 import { buildFiscalRegressionReport } from "../domain/fiscal-regression-assurance.ts";
+import {
+  connectorForSource,
+  inspectOfficialArtifact,
+  OFFICIAL_CONNECTOR_CONTRACT_VERSION,
+  validateOfficialConnectorContracts,
+  type OfficialArtifactInspection,
+} from "../domain/official-source-connectors.ts";
 
 export type NormativeMonitorEnvironment = {
   DB: D1Database;
@@ -27,6 +34,8 @@ type SourceCapture = {
   attempts: number;
   bytesHashed: number;
   alternativeHttpStatus: number | null;
+  notModified: boolean;
+  inspection: OfficialArtifactInspection;
   checkedAt: string;
 };
 
@@ -36,6 +45,17 @@ type PreviousSnapshot = {
   content_hash: string | null;
   normalized_content_hash: string | null;
   final_url: string | null;
+  etag: string | null;
+  last_modified: string | null;
+  connector_id: string | null;
+  artifact_kind: string | null;
+  parser_version: string | null;
+  parse_status: string | null;
+  detected_version: string | null;
+  published_at: string | null;
+  detected_effective_from: string | null;
+  promotion_status: string | null;
+  contract_errors_json: string | null;
 };
 
 type RuleRow = {
@@ -82,6 +102,8 @@ function sourceMetadata(source: GovernedNormativeSource) {
     monitoringFrequency: source.monitoringFrequency,
     officialAlternativeUrl: source.officialAlternativeUrl,
     alternativeEvidenceScope: source.alternativeEvidenceScope,
+    connectorId: connectorForSource(source.code)?.id ?? null,
+    connectorContractVersion: OFFICIAL_CONNECTOR_CONTRACT_VERSION,
   };
 }
 
@@ -93,9 +115,10 @@ async function sourceVersion(source: GovernedNormativeSource) {
 
 export async function ensureNormativeGovernanceSchema(db: D1Database) {
   await db.batch([
-    db.prepare("CREATE TABLE IF NOT EXISTS normative_sources (id TEXT PRIMARY KEY NOT NULL, code TEXT NOT NULL, catalog_version TEXT NOT NULL, title TEXT NOT NULL, publisher TEXT NOT NULL, jurisdiction TEXT NOT NULL, legal_device TEXT NOT NULL, source_kind TEXT NOT NULL, source_url TEXT NOT NULL, effective_from TEXT, effective_to TEXT, verification_status TEXT NOT NULL, impacted_rule_codes_json TEXT DEFAULT '[]' NOT NULL, metadata_hash TEXT NOT NULL, criticality TEXT DEFAULT 'standard' NOT NULL, monitoring_frequency TEXT DEFAULT 'daily' NOT NULL, alternative_url TEXT, alternative_evidence_scope TEXT DEFAULT 'not_available' NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS normative_sources (id TEXT PRIMARY KEY NOT NULL, code TEXT NOT NULL, catalog_version TEXT NOT NULL, title TEXT NOT NULL, publisher TEXT NOT NULL, jurisdiction TEXT NOT NULL, legal_device TEXT NOT NULL, source_kind TEXT NOT NULL, source_url TEXT NOT NULL, effective_from TEXT, effective_to TEXT, verification_status TEXT NOT NULL, impacted_rule_codes_json TEXT DEFAULT '[]' NOT NULL, metadata_hash TEXT NOT NULL, criticality TEXT DEFAULT 'standard' NOT NULL, monitoring_frequency TEXT DEFAULT 'daily' NOT NULL, alternative_url TEXT, alternative_evidence_scope TEXT DEFAULT 'not_available' NOT NULL, connector_id TEXT, connector_contract_version TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS normative_monitor_runs (id TEXT PRIMARY KEY NOT NULL, run_date TEXT NOT NULL, status TEXT DEFAULT 'running' NOT NULL, catalog_version TEXT NOT NULL, source_count INTEGER DEFAULT 0 NOT NULL, checked_count INTEGER DEFAULT 0 NOT NULL, unavailable_count INTEGER DEFAULT 0 NOT NULL, change_count INTEGER DEFAULT 0 NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, error_code TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
-    db.prepare("CREATE TABLE IF NOT EXISTS normative_source_snapshots (id TEXT PRIMARY KEY NOT NULL, run_id TEXT NOT NULL, source_version_id TEXT NOT NULL, source_code TEXT NOT NULL, capture_status TEXT NOT NULL, http_status INTEGER, content_hash TEXT, previous_content_hash TEXT, normalized_content_hash TEXT, final_url TEXT, access_path TEXT DEFAULT 'none' NOT NULL, attempts INTEGER DEFAULT 0 NOT NULL, bytes_hashed INTEGER DEFAULT 0 NOT NULL, alternative_http_status INTEGER, etag TEXT, last_modified TEXT, checked_at TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS normative_source_snapshots (id TEXT PRIMARY KEY NOT NULL, run_id TEXT NOT NULL, source_version_id TEXT NOT NULL, source_code TEXT NOT NULL, capture_status TEXT NOT NULL, http_status INTEGER, content_hash TEXT, previous_content_hash TEXT, normalized_content_hash TEXT, final_url TEXT, access_path TEXT DEFAULT 'none' NOT NULL, attempts INTEGER DEFAULT 0 NOT NULL, bytes_hashed INTEGER DEFAULT 0 NOT NULL, alternative_http_status INTEGER, etag TEXT, last_modified TEXT, not_modified INTEGER DEFAULT 0 NOT NULL, connector_id TEXT, artifact_kind TEXT, parser_version TEXT, parse_status TEXT DEFAULT 'not_applicable' NOT NULL, detected_version TEXT, published_at TEXT, detected_effective_from TEXT, promotion_status TEXT DEFAULT 'not_applicable' NOT NULL, contract_errors_json TEXT DEFAULT '[]' NOT NULL, checked_at TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS normative_source_incidents (id TEXT PRIMARY KEY NOT NULL, source_code TEXT NOT NULL, snapshot_id TEXT NOT NULL, connector_id TEXT NOT NULL, incident_kind TEXT NOT NULL, status TEXT DEFAULT 'open' NOT NULL, details_json TEXT DEFAULT '{}' NOT NULL, detected_at TEXT NOT NULL, resolved_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS normative_change_events (id TEXT PRIMARY KEY NOT NULL, source_code TEXT NOT NULL, previous_snapshot_id TEXT, current_snapshot_id TEXT NOT NULL, change_kind TEXT NOT NULL, status TEXT DEFAULT 'pending_review' NOT NULL, impacted_rule_codes_json TEXT DEFAULT '[]' NOT NULL, detected_at TEXT NOT NULL, resolved_at TEXT, resolution_release_id TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS normative_change_reviews (id TEXT PRIMARY KEY NOT NULL, change_event_id TEXT NOT NULL, workspace_id INTEGER NOT NULL, reviewer_user_id INTEGER NOT NULL, reviewer_name TEXT NOT NULL, professional_role TEXT NOT NULL, professional_registration TEXT NOT NULL, decision TEXT NOT NULL, decision_note TEXT NOT NULL, release_version TEXT, release_hash TEXT, declaration_version TEXT NOT NULL, decision_signature TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS fiscal_rule_releases (id TEXT PRIMARY KEY NOT NULL, version TEXT NOT NULL, manifest_json TEXT NOT NULL, manifest_hash TEXT NOT NULL, previous_release_hash TEXT, source_change_event_id TEXT, release_kind TEXT DEFAULT 'normative_change' NOT NULL, status TEXT DEFAULT 'approved' NOT NULL, approved_by_user_id INTEGER NOT NULL, professional_registration TEXT NOT NULL, approval_signature TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
@@ -109,6 +132,8 @@ export async function ensureNormativeGovernanceSchema(db: D1Database) {
     db.prepare("CREATE INDEX IF NOT EXISTS normative_monitor_runs_status_date_idx ON normative_monitor_runs (status, run_date, id)"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS normative_source_snapshots_run_source_idx ON normative_source_snapshots (run_id, source_code)"),
     db.prepare("CREATE INDEX IF NOT EXISTS normative_source_snapshots_source_checked_idx ON normative_source_snapshots (source_code, checked_at, id)"),
+    db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS normative_source_incidents_snapshot_kind_idx ON normative_source_incidents (snapshot_id, incident_kind)"),
+    db.prepare("CREATE INDEX IF NOT EXISTS normative_source_incidents_source_status_idx ON normative_source_incidents (source_code, status, detected_at, id)"),
     db.prepare("CREATE UNIQUE INDEX IF NOT EXISTS normative_change_events_current_snapshot_idx ON normative_change_events (current_snapshot_id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS normative_change_events_status_detected_idx ON normative_change_events (status, detected_at, id)"),
     db.prepare("CREATE INDEX IF NOT EXISTS normative_change_reviews_event_created_idx ON normative_change_reviews (change_event_id, created_at, id)"),
@@ -126,30 +151,35 @@ export async function ensureNormativeGovernanceSchema(db: D1Database) {
 async function registerSources(db: D1Database) {
   const catalogValidation = validateGovernedSourceCatalog();
   if (!catalogValidation.passed) throw new Error(`normative_source_catalog_invalid:${catalogValidation.errors.join(",")}`);
+  const connectorValidation = validateOfficialConnectorContracts();
+  if (!connectorValidation.passed) throw new Error(`official_connector_catalog_invalid:${connectorValidation.errors.join(",")}`);
   const versions = await Promise.all(governedNormativeSources.map(async (source) => ({ source, ...(await sourceVersion(source)) })));
   await db.batch(versions.map(({ source, id, metadataHash }) => db.prepare(
-    "INSERT OR IGNORE INTO normative_sources (id, code, catalog_version, title, publisher, jurisdiction, legal_device, source_kind, source_url, effective_from, effective_to, verification_status, impacted_rule_codes_json, metadata_hash, criticality, monitoring_frequency, alternative_url, alternative_evidence_scope) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-  ).bind(id, source.code, NORMATIVE_GOVERNANCE_VERSION, source.title, source.publisher, source.jurisdiction, source.legalDevice, source.sourceKind, source.url, source.effectiveFrom, source.effectiveTo, source.verificationStatus, JSON.stringify(source.impactedRuleCodes), metadataHash, source.criticality, source.monitoringFrequency, source.officialAlternativeUrl, source.alternativeEvidenceScope)));
+    "INSERT OR IGNORE INTO normative_sources (id, code, catalog_version, title, publisher, jurisdiction, legal_device, source_kind, source_url, effective_from, effective_to, verification_status, impacted_rule_codes_json, metadata_hash, criticality, monitoring_frequency, alternative_url, alternative_evidence_scope, connector_id, connector_contract_version) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+  ).bind(id, source.code, NORMATIVE_GOVERNANCE_VERSION, source.title, source.publisher, source.jurisdiction, source.legalDevice, source.sourceKind, source.url, source.effectiveFrom, source.effectiveTo, source.verificationStatus, JSON.stringify(source.impactedRuleCodes), metadataHash, source.criticality, source.monitoringFrequency, source.officialAlternativeUrl, source.alternativeEvidenceScope, connectorForSource(source.code)?.id ?? null, OFFICIAL_CONNECTOR_CONTRACT_VERSION)));
   return new Map(versions.map(({ source, id }) => [source.code, id]));
 }
 
 type NormativeFetcher = (input: string, init?: RequestInit) => Promise<Response>;
 
-async function fetchWithRetry(url: string, fetcher: NormativeFetcher, maxAttempts = 2) {
+async function fetchWithRetry(url: string, fetcher: NormativeFetcher, maxAttempts = 2, conditional?: { etag: string | null; lastModified: string | null }) {
   let response: Response | null = null;
   let attempts = 0;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     attempts = attempt;
     try {
-      response = await fetcher(url, {
-        headers: {
+      const headers: Record<string, string> = {
           "User-Agent": "CBSHub-Normative-Monitor/3.0",
           Accept: "text/html,application/xhtml+xml,application/pdf;q=0.8,*/*;q=0.5",
-        },
+      };
+      if (conditional?.etag) headers["If-None-Match"] = conditional.etag;
+      if (conditional?.lastModified) headers["If-Modified-Since"] = conditional.lastModified;
+      response = await fetcher(url, {
+        headers,
         redirect: "follow",
         signal: AbortSignal.timeout(10_000),
       });
-      if (response.ok || ![408, 425, 429, 500, 502, 503, 504].includes(response.status)) break;
+      if (response.ok || response.status === 304 || ![408, 425, 429, 500, 502, 503, 504].includes(response.status)) break;
     } catch {
       response = null;
     }
@@ -166,19 +196,39 @@ function normalizedText(bytes: Uint8Array) {
     .trim();
 }
 
-export async function captureNormativeSource(source: GovernedNormativeSource, fetcher: NormativeFetcher = fetch): Promise<SourceCapture> {
+export async function captureNormativeSource(source: GovernedNormativeSource, fetcher: NormativeFetcher = fetch, previous: PreviousSnapshot | null = null): Promise<SourceCapture> {
   const checkedAt = isoNow();
-  const direct = await fetchWithRetry(source.url, fetcher, 2);
+  const contract = connectorForSource(source.code);
+  const direct = await fetchWithRetry(source.url, fetcher, contract?.maxAttempts ?? 2, previous ? { etag: previous.etag, lastModified: previous.last_modified } : undefined);
+  if (direct.response?.status === 304 && previous?.content_hash) {
+    const inspection: OfficialArtifactInspection = contract ? {
+      connectorId: contract.id,
+      connectorName: contract.name,
+      artifactKind: contract.artifactKind,
+      parserVersion: previous.parser_version ?? contract.parserVersion,
+      parseStatus: previous.parse_status === "contract_blocked" ? "contract_blocked" : "parsed",
+      detectedVersion: previous.detected_version,
+      publishedAt: previous.published_at,
+      effectiveFrom: previous.detected_effective_from,
+      contractErrors: parseList(previous.contract_errors_json),
+      promotionStatus: previous.promotion_status === "blocked_contract" ? "blocked_contract" : "metadata_review",
+    } : { connectorId: null, connectorName: null, artifactKind: null, parserVersion: null, parseStatus: "not_applicable", detectedVersion: null, publishedAt: null, effectiveFrom: null, contractErrors: [], promotionStatus: "not_applicable" };
+    return { source, status: "checked", httpStatus: 304, contentHash: previous.content_hash, normalizedContentHash: previous.normalized_content_hash, etag: direct.response.headers.get("etag") ?? previous.etag, lastModified: direct.response.headers.get("last-modified") ?? previous.last_modified, finalUrl: direct.response.url || previous.final_url || source.url, accessPath: "direct", attempts: direct.attempts, bytesHashed: 0, alternativeHttpStatus: null, notModified: true, inspection, checkedAt };
+  }
   if (direct.response?.ok) {
     const rawBytes = new Uint8Array(await direct.response.arrayBuffer());
-    const bytes = rawBytes.slice(0, 750_000);
-    return { source, status: "checked", httpStatus: direct.response.status, contentHash: await sha256Hex(bytes), normalizedContentHash: await sha256Hex(normalizedText(bytes)), etag: direct.response.headers.get("etag"), lastModified: direct.response.headers.get("last-modified"), finalUrl: direct.response.url || source.url, accessPath: "direct", attempts: direct.attempts, bytesHashed: bytes.length, alternativeHttpStatus: null, checkedAt };
+    const bytes = rawBytes.slice(0, contract?.maxBytes ?? 750_000);
+    const bodyText = normalizedText(bytes);
+    const finalUrl = direct.response.url || source.url;
+    const inspection = inspectOfficialArtifact({ sourceCode: source.code, finalUrl, contentType: direct.response.headers.get("content-type"), bodyText });
+    return { source, status: "checked", httpStatus: direct.response.status, contentHash: await sha256Hex(bytes), normalizedContentHash: await sha256Hex(bodyText), etag: direct.response.headers.get("etag"), lastModified: direct.response.headers.get("last-modified"), finalUrl, accessPath: "direct", attempts: direct.attempts, bytesHashed: bytes.length, alternativeHttpStatus: null, notModified: false, inspection, checkedAt };
   }
   const alternative = source.officialAlternativeUrl ? await fetchWithRetry(source.officialAlternativeUrl, fetcher, 1) : { response: null, attempts: 0 };
-  return { source, status: "unavailable", httpStatus: direct.response?.status ?? null, contentHash: null, normalizedContentHash: null, etag: direct.response?.headers.get("etag") ?? null, lastModified: direct.response?.headers.get("last-modified") ?? null, finalUrl: direct.response?.url || source.url, accessPath: alternative.response?.ok ? "official_alternative" : "none", attempts: direct.attempts + alternative.attempts, bytesHashed: 0, alternativeHttpStatus: alternative.response?.status ?? null, checkedAt };
+  const inspection = inspectOfficialArtifact({ sourceCode: source.code, finalUrl: direct.response?.url || source.url, contentType: direct.response?.headers.get("content-type") ?? null, bodyText: "" });
+  return { source, status: "unavailable", httpStatus: direct.response?.status ?? null, contentHash: null, normalizedContentHash: null, etag: direct.response?.headers.get("etag") ?? null, lastModified: direct.response?.headers.get("last-modified") ?? null, finalUrl: direct.response?.url || source.url, accessPath: alternative.response?.ok ? "official_alternative" : "none", attempts: direct.attempts + alternative.attempts, bytesHashed: 0, alternativeHttpStatus: alternative.response?.status ?? null, notModified: false, inspection, checkedAt };
 }
 
-async function captureDailySources(sources: readonly GovernedNormativeSource[]) {
+async function captureDailySources(db: D1Database, sources: readonly GovernedNormativeSource[]) {
   const byDomain = new Map<string, GovernedNormativeSource[]>();
   for (const source of sources) {
     const host = new URL(source.url).hostname;
@@ -186,15 +236,29 @@ async function captureDailySources(sources: readonly GovernedNormativeSource[]) 
   }
   const groups = await Promise.all(Array.from(byDomain.values(), async (domainSources) => {
     const captures: SourceCapture[] = [];
-    for (const source of domainSources) captures.push(await captureNormativeSource(source));
+    for (const source of domainSources) captures.push(await captureNormativeSource(source, fetch, await previousSnapshot(db, source.code)));
     return captures;
   }));
   return groups.flat();
 }
 
 async function previousSnapshot(db: D1Database, sourceCode: string) {
-  return db.prepare("SELECT id, capture_status, content_hash, normalized_content_hash, final_url FROM normative_source_snapshots WHERE source_code = ? ORDER BY checked_at DESC, id DESC LIMIT 1")
+  return db.prepare("SELECT id, capture_status, content_hash, normalized_content_hash, final_url, etag, last_modified, connector_id, artifact_kind, parser_version, parse_status, detected_version, published_at, detected_effective_from, promotion_status, contract_errors_json FROM normative_source_snapshots WHERE source_code = ? ORDER BY checked_at DESC, id DESC LIMIT 1")
     .bind(sourceCode).first<PreviousSnapshot>();
+}
+
+async function reconcileConnectorIncident(db: D1Database, capture: SourceCapture, snapshotId: string) {
+  const connectorId = capture.inspection.connectorId;
+  if (!connectorId) return;
+  if (capture.inspection.promotionStatus !== "blocked_contract") {
+    await db.prepare("UPDATE normative_source_incidents SET status = 'resolved', resolved_at = ? WHERE source_code = ? AND connector_id = ? AND status = 'open'")
+      .bind(capture.checkedAt, capture.source.code, connectorId).run();
+    return;
+  }
+  for (const incidentKind of capture.inspection.contractErrors) {
+    await db.prepare("INSERT OR IGNORE INTO normative_source_incidents (id, source_code, snapshot_id, connector_id, incident_kind, status, details_json, detected_at, created_at) VALUES (?, ?, ?, ?, ?, 'open', ?, ?, ?)")
+      .bind(crypto.randomUUID(), capture.source.code, snapshotId, connectorId, incidentKind.split(":", 1)[0], JSON.stringify({ errors: capture.inspection.contractErrors, finalUrl: capture.finalUrl, httpStatus: capture.httpStatus, parserVersion: capture.inspection.parserVersion }), capture.checkedAt, capture.checkedAt).run();
+  }
 }
 
 async function invalidateAffectedDossiers(db: D1Database, eventId: string, source: GovernedNormativeSource, detectedAt: string) {
@@ -270,15 +334,16 @@ export async function runNormativeMonitor(environment: NormativeMonitorEnvironme
     .bind(run.id).first<{ total: number }>();
   const bootstrap = Number(previousCompleted?.total ?? 0) === 0;
   try {
-    const captures = await captureDailySources(rotation.sources);
+    const captures = await captureDailySources(db, rotation.sources);
     let changes = 0;
     for (const capture of captures) {
       const previous = await previousSnapshot(db, capture.source.code);
       const classification = classifyCapturedChange(previous ? { sourceCode: capture.source.code, status: previous.capture_status, contentHash: previous.content_hash, normalizedContentHash: previous.normalized_content_hash, finalUrl: previous.final_url } : null, { sourceCode: capture.source.code, status: capture.status, contentHash: capture.contentHash, normalizedContentHash: capture.normalizedContentHash, finalUrl: capture.finalUrl });
       const snapshotId = `${run.id}:${capture.source.code}`;
-      const insertedSnapshot = await db.prepare("INSERT OR IGNORE INTO normative_source_snapshots (id, run_id, source_version_id, source_code, capture_status, http_status, content_hash, previous_content_hash, normalized_content_hash, final_url, access_path, attempts, bytes_hashed, alternative_http_status, etag, last_modified, checked_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(snapshotId, run.id, sourceVersionIds.get(capture.source.code), capture.source.code, capture.status, capture.httpStatus, capture.contentHash, previous?.content_hash ?? null, capture.normalizedContentHash, capture.finalUrl, capture.accessPath, capture.attempts, capture.bytesHashed, capture.alternativeHttpStatus, capture.etag, capture.lastModified, capture.checkedAt, capture.checkedAt).run();
+      const insertedSnapshot = await db.prepare("INSERT OR IGNORE INTO normative_source_snapshots (id, run_id, source_version_id, source_code, capture_status, http_status, content_hash, previous_content_hash, normalized_content_hash, final_url, access_path, attempts, bytes_hashed, alternative_http_status, etag, last_modified, not_modified, connector_id, artifact_kind, parser_version, parse_status, detected_version, published_at, detected_effective_from, promotion_status, contract_errors_json, checked_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(snapshotId, run.id, sourceVersionIds.get(capture.source.code), capture.source.code, capture.status, capture.httpStatus, capture.contentHash, previous?.content_hash ?? null, capture.normalizedContentHash, capture.finalUrl, capture.accessPath, capture.attempts, capture.bytesHashed, capture.alternativeHttpStatus, capture.etag, capture.lastModified, capture.notModified ? 1 : 0, capture.inspection.connectorId, capture.inspection.artifactKind, capture.inspection.parserVersion, capture.inspection.parseStatus, capture.inspection.detectedVersion, capture.inspection.publishedAt, capture.inspection.effectiveFrom, capture.inspection.promotionStatus, JSON.stringify(capture.inspection.contractErrors), capture.checkedAt, capture.checkedAt).run();
       if (insertedSnapshot.meta.changes !== 1) continue;
+      await reconcileConnectorIncident(db, capture, snapshotId);
       if (classification !== "unchanged" && classification !== "baseline") {
         changes += await createChangeEvent(db, capture, snapshotId, previous, classification);
       }
@@ -311,7 +376,7 @@ function parseList(value: string | null | undefined) {
 
 export async function getNormativeGovernanceDashboard(db: D1Database, workspaceId: number, today = monitorDate()) {
   await ensureNormativeGovernanceSchema(db);
-  const [runs, events, invalidations, notifications, rules, releases, regressionRuns] = await Promise.all([
+  const [runs, events, invalidations, notifications, rules, releases, regressionRuns, connectorIncidents] = await Promise.all([
     db.prepare("SELECT id, run_date, status, source_count, checked_count, unavailable_count, change_count, started_at, finished_at FROM normative_monitor_runs ORDER BY run_date DESC, created_at DESC LIMIT 14").all<Record<string, string | number | null>>(),
     db.prepare("SELECT e.*, s.title, s.publisher, s.jurisdiction, s.legal_device, s.source_url FROM normative_change_events e LEFT JOIN normative_sources s ON s.id = (SELECT s2.id FROM normative_sources s2 WHERE s2.code = e.source_code ORDER BY s2.created_at DESC, s2.id DESC LIMIT 1) ORDER BY e.detected_at DESC, e.id DESC LIMIT 100").all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, change_event_id, dossier_id, rule_code, rule_version, status, reason, created_at FROM fiscal_result_invalidations WHERE workspace_id = ? AND status = 'open' ORDER BY created_at DESC LIMIT 100").bind(workspaceId).all<Record<string, string | number | null>>(),
@@ -319,9 +384,10 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     db.prepare("SELECT id, code, version, name, status, effective_from, effective_to, source_count, content_hash FROM fiscal_rule_sets ORDER BY effective_to, code, version").all<RuleRow>(),
     db.prepare("SELECT id, version, manifest_hash, previous_release_hash, source_change_event_id, release_kind, status, created_at FROM fiscal_rule_releases ORDER BY created_at DESC LIMIT 20").all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, change_event_id, event_data, created_at FROM normative_governance_audit_events WHERE event_type = 'fiscal_regression.affected_rules_reexecuted' ORDER BY created_at DESC, id DESC LIMIT 20").all<Record<string, string | number | null>>(),
+    db.prepare("SELECT id, source_code, snapshot_id, connector_id, incident_kind, status, details_json, detected_at, resolved_at FROM normative_source_incidents ORDER BY detected_at DESC, id DESC LIMIT 100").all<Record<string, string | number | null>>(),
   ]);
 
-  const sourceRows = await db.prepare("SELECT s.*, snap.capture_status, snap.http_status, snap.content_hash, snap.normalized_content_hash, snap.final_url, snap.access_path, snap.attempts, snap.bytes_hashed, snap.alternative_http_status, snap.checked_at FROM normative_sources s LEFT JOIN normative_source_snapshots snap ON snap.id = (SELECT ss.id FROM normative_source_snapshots ss WHERE ss.source_code = s.code ORDER BY ss.checked_at DESC, ss.id DESC LIMIT 1) WHERE s.id = (SELECT ns.id FROM normative_sources ns WHERE ns.code = s.code ORDER BY ns.created_at DESC, ns.id DESC LIMIT 1) ORDER BY s.jurisdiction, s.code")
+  const sourceRows = await db.prepare("SELECT s.*, snap.capture_status, snap.http_status, snap.content_hash, snap.normalized_content_hash, snap.final_url, snap.access_path, snap.attempts, snap.bytes_hashed, snap.alternative_http_status, snap.checked_at, snap.not_modified, snap.artifact_kind, snap.parser_version, snap.parse_status, snap.detected_version, snap.published_at, snap.detected_effective_from, snap.promotion_status, snap.contract_errors_json FROM normative_sources s LEFT JOIN normative_source_snapshots snap ON snap.id = (SELECT ss.id FROM normative_source_snapshots ss WHERE ss.source_code = s.code ORDER BY ss.checked_at DESC, ss.id DESC LIMIT 1) WHERE s.id = (SELECT ns.id FROM normative_sources ns WHERE ns.code = s.code ORDER BY ns.created_at DESC, ns.id DESC LIMIT 1) ORDER BY s.jurisdiction, s.code")
     .all<Record<string, string | number | null>>();
   const changeHistory = events.results.map((event) => ({
     id: String(event.id),
@@ -365,6 +431,17 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     attempts: Number(source.attempts ?? 0),
     bytesHashed: Number(source.bytes_hashed ?? 0),
     alternativeHttpStatus: source.alternative_http_status === null ? null : Number(source.alternative_http_status),
+    connectorId: source.connector_id ? String(source.connector_id) : null,
+    connectorContractVersion: source.connector_contract_version ? String(source.connector_contract_version) : null,
+    artifactKind: source.artifact_kind ? String(source.artifact_kind) : null,
+    parserVersion: source.parser_version ? String(source.parser_version) : null,
+    parseStatus: source.parse_status ? String(source.parse_status) : "not_applicable",
+    detectedVersion: source.detected_version ? String(source.detected_version) : null,
+    publishedAt: source.published_at ? String(source.published_at) : null,
+    detectedEffectiveFrom: source.detected_effective_from ? String(source.detected_effective_from) : null,
+    promotionStatus: source.promotion_status ? String(source.promotion_status) : "not_applicable",
+    contractErrors: parseList(String(source.contract_errors_json ?? "[]")),
+    notModified: Number(source.not_modified ?? 0) === 1,
   }));
   const ruleCatalog = rules.results.map((rule) => ({
     id: rule.id,
@@ -404,6 +481,16 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     version: NORMATIVE_GOVERNANCE_VERSION,
     catalogValidation: validateGovernedSourceCatalog(),
     sources: sourceCatalog,
+    connectorHealth: {
+      contract: validateOfficialConnectorContracts(),
+      connected: sourceCatalog.filter((source) => source.connectorId !== null).length,
+      parsed: sourceCatalog.filter((source) => source.parseStatus === "parsed").length,
+      blocked: sourceCatalog.filter((source) => source.promotionStatus === "blocked_contract").length,
+      openIncidents: connectorIncidents.results.filter((incident) => incident.status === "open").length,
+      incidents: connectorIncidents.results.map((incident) => ({
+        id: String(incident.id), sourceCode: String(incident.source_code), connectorId: String(incident.connector_id), incidentKind: String(incident.incident_kind), status: String(incident.status), detectedAt: String(incident.detected_at), resolvedAt: incident.resolved_at ? String(incident.resolved_at) : null,
+      })),
+    },
     queue,
     changeHistory,
     invalidations: openInvalidations,
@@ -435,6 +522,7 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
       expiringRules: ruleCatalog.filter((rule) => rule.health === "expiring").length,
       expiredRules: ruleCatalog.filter((rule) => rule.health === "expired").length,
       unverifiableSources: sourceCatalog.filter((source) => source.verificationStatus === "monitor_only").length,
+      connectorIncidents: connectorIncidents.results.filter((incident) => incident.status === "open").length,
     },
     rotation: recentRuns[0] ? sourcesForMonitorDate(recentRuns[0].runDate) : sourcesForMonitorDate(today),
     policy: "Mudanças geram fila, invalidam entregas afetadas e exigem decisão assinada. Nenhuma captura altera regra ou cálculo automaticamente.",

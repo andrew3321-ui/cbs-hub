@@ -111,23 +111,26 @@ test("twelve daily source shards share the 30-minute cron without duplicate runs
 });
 
 test("governança persiste fila, classificação, revisão, bloqueio, histórico e auditoria", async () => {
-  const [service, reviewRoute, shareRoute, publicReport, migration, dailyMigration, worker, config, panel] = await Promise.all([
+  const [service, reviewRoute, shareRoute, publicReport, migration, dailyMigration, connectorMigration, worker, config, panel] = await Promise.all([
     readFile(new URL("app/normative-governance-service.ts", root), "utf8"),
     readFile(new URL("app/api/normative-monitor/review/route.ts", root), "utf8"),
     readFile(new URL("app/api/fiscal-dossier-shares/route.ts", root), "utf8"),
     readFile(new URL("app/dossie/[token]/page.tsx", root), "utf8"),
     readFile(new URL("drizzle/0026_plain_vin_gonzales.sql", root), "utf8"),
     readFile(new URL("drizzle/0034_hard_ted_forrester.sql", root), "utf8"),
+    readFile(new URL("drizzle/0035_huge_stryfe.sql", root), "utf8"),
     readFile(new URL("worker/index.ts", root), "utf8"),
     readFile(new URL("vite.config.ts", root), "utf8"),
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
   ]);
-  for (const table of ["normative_sources", "normative_monitor_runs", "normative_source_snapshots", "normative_change_events", "normative_change_reviews", "fiscal_rule_releases", "fiscal_result_invalidations", "governance_notifications", "normative_governance_audit_events"]) {
-    assert.match(migration, new RegExp("CREATE TABLE `" + table + "`"));
+  for (const table of ["normative_sources", "normative_monitor_runs", "normative_source_snapshots", "normative_source_incidents", "normative_change_events", "normative_change_reviews", "fiscal_rule_releases", "fiscal_result_invalidations", "governance_notifications", "normative_governance_audit_events"]) {
+    assert.match(`${migration}\n${connectorMigration}`, new RegExp("CREATE TABLE `" + table + "`"));
     assert.match(service, new RegExp(table));
   }
   assert.match(dailyMigration, /normalized_content_hash/);
   assert.match(dailyMigration, /monitoring_frequency/);
+  assert.match(connectorMigration, /connector_contract_version/);
+  assert.match(connectorMigration, /promotion_status/);
   assert.match(service, /captureDailySources/);
   assert.match(service, /potentially_normative_change/);
   assert.match(service, /official_alternative/);

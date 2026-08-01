@@ -224,7 +224,8 @@ export const recurringScenarios: ScenarioCoverage[] = [
 export const normativeMonitorSources = [
   coverageSources[3], coverageSources[4], coverageSources[5], coverageSources[6], coverageSources[7], coverageSources[8],
   ...issDeepSources,
-  { code: "RFB-NEWS", title: "Notícias da Receita Federal", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/assuntos/noticias", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
+  { code: "RFB-NEWS", title: "Legislação e jurisprudência da Receita Federal", publisher: "Receita Federal", url: "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/legislacao/legislacao-e-jurisprudencia", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
+  { code: "DOU-FISCAL", title: "Diário Oficial da União — pesquisa de atos fiscais", publisher: "Imprensa Nacional", url: "https://www.in.gov.br/consulta/-/buscar/dou", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   { code: "SIMPLES-NEWS", title: "Notícias do Simples Nacional", publisher: "Receita Federal", url: "https://www8.receita.fazenda.gov.br/SimplesNacional/Noticias/NoticiaCompleta.aspx", checkedAt: NATIONAL_COVERAGE_CHECKED_AT },
   ...stateCoverage.map((item) => ({ code: `SEFAZ-${item.uf}`, title: `Portal oficial da SEFAZ — ${item.name}`, publisher: `Administração tributária de ${item.name}`, url: item.officialPortal, checkedAt: NATIONAL_COVERAGE_CHECKED_AT })),
 ];

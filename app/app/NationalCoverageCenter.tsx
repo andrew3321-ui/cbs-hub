@@ -86,7 +86,12 @@ type Monitor = {
     monitored: number; checkedToday: number; checked: number; dailyShardsCompleted: number; dailyShardsTotal: number; unavailable: number; changeSignals: number;
     pendingReview: number; awaitingNewVersion: number; invalidatedResults: number; unreadNotifications: number;
     expiringRules: number; expiredRules: number; unverifiableSources: number;
-    potentiallyNormative: number; technicalOrEditorial: number;
+    potentiallyNormative: number; technicalOrEditorial: number; connectorIncidents: number;
+  };
+  connectorHealth: {
+    contract: { passed: boolean; errors: string[]; connectors: number; sourceCodes: number };
+    connected: number; parsed: number; blocked: number; openIncidents: number;
+    incidents: Array<{ id: string; sourceCode: string; connectorId: string; incidentKind: string; status: string; detectedAt: string; resolvedAt: string | null }>;
   };
   sources: Array<{
     code: string; title: string; publisher: string; jurisdiction: string; legalDevice: string;
@@ -96,6 +101,9 @@ type Monitor = {
     normalizedFingerprint: string | null; finalUrl: string | null; accessPath: string; attempts: number;
     bytesHashed: number; alternativeHttpStatus: number | null; criticality: string;
     monitoringFrequency: string; officialAlternativeUrl: string | null; alternativeEvidenceScope: string;
+    connectorId: string | null; connectorContractVersion: string | null; artifactKind: string | null;
+    parserVersion: string | null; parseStatus: string; detectedVersion: string | null; publishedAt: string | null;
+    detectedEffectiveFrom: string | null; promotionStatus: string; contractErrors: string[]; notModified: boolean;
   }>;
   queue: Array<{
     id: string; sourceCode: string; title: string; publisher: string; jurisdiction: string;
@@ -909,6 +917,10 @@ export default function NationalCoverageCenter() {
           <b>{monitor.catalogValidation.passed ? "✓ Catálogo íntegro" : "! Catálogo bloqueado"}</b>
           <span>{monitor.catalogValidation.sources} fontes verificadas diariamente · {monitor.metrics.checkedToday} no ciclo atual · {monitor.metrics.dailyShardsCompleted}/{monitor.metrics.dailyShardsTotal} lotes concluídos · versão {monitor.version}</span>
         </div>
+        <div className={`governance-catalog-status ${monitor.connectorHealth.contract.passed && monitor.connectorHealth.openIncidents === 0 ? "passed" : "blocked"}`}>
+          <b>{monitor.connectorHealth.contract.passed ? `${monitor.connectorHealth.contract.connectors} conectores oficiais versionados` : "! Contratos dos conectores inválidos"}</b>
+          <span>NF-e · RTC · CONFAZ · RFB · DOU · {monitor.connectorHealth.parsed} capturas interpretadas · {monitor.connectorHealth.blocked} bloqueadas · {monitor.connectorHealth.openIncidents} incidentes abertos</span>
+        </div>
         <section className="governance-subsection">
           <header><div><span>FILA DE ANÁLISE</span><h3>Mudanças detectadas</h3></div><b>{monitor.metrics.pendingReview} aguardam revisão · {monitor.metrics.awaitingNewVersion} aguardam versão</b></header>
           {monitor.queue.length === 0 ? <p className="governance-empty">Nenhuma mudança normativa pendente. A ausência de sinal não substitui a conferência do caso concreto.</p> : <div className="governance-queue">{monitor.queue.map((item) => <article key={item.id}>
@@ -937,7 +949,7 @@ export default function NationalCoverageCenter() {
           <header><div><span>SAÚDE DAS REGRAS</span><h3>Vigência, fonte e fingerprint</h3></div><b>{monitor.rules.length} versões</b></header>
           <div className="governance-rule-grid">{monitor.rules.map((rule) => <article className={rule.health} key={`${rule.code}-${rule.version}`}><span>{rule.health === "current" ? "VIGENTE" : rule.health === "expiring" ? "VENCENDO" : rule.health === "expired" ? "VENCIDA" : rule.health === "future" ? "FUTURA" : "SEM FONTE"}</span><b>{rule.name}</b><small>{rule.code} · {rule.version} · #{rule.fingerprint}</small><em>{rule.effectiveFrom} → {rule.effectiveTo} · {rule.sourceCount} fonte(s)</em></article>)}</div>
         </section>
-        <details className="governance-source-catalog"><summary>Ver cadastro canônico e últimas capturas ({monitor.sources.length})</summary><div>{monitor.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span className={source.captureStatus}>{source.captureStatus === "checked" ? "✓" : source.captureStatus === "unavailable" ? "!" : "·"}</span><p><b>{source.title}</b><small>{source.jurisdiction} · {source.criticality} · monitor diário · vigência {source.effectiveFrom ?? "a individualizar"} · #{source.contentFingerprint ?? "sem captura"} · {source.attempts} tentativa(s)</small></p><em>{source.accessPath === "official_alternative" ? "Alternativa técnica" : source.verificationStatus === "rule_evidence" ? "Evidência" : "Monitor"}</em></a>)}</div></details>
+        <details className="governance-source-catalog"><summary>Ver cadastro canônico e últimas capturas ({monitor.sources.length})</summary><div>{monitor.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span className={source.captureStatus}>{source.captureStatus === "checked" ? "✓" : source.captureStatus === "unavailable" ? "!" : "·"}</span><p><b>{source.title}</b><small>{source.jurisdiction} · {source.criticality} · monitor diário · vigência {source.effectiveFrom ?? "a individualizar"} · #{source.contentFingerprint ?? "sem captura"} · {source.attempts} tentativa(s){source.notModified ? " · HTTP 304" : ""}{source.connectorId ? ` · ${source.connectorId.toUpperCase()} ${source.detectedVersion ?? "sem versão extraída"} · ${source.parseStatus}` : ""}</small></p><em>{source.promotionStatus === "blocked_contract" ? "Contrato bloqueado" : source.connectorId ? "Metadado para revisão" : source.accessPath === "official_alternative" ? "Alternativa técnica" : source.verificationStatus === "rule_evidence" ? "Evidência" : "Monitor"}</em></a>)}</div></details>
         <details className="governance-run-history"><summary>Histórico de mudanças e decisões ({monitor.changeHistory.length})</summary>{monitor.changeHistory.map((event) => <p key={event.id}><b>{event.sourceCode} · {event.changeKind}</b><span>{event.status} · detectada em {new Date(event.detectedAt).toLocaleString("pt-BR")}{event.resolvedAt ? ` · decidida em ${new Date(event.resolvedAt).toLocaleString("pt-BR")}` : " · decisão pendente"}</span></p>)}</details>
         <details className="governance-run-history"><summary>Histórico append-only das execuções ({monitor.runs.length})</summary>{monitor.runs.map((run) => <p key={run.id}><b>{run.runDate}</b><span>{run.status} · {run.checked}/{run.sourceCount} conferidas · {run.unavailable} indisponíveis · {run.changes} mudanças</span></p>)}</details>
       </>}</div>

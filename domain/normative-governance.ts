@@ -1,7 +1,7 @@
 import { normativeMonitorSources, stateCoverage } from "./national-tax-coverage.ts";
 import { issDeepCityProfiles, issDeepSources } from "./iss-deep-coverage.ts";
 
-export const NORMATIVE_GOVERNANCE_VERSION = "normative-governance.v2";
+export const NORMATIVE_GOVERNANCE_VERSION = "normative-governance.v3";
 export const NORMATIVE_MONITOR_BATCH_SIZE = 15;
 export const NORMATIVE_MONITOR_SHARD_COUNT = 12;
 export const NORMATIVE_MONITOR_MAX_SUBREQUESTS_PER_SOURCE = 3;
@@ -103,12 +103,21 @@ const nationalMetadata: Record<string, Pick<GovernedNormativeSource, "jurisdicti
   },
   "RFB-NEWS": {
     jurisdiction: "BR",
-    legalDevice: "Canal oficial de notícias; a publicação detectada precisa ser vinculada ao ato normativo correspondente.",
-    sourceKind: "official_news",
+    legalDevice: "Índice oficial de legislação e jurisprudência da Receita Federal; cada ato precisa ser individualizado antes de integrar uma regra.",
+    sourceKind: "official_portal",
     effectiveFrom: null,
     effectiveTo: null,
     verificationStatus: "monitor_only",
     impactedRuleCodes: ["NATIONAL-COVERAGE-V27", "RTC-BR-2026-TEST"],
+  },
+  "DOU-FISCAL": {
+    jurisdiction: "BR",
+    legalDevice: "Índice oficial do Diário Oficial da União; cada ato detectado precisa ser individualizado, versionado e revisado antes de afetar uma regra.",
+    sourceKind: "official_portal",
+    effectiveFrom: null,
+    effectiveTo: null,
+    verificationStatus: "monitor_only",
+    impactedRuleCodes: ["NATIONAL-COVERAGE-V27", "RTC-BR-2026-TEST", ...DOSSIER_RULE_CODES],
   },
   "SIMPLES-NEWS": {
     jurisdiction: "BR",

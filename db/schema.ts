@@ -331,6 +331,8 @@ export const normativeSources = sqliteTable("normative_sources", {
   monitoringFrequency: text("monitoring_frequency").notNull().default("daily"),
   alternativeUrl: text("alternative_url"),
   alternativeEvidenceScope: text("alternative_evidence_scope").notNull().default("not_available"),
+  connectorId: text("connector_id"),
+  connectorContractVersion: text("connector_contract_version"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("normative_sources_metadata_hash_idx").on(table.metadataHash),
@@ -373,12 +375,38 @@ export const normativeSourceSnapshots = sqliteTable("normative_source_snapshots"
   alternativeHttpStatus: integer("alternative_http_status"),
   etag: text("etag"),
   lastModified: text("last_modified"),
+  notModified: integer("not_modified", { mode: "boolean" }).notNull().default(false),
+  connectorId: text("connector_id"),
+  artifactKind: text("artifact_kind"),
+  parserVersion: text("parser_version"),
+  parseStatus: text("parse_status").notNull().default("not_applicable"),
+  detectedVersion: text("detected_version"),
+  publishedAt: text("published_at"),
+  detectedEffectiveFrom: text("detected_effective_from"),
+  promotionStatus: text("promotion_status").notNull().default("not_applicable"),
+  contractErrorsJson: text("contract_errors_json").notNull().default("[]"),
   checkedAt: text("checked_at").notNull(),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("normative_source_snapshots_run_source_idx").on(table.runId, table.sourceCode),
   index("normative_source_snapshots_source_checked_idx").on(table.sourceCode, table.checkedAt, table.id),
   index("normative_source_snapshots_hash_idx").on(table.contentHash, table.id),
+]);
+
+export const normativeSourceIncidents = sqliteTable("normative_source_incidents", {
+  id: text("id").primaryKey(),
+  sourceCode: text("source_code").notNull(),
+  snapshotId: text("snapshot_id").notNull(),
+  connectorId: text("connector_id").notNull(),
+  incidentKind: text("incident_kind").notNull(),
+  status: text("status").notNull().default("open"),
+  detailsJson: text("details_json").notNull().default("{}"),
+  detectedAt: text("detected_at").notNull(),
+  resolvedAt: text("resolved_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("normative_source_incidents_snapshot_kind_idx").on(table.snapshotId, table.incidentKind),
+  index("normative_source_incidents_source_status_idx").on(table.sourceCode, table.status, table.detectedAt, table.id),
 ]);
 
 export const normativeChangeEvents = sqliteTable("normative_change_events", {
