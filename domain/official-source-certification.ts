@@ -26,9 +26,10 @@ import { stPharmaCosmeticsSources } from "./st-pharma-cosmetics-priority.ts";
 import { ST_REPRESENTATIVE_PRODUCTS_SOURCE } from "./st-representative-products.ts";
 import { ST_MG_ANNEX_VII_SOURCE } from "./st-sp-mg-legal.ts";
 import { taxReformSources } from "./tax-reform-impact.ts";
+import { rtc2027Sources } from "./tax-reform-2027-readiness.ts";
 import { taxReformSectorSources } from "./tax-reform-sector-scenarios.ts";
 
-export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v106";
+export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v107";
 export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-08-01";
 
 export type OfficialSourceClass = "primary" | "official_index" | "official_guidance";
@@ -91,6 +92,7 @@ const groups: SourceGroup[] = [
   { sources: fiscalImportOfficialSources, sourceClass: "official_guidance", taxes: ["DOCUMENTOS"], jurisdictions: ["BR"], impactedRuleCodes: ["FISCAL_BATCH_IMPORT"] },
   { sources: taxReformSources, sourceClass: "primary", taxes: ["CBS", "IBS", "ICMS", "ISS"], jurisdictions: ["BR"], impactedRuleCodes: ["RTC_TRANSITION_IMPACT"] },
   { sources: taxReformSectorSources, sourceClass: "primary", taxes: ["CBS", "IBS", "ICMS", "ISS", "PIS", "COFINS", "IPI", "IS"], jurisdictions: ["BR"], impactedRuleCodes: ["RTC_SECTOR_SCENARIOS"] },
+  { sources: rtc2027Sources, sourceClass: "primary", taxes: ["CBS", "IBS", "IS", "IPI"], jurisdictions: ["BR"], impactedRuleCodes: ["RTC_2027_READINESS"] },
   { sources: stAutoPartsPrioritySources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "BR"], impactedRuleCodes: ["AUTO_PARTS_PRIORITY"] },
   { sources: stAutoPartsHighUseSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["BR"], impactedRuleCodes: ["AUTO_PARTS_HIGH_USE_CORRIDORS"] },
   { sources: [ST_CEMENT_PROTOCOL_SOURCE, ST_CEMENT_PRODUCT_SOURCE], sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["BR"], impactedRuleCodes: ["ST_CEMENT_SP_ROUTES"] },

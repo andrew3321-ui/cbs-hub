@@ -182,8 +182,15 @@ import {
   taxReformSectorSources,
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
+import {
+  TAX_REFORM_2027_READINESS_VERSION,
+  hashRtc2027Readiness,
+  rtc2027ReadinessMetrics,
+  rtc2027Sources,
+  validateRtc2027Readiness,
+} from "./tax-reform-2027-readiness.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v9";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v10";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-08-01";
 export const FISCAL_REGRESSION_REPORT_CASE_TARGET = 3_000;
 export const FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET = 100;
@@ -229,10 +236,22 @@ const MAJOR_TAX_MODULES = {
   PIS_COFINS: ["PIS_COFINS_DEEP", "PIS_COFINS_120_EXPANSION"],
   RETENCOES: ["SERVICE_WITHHOLDINGS_DEEP"],
   IPI: ["IPI_TIPI_DEEP", "IPI_TIPI_100_EXPANSION"],
-  REFORMA: ["RTC_SECTOR_SCENARIOS"],
+  REFORMA: ["RTC_SECTOR_SCENARIOS", "RTC_2027_READINESS"],
 } as const;
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
+  {
+    code: "RTC_2027_READINESS",
+    label: "Reforma Tributária — prontidão de 2027 e atos oficiais pendentes",
+    ruleCodes: ["RTC_TRANSITION_IMPACT", "FED-RTC-SECTOR-SCENARIOS", "RTC-2027-V107"],
+    version: TAX_REFORM_2027_READINESS_VERSION,
+    validate: validateRtc2027Readiness,
+    hash: hashRtc2027Readiness,
+    testKinds: ALL_TEST_KINDS,
+    metrics: rtc2027ReadinessMetrics,
+    sourceCodes: () => rtc2027Sources.map((source) => source.code).sort(),
+    requiredGates: ["setor e classificação legal", "operação, documento e base", "resolução da CBS 2027", "redutor governamental", "Imposto Seletivo", "ato ad rem de combustíveis", "opção do Simples", "CNPJ e DFe da pessoa física", "IPI/ZFM", "créditos separados", "versão da Calculadora oficial"],
+  },
   {
     code: "IPI_TIPI_100_EXPANSION",
     label: "IPI/TIPI — 100 NCMs, 30 Ex e memórias por operação",

@@ -52,8 +52,14 @@ import {
   taxReformSectorProfiles,
   taxReformSectorSources,
 } from "./tax-reform-sector-scenarios.ts";
+import {
+  TAX_REFORM_2027_READINESS_VERSION,
+  rtc2027ActInventory,
+  rtc2027ReadinessMetrics,
+  rtc2027Sources,
+} from "./tax-reform-2027-readiness.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.08.01-v106";
+export const NATIONAL_COVERAGE_VERSION = "2026.08.01-v107";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-08-01";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
@@ -97,6 +103,7 @@ export const coverageSources: CoverageSource[] = [
   ...ipiTipiDeepSources,
   ...ipiTipi100ExpansionSources,
   ...taxReformSectorSources,
+  ...rtc2027Sources,
 ];
 
 const state = (uf: UfCode, name: string, region: StateCoverage["region"], officialPortal: string): StateCoverage => {
@@ -210,7 +217,7 @@ export const recurringScenarios: ScenarioCoverage[] = [
   { code: "IRPJ-CSLL-REAL", tax: "IRPJ/CSLL", title: "Lucro Real com adicoes/exclusoes", status: "partial", supported: ["base antes da compensacao, limite de 30%, IRPJ, adicional e CSLL"], blockers: ["LALUR/LACS, contabilidade, adicoes, exclusoes e compensacoes precisam estar conciliados"] },
   { code: "RET-IRRF-CSRF", tax: "Retenções", title: "IRRF, CSRF, INSS e ISS em serviços recorrentes", status: "partial", supported: [`${serviceWithholdingProfiles.length} perfis contratuais em ${SERVICE_WITHHOLDINGS_DEEP_VERSION}`, "120 casos determinísticos e pelo menos 30 memórias combinadas antes do líquido", "quatro livros independentes por fato gerador, responsável, base, limite, prazo, vigência e versão", "IRRF de 1%/1,5%, CSRF de 4,65%, INSS de 11%/3,5% e ISS municipal somente após seus próprios gates", "líquido bloqueado sem simultaneidade comprovada"], blockers: ["órgão público exige tabela própria", "INSS exige modo de execução, CPRB, opção anual e deduções", "empreitada total exige decisão sobre retenção e solidariedade", "ISS exige município, item, lei, alíquota, responsabilidade e vencimento", "dispensas de um tributo nunca são reutilizadas em outro"] },
   { code: "IPI-TIPI", tax: "IPI", title: "IPI/TIPI por NCM e operação", status: "partial", supported: [`${ipiTipi100Profiles.length} NCMs exatos priorizados em ${IPI_TIPI_100_EXPANSION_VERSION}`, `${ipiTipi100ExpansionMetrics().deterministicCases + 319} casos versionados e ${ipiTipi100ExpansionMetrics().calculatedMemories + 219} memórias positivas`, "saída industrial, importação, equiparação e devolução documental em trilhas separadas", "alíquota nominal, alíquota zero, NT e 30 Ex da TIPI versionados", "base de importação e saída interna em centavos"], blockers: ["NCM e descrição legal exatos, notas da TIPI, operação, papel e vigência são obrigatórios", "benefícios externos à TIPI exigem regra jurídica dedicada", "devolução exige documento e valor original do IPI", "créditos e saldo do período permanecem fora da memória de débito"] },
-  { code: "RTC-SECTOR-SCENARIOS", tax: "IBS/CBS", title: "Transição setorial e regimes específicos de 2026 a 2033", status: "partial", supported: [`${taxReformSectorProfiles.length} perfis setoriais priorizados em ${TAX_REFORM_SECTOR_VERSION}`, "regime geral, reduções de 30% e 60% e cesta básica a zero em trilhas separadas", "recortes próprios para financeiro, combustíveis e imóveis sem herdar a fórmula geral", "232 casos determinísticos, 107 memórias e 125 bloqueios seguros", "CBS, IBS, ICMS/ISS, PIS/Cofins, IPI e IS preservados em livros próprios"], blockers: ["ato, alíquota, classificação, base, redutor, crédito ou vigência ausente bloqueiam a memória específica", "combustíveis exigem produto, unidade e alíquota ad rem do ato competente", "nenhuma memória produz saldo jurídico líquido a recolher"] },
+  { code: "RTC-SECTOR-SCENARIOS", tax: "IBS/CBS", title: "Transição setorial e regimes específicos de 2026 a 2033", status: "partial", supported: [`${taxReformSectorProfiles.length} perfis setoriais priorizados em ${TAX_REFORM_SECTOR_VERSION}`, "regime geral, reduções de 30% e 60% e cesta básica a zero em trilhas separadas", "recortes próprios para financeiro, combustíveis e imóveis sem herdar a fórmula geral", "232 casos determinísticos, 107 memórias e 125 bloqueios seguros", `${rtc2027ReadinessMetrics().deterministicCases} casos de prontidão 2027 e ${rtc2027ActInventory.length} atos inventariados em ${TAX_REFORM_2027_READINESS_VERSION}`, "CBS, IBS, ICMS/ISS, PIS/Cofins, IPI e IS preservados em livros próprios"], blockers: ["alíquota de referência da CBS 2027, redutor governamental, IS e atos ad rem pendentes bloqueiam a conclusão", "ato, classificação, base, redutor, crédito ou vigência ausente bloqueiam a memória específica", "Calculadora beta comprova somente conformidade técnica; nenhuma memória produz saldo jurídico líquido a recolher"] },
 ];
 
 export const normativeMonitorSources = [
@@ -246,7 +253,7 @@ export function coverageMetrics() {
 }
 
 export async function hashNationalCoverage() {
-  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, icmsGeneralVersion: ICMS_GENERAL_NATIONAL_VERSION, icmsGeneralProfiles: icmsStateGeneralProfiles, icmsExpansionVersion: ICMS_OWN_DIFAL_FCP_EXPANSION_VERSION, icmsExpansionStates: icmsOwnDifalFcpStateInventory, icmsExpansionMatrix: icmsOwnDifalFcpMatrix, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, issDeepServiceCoverage, issRecurringVersion: ISS_RECURRING_PRIORITY_VERSION, issRecurringPriorityItems, issRecurringPriorityCells, simplesVersion: SIMPLES_NATIONAL_100_EXPANSION_VERSION, simplesProfiles: simplesNational100Profiles, simplesRevenueBooks: SIMPLES_REVENUE_BOOKS, pisCofinsVersion: PIS_COFINS_120_EXPANSION_VERSION, pisCofinsProfiles: pisCofins120Profiles, pisCofinsBooks: PIS_COFINS_BOOKS, pisCofinsCreditControls: pisCofinsExpandedCreditControls, ipiTipiVersion: IPI_TIPI_100_EXPANSION_VERSION, ipiTipiProfiles: ipiTipi100Profiles, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
+  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, icmsGeneralVersion: ICMS_GENERAL_NATIONAL_VERSION, icmsGeneralProfiles: icmsStateGeneralProfiles, icmsExpansionVersion: ICMS_OWN_DIFAL_FCP_EXPANSION_VERSION, icmsExpansionStates: icmsOwnDifalFcpStateInventory, icmsExpansionMatrix: icmsOwnDifalFcpMatrix, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, issDeepServiceCoverage, issRecurringVersion: ISS_RECURRING_PRIORITY_VERSION, issRecurringPriorityItems, issRecurringPriorityCells, simplesVersion: SIMPLES_NATIONAL_100_EXPANSION_VERSION, simplesProfiles: simplesNational100Profiles, simplesRevenueBooks: SIMPLES_REVENUE_BOOKS, pisCofinsVersion: PIS_COFINS_120_EXPANSION_VERSION, pisCofinsProfiles: pisCofins120Profiles, pisCofinsBooks: PIS_COFINS_BOOKS, pisCofinsCreditControls: pisCofinsExpandedCreditControls, ipiTipiVersion: IPI_TIPI_100_EXPANSION_VERSION, ipiTipiProfiles: ipiTipi100Profiles, rtc2027Version: TAX_REFORM_2027_READINESS_VERSION, rtc2027Acts: rtc2027ActInventory, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

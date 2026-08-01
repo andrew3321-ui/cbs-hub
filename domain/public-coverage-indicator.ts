@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v25";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v26";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-08-01";
 
 export type PublicCoverageMaturity = {
@@ -338,6 +338,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "rtc-v107-official-2027-readiness",
+        changedAt: "2026-08-01T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "A prontidão de 2027 passou a inventariar doze atos e pendências oficiais, cronograma 2026–2033, 264 casos determinísticos e uma reconciliação versionada com a Calculadora oficial beta. Alíquota da CBS e demais atos ainda pendentes bloqueiam qualquer conclusão fiscal.",
+        affectedCodes: ["RTC_2027_READINESS", "RTC_SECTOR_SCENARIOS", "IBS-CBS-TRANSITION"],
+        clientDataExposed: false,
+      },
       {
         id: "ipi-tipi-v106-one-hundred-ncms",
         changedAt: "2026-08-01T00:00:00.000Z",
