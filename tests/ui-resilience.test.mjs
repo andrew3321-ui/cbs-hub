@@ -22,6 +22,8 @@ test("the landing showcase stays inside mobile viewports and hides the public in
   const landing = read("../app/page.tsx");
   assert.match(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-showcase-video-shell\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;/);
   assert.match(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-showcase-video-shell video\s*\{\s*object-fit:\s*contain;/);
+  assert.match(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-preview-window\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;[\s\S]*?transform:\s*none;/);
+  assert.doesNotMatch(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-preview-window\s*\{[^}]*width:\s*760px;/);
   assert.doesNotMatch(landing, /Consultar indicador público|href="\/api\/public\/coverage"/);
 });
 

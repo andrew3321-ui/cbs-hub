@@ -28,13 +28,13 @@ async function ownerMetrics(request: Request) {
     db.prepare("SELECT substr(created_at, 1, 10) date, COUNT(*) signups FROM users WHERE substr(created_at, 1, 10) BETWEEN ? AND ? GROUP BY substr(created_at, 1, 10)").bind(window.startDate, window.endDate).all<DailyRow>(),
     db.prepare("SELECT substr(started_at, 1, 10) date, COUNT(*) trialsStarted FROM trial_device_claims WHERE substr(started_at, 1, 10) BETWEEN ? AND ? GROUP BY substr(started_at, 1, 10)").bind(window.startDate, window.endDate).all<DailyRow>(),
     db.prepare("SELECT substr(approved_at, 1, 10) date, COUNT(*) paymentsApproved, COALESCE(SUM(gross_amount_cents), 0) grossAmountCents FROM billing_transactions WHERE status = 'approved' AND substr(approved_at, 1, 10) BETWEEN ? AND ? GROUP BY substr(approved_at, 1, 10)").bind(window.startDate, window.endDate).all<DailyRow>(),
-    db.prepare("SELECT COUNT(CASE WHEN event_type = 'page_view' THEN 1 END) pageViews, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN visitor_hash END) visitors, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN session_hash END) sessions FROM platform_metric_events WHERE event_date BETWEEN ? AND ?").bind(window.startDate, window.endDate).first<{ pageViews: number; visitors: number; sessions: number }>(),
+    db.prepare("SELECT COUNT(CASE WHEN event_type = 'page_view' THEN 1 END) pageViews, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN event_date || ':' || visitor_hash END) visitors, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN session_hash END) sessions FROM platform_metric_events WHERE event_date BETWEEN ? AND ?").bind(window.startDate, window.endDate).first<{ pageViews: number; visitors: number; sessions: number }>(),
     db.prepare("SELECT COUNT(DISTINCT CASE WHEN event_type = 'app_active' AND event_date = ? THEN user_id END) dau, COUNT(DISTINCT CASE WHEN event_type = 'app_active' AND event_date >= ? THEN user_id END) wau, COUNT(DISTINCT CASE WHEN event_type = 'app_active' AND event_date >= ? THEN user_id END) mau FROM platform_metric_events WHERE event_date <= ?").bind(window.endDate, sevenDays.toISOString().slice(0, 10), thirtyDays.toISOString().slice(0, 10), window.endDate).first<{ dau: number; wau: number; mau: number }>(),
     db.prepare("SELECT COUNT(*) total FROM users").first<{ total: number }>(),
     db.prepare("SELECT user_id userId, status, started_at startedAt, ends_at endsAt FROM trial_device_claims").all<TrialRow>(),
     db.prepare("SELECT user_id userId, plan_key planKey, company_addon_blocks companyAddonBlocks, pending_company_addon_blocks pendingCompanyAddonBlocks, provider_subscription_id providerSubscriptionId, status, updated_at updatedAt FROM billing_accounts").all<BillingRow>(),
     db.prepare("SELECT DISTINCT user_id userId FROM billing_transactions WHERE status = 'approved'").all<{ userId: number }>(),
-    db.prepare("SELECT source, medium, COUNT(*) pageViews, COUNT(DISTINCT visitor_hash) visitors FROM platform_metric_events WHERE event_type = 'page_view' AND event_date BETWEEN ? AND ? GROUP BY source, medium ORDER BY visitors DESC, pageViews DESC LIMIT 8").bind(window.startDate, window.endDate).all<{ source: string; medium: string; pageViews: number; visitors: number }>(),
+    db.prepare("SELECT source, medium, COUNT(*) pageViews, COUNT(DISTINCT event_date || ':' || visitor_hash) visitors FROM platform_metric_events WHERE event_type = 'page_view' AND event_date BETWEEN ? AND ? GROUP BY source, medium ORDER BY visitors DESC, pageViews DESC LIMIT 8").bind(window.startDate, window.endDate).all<{ source: string; medium: string; pageViews: number; visitors: number }>(),
     db.prepare("SELECT COUNT(*) total FROM billing_transactions WHERE status IN ('rejected', 'cancelled', 'refunded', 'charged_back') AND substr(updated_at, 1, 10) BETWEEN ? AND ?").bind(window.startDate, window.endDate).first<{ total: number }>(),
   ]);
 
@@ -67,7 +67,7 @@ async function ownerMetrics(request: Request) {
     trials: { started: trialStarted, active: activeTrials, expired: expiredTrials, denied: daily.reduce((sum, row) => sum + row.trialsDenied, 0), converted: convertedTrials, signupToTrialPercent: percentage(trialStarted, signupCount), trialToPayerPercent: percentage(convertedTrials, trialCohort.length) },
     billing: { activePayers: activeBilling.length, mrrCents, grossAmountCents, delinquent, canceled, paymentFailures: number(failureRows?.total) },
     funnel: [
-      { key: "visitors", label: "Visitantes", value: number(periodTotals?.visitors) },
+      { key: "visitors", label: "Visitas únicas/dia", value: number(periodTotals?.visitors) },
       { key: "signups", label: "Cadastros", value: signupCount },
       { key: "trials", label: "Trials iniciados", value: trialStarted },
       { key: "payers", label: "Trials convertidos", value: convertedTrials },

@@ -1199,8 +1199,73 @@
   .cbs-trial-proof { display: grid; grid-template-columns: repeat(3, 1fr); }
   .cbs-trial-proof > span { min-width: 0; padding: 0 9px; }
   .cbs-product-preview { height: 430px; margin-top: 34px; }
-  .cbs-preview-glow { width: 430px; height: 430px; }
-  .cbs-preview-window { width: 760px; max-width: 148%; min-height: 430px; transform: scale(.72); }
+  .cbs-preview-glow { width: min(430px, 118vw); height: min(430px, 118vw); }
+  .cbs-showcase-product-slide { width: 100%; }
+  .cbs-preview-window {
+    width: 100%;
+    max-width: 100%;
+    min-height: 0;
+    transform: none;
+    border-radius: 15px;
+  }
+  .cbs-preview-topbar {
+    height: 44px;
+    padding: 0 11px;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+  }
+  .cbs-preview-lockup { gap: 5px; font-size: 8px; }
+  .cbs-preview-lockup .cbs-brand-symbol { width: 20px; height: 20px; }
+  .cbs-preview-context {
+    min-width: 0;
+    overflow: hidden;
+    font-size: 5px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .cbs-preview-user { width: 22px; height: 22px; border-radius: 7px; font-size: 6px; }
+  .cbs-preview-body { min-height: 0; grid-template-columns: 40px minmax(0, 1fr); }
+  .cbs-preview-sidebar { padding: 12px 5px; gap: 5px; }
+  .cbs-preview-sidebar span {
+    min-height: 31px;
+    padding: 0;
+    justify-content: center;
+    gap: 0;
+    font-size: 0;
+  }
+  .cbs-preview-sidebar i { width: auto; font-size: 9px; }
+  .cbs-preview-content { padding: 13px 10px 14px; }
+  .cbs-preview-heading { margin-bottom: 9px; }
+  .cbs-preview-heading small { margin-bottom: 2px; font-size: 5px; }
+  .cbs-preview-heading b { font-size: 11px; }
+  .cbs-preview-heading > span { padding: 4px 6px; font-size: 5px; }
+  .cbs-query-box {
+    padding: 9px;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 7px;
+    border-radius: 8px;
+  }
+  .cbs-query-box small { font-size: 5px; }
+  .cbs-query-box p { font-size: 7px; line-height: 1.35; }
+  .cbs-query-box button { min-height: 25px; padding: 0 7px; font-size: 5px; }
+  .cbs-query-box button span { margin-left: 4px; }
+  .cbs-case-facts { margin: 7px 0; gap: 4px; }
+  .cbs-case-facts span { padding: 6px; border-radius: 6px; }
+  .cbs-case-facts small { font-size: 4px; }
+  .cbs-case-facts b { margin-top: 3px; font-size: 6px; }
+  .cbs-result-card { border-radius: 8px; }
+  .cbs-result-status { padding: 7px 8px; }
+  .cbs-result-status span,
+  .cbs-result-status small { font-size: 5px; }
+  .cbs-result-main { padding: 9px 9px 8px; gap: 8px; }
+  .cbs-result-main > div > b { margin-top: 3px; font-size: 8px; }
+  .cbs-result-main p { margin-top: 3px; font-size: 5px; }
+  .cbs-result-main > strong { font-size: 18px; }
+  .cbs-source-line { padding: 7px 9px; gap: 5px; }
+  .cbs-source-line span,
+  .cbs-source-line b,
+  .cbs-source-line em { font-size: 4.5px; }
   .cbs-showcase-video-slide { width: 100%; }
   .cbs-showcase-video-shell {
     width: 100%;
@@ -1216,7 +1281,6 @@
   .cbs-showcase-video-proof { display: none; }
   .cbs-showcase-controls { bottom: -3px; }
   .cbs-showcase-controls button { min-height: 29px; padding-inline: 9px; }
-  .cbs-preview-body { min-height: 372px; }
   .cbs-floating-card { display: none; }
   .cbs-audience-bar div { justify-content: center; flex-wrap: wrap; gap: 11px; }
   .cbs-section { width: calc(100% - 30px); padding: 78px 0; }

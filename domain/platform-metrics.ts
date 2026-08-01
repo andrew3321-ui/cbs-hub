@@ -1,10 +1,10 @@
-export const PLATFORM_METRICS_VERSION = "platform-metrics.v1";
+export const PLATFORM_METRICS_VERSION = "platform-metrics.v2";
 export const PLATFORM_METRIC_EVENT_RETENTION_DAYS = 90;
 export const PLATFORM_METRIC_DAILY_RETENTION_DAYS = 730;
 
 export const platformMetricDefinitions = {
   pageViews: "Visualizações qualificadas, deduplicadas por sessão, caminho e janela de dez minutos.",
-  visitors: "Visitantes pseudonimizados distintos no período; não usa IP bruto.",
+  visitors: "Visitas diárias únicas por navegador/dispositivo: vários acessos no mesmo dia contam uma vez e um novo dia abre uma nova visita; não usa IP bruto.",
   sessions: "Sessões pseudonimizadas distintas, renovadas após trinta minutos.",
   signups: "Contas persistidas com sucesso no período; convites também contam como cadastro.",
   activeUsers: "Contas distintas que abriram o workspace em cada janela (DAU/WAU/MAU).",
