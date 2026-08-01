@@ -17,7 +17,7 @@ import { stCementPrioritySources } from "./st-cement-priority-batch.ts";
 import { stColdBeverageSources } from "./st-cold-beverages-priority.ts";
 import { stColdBeverageSpSources } from "./st-cold-beverages-sp-destination.ts";
 import { stColdBeverageSpOriginSources } from "./st-cold-beverages-sp-origin.ts";
-import { stConstructionElectricalSources } from "./st-construction-electrical-priority.ts";
+import { ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES } from "./st-construction-electrical-national.ts";
 import { stFoodCleaningPetSources } from "./st-food-cleaning-pet-priority.ts";
 import { stPharmaCosmeticsSources } from "./st-pharma-cosmetics-priority.ts";
 import { ST_REPRESENTATIVE_PRODUCTS_SOURCE } from "./st-representative-products.ts";
@@ -25,8 +25,8 @@ import { ST_MG_ANNEX_VII_SOURCE } from "./st-sp-mg-legal.ts";
 import { taxReformSources } from "./tax-reform-impact.ts";
 import { taxReformSectorSources } from "./tax-reform-sector-scenarios.ts";
 
-export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.07.31-v98";
-export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-07-31";
+export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v99";
+export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-08-01";
 
 export type OfficialSourceClass = "primary" | "official_index" | "official_guidance";
 export type OfficialSourceCertificationStatus = "confirmed" | "pending" | "unavailable";
@@ -92,7 +92,7 @@ const groups: SourceGroup[] = [
   { sources: stColdBeverageSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["BR"], impactedRuleCodes: ["COLD_BEVERAGES_PRIORITY"] },
   { sources: stColdBeverageSpSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP"], impactedRuleCodes: ["COLD_BEVERAGES_SP_DESTINATION"] },
   { sources: stColdBeverageSpOriginSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ"], impactedRuleCodes: ["COLD_BEVERAGES_SP_ORIGIN"] },
-  { sources: stConstructionElectricalSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ"], impactedRuleCodes: ["CONSTRUCTION_ELECTRICAL_PRIORITY"] },
+  { sources: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ", "PR", "SC", "RS", "GO", "BA", "PE", "ES", "BR"], impactedRuleCodes: ["CONSTRUCTION_ELECTRICAL_PRIORITY"] },
   { sources: stFoodCleaningPetSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ"], impactedRuleCodes: ["FOOD_CLEANING_PET_PRIORITY"] },
   { sources: stPharmaCosmeticsSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ", "PR", "SC", "RS", "GO", "BA", "BR"], impactedRuleCodes: ["PHARMA_COSMETICS_PRIORITY"] },
   { sources: [ST_REPRESENTATIVE_PRODUCTS_SOURCE], sourceClass: "official_index", taxes: ["ICMS_ST"], jurisdictions: ["BR"], impactedRuleCodes: ["ST_REPRESENTATIVE_PRODUCTS"] },

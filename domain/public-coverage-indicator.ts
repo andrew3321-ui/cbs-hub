@@ -1,12 +1,12 @@
 import { buildFiscalRegressionReport } from "./fiscal-regression-assurance.ts";
 import { issDeepServiceCoverage } from "./iss-deep-coverage.ts";
 import {
-  ST_CONSTRUCTION_ELECTRICAL_CHECKED_AT,
-  ST_CONSTRUCTION_ELECTRICAL_PRODUCTS,
-  ST_CONSTRUCTION_ELECTRICAL_VERSION,
-  stConstructionElectricalReferenceRuns,
-  stConstructionElectricalSources,
-} from "./st-construction-electrical-priority.ts";
+  ST_CONSTRUCTION_ELECTRICAL_NATIONAL_CHECKED_AT,
+  ST_CONSTRUCTION_ELECTRICAL_NATIONAL_IDENTITIES,
+  ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES,
+  ST_CONSTRUCTION_ELECTRICAL_NATIONAL_VERSION,
+  stConstructionElectricalNationalCells,
+} from "./st-construction-electrical-national.ts";
 import {
   ST_FOOD_CLEANING_PET_CHECKED_AT,
   ST_FOOD_CLEANING_PET_PRODUCTS,
@@ -26,8 +26,8 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.07.31-v19";
-export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-07-31";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v20";
+export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-08-01";
 
 export type PublicCoverageMaturity = {
   catalogued: boolean;
@@ -222,28 +222,30 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
         blockers: item.blockers,
       });
     }),
-    ...stConstructionElectricalReferenceRuns.map((run) => {
-      const product = ST_CONSTRUCTION_ELECTRICAL_PRODUCTS.find((item) => item.code === run.productCode);
+    ...stConstructionElectricalNationalCells.map((cell) => {
+      const product = ST_CONSTRUCTION_ELECTRICAL_NATIONAL_IDENTITIES.find((item) => item.code === cell.productCode);
       return entry({
-        code: `ST-CONSTRUCTION-ELECTRICAL-${run.key}`,
+        code: `ST-CONSTRUCTION-ELECTRICAL-${cell.key}`,
         tax: "ICMS/ST",
-        title: `${product?.label ?? run.productCode} - ${run.route}`,
+        title: `${product?.label ?? cell.productCode} - ${cell.route}`,
         dimension: "route" as const,
-        jurisdiction: run.route,
-        uf: run.route.slice(-2),
+        jurisdiction: cell.route,
+        uf: cell.route.slice(-2),
         municipality: null,
-        route: run.route,
-        product: product?.label ?? run.productCode,
-        version: ST_CONSTRUCTION_ELECTRICAL_VERSION,
-        status: "supported",
+        route: cell.route,
+        product: product?.label ?? cell.productCode,
+        version: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_VERSION,
+        status: cell.status,
         maturity: maturity({ catalogued: true, structured: true, tested: true }),
-        checkedAt: ST_CONSTRUCTION_ELECTRICAL_CHECKED_AT,
-        officialSources: stConstructionElectricalSources
-          .filter((source) => run.result.sourceCodes.includes(source.code))
+        checkedAt: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_CHECKED_AT,
+        officialSources: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES
+          .filter((source) => cell.sourceCodes.includes(source.code))
           .map(({ code, title, publisher, url, checkedAt }) => ({ code, title, publisher, url, checkedAt })),
         regression: { cases: regressionCases, failures: regressionFailures },
-        objectiveReason: `Memória determinística em centavos reproduzida para CEST ${product?.cest ?? "não localizado"} na rota ${run.route}, com responsabilidade ${run.result.responsibility === "origin_remitter" ? "do remetente" : "do destinatário na entrada"}.`,
-        blockers: [],
+        objectiveReason: cell.status === "supported"
+          ? `Memória determinística reproduzida para CEST ${product?.cest ?? "não localizado"} na rota ${cell.route}; resultado limitado ao método ${cell.method}.`
+          : cell.blockers[0] ?? "Parâmetros estaduais ainda não foram fechados para esta célula.",
+        blockers: cell.blockers,
       });
     }),
     ...stFoodCleaningPetReferenceRuns.map((run) => {

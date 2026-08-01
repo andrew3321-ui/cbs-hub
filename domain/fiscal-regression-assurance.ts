@@ -65,12 +65,12 @@ import {
   validateStPharmaCosmeticsPriority,
 } from "./st-pharma-cosmetics-priority.ts";
 import {
-  ST_CONSTRUCTION_ELECTRICAL_VERSION,
-  hashStConstructionElectricalPriority,
-  stConstructionElectricalMetrics,
-  stConstructionElectricalSources,
-  validateStConstructionElectricalPriority,
-} from "./st-construction-electrical-priority.ts";
+  ST_CONSTRUCTION_ELECTRICAL_NATIONAL_VERSION,
+  ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES,
+  hashStConstructionElectricalNational,
+  stConstructionElectricalNationalMetrics,
+  validateStConstructionElectricalNational,
+} from "./st-construction-electrical-national.ts";
 import {
   ST_FOOD_CLEANING_PET_VERSION,
   hashStFoodCleaningPetPriority,
@@ -501,19 +501,19 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     code: "CONSTRUCTION_ELECTRICAL_PRIORITY",
     label: "Construção, acabamento, ferramentas e materiais elétricos em SP→MG/RJ",
     ruleCodes: ["NATIONAL-COVERAGE-V27", "CONSTRUCTION_ELECTRICAL_PRIORITY"],
-    version: ST_CONSTRUCTION_ELECTRICAL_VERSION,
-    validate: validateStConstructionElectricalPriority,
-    hash: hashStConstructionElectricalPriority,
+    version: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_VERSION,
+    validate: validateStConstructionElectricalNational,
+    hash: hashStConstructionElectricalNational,
     testKinds: ALL_TEST_KINDS,
     metrics: () => {
-      const metrics = stConstructionElectricalMetrics();
+      const metrics = stConstructionElectricalNationalMetrics();
       return {
-        deterministicCases: metrics.reproducedMemories + metrics.safeFailureScenarios,
+        deterministicCases: metrics.deterministicCases,
         calculatedMemories: metrics.reproducedMemories,
         safelyBlockedCases: metrics.safeFailureScenarios,
       };
     },
-    sourceCodes: () => stConstructionElectricalSources.map((source) => source.code).sort(),
+    sourceCodes: () => ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES.map((source) => source.code).sort(),
     requiredGates: ["NCM e CEST exatos", "finalidade de revenda", "vigência", "responsabilidade tributária", "MVA e alíquotas do destino", "FCP/FECP", "exclusões e tratamentos especiais", "documentos"],
   },
   {
@@ -553,7 +553,7 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     },
     sourceCodes: () => Array.from(new Set([
       ...stPharmaCosmeticsSources.map((source) => source.code),
-      ...stConstructionElectricalSources.map((source) => source.code),
+      ...ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES.map((source) => source.code),
       ...stFoodCleaningPetSources.map((source) => source.code),
     ])).sort(),
     requiredGates: ["produto/NCM/CEST exatos", "rota e sentido", "protocolo ou regra do destino", "MVA ou preço oficial", "alíquota interna e FCP", "vigência", "benefício e exceções", "responsabilidade tributária", "documentos"],

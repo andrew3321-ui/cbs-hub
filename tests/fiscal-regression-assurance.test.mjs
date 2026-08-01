@@ -98,9 +98,9 @@ test("rule changes reexecute only mapped modules and unknown rules fail closed",
   );
   const constructionElectrical = await buildFiscalRegressionReport(["CONSTRUCTION_ELECTRICAL_PRIORITY"]);
   assert.equal(constructionElectrical.status, "automatically_verified");
-  assert.equal(constructionElectrical.metrics.deterministicCases, 17);
-  assert.equal(constructionElectrical.metrics.calculatedMemories, 12);
-  assert.equal(constructionElectrical.metrics.safelyBlockedCases, 5);
+  assert.equal(constructionElectrical.metrics.deterministicCases, 488);
+  assert.equal(constructionElectrical.metrics.calculatedMemories, 32);
+  assert.equal(constructionElectrical.metrics.safelyBlockedCases, 456);
   assert.deepEqual(
     fiscalRegressionModulesForRules(["FOOD_CLEANING_PET_PRIORITY"]),
     ["FOOD_CLEANING_PET_PRIORITY"],

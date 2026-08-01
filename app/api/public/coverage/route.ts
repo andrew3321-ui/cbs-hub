@@ -16,6 +16,7 @@ import { hashStColdBeverageScDestination, stColdBeverageScMetrics, stColdBeverag
 import { hashStColdBeveragePriorityAudit, stColdBeveragePriorityAuditCases, stColdBeveragePriorityAuditCells, stColdBeveragePriorityAuditMetrics, ST_COLD_BEVERAGES_AUDITED_CORRIDORS, ST_COLD_BEVERAGES_PRIORITY_AUDIT_VERSION, validateStColdBeveragePriorityAudit } from "../../../../domain/st-cold-beverages-priority-audit";
 import { hashStPharmaCosmeticsPriority, stPharmaCosmeticsCoverageCells, stPharmaCosmeticsLegalRoutes, stPharmaCosmeticsMetrics, stPharmaCosmeticsReferenceRuns, stPharmaCosmeticsSources, stPharmaCosmeticsStateRules, ST_PHARMA_COSMETICS_FACT_LABELS, ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT, ST_PHARMA_COSMETICS_PRIORITY_EVIDENCE, ST_PHARMA_COSMETICS_PRIORITY_VERSION, ST_PHARMA_COSMETICS_PRODUCTS, ST_PHARMA_COSMETICS_ROUTES, validateStPharmaCosmeticsPriority } from "../../../../domain/st-pharma-cosmetics-priority";
 import { hashStConstructionElectricalPriority, stConstructionElectricalDossiers, stConstructionElectricalMetrics, stConstructionElectricalNegativeRuns, stConstructionElectricalReferenceRuns, stConstructionElectricalSources, ST_CONSTRUCTION_ELECTRICAL_FACT_LABELS, ST_CONSTRUCTION_ELECTRICAL_PERIOD, ST_CONSTRUCTION_ELECTRICAL_PRODUCTS, ST_CONSTRUCTION_ELECTRICAL_ROUTES, ST_CONSTRUCTION_ELECTRICAL_VERSION, validateStConstructionElectricalPriority } from "../../../../domain/st-construction-electrical-priority";
+import { hashStConstructionElectricalNational, stConstructionElectricalNationalCases, stConstructionElectricalNationalCells, stConstructionElectricalNationalMetrics, ST_CONSTRUCTION_ELECTRICAL_NATIONAL_CHECKED_AT, ST_CONSTRUCTION_ELECTRICAL_NATIONAL_IDENTITIES, ST_CONSTRUCTION_ELECTRICAL_NATIONAL_ROUTES, ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES, ST_CONSTRUCTION_ELECTRICAL_NATIONAL_VERSION, ST_CONSTRUCTION_ELECTRICAL_PRIORITY_EVIDENCE, validateStConstructionElectricalNational } from "../../../../domain/st-construction-electrical-national";
 import { hashStFoodCleaningPetPriority, stFoodCleaningPetDossiers, stFoodCleaningPetMetrics, stFoodCleaningPetMvaFallbackRun, stFoodCleaningPetNegativeRuns, stFoodCleaningPetReferenceRuns, stFoodCleaningPetSources, ST_FOOD_CLEANING_PET_FACT_LABELS, ST_FOOD_CLEANING_PET_PERIOD, ST_FOOD_CLEANING_PET_PRODUCTS, ST_FOOD_CLEANING_PET_ROUTES, ST_FOOD_CLEANING_PET_VERSION, validateStFoodCleaningPetPriority } from "../../../../domain/st-food-cleaning-pet-priority";
 import { hashStSectoralPriorityExpansion, stSectoralPriorityCases, stSectoralPriorityCells, stSectoralPriorityMetrics, ST_SECTORAL_PRIORITY_EXPANSION_CHECKED_AT, ST_SECTORAL_PRIORITY_EXPANSION_VERSION, ST_SECTORAL_RANKED_ROUTES, ST_SECTORAL_REPRESENTATIVES, validateStSectoralPriorityExpansion } from "../../../../domain/st-sectoral-priority-expansion";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
@@ -52,6 +53,7 @@ async function publicCoverage() {
   const coldBeveragesAuditFingerprint = (await hashStColdBeveragePriorityAudit()).slice(0, 12);
   const pharmaCosmeticsFingerprint = (await hashStPharmaCosmeticsPriority()).slice(0, 12);
   const constructionElectricalFingerprint = (await hashStConstructionElectricalPriority()).slice(0, 12);
+  const constructionElectricalNationalFingerprint = (await hashStConstructionElectricalNational()).slice(0, 12);
   const foodCleaningPetFingerprint = (await hashStFoodCleaningPetPriority()).slice(0, 12);
   const sectoralPriorityFingerprint = (await hashStSectoralPriorityExpansion()).slice(0, 12);
   const simplesNationalFingerprint = (await hashSimplesNationalDeep()).slice(0, 12);
@@ -381,6 +383,20 @@ async function publicCoverage() {
       negativeRuns: stConstructionElectricalNegativeRuns,
       sources: stConstructionElectricalSources,
       dossiers: stConstructionElectricalDossiers,
+      nationalExpansion: {
+        version: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_VERSION,
+        checkedAt: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_CHECKED_AT,
+        fingerprint: constructionElectricalNationalFingerprint,
+        validation: validateStConstructionElectricalNational(),
+        metrics: stConstructionElectricalNationalMetrics(),
+        priorityEvidence: ST_CONSTRUCTION_ELECTRICAL_PRIORITY_EVIDENCE,
+        identities: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_IDENTITIES,
+        routes: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_ROUTES,
+        cells: stConstructionElectricalNationalCells,
+        cases: stConstructionElectricalNationalCases,
+        sources: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES,
+        policy: "A matriz nacional separa identidade, destino, sentido e vigência. Somente SP→MG, SP→RJ e a retirada comprovada da ST em SP→SC liberam memória no recorte atual; as demais células permanecem parciais ou não suportadas sem reutilizar MVA, alíquota ou responsabilidade entre UFs.",
+      },
       policy: "Escopo fechado para seis identidades fiscais de construção, acabamento, ferramentas e elétricos nas rotas SP→MG e SP→RJ. NCM/CEST, revenda, vigência, responsabilidade, MVA, alíquotas, FCP/FECP e exclusões são fatos obrigatórios; divergência ou ausência bloqueia o valor.",
     },
     stFoodCleaningPetPriority: {

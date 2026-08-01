@@ -14,10 +14,10 @@ import { hashStColdBeverageScDestination, stColdBeverageScMetrics, validateStCol
 import { hashStColdBeveragePriorityAudit, stColdBeveragePriorityAuditMetrics, validateStColdBeveragePriorityAudit } from "./st-cold-beverages-priority-audit.ts";
 import { hashStPharmaCosmeticsPriority, validateStPharmaCosmeticsPriority } from "./st-pharma-cosmetics-priority.ts";
 import {
-  hashStConstructionElectricalPriority,
-  stConstructionElectricalMetrics,
-  validateStConstructionElectricalPriority,
-} from "./st-construction-electrical-priority.ts";
+  hashStConstructionElectricalNational,
+  stConstructionElectricalNationalMetrics,
+  validateStConstructionElectricalNational,
+} from "./st-construction-electrical-national.ts";
 import {
   hashStFoodCleaningPetPriority,
   stFoodCleaningPetMetrics,
@@ -70,8 +70,8 @@ import {
 } from "./st-sectoral-priority-expansion.ts";
 import { fiscalImportCorpusMetrics, hashFiscalImportCorpus, validateFiscalImportCorpus } from "./fiscal-import-corpus.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.07.31-v99";
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-07-31";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.08.01-v100";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-08-01";
 
 type Validation = { passed: boolean; errors: string[] };
 
@@ -95,7 +95,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("COLD_BEVERAGES_SC_DESTINATION", "PMPF e fallback MVA de bebidas de SP para SC", validateStColdBeverageScDestination()),
     moduleResult("COLD_BEVERAGES_PRIORITY_AUDIT", "Matriz auditada de oito corredores de bebidas", validateStColdBeveragePriorityAudit()),
     moduleResult("PHARMA_COSMETICS_PRIORITY", "Medicamentos, cosméticos e perfumaria prioritários", validateStPharmaCosmeticsPriority()),
-    moduleResult("CONSTRUCTION_ELECTRICAL_PRIORITY", "Materiais de construção, ferramentas e elétricos em SP→MG/RJ", validateStConstructionElectricalPriority()),
+    moduleResult("CONSTRUCTION_ELECTRICAL_PRIORITY", "Materiais de construção, ferramentas e elétricos em corredores nacionais", validateStConstructionElectricalNational()),
     moduleResult("FOOD_CLEANING_PET_PRIORITY", "Alimentos, limpeza, higiene doméstica e pet food em SP→MG/RJ", validateStFoodCleaningPetPriority()),
     moduleResult("ST_SECTORAL_PRIORITY_EXPANSION", "Dez segmentos de ST auditados em dez rotas prioritárias", validateStSectoralPriorityExpansion()),
     moduleResult("ICMS_GENERAL_NATIONAL", "ICMS modal nas 27 UFs e DIFAL/FCP em recortes prioritários", validateIcmsGeneralNational()),
@@ -113,7 +113,7 @@ export function validateNationalCoverageAutomatically() {
   ];
   const calculation = stSpCalculationValidationMetrics();
   const autoParts = stAutoPartsHighUseCorridorMetrics();
-  const constructionElectrical = stConstructionElectricalMetrics();
+  const constructionElectrical = stConstructionElectricalNationalMetrics();
   const foodCleaningPet = stFoodCleaningPetMetrics();
   const icmsGeneral = icmsGeneralNationalMetrics();
   const issDeep = issDeepReferenceMetrics();
@@ -146,7 +146,7 @@ export function validateNationalCoverageAutomatically() {
         + beveragesSc.positiveMemories + beveragesSc.negativeGates
         + beveragesAudit.deterministicCases
         + sectoral.deterministicCases
-        + constructionElectrical.reproducedMemories + constructionElectrical.safeFailureScenarios
+        + constructionElectrical.deterministicCases
         + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases + fiscalImports.cases,
       referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + sectoral.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories + fiscalImports.positive,
       safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases + fiscalImports.negative + fiscalImports.incomplete,
@@ -174,7 +174,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStColdBeverageScDestination(),
     hashStColdBeveragePriorityAudit(),
     hashStPharmaCosmeticsPriority(),
-    hashStConstructionElectricalPriority(),
+    hashStConstructionElectricalNational(),
     hashStFoodCleaningPetPriority(),
     hashStSectoralPriorityExpansion(),
     hashIcmsGeneralNational(),
