@@ -107,9 +107,9 @@ test("rule changes reexecute only mapped modules and unknown rules fail closed",
   );
   const foodCleaningPet = await buildFiscalRegressionReport(["FOOD_CLEANING_PET_PRIORITY"]);
   assert.equal(foodCleaningPet.status, "automatically_verified");
-  assert.equal(foodCleaningPet.metrics.deterministicCases, 21);
-  assert.equal(foodCleaningPet.metrics.calculatedMemories, 8);
-  assert.equal(foodCleaningPet.metrics.safelyBlockedCases, 13);
+  assert.equal(foodCleaningPet.metrics.deterministicCases, 433);
+  assert.equal(foodCleaningPet.metrics.calculatedMemories, 26);
+  assert.equal(foodCleaningPet.metrics.safelyBlockedCases, 407);
 
   const unknown = await buildFiscalRegressionReport(["UNMAPPED-RULE"]);
   assert.equal(unknown.status, "blocked");

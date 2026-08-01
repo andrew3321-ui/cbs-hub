@@ -18,8 +18,8 @@ test("dez segmentos são auditados nas dez rotas prioritárias sem emprestar par
   assert.equal(ST_SECTORAL_RANKED_ROUTES.length, 10);
   assert.equal(stSectoralPriorityCells.length, 100);
   assert.equal(stSectoralPriorityMetrics().positiveMemories, 28);
-  assert.equal(stSectoralPriorityMetrics().coverage.partial, 13);
-  assert.equal(stSectoralPriorityMetrics().coverage.notSupported, 59);
+  assert.equal(stSectoralPriorityMetrics().coverage.partial, 29);
+  assert.equal(stSectoralPriorityMetrics().coverage.notSupported, 43);
 });
 
 test("cada memória liberada tem snapshot legal e quatro mutações negativas", () => {

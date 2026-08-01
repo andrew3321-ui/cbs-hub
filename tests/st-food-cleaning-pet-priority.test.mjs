@@ -14,27 +14,27 @@ import {
   validateStFoodCleaningPetPriority,
 } from "../domain/st-food-cleaning-pet-priority.ts";
 
-test("lote separa alimentos, limpeza, higiene doméstica e pet food", () => {
-  assert.equal(ST_FOOD_CLEANING_PET_PRODUCTS.length, 7);
+test("lote separa 25 identidades de alimentos, limpeza, higiene doméstica e pet food", () => {
+  assert.equal(ST_FOOD_CLEANING_PET_PRODUCTS.length, 25);
   assert.deepEqual(new Set(ST_FOOD_CLEANING_PET_PRODUCTS.map((product) => product.family)), new Set(["food", "cleaning", "household_hygiene", "pet_food"]));
   assert.deepEqual(stFoodCleaningPetMetrics(), {
-    priorityProducts: 7,
+    priorityProducts: 25,
     productFamilies: 4,
-    priorityRoutes: 2,
-    controlledCells: 14,
-    reproducedMemories: 7,
-    mvaMemories: 7,
+    priorityRoutes: 9,
+    controlledCells: 225,
+    reproducedMemories: 25,
+    mvaMemories: 25,
     pmpfMemories: 1,
-    safeFailureScenarios: 6,
-    officialSources: 10,
-    coverage: { supported: 7, partial: 7, notSupported: 0 },
+    safeFailureScenarios: 207,
+    officialSources: 17,
+    coverage: { supported: 25, partial: 200, notSupported: 0 },
   });
 });
 
-test("SP para MG reproduz seis MVA e uma pauta PMPF em centavos", () => {
+test("SP para MG reproduz 24 MVA e uma pauta PMPF em centavos", () => {
   const mg = stFoodCleaningPetReferenceRuns.filter((run) => run.route === "SP-MG");
-  assert.equal(mg.length, 7);
-  assert.equal(mg.filter((run) => run.result.method === "mva").length, 6);
+  assert.equal(mg.length, 25);
+  assert.equal(mg.filter((run) => run.result.method === "mva").length, 24);
   assert.equal(mg.filter((run) => run.result.method === "pmpf").length, 1);
   assert.ok(mg.every((run) => run.result.status === "calculated_reference" && run.result.output?.destinationTotalCents > 0));
   const pet = mg.find((run) => run.productCode === "DOGCHOW_ABOVE_5KG");
@@ -50,12 +50,12 @@ test("pauta de pet food cede à MVA quando a operação própria alcança o PMPF
   assert.ok(stFoodCleaningPetMvaFallbackRun.output?.destinationTotalCents > 0);
 });
 
-test("SP para RJ permanece parcial e nunca recebe parâmetros mineiros", () => {
-  const rj = stFoodCleaningPetReferenceRuns.filter((run) => run.route === "SP-RJ");
-  assert.equal(rj.length, 7);
-  assert.ok(rj.every((run) => run.result.status === "blocked" && run.result.coverageStatus === "partial"));
-  assert.ok(rj.every((run) => run.result.parameters === null && run.result.output === null));
-  assert.ok(rj.every((run) => run.result.blockers.includes("route_parameters_not_closed")));
+test("as oito rotas abertas permanecem parciais e nunca recebem parâmetros mineiros", () => {
+  const open = stFoodCleaningPetReferenceRuns.filter((run) => run.route !== "SP-MG");
+  assert.equal(open.length, 200);
+  assert.ok(open.every((run) => run.result.status === "blocked" && run.result.coverageStatus === "partial"));
+  assert.ok(open.every((run) => run.result.parameters === null && run.result.output === null));
+  assert.ok(open.every((run) => run.result.blockers.includes("route_parameters_not_closed")));
 });
 
 test("benefício, exceção, período, dado, classificação e apresentação falham fechados", () => {
@@ -66,6 +66,7 @@ test("benefício, exceção, período, dado, classificação e apresentação fa
     "missing_data",
     "classification_mismatch",
     "pet_presentation_mismatch",
+    "invalid_money",
   ]);
   assert.ok(stFoodCleaningPetNegativeRuns.every((run) => run.result.output === null && run.result.status !== "calculated_reference"));
 });
@@ -73,7 +74,7 @@ test("benefício, exceção, período, dado, classificação e apresentação fa
 test("busca, dossiê, cobertura e fonte permanecem vinculados ao recorte", () => {
   assert.deepEqual(searchFoodCleaningPetRules("Qual o ICMS-ST do detergente em pó de SP para MG?").map((item) => [item.productCode, item.route, item.status]), [["POWDER_DETERGENT", "SP-MG", "supported"]]);
   assert.deepEqual(searchFoodCleaningPetRules("DOGCHOW para RJ").map((item) => [item.productCode, item.route, item.status]), [["DOGCHOW_ABOVE_5KG", "SP-RJ", "partial"]]);
-  assert.equal(stFoodCleaningPetDossiers.length, 14);
+  assert.equal(stFoodCleaningPetDossiers.length, 225);
   const supported = stFoodCleaningPetDossiers.find((item) => item.key === "SP-MG:WHITE_CHOCOLATE_1KG")?.dossier;
   assert.equal(supported?.status, "calculated_reference");
   assert.ok(supported?.evidence.length >= 5);

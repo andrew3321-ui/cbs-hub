@@ -413,7 +413,7 @@ async function publicCoverage() {
       negativeRuns: stFoodCleaningPetNegativeRuns,
       sources: stFoodCleaningPetSources,
       dossiers: stFoodCleaningPetDossiers,
-      policy: "Sete produtos e apresentações permanecem segregados entre alimentos, limpeza, higiene doméstica e pet food. SP→MG possui seis memórias por MVA e uma por PMPF vigente; SP→RJ é parcial e nunca recebe parâmetros mineiros. Produto, apresentação, data, benefício ou documento divergente bloqueiam o valor.",
+      policy: "Vinte e cinco identidades fiscais permanecem segregadas entre alimentos, limpeza, higiene doméstica e pet food em nove destinos prioritários. SP→MG possui 24 memórias por MVA e uma por PMPF vigente; as outras 200 células são catalogadas e bloqueadas até o fechamento estadual, sem receber parâmetros mineiros ou do sentido inverso. Produto, apresentação, operação, data, benefício ou documento divergente bloqueiam o valor.",
     },
     recurringScenarios,
     sources: coverageSources,

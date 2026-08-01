@@ -518,7 +518,7 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   },
   {
     code: "FOOD_CLEANING_PET_PRIORITY",
-    label: "Alimentos, limpeza, higiene doméstica e pet food em SP→MG/RJ",
+    label: "Alimentos, limpeza, higiene doméstica e pet food em nove destinos prioritários",
     ruleCodes: ["NATIONAL-COVERAGE-V27", "FOOD_CLEANING_PET_PRIORITY"],
     version: ST_FOOD_CLEANING_PET_VERSION,
     validate: validateStFoodCleaningPetPriority,

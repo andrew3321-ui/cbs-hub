@@ -25,7 +25,7 @@ import { ST_MG_ANNEX_VII_SOURCE } from "./st-sp-mg-legal.ts";
 import { taxReformSources } from "./tax-reform-impact.ts";
 import { taxReformSectorSources } from "./tax-reform-sector-scenarios.ts";
 
-export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v99";
+export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v101";
 export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-08-01";
 
 export type OfficialSourceClass = "primary" | "official_index" | "official_guidance";
@@ -93,7 +93,7 @@ const groups: SourceGroup[] = [
   { sources: stColdBeverageSpSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP"], impactedRuleCodes: ["COLD_BEVERAGES_SP_DESTINATION"] },
   { sources: stColdBeverageSpOriginSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ"], impactedRuleCodes: ["COLD_BEVERAGES_SP_ORIGIN"] },
   { sources: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ", "PR", "SC", "RS", "GO", "BA", "PE", "ES", "BR"], impactedRuleCodes: ["CONSTRUCTION_ELECTRICAL_PRIORITY"] },
-  { sources: stFoodCleaningPetSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ"], impactedRuleCodes: ["FOOD_CLEANING_PET_PRIORITY"] },
+  { sources: stFoodCleaningPetSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ", "PR", "SC", "RS", "GO", "BA", "PE", "BR"], impactedRuleCodes: ["FOOD_CLEANING_PET_PRIORITY"] },
   { sources: stPharmaCosmeticsSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ", "PR", "SC", "RS", "GO", "BA", "BR"], impactedRuleCodes: ["PHARMA_COSMETICS_PRIORITY"] },
   { sources: [ST_REPRESENTATIVE_PRODUCTS_SOURCE], sourceClass: "official_index", taxes: ["ICMS_ST"], jurisdictions: ["BR"], impactedRuleCodes: ["ST_REPRESENTATIVE_PRODUCTS"] },
   { sources: [ST_MG_ANNEX_VII_SOURCE], sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["MG"], impactedRuleCodes: ["ST_SP_MG_LEGAL"] },

@@ -270,7 +270,7 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
         regression: { cases: regressionCases, failures: regressionFailures },
         objectiveReason: run.result.status === "calculated_reference"
           ? `Memória ${run.result.method?.toUpperCase()} reproduzida em centavos para o CEST ${product?.cest ?? "não localizado"} e sua apresentação exata.`
-          : "Produto e rota estão catalogados, mas os parâmetros do destino fluminense ainda não foram fechados.",
+          : `Produto e rota estão catalogados, mas os parâmetros exatos do destino ${run.route.slice(-2)} ainda não foram fechados.`,
         blockers: run.result.blockers,
       });
     }),
