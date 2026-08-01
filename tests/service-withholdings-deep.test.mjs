@@ -49,8 +49,8 @@ const base = {
   simultaneousDeductionsConfirmed: true,
 };
 
-test("V95 ranks 40 recurring contractual profiles with official evidence", () => {
-  assert.equal(SERVICE_WITHHOLDINGS_DEEP_VERSION, "2026.07.31-v95");
+test("V108 ranks 40 recurring contractual profiles with official evidence", () => {
+  assert.equal(SERVICE_WITHHOLDINGS_DEEP_VERSION, "2026.08.01-v108");
   assert.equal(serviceWithholdingProfiles.length, 40);
   assert.deepEqual(serviceWithholdingProfiles.map((item) => item.rank), Array.from({ length: 40 }, (_, index) => index + 1));
   assert.ok(serviceWithholdingProfiles.every((item) => item.sourceCodes.length > 0 && item.requiredClassification.length >= 5));
@@ -187,15 +187,15 @@ test("version validity accepts 2026 boundaries and fails closed outside them", (
 
 test("catalog validation, metrics and hash are reproducible", async () => {
   assert.deepEqual(validateServiceWithholdingsDeep(), { passed: true, errors: [] });
-  assert.equal(serviceWithholdingReferenceCases.length, 120);
-  assert.deepEqual(new Set(serviceWithholdingReferenceCases.map((item) => item.kind)), new Set(["combined_memory", "waiver_boundary", "safe_block"]));
+  assert.equal(serviceWithholdingReferenceCases.length, 320);
+  assert.deepEqual(new Set(serviceWithholdingReferenceCases.map((item) => item.kind)), new Set(["combined_memory", "waiver_boundary", "safe_block", "amount_boundary"]));
   assert.deepEqual(serviceWithholdingsDeepMetrics(), {
     prioritizedServices: 40,
     contractualProfiles: 40,
     separateLedgers: 4,
     versionedRuleControls: 4,
-    deterministicCases: 120,
-    calculatedMemories: 80,
+    deterministicCases: 320,
+    calculatedMemories: 280,
     safelyBlockedCases: 40,
   });
   assert.match(await hashServiceWithholdingsDeep(), /^[0-9a-f]{64}$/);

@@ -189,11 +189,19 @@ import {
   rtc2027Sources,
   validateRtc2027Readiness,
 } from "./tax-reform-2027-readiness.ts";
+import {
+  FISCAL_IMPORT_CORPUS_VERSION,
+  fiscalImportCorpusMetrics,
+  hashFiscalImportCorpus,
+  validateFiscalImportCorpus,
+} from "./fiscal-import-corpus.ts";
+import { fiscalImportOfficialSources } from "./fiscal-batch-import.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v10";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v11";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-08-01";
-export const FISCAL_REGRESSION_REPORT_CASE_TARGET = 3_000;
-export const FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET = 100;
+export const FISCAL_REGRESSION_REPORT_CASE_TARGET = 6_001;
+export const FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET = 300;
+export const FISCAL_IMPORT_CASE_TARGET = 300;
 
 export type FiscalRegressionTestKind =
   | "positive"
@@ -241,6 +249,25 @@ const MAJOR_TAX_MODULES = {
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   {
+    code: "FISCAL_IMPORT_CORPUS",
+    label: "ImportaÃ§Ã£o fiscal â€” NF-e, NFS-e e SPED com vetores independentes",
+    ruleCodes: ["FISCAL_IMPORT_CORPUS", "FISCAL-DOCUMENT-IMPORT"],
+    version: FISCAL_IMPORT_CORPUS_VERSION,
+    validate: validateFiscalImportCorpus,
+    hash: hashFiscalImportCorpus,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = fiscalImportCorpusMetrics();
+      return {
+        deterministicCases: metrics.cases,
+        calculatedMemories: metrics.positive,
+        safelyBlockedCases: metrics.negative + metrics.incomplete,
+      };
+    },
+    sourceCodes: () => fiscalImportOfficialSources.map((source) => source.code).sort(),
+    requiredGates: ["tipo e leiaute do documento", "estrutura e campos obrigatÃ³rios", "vigÃªncia e competÃªncia", "totais conciliados", "entrada sintÃ©tica independente", "bruto descartado"],
+  },
+  {
     code: "RTC_2027_READINESS",
     label: "Reforma Tributária — prontidão de 2027 e atos oficiais pendentes",
     ruleCodes: ["RTC_TRANSITION_IMPACT", "FED-RTC-SECTOR-SCENARIOS", "RTC-2027-V107"],
@@ -279,7 +306,7 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   {
     code: "SERVICE_WITHHOLDINGS_DEEP",
     label: "Retenções — IRRF, CSRF, INSS e ISS em serviços recorrentes",
-    ruleCodes: ["RET-IRRF-CSRF", "RET-INSS-SERVICES", "RET-ISS-MUNICIPAL", "SERVICE-WITHHOLDINGS-DEEP-V95"],
+    ruleCodes: ["RET-IRRF-CSRF", "RET-INSS-SERVICES", "RET-ISS-MUNICIPAL", "SERVICE-WITHHOLDINGS-DEEP-V108"],
     version: SERVICE_WITHHOLDINGS_DEEP_VERSION,
     validate: validateServiceWithholdingsDeep,
     hash: hashServiceWithholdingsDeep,
@@ -761,6 +788,18 @@ export async function buildFiscalRegressionReport(affectedRuleCodes?: readonly s
   const caseAccountingErrors = modules
     .filter((module) => module.goldenCases.deterministicCases !== module.goldenCases.calculatedMemories + module.goldenCases.safelyBlockedCases)
     .map((module) => `${module.code}:case_without_expected_memory_or_safe_block`);
+  const importModule = moduleByCode.get("FISCAL_IMPORT_CORPUS");
+  const importDistribution = {
+    moduleCode: importModule?.code ?? null,
+    deterministicCases: importModule?.goldenCases.deterministicCases ?? 0,
+    calculatedMemories: importModule?.goldenCases.calculatedMemories ?? 0,
+    safelyBlockedCases: importModule?.goldenCases.safelyBlockedCases ?? 0,
+    target: FISCAL_IMPORT_CASE_TARGET,
+    targetReached: (importModule?.goldenCases.deterministicCases ?? 0) >= FISCAL_IMPORT_CASE_TARGET,
+    caseAccountingValid: importModule
+      ? importModule.goldenCases.deterministicCases === importModule.goldenCases.calculatedMemories + importModule.goldenCases.safelyBlockedCases
+      : false,
+  };
   const fullReportGateErrors = requestedRules === null ? [
     ...(modules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0) < FISCAL_REGRESSION_REPORT_CASE_TARGET
       ? ["regression_case_target_not_reached"]
@@ -770,6 +809,9 @@ export async function buildFiscalRegressionReport(affectedRuleCodes?: readonly s
         ? [`${tax}:major_module_distribution_gate_failed`]
         : []
     )),
+    ...(!importDistribution.targetReached || !importDistribution.caseAccountingValid
+      ? ["FISCAL_IMPORT:distribution_gate_failed"]
+      : []),
   ] : [];
 
   const errors = [
@@ -793,6 +835,7 @@ export async function buildFiscalRegressionReport(affectedRuleCodes?: readonly s
     remainingToTarget: Math.max(0, (requestedRules === null ? FISCAL_REGRESSION_REPORT_CASE_TARGET : FISCAL_REGRESSION_CASE_TARGET) - modules.reduce((total, module) => total + module.goldenCases.deterministicCases, 0)),
     caseAccountingValid: caseAccountingErrors.length === 0,
     majorModuleDistribution,
+    importDistribution,
   };
   const status = modules.length > 0 && errors.length === 0 && modules.every((module) => module.gates.failClosed)
     ? "automatically_verified" as const
@@ -812,6 +855,7 @@ export async function buildFiscalRegressionReport(affectedRuleCodes?: readonly s
       maturity,
     })),
     majorModuleDistribution,
+    importDistribution,
   }));
 
   return {

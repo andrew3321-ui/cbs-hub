@@ -6,6 +6,7 @@ import {
   FISCAL_REGRESSION_REPORT_VERSION,
   FISCAL_REGRESSION_REPORT_CASE_TARGET,
   FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET,
+  FISCAL_IMPORT_CASE_TARGET,
   buildFiscalRegressionReport,
   fiscalRegressionModulesForRules,
 } from "../domain/fiscal-regression-assurance.ts";
@@ -16,7 +17,8 @@ test("versioned regression report exposes module, rule, evidence and maturity wi
   const report = await buildFiscalRegressionReport();
   assert.equal(report.reportVersion, FISCAL_REGRESSION_REPORT_VERSION);
   assert.equal(report.status, "automatically_verified", JSON.stringify(report.errors));
-  assert.equal(report.metrics.modules, 27);
+  assert.equal(report.metrics.modules, 28);
+  assert.ok(report.modules.some((module) => module.code === "FISCAL_IMPORT_CORPUS"));
   assert.ok(report.modules.some((module) => module.code === "COLD_BEVERAGES_SC_DESTINATION"));
   assert.ok(report.modules.some((module) => module.code === "COLD_BEVERAGES_PRIORITY_AUDIT"));
   assert.ok(report.modules.some((module) => module.code === "ICMS_GENERAL_NATIONAL"));
@@ -39,7 +41,7 @@ test("versioned regression report exposes module, rule, evidence and maturity wi
   assert.equal(report.metrics.structured, report.metrics.modules);
   assert.equal(report.metrics.tested, report.metrics.modules);
   assert.equal(report.metrics.approved, 0);
-  assert.ok(report.metrics.deterministicCases >= 3_000);
+  assert.ok(report.metrics.deterministicCases > 6_000);
   assert.equal(report.metrics.caseTarget, FISCAL_REGRESSION_REPORT_CASE_TARGET);
   assert.equal(report.metrics.targetReached, true);
   assert.equal(report.metrics.remainingToTarget, 0);
@@ -51,6 +53,15 @@ test("versioned regression report exposes module, rule, evidence and maturity wi
     && distribution.caseAccountingValid
     && distribution.deterministicCases === distribution.calculatedMemories + distribution.safelyBlockedCases
   )));
+  assert.deepEqual(report.metrics.importDistribution, {
+    moduleCode: "FISCAL_IMPORT_CORPUS",
+    deterministicCases: 306,
+    calculatedMemories: 102,
+    safelyBlockedCases: 204,
+    target: FISCAL_IMPORT_CASE_TARGET,
+    targetReached: true,
+    caseAccountingValid: true,
+  });
   assert.ok(report.metrics.calculatedMemories > 80);
   assert.ok(report.metrics.safelyBlockedCases > 600);
   assert.match(report.fingerprint, /^[0-9a-f]{64}$/);

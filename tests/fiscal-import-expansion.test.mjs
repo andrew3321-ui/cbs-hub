@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 import { inspectFiscalBatchText } from "../domain/fiscal-batch-import.ts";
@@ -9,16 +10,16 @@ import { auditNfeXml } from "../domain/nfe-audit.ts";
 const base = new URL("../examples/fiscal-import-corpus/v1/", import.meta.url);
 const fixture = (name) => readFile(new URL(name, base), "utf8");
 
-test("corpus sintético versionado possui 108 expectativas e nenhum documento real", async () => {
+test("corpus sintético versionado possui 306 expectativas e nenhum documento real", async () => {
   const validation = validateFiscalImportCorpus();
   assert.equal(validation.passed, true, validation.errors.join("\n"));
   assert.deepEqual(fiscalImportCorpusMetrics(), {
-    version: "fiscal-import-corpus.2026-07-31.v1",
+    version: "fiscal-import-corpus.2026-08-01.v2",
     files: 6,
-    cases: 108,
-    positive: 36,
-    negative: 36,
-    incomplete: 36,
+    cases: 306,
+    positive: 102,
+    negative: 102,
+    incomplete: 102,
     rawDocumentsPersisted: 0,
   });
   const manifest = JSON.parse(await fixture("manifest.json"));
@@ -69,41 +70,50 @@ test("SPED concilia documentos, apuração, blocos e divergências prioritárias
   assert.ok(incomplete.engineReconciliations[0].blockers.length > 0);
 });
 
-test("108 casos positivos, negativos e incompletos são reexecutados com expectativa explícita", async () => {
+test("306 casos positivos, negativos e incompletos são reexecutados com expectativa explícita", async () => {
   const nfe = await fixture("nfe-sale.xml");
   const nfse = await fixture("nfse-national.xml");
   const sped = await fixture("sped-efd-valid.txt");
   let executed = 0;
+  const inputFingerprints = new Set();
   for (const current of fiscalImportCorpusCases) {
+    const seed = String(current.seed).padStart(3, "0");
     if (current.documentType === "nfe") {
+      const seeded = nfe.replace("<natOp>VENDA SINTETICA</natOp>", `<natOp>VENDA SINTETICA ${seed}</natOp>`);
       const xml = current.expectation === "positive"
-        ? nfe
+        ? seeded
         : current.expectation === "negative"
-          ? nfe.replace("<vProd>1000.00</vProd><vICMS>", "<vProd>999.99</vProd><vICMS>")
-          : nfe.replace("<NCM>87089990</NCM>", "");
+          ? seeded.replace("<vProd>1000.00</vProd><vICMS>", "<vProd>999.99</vProd><vICMS>")
+          : seeded.replace("<NCM>87089990</NCM>", "");
+      inputFingerprints.add(createHash("sha256").update(xml).digest("hex"));
       const audit = await auditNfeXml(xml);
       assert.equal(current.expectation === "positive" ? audit.status !== "blocked" : audit.status === "blocked", true, current.code);
       assert.ok(reconcileNfeWithExistingEngines(audit).length > 0, current.code);
     } else if (current.documentType === "nfse") {
+      const seeded = nfse.replace("<nNFSe>9001</nNFSe>", `<nNFSe>9${seed}</nNFSe>`);
       const xml = current.expectation === "positive"
-        ? nfse
+        ? seeded
         : current.expectation === "negative"
-          ? nfse.replace("<vServ>1000.00</vServ>", "<vServ>INVALIDO</vServ>")
-          : nfse.replace("<cLocIncid>3550308</cLocIncid>", "");
+          ? seeded.replace("<vServ>1000.00</vServ>", "<vServ>INVALIDO</vServ>")
+          : seeded.replace("<cLocIncid>3550308</cLocIncid>", "");
+      inputFingerprints.add(createHash("sha256").update(xml).digest("hex"));
       const inspected = inspectFiscalBatchText(`${current.code}.xml`, xml);
       assert.equal(current.expectation === "positive" ? inspected.status !== "blocked" : inspected.status === "blocked", true, current.code);
     } else {
+      const seeded = sped.replace("|SINTETICA|", `|SINTETICA-${seed}|`).replace("|C100|0|1|SYN|", `|C100|0|1|SYN-${seed}|`);
       const txt = current.expectation === "positive"
-        ? sped
+        ? seeded
         : current.expectation === "negative"
-          ? sped.replace("|9999|14|", "|9999|99|")
-          : sped.replace(/^\|0000\|.*\r?\n/m, "");
+          ? seeded.replace("|9999|14|", "|9999|99|")
+          : seeded.replace(/^\|0000\|.*\r?\n/m, "");
+      inputFingerprints.add(createHash("sha256").update(txt).digest("hex"));
       const inspected = inspectFiscalBatchText(`${current.code}.txt`, txt);
       assert.equal(current.expectation === "positive" ? inspected.status !== "blocked" : inspected.status === "blocked", true, current.code);
     }
     executed += 1;
   }
-  assert.equal(executed, 108);
+  assert.equal(executed, 306);
+  assert.equal(inputFingerprints.size, 306);
 });
 
 test("API descarta o bruto e publica rejeições, ausências e conciliações minimizadas", async () => {

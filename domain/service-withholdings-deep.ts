@@ -1,5 +1,5 @@
-export const SERVICE_WITHHOLDINGS_DEEP_VERSION = "2026.07.31-v95";
-export const SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT = "2026-07-31";
+export const SERVICE_WITHHOLDINGS_DEEP_VERSION = "2026.08.01-v108";
+export const SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT = "2026-08-01";
 export const SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD = {
   from: "2026-01-01",
   to: "2026-12-31",
@@ -100,7 +100,7 @@ export type ServiceWithholdingRuleControl = {
 
 export type ServiceWithholdingReferenceCase = {
   code: string;
-  kind: "combined_memory" | "waiver_boundary" | "safe_block";
+  kind: "combined_memory" | "waiver_boundary" | "amount_boundary" | "safe_block";
   profileCode: string;
   input: ServiceWithholdingInput;
   expectedStatus: ServiceWithholdingResult["status"];
@@ -635,6 +635,22 @@ export const serviceWithholdingReferenceCases: ServiceWithholdingReferenceCase[]
   const waiverTotal = Object.values(waiverAmounts).every((amount) => amount !== null)
     ? Object.values(waiverAmounts).reduce<number>((sum, amount) => sum + (amount ?? 0), 0)
     : null;
+  const amountBoundaryCases = [1_000_000, 2_500_000, 5_000_000, 25_000_000, 100_000_000].map((grossPaymentCents, index) => {
+    const input = referenceInput(profile, grossPaymentCents);
+    const amounts = expectedAmounts(profile, grossPaymentCents, "amount_boundary");
+    const total = Object.values(amounts).every((amount) => amount !== null)
+      ? Object.values(amounts).reduce<number>((sum, amount) => sum + (amount ?? 0), 0)
+      : null;
+    return {
+      code: `${profile.code}-AMOUNT-${String(index + 1).padStart(2, "0")}`,
+      kind: "amount_boundary" as const,
+      profileCode: profile.code,
+      input,
+      expectedStatus: totalContract ? "partially_calculated" as const : "calculated_reference" as const,
+      expectedTrackAmounts: amounts,
+      expectedNetPaymentCents: total === null ? null : grossPaymentCents - total,
+    };
+  });
   return [
     {
       code: `${profile.code}-COMBINED`,
@@ -663,6 +679,7 @@ export const serviceWithholdingReferenceCases: ServiceWithholdingReferenceCase[]
       expectedTrackAmounts: expectedAmounts(profile, 10_000_000, "safe_block"),
       expectedNetPaymentCents: null,
     },
+    ...amountBoundaryCases,
   ];
 });
 
@@ -690,15 +707,15 @@ export function validateServiceWithholdingsDeep() {
   const sourceCodes = new Set(serviceWithholdingSources.map((item) => item.code));
   if (serviceWithholdingRuleControls.length !== 4 || new Set(serviceWithholdingRuleControls.map((item) => item.tax)).size !== 4) errors.push("four_versioned_ledger_controls_required");
   if (!serviceWithholdingRuleControls.every((item) => item.version && item.effectiveFrom && item.taxableEvent && item.responsible && item.dueRule && item.dispensationRule && item.sourceCodes.every((code) => sourceCodes.has(code)))) errors.push("versioned_rule_control_incomplete");
-  if (serviceWithholdingReferenceCases.length !== 120 || new Set(serviceWithholdingReferenceCases.map((item) => item.code)).size !== 120) errors.push("one_hundred_twenty_reference_cases_required");
-  if (!serviceWithholdingProfiles.every((profile) => serviceWithholdingReferenceCases.filter((item) => item.profileCode === profile.code).length === 3)) errors.push("three_cases_per_profile_required");
+  if (serviceWithholdingReferenceCases.length !== 320 || new Set(serviceWithholdingReferenceCases.map((item) => item.code)).size !== 320) errors.push("three_hundred_twenty_reference_cases_required");
+  if (!serviceWithholdingProfiles.every((profile) => serviceWithholdingReferenceCases.filter((item) => item.profileCode === profile.code).length === 8)) errors.push("eight_cases_per_profile_required");
   for (const referenceCase of serviceWithholdingReferenceCases) {
     const result = calculateServiceWithholdings(referenceCase.input);
     const actualAmounts = Object.fromEntries(result.tracks.map((item) => [item.tax, item.amountCents]));
     if (result.status !== referenceCase.expectedStatus || result.netPaymentCents !== referenceCase.expectedNetPaymentCents || JSON.stringify(actualAmounts) !== JSON.stringify(referenceCase.expectedTrackAmounts)) errors.push(`reference_case_failed:${referenceCase.code}`);
     if (!result.tracks.every((item) => item.ruleVersion && item.effectiveFrom && item.dueRule && item.responsible)) errors.push(`ledger_metadata_failed:${referenceCase.code}`);
   }
-  if (serviceWithholdingsDeepMetrics().calculatedMemories < 80) errors.push("eighty_reproduced_memories_required");
+  if (serviceWithholdingsDeepMetrics().deterministicCases < 300 || serviceWithholdingsDeepMetrics().calculatedMemories < 280) errors.push("distributed_case_target_not_reached");
 
   const professional = calculateServiceWithholdings(baseInput);
   if (professional.status !== "calculated_reference" || professional.tracks.find((item) => item.tax === "IRRF")?.amountCents !== 150_000 || professional.tracks.find((item) => item.tax === "CSRF")?.amountCents !== 465_000) errors.push("professional_service_memory_failed");

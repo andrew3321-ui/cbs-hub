@@ -301,7 +301,7 @@ function evaluateWithholdings(facts: FiscalIntelligenceFacts): EvaluationParts {
     ],
     decisionTrace,
     headline: facts.payerType === "public_entity" ? "Retenções: pagador público exige tabela própria" : findings.some((item) => item.code === "CSRF-POTENTIAL-4-65") ? "Retenções: IRRF, CSRF, INSS e ISS separados" : "Retenções: classificação ainda necessária",
-    summary: "A V95 estrutura 40 perfis contratuais, 120 casos e 39 memórias combinadas e impede que alíquota, dispensa, base, responsável ou prazo de um tributo sejam emprestados a outro. Nenhum líquido é concluído pela busca textual.",
+    summary: "A V108 estrutura 40 perfis contratuais, 320 casos e 280 memórias reproduzíveis e impede que alíquota, dispensa, base, responsável ou prazo de um tributo sejam emprestados a outro. Nenhum líquido é concluído pela busca textual.",
   };
 }
 
