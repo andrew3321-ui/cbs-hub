@@ -29,6 +29,11 @@ import {
   validateIcmsGeneralNational,
 } from "./icms-general-national.ts";
 import {
+  hashIcmsOwnDifalFcpExpansion,
+  icmsOwnDifalFcpExpansionMetrics,
+  validateIcmsOwnDifalFcpExpansion,
+} from "./icms-own-difal-fcp-expansion.ts";
+import {
   hashIssDeepCoverage,
   issDeepReferenceMetrics,
   validateIssDeepCoverage,
@@ -75,7 +80,7 @@ import {
 } from "./st-sectoral-priority-expansion.ts";
 import { fiscalImportCorpusMetrics, hashFiscalImportCorpus, validateFiscalImportCorpus } from "./fiscal-import-corpus.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.08.01-v102";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.08.01-v103";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-08-01";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -104,6 +109,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("FOOD_CLEANING_PET_PRIORITY", "Alimentos, limpeza, higiene doméstica e pet food em nove destinos prioritários", validateStFoodCleaningPetPriority()),
     moduleResult("ST_SECTORAL_PRIORITY_EXPANSION", "Dez segmentos de ST auditados em dez rotas prioritárias", validateStSectoralPriorityExpansion()),
     moduleResult("ICMS_GENERAL_NATIONAL", "ICMS modal nas 27 UFs e DIFAL/FCP em recortes prioritários", validateIcmsGeneralNational()),
+    moduleResult("ICMS_OWN_DIFAL_FCP_EXPANSION", "ICMS próprio, DIFAL, FCP e devolução nas 27 UFs", validateIcmsOwnDifalFcpExpansion()),
     moduleResult("ISS_DEEP_EXPANSION", "ISS 17.01 auditado em 100 municípios", validateIssDeepCoverage()),
     moduleResult("ISS_RECURRING_PRIORITY", "ISS recorrente em 180 combinações município-item", validateIssRecurringPriority()),
     moduleResult("ISS_MUNICIPAL_100_EXPANSION", "ISS recorrente em 50 novos municípios e 500 combinações", validateIssMunicipal100Expansion()),
@@ -122,6 +128,7 @@ export function validateNationalCoverageAutomatically() {
   const constructionElectrical = stConstructionElectricalNationalMetrics();
   const foodCleaningPet = stFoodCleaningPetMetrics();
   const icmsGeneral = icmsGeneralNationalMetrics();
+  const icmsExpansion = icmsOwnDifalFcpExpansionMetrics();
   const issDeep = issDeepReferenceMetrics();
   const issRecurring = issRecurringPriorityMetrics();
   const issMunicipal100 = issMunicipal100Metrics();
@@ -154,9 +161,9 @@ export function validateNationalCoverageAutomatically() {
         + beveragesAudit.deterministicCases
         + sectoral.deterministicCases
         + constructionElectrical.deterministicCases
-        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + issMunicipal100.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases + fiscalImports.cases,
-      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + sectoral.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories + fiscalImports.positive,
-      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + issMunicipal100.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases + fiscalImports.negative + fiscalImports.incomplete,
+        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + icmsExpansion.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + issMunicipal100.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases + fiscalImports.cases,
+      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + sectoral.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + icmsExpansion.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories + fiscalImports.positive,
+      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + icmsExpansion.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + issMunicipal100.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases + fiscalImports.negative + fiscalImports.incomplete,
       failed: calculation.failed + autoParts.failedProductRouteCases,
     },
     modules,
@@ -185,6 +192,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashStFoodCleaningPetPriority(),
     hashStSectoralPriorityExpansion(),
     hashIcmsGeneralNational(),
+    hashIcmsOwnDifalFcpExpansion(),
     hashIssDeepCoverage(),
     hashIssRecurringPriority(),
     hashIssMunicipal100Expansion(),

@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v21";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v22";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-08-01";
 
 export type PublicCoverageMaturity = {
@@ -338,6 +338,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "icms-v103-own-difal-fcp-return-books",
+        changedAt: "2026-08-01T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "ICMS próprio, DIFAL, FCP e devolução passaram a usar livros independentes nas 27 UFs, com matriz por operação e vigência, 540 casos determinísticos e bloqueio de toda fórmula estadual ou tratamento de produto não comprovado.",
+        affectedCodes: ["ICMS_GENERAL_NATIONAL", "ICMS_OWN_DIFAL_FCP_EXPANSION"],
+        clientDataExposed: false,
+      },
       {
         id: "reliability-v98-source-redundancy-and-balanced-regression",
         changedAt: "2026-07-31T00:00:00.000Z",

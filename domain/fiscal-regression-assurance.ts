@@ -99,6 +99,12 @@ import {
   validateIcmsGeneralNational,
 } from "./icms-general-national.ts";
 import {
+  ICMS_OWN_DIFAL_FCP_EXPANSION_VERSION,
+  hashIcmsOwnDifalFcpExpansion,
+  icmsOwnDifalFcpExpansionMetrics,
+  validateIcmsOwnDifalFcpExpansion,
+} from "./icms-own-difal-fcp-expansion.ts";
+import {
   ISS_DEEP_VERSION,
   hashIssDeepCoverage,
   issDeepReferenceMetrics,
@@ -156,7 +162,7 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v5";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v6";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-08-01";
 export const FISCAL_REGRESSION_REPORT_CASE_TARGET = 3_000;
 export const FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET = 100;
@@ -196,7 +202,7 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 ];
 
 const MAJOR_TAX_MODULES = {
-  ICMS: ["ICMS_GENERAL_NATIONAL"],
+  ICMS: ["ICMS_GENERAL_NATIONAL", "ICMS_OWN_DIFAL_FCP_EXPANSION"],
   ISS: ["ISS_DEEP_EXPANSION", "ISS_RECURRING_PRIORITY", "ISS_MUNICIPAL_100_EXPANSION"],
   SIMPLES: ["SIMPLES_NATIONAL_DEEP"],
   PIS_COFINS: ["PIS_COFINS_DEEP"],
@@ -303,11 +309,30 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
       return {
         deterministicCases: metrics.deterministicCases,
         calculatedMemories: metrics.calculatedMemories,
-        safelyBlockedCases: metrics.safelyBlockedCases,
+        safelyBlockedCases: metrics.safelyBlockedCases + metrics.notApplicableCases,
       };
     },
     sourceCodes: () => icmsGeneralSources.map((item) => item.code).sort(),
     requiredGates: ["UF e vigência", "NCM completo", "destinatário e finalidade", "alíquota modal aplicável", "alíquota específica e benefício ausentes", "ST separada", "FCP por hipótese", "método estadual do DIFAL"],
+  },
+  {
+    code: "ICMS_OWN_DIFAL_FCP_EXPANSION",
+    label: "ICMS próprio, DIFAL, FCP e devolução — matriz nacional",
+    ruleCodes: ["ICMS-GENERAL-NATIONAL", "ICMS-OWN-DIFAL-FCP-V103"],
+    version: ICMS_OWN_DIFAL_FCP_EXPANSION_VERSION,
+    validate: validateIcmsOwnDifalFcpExpansion,
+    hash: hashIcmsOwnDifalFcpExpansion,
+    testKinds: ALL_TEST_KINDS,
+    metrics: () => {
+      const metrics = icmsOwnDifalFcpExpansionMetrics();
+      return {
+        deterministicCases: metrics.deterministicCases,
+        calculatedMemories: metrics.calculatedMemories,
+        safelyBlockedCases: metrics.safelyBlockedCases + metrics.notApplicableCases,
+      };
+    },
+    sourceCodes: () => icmsGeneralSources.map((item) => item.code).sort(),
+    requiredGates: ["UF, operação e vigência", "NCM completo", "destinatário e finalidade", "alíquota modal versus específica", "ST e benefícios", "FCP por hipótese", "método estadual do DIFAL", "documento original na devolução"],
   },
   {
     code: "RTC_SECTOR_SCENARIOS",

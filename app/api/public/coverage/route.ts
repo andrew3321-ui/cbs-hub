@@ -29,6 +29,7 @@ import { financialSpecificCombinedRateSchedule, fuelSpecificProductCatalog, hash
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
+import { hashIcmsOwnDifalFcpExpansion, ICMS_OPERATION_BOOKS, ICMS_OWN_DIFAL_FCP_EXPANSION_CHECKED_AT, ICMS_OWN_DIFAL_FCP_EXPANSION_VERSION, icmsOwnDifalFcpExpansionMetrics, icmsOwnDifalFcpMatrix, icmsOwnDifalFcpReferenceCases, icmsOwnDifalFcpStateInventory, validateIcmsOwnDifalFcpExpansion } from "../../../../domain/icms-own-difal-fcp-expansion";
 import { withApiTelemetry } from "../../../api-infrastructure";
 import { hashOfficialSourceCertification, officialSourceAffectedRuleReport, officialSourceCertificationMetrics, officialSourceInventory, officialSourceLiveProbeSnapshot, officialSourceTechnicalAlternatives, OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT, OFFICIAL_SOURCE_CERTIFICATION_VERSION, validateOfficialSourceCertification } from "../../../../domain/official-source-certification";
 import { FISCAL_IMPORT_CORPUS_VERSION, fiscalImportCorpusFiles, fiscalImportCorpusMetrics, hashFiscalImportCorpus, validateFiscalImportCorpus } from "../../../../domain/fiscal-import-corpus";
@@ -64,6 +65,7 @@ async function publicCoverage() {
   const ipiTipiFingerprint = (await hashIpiTipiDeep()).slice(0, 12);
   const taxReformSectorFingerprint = (await hashTaxReformSectorCatalog()).slice(0, 12);
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
+  const icmsOwnDifalFcpFingerprint = (await hashIcmsOwnDifalFcpExpansion()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
   const sourceCertificationFingerprint = (await hashOfficialSourceCertification()).slice(0, 12);
   const fiscalImportFingerprint = (await hashFiscalImportCorpus()).slice(0, 12);
@@ -111,6 +113,18 @@ async function publicCoverage() {
       sources: icmsGeneralSources,
       referenceRuns: icmsGeneralReferenceRuns,
       policy: "A alíquota modal é referência geral, não conclusão fiscal. NCM, finalidade, destinatário, ST, benefício, redução, diferimento, FCP e método estadual do DIFAL são portões obrigatórios; fórmula não comprovada bloqueia o valor.",
+    },
+    icmsOwnDifalFcpExpansion: {
+      version: ICMS_OWN_DIFAL_FCP_EXPANSION_VERSION,
+      checkedAt: ICMS_OWN_DIFAL_FCP_EXPANSION_CHECKED_AT,
+      fingerprint: icmsOwnDifalFcpFingerprint,
+      validation: validateIcmsOwnDifalFcpExpansion(),
+      metrics: icmsOwnDifalFcpExpansionMetrics(),
+      books: ICMS_OPERATION_BOOKS,
+      states: icmsOwnDifalFcpStateInventory,
+      matrix: icmsOwnDifalFcpMatrix,
+      referenceCases: icmsOwnDifalFcpReferenceCases,
+      policy: "ICMS próprio, DIFAL, FCP e devolução usam livros independentes. Alíquota modal nunca substitui tratamento do produto; método estadual, NCM, destinatário, finalidade, benefício, ST, FCP e vigência ausentes bloqueiam o valor. Devolução somente reproduz os livros do documento original comprovado.",
     },
     cities: cityCoverage,
     issDeep: {
