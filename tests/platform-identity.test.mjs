@@ -25,12 +25,13 @@ test("public ownership record contains no CPF, CNPJ or private contact data", ()
   assert.equal("userId" in payload, false);
 });
 
-test("institutional pages identify the responsible person and remove the former company identity", () => {
+test("institutional pages publish support while preserving the responsible-person record", () => {
   const landing = fs.readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
   const ownerPage = fs.readFileSync(new URL("../app/responsavel/page.tsx", import.meta.url), "utf8");
   const pricing = fs.readFileSync(new URL("../app/planos/page.tsx", import.meta.url), "utf8");
-  assert.match(landing, /Responsável pela plataforma/);
-  assert.match(landing, /responsibleName/);
+  assert.match(landing, /Suporte:/);
+  assert.match(landing, /mailto:supportofficial@cbshub\.com\.br/);
+  assert.doesNotMatch(landing, /Responsável pela plataforma|responsibleName/);
   assert.match(ownerPage, /Responsável pela plataforma/);
   assert.match(ownerPage, /Documentos pessoais protegidos/);
   assert.match(ownerPage, /não comprova isoladamente a titularidade do código-fonte/);
