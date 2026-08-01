@@ -79,6 +79,11 @@ import {
   validateIpiTipiDeep,
 } from "./ipi-tipi-deep.ts";
 import {
+  hashIpiTipi100Expansion,
+  ipiTipi100ExpansionMetrics,
+  validateIpiTipi100Expansion,
+} from "./ipi-tipi-100-expansion.ts";
+import {
   hashTaxReformSectorCatalog,
   taxReformSectorMetrics,
   validateTaxReformSectorCatalog,
@@ -90,7 +95,7 @@ import {
 } from "./st-sectoral-priority-expansion.ts";
 import { fiscalImportCorpusMetrics, hashFiscalImportCorpus, validateFiscalImportCorpus } from "./fiscal-import-corpus.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.08.01-v105";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.08.01-v106";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-08-01";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -129,6 +134,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("PIS_COFINS_120_EXPANSION", "PIS/Cofins em 120 perfis, onze livros e tratamentos especiais", validatePisCofins120Expansion()),
     moduleResult("SERVICE_WITHHOLDINGS_DEEP", "IRRF, CSRF, INSS e ISS em serviços recorrentes", validateServiceWithholdingsDeep()),
     moduleResult("IPI_TIPI_DEEP", "IPI/TIPI por NCM, Ex, operação, papel e vigência", validateIpiTipiDeep()),
+    moduleResult("IPI_TIPI_100_EXPANSION", "IPI/TIPI em 100 NCMs, 30 Ex e memórias internas, aduaneiras e de devolução", validateIpiTipi100Expansion()),
     moduleResult("RTC_SECTOR_SCENARIOS", "Reforma Tributária por setor e etapa de 2026 a 2033", (() => {
       const validation = validateTaxReformSectorCatalog();
       return { passed: validation.ok, errors: validation.errors };
@@ -150,6 +156,7 @@ export function validateNationalCoverageAutomatically() {
   const pisCofins120 = pisCofins120ExpansionMetrics();
   const withholdings = serviceWithholdingsDeepMetrics();
   const ipiTipi = ipiTipiDeepMetrics();
+  const ipiTipi100 = ipiTipi100ExpansionMetrics();
   const taxReformSectors = taxReformSectorMetrics();
   const beveragesSc = stColdBeverageScMetrics();
   const beveragesAudit = stColdBeveragePriorityAuditMetrics();
@@ -175,9 +182,9 @@ export function validateNationalCoverageAutomatically() {
         + beveragesAudit.deterministicCases
         + sectoral.deterministicCases
         + constructionElectrical.deterministicCases
-        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + icmsExpansion.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + issMunicipal100.deterministicCases + simples.deterministicCases + simples100.deterministicCases + pisCofins.deterministicCases + pisCofins120.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases + fiscalImports.cases,
-      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + sectoral.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + icmsExpansion.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + simples100.calculatedMemories + pisCofins.calculatedMemories + pisCofins120.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories + fiscalImports.positive,
-      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + icmsExpansion.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + issMunicipal100.safelyBlockedCases + simples.safelyBlockedCases + simples100.safelyBlockedCases + pisCofins.safelyBlockedCases + pisCofins120.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases + fiscalImports.negative + fiscalImports.incomplete,
+        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + icmsExpansion.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + issMunicipal100.deterministicCases + simples.deterministicCases + simples100.deterministicCases + pisCofins.deterministicCases + pisCofins120.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + ipiTipi100.deterministicCases + taxReformSectors.deterministicCases + fiscalImports.cases,
+      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + sectoral.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + icmsExpansion.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + simples100.calculatedMemories + pisCofins.calculatedMemories + pisCofins120.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + ipiTipi100.calculatedMemories + taxReformSectors.calculatedMemories + fiscalImports.positive,
+      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + icmsExpansion.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + issMunicipal100.safelyBlockedCases + simples.safelyBlockedCases + simples100.safelyBlockedCases + pisCofins.safelyBlockedCases + pisCofins120.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + ipiTipi100.safelyBlockedCases + taxReformSectors.safelyBlockedCases + fiscalImports.negative + fiscalImports.incomplete,
       failed: calculation.failed + autoParts.failedProductRouteCases,
     },
     modules,
@@ -216,6 +223,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashPisCofins120Expansion(),
     hashServiceWithholdingsDeep(),
     hashIpiTipiDeep(),
+    hashIpiTipi100Expansion(),
     hashTaxReformSectorCatalog(),
     hashFiscalImportCorpus(),
   ]);

@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v24";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v25";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-08-01";
 
 export type PublicCoverageMaturity = {
@@ -338,6 +338,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "ipi-tipi-v106-one-hundred-ncms",
+        changedAt: "2026-08-01T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "IPI/TIPI passou a publicar 100 NCMs exatos, 30 Ex e 730 casos versionados. Alíquota nominal, zero e NT permanecem distintas; saída industrial, importação, equiparação e devolução têm livros próprios, enquanto benefício sem regra dedicada falha fechado.",
+        affectedCodes: ["IPI_TIPI_DEEP", "IPI_TIPI_100_EXPANSION", "IPI-TIPI"],
+        clientDataExposed: false,
+      },
       {
         id: "pis-cofins-v105-one-hundred-twenty-profiles",
         changedAt: "2026-08-01T00:00:00.000Z",

@@ -3,6 +3,7 @@ import { fiscalImportOfficialSources } from "./fiscal-batch-import.ts";
 import { labSources } from "./deterministic-tax-lab.ts";
 import { icmsGeneralSources } from "./icms-general-national.ts";
 import { ipiTipiDeepSources } from "./ipi-tipi-deep.ts";
+import { ipiTipi100ExpansionSources } from "./ipi-tipi-100-expansion.ts";
 import { issDeepSources } from "./iss-deep-coverage.ts";
 import { nfeAuditSources } from "./nfe-audit.ts";
 import { legalReferences } from "./legal-reference-catalog.ts";
@@ -27,7 +28,7 @@ import { ST_MG_ANNEX_VII_SOURCE } from "./st-sp-mg-legal.ts";
 import { taxReformSources } from "./tax-reform-impact.ts";
 import { taxReformSectorSources } from "./tax-reform-sector-scenarios.ts";
 
-export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v105";
+export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v106";
 export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-08-01";
 
 export type OfficialSourceClass = "primary" | "official_index" | "official_guidance";
@@ -83,6 +84,7 @@ const groups: SourceGroup[] = [
   { sources: pisCofinsDeepSources, sourceClass: "primary", taxes: ["PIS", "COFINS"], jurisdictions: ["BR"], impactedRuleCodes: ["PIS_COFINS_DEEP"] },
   { sources: pisCofins120ExpansionSources, sourceClass: "primary", taxes: ["PIS", "COFINS"], jurisdictions: ["BR"], impactedRuleCodes: ["PIS_COFINS_120_EXPANSION"] },
   { sources: ipiTipiDeepSources, sourceClass: "primary", taxes: ["IPI"], jurisdictions: ["BR"], impactedRuleCodes: ["IPI_TIPI_DEEP"] },
+  { sources: ipiTipi100ExpansionSources, sourceClass: "primary", taxes: ["IPI"], jurisdictions: ["BR"], impactedRuleCodes: ["IPI_TIPI_100_EXPANSION"] },
   { sources: serviceWithholdingSources, sourceClass: "primary", taxes: ["IRRF", "CSRF", "INSS", "ISS"], jurisdictions: ["BR"], impactedRuleCodes: ["SERVICE_WITHHOLDINGS_DEEP"] },
   { sources: federalPmeSources, sourceClass: "primary", taxes: ["FEDERAIS"], jurisdictions: ["BR"], impactedRuleCodes: ["FEDERAL_PME_COMPLIANCE"] },
   { sources: nfeAuditSources, sourceClass: "official_guidance", taxes: ["DOCUMENTOS"], jurisdictions: ["BR"], impactedRuleCodes: ["NFE_AUDIT"] },

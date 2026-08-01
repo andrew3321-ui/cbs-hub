@@ -27,6 +27,7 @@ import { hashPisCofinsDeep, pisCofinsCreditHypotheses, pisCofinsDeepMetrics, pis
 import { hashPisCofins120Expansion, PIS_COFINS_120_EXPANSION_CHECKED_AT, PIS_COFINS_120_EXPANSION_VERSION, PIS_COFINS_BOOKS, pisCofins120ExpansionMetrics, pisCofins120ExpansionSources, pisCofins120Profiles, pisCofins120ReferenceCases, pisCofinsExpandedCreditControls, validatePisCofins120Expansion } from "../../../../domain/pis-cofins-120-expansion";
 import { hashServiceWithholdingsDeep, serviceWithholdingProfiles, serviceWithholdingReferenceCases, serviceWithholdingRuleControls, serviceWithholdingSources, serviceWithholdingsDeepMetrics, SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT, SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD, SERVICE_WITHHOLDINGS_DEEP_VERSION, validateServiceWithholdingsDeep } from "../../../../domain/service-withholdings-deep";
 import { hashIpiTipiDeep, ipiTipiDeepMetrics, ipiTipiDeepSources, ipiTipiDeterministicCases, ipiTipiPriorityProfiles, IPI_TIPI_DEEP_CHECKED_AT, IPI_TIPI_DEEP_SUPPORTED_PERIOD, IPI_TIPI_DEEP_VERSION, validateIpiTipiDeep } from "../../../../domain/ipi-tipi-deep";
+import { hashIpiTipi100Expansion, ipiTipi100AdditionalProfiles, ipiTipi100ExpansionCases, ipiTipi100ExpansionMetrics, ipiTipi100ExpansionSources, ipiTipi100Profiles, IPI_EXTERNAL_TREATMENT_CONTROLS, IPI_TIPI_100_EXPANSION_CHECKED_AT, IPI_TIPI_100_EXPANSION_VERSION, validateIpiTipi100Expansion } from "../../../../domain/ipi-tipi-100-expansion";
 import { financialSpecificCombinedRateSchedule, fuelSpecificProductCatalog, hashTaxReformSectorCatalog, taxReformSectorMetrics, taxReformSectorProfiles, taxReformSectorSources, taxReformSpecificCases, TAX_REFORM_SECTOR_CHECKED_AT, TAX_REFORM_SECTOR_VERSION, validateTaxReformSectorCatalog } from "../../../../domain/tax-reform-sector-scenarios";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
@@ -67,6 +68,7 @@ async function publicCoverage() {
   const pisCofins120Fingerprint = (await hashPisCofins120Expansion()).slice(0, 12);
   const serviceWithholdingsFingerprint = (await hashServiceWithholdingsDeep()).slice(0, 12);
   const ipiTipiFingerprint = (await hashIpiTipiDeep()).slice(0, 12);
+  const ipiTipi100Fingerprint = (await hashIpiTipi100Expansion()).slice(0, 12);
   const taxReformSectorFingerprint = (await hashTaxReformSectorCatalog()).slice(0, 12);
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const icmsOwnDifalFcpFingerprint = (await hashIcmsOwnDifalFcpExpansion()).slice(0, 12);
@@ -331,6 +333,20 @@ async function publicCoverage() {
       referenceCases: ipiTipiDeterministicCases,
       sources: ipiTipiDeepSources,
       policy: "Somente NCM de oito dígitos e descrição, notas, Ex, papel, operação e vigência confirmados liberam memória. Benefício externo e devolução exigem regra documental própria; nenhum prefixo ou rótulo aproximado herda alíquota.",
+    },
+    ipiTipi100Expansion: {
+      version: IPI_TIPI_100_EXPANSION_VERSION,
+      checkedAt: IPI_TIPI_100_EXPANSION_CHECKED_AT,
+      fingerprint: ipiTipi100Fingerprint,
+      validation: validateIpiTipi100Expansion(),
+      metrics: ipiTipi100ExpansionMetrics(),
+      profiles: ipiTipi100Profiles,
+      additionalProfiles: ipiTipi100AdditionalProfiles,
+      exceptions: ipiTipi100AdditionalProfiles.flatMap((profile) => profile.exceptions.map((exceptionItem) => ({ ncm: profile.ncm, ...exceptionItem }))),
+      externalTreatmentControls: IPI_EXTERNAL_TREATMENT_CONTROLS,
+      referenceCases: ipiTipi100ExpansionCases,
+      sources: ipiTipi100ExpansionSources,
+      policy: "A referência exige NCM, descrição legal, notas, TIPI, operação, papel, base e vigência confirmados. NT nunca equivale a alíquota zero. Ex exige código e descrição exatos; devolução apenas reproduz o documento original; redução, isenção, suspensão e imunidade sem regra dedicada permanecem bloqueadas.",
     },
     taxReformSectorDeep: {
       version: TAX_REFORM_SECTOR_VERSION,

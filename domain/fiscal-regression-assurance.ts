@@ -169,6 +169,13 @@ import {
   validateIpiTipiDeep,
 } from "./ipi-tipi-deep.ts";
 import {
+  IPI_TIPI_100_EXPANSION_VERSION,
+  hashIpiTipi100Expansion,
+  ipiTipi100ExpansionMetrics,
+  ipiTipi100ExpansionSources,
+  validateIpiTipi100Expansion,
+} from "./ipi-tipi-100-expansion.ts";
+import {
   TAX_REFORM_SECTOR_VERSION,
   hashTaxReformSectorCatalog,
   taxReformSectorMetrics,
@@ -176,7 +183,7 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v8";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v9";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-08-01";
 export const FISCAL_REGRESSION_REPORT_CASE_TARGET = 3_000;
 export const FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET = 100;
@@ -221,11 +228,23 @@ const MAJOR_TAX_MODULES = {
   SIMPLES: ["SIMPLES_NATIONAL_DEEP", "SIMPLES_NATIONAL_100_EXPANSION"],
   PIS_COFINS: ["PIS_COFINS_DEEP", "PIS_COFINS_120_EXPANSION"],
   RETENCOES: ["SERVICE_WITHHOLDINGS_DEEP"],
-  IPI: ["IPI_TIPI_DEEP"],
+  IPI: ["IPI_TIPI_DEEP", "IPI_TIPI_100_EXPANSION"],
   REFORMA: ["RTC_SECTOR_SCENARIOS"],
 } as const;
 
 const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
+  {
+    code: "IPI_TIPI_100_EXPANSION",
+    label: "IPI/TIPI — 100 NCMs, 30 Ex e memórias por operação",
+    ruleCodes: ["IPI-TIPI", "IPI-TIPI-NCM-GATE", "IPI-TIPI-100-V106"],
+    version: IPI_TIPI_100_EXPANSION_VERSION,
+    validate: validateIpiTipi100Expansion,
+    hash: hashIpiTipi100Expansion,
+    testKinds: ALL_TEST_KINDS,
+    metrics: ipiTipi100ExpansionMetrics,
+    sourceCodes: () => ipiTipi100ExpansionSources.map((source) => source.code).sort(),
+    requiredGates: ["NCM e descrição legal exatos", "notas de seção e capítulo", "TIPI e vigência", "operação e equiparação", "base interna ou aduaneira", "Ex e descrição aplicável", "benefício com regra dedicada", "documento original na devolução"],
+  },
   {
     code: "IPI_TIPI_DEEP",
     label: "IPI/TIPI — NCMs prioritários de indústria e importação",
