@@ -6,6 +6,7 @@ import {
   governedNormativeSources,
   NORMATIVE_MONITOR_BATCH_SIZE,
   NORMATIVE_MONITOR_SHARD_COUNT,
+  normativeMonitorShardForScheduledTime,
   ruleHealthStatus,
   sourcesForMonitorDate,
   validateGovernedSourceCatalog,
@@ -96,6 +97,17 @@ test("saúde da regra sinaliza ausência de fonte, futuro, vencimento e validade
   assert.equal(ruleHealthStatus({ effectiveFrom: "2020-01-01", effectiveTo: "2027-12-31", sourceCount: 1 }, "2026-07-26"), "current");
 });
 
+test("four daily source shards share the 30-minute cron without duplicate runs", () => {
+  const at = (hour, minute = 0) => Date.UTC(2026, 7, 1, hour, minute, 0);
+  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(8)), 0);
+  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(11)), 1);
+  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(14)), 2);
+  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(17)), 3);
+  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(8, 30)), null);
+  assert.equal(normativeMonitorShardForScheduledTime("15 8 * * *", at(8)), null);
+  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(9)), null);
+});
+
 test("governança persiste fila, classificação, revisão, bloqueio, histórico e auditoria", async () => {
   const [service, reviewRoute, shareRoute, publicReport, migration, dailyMigration, worker, config, panel] = await Promise.all([
     readFile(new URL("app/normative-governance-service.ts", root), "utf8"),
@@ -130,7 +142,8 @@ test("governança persiste fila, classificação, revisão, bloqueio, histórico
   assert.match(publicReport, /normativeReviewBlocked/);
   assert.match(worker, /async scheduled/);
   assert.match(worker, /runNormativeMonitor/);
-  assert.match(config, /"15 8 \* \* \*", "15 11 \* \* \*", "15 14 \* \* \*", "15 17 \* \* \*"/);
+  assert.match(config, /crons: \["\*\/30 \* \* \* \*", "15 8 \* \* \*"\]/);
+  assert.match(worker, /normativeMonitorShardForScheduledTime/);
   assert.match(panel, /FILA DE ANÁLISE/);
   assert.match(panel, /SAÚDE DAS REGRAS/);
   assert.match(panel, /Histórico de mudanças e decisões/);

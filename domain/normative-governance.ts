@@ -240,6 +240,20 @@ export function sourcesForMonitorDate(date: string, sources: readonly GovernedNo
   };
 }
 
+const dailyNormativeShardByUtcHour = new Map([
+  [8, 0],
+  [11, 1],
+  [14, 2],
+  [17, 3],
+]);
+
+export function normativeMonitorShardForScheduledTime(cron: string, scheduledTime: number) {
+  if (cron !== "*/30 * * * *" || !Number.isFinite(scheduledTime)) return null;
+  const instant = new Date(scheduledTime);
+  if (Number.isNaN(instant.getTime()) || instant.getUTCMinutes() !== 0) return null;
+  return dailyNormativeShardByUtcHour.get(instant.getUTCHours()) ?? null;
+}
+
 export function classifyCapturedChange(previous: CapturedSourceState | null, current: CapturedSourceState) {
   if (!previous) return "baseline" as const;
   if (previous.status === "unavailable" && current.status === "checked") return "recovered" as const;

@@ -40,7 +40,7 @@ async function requestUntilStatus(label, pathname, init, allowed) {
 }
 
 async function waitForPublishedRelease() {
-  const attempts = Number(process.env.SMOKE_RELEASE_ATTEMPTS ?? 12);
+  const attempts = Number(process.env.SMOKE_RELEASE_ATTEMPTS ?? 36);
   const intervalMs = Number(process.env.SMOKE_RELEASE_INTERVAL_MS ?? 5_000);
   let lastReason = "versão ainda não observada";
   for (let attempt = 1; attempt <= attempts; attempt += 1) {

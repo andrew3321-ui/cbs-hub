@@ -3,6 +3,7 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { runScheduledBillingReconciliation } from "../app/billing-scheduled-reconciliation";
 import { runNormativeMonitor } from "../app/normative-governance-service";
+import { normativeMonitorShardForScheduledTime } from "../domain/normative-governance";
 
 interface Env {
   ASSETS: Fetcher;
@@ -31,12 +32,6 @@ interface ExecutionContext {
 
 type RateLimitRule = { scope: string; limit: number; windowSeconds: number };
 type ScheduledController = { scheduledTime: number; cron: string };
-const normativeMonitorShardByCron: Record<string, number> = {
-  "15 8 * * *": 0,
-  "15 11 * * *": 1,
-  "15 14 * * *": 2,
-  "15 17 * * *": 3,
-};
 
 const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const defaultSlowRequestMs = 2_500;
@@ -254,8 +249,8 @@ const worker = {
         throw error;
       }));
     }
-    const normativeShard = normativeMonitorShardByCron[controller.cron];
-    if (normativeShard !== undefined) {
+    const normativeShard = normativeMonitorShardForScheduledTime(controller.cron, controller.scheduledTime);
+    if (normativeShard !== null) {
       ctx.waitUntil(runNormativeMonitor({ DB: env.DB }, date, normativeShard, 4).catch((error) => {
         console.error(JSON.stringify({
           event: "normative_monitor.failed",
