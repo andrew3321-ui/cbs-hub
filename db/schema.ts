@@ -292,6 +292,47 @@ export const fiscalRuleSets = sqliteTable("fiscal_rule_sets", {
   index("fiscal_rule_sets_status_effective_idx").on(table.status, table.effectiveFrom, table.effectiveTo),
 ]);
 
+export const declarativeRuleVersions = sqliteTable("declarative_rule_versions", {
+  id: text("id").primaryKey(),
+  ruleCode: text("rule_code").notNull(),
+  version: text("version").notNull(),
+  schemaVersion: text("schema_version").notNull(),
+  definitionJson: text("definition_json").notNull(),
+  selectorKey: text("selector_key").notNull(),
+  effectiveFrom: text("effective_from").notNull(),
+  effectiveTo: text("effective_to").notNull(),
+  priority: integer("priority").notNull().default(0),
+  contentHash: text("content_hash").notNull(),
+  predecessorHash: text("predecessor_hash"),
+  status: text("status").notNull().default("draft"),
+  regressionFingerprint: text("regression_fingerprint"),
+  validatedAt: text("validated_at"),
+  canaryAt: text("canary_at"),
+  activatedAt: text("activated_at"),
+  revokedAt: text("revoked_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("declarative_rule_versions_code_version_idx").on(table.ruleCode, table.version),
+  uniqueIndex("declarative_rule_versions_hash_idx").on(table.contentHash),
+  index("declarative_rule_versions_selector_period_idx").on(table.selectorKey, table.effectiveFrom, table.effectiveTo, table.priority),
+  index("declarative_rule_versions_status_updated_idx").on(table.status, table.updatedAt),
+]);
+
+export const declarativeRuleEvents = sqliteTable("declarative_rule_events", {
+  id: text("id").primaryKey(),
+  ruleVersionId: text("rule_version_id").notNull(),
+  eventType: text("event_type").notNull(),
+  fromStatus: text("from_status"),
+  toStatus: text("to_status"),
+  evidenceJson: text("evidence_json").notNull().default("{}"),
+  actorUserId: integer("actor_user_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("declarative_rule_events_version_created_idx").on(table.ruleVersionId, table.createdAt, table.id),
+  index("declarative_rule_events_type_created_idx").on(table.eventType, table.createdAt, table.id),
+]);
+
 export const fiscalRuleApprovals = sqliteTable("fiscal_rule_approvals", {
   id: text("id").primaryKey(),
   workspaceId: integer("workspace_id").notNull(),

@@ -253,6 +253,13 @@
       "when": 1785626323129,
       "tag": "0035_huge_stryfe",
       "breakpoints": true
+    },
+    {
+      "idx": 36,
+      "version": "6",
+      "when": 1785627419609,
+      "tag": "0036_luxuriant_thundra",
+      "breakpoints": true
     }
   ]
 }

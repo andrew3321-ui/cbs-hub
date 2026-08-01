@@ -382,6 +382,41 @@ export function ensureScenarioSchema() {
         )
       `),
       env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS declarative_rule_versions (
+          id TEXT PRIMARY KEY NOT NULL,
+          rule_code TEXT NOT NULL,
+          version TEXT NOT NULL,
+          schema_version TEXT NOT NULL,
+          definition_json TEXT NOT NULL,
+          selector_key TEXT NOT NULL,
+          effective_from TEXT NOT NULL,
+          effective_to TEXT NOT NULL,
+          priority INTEGER DEFAULT 0 NOT NULL,
+          content_hash TEXT NOT NULL,
+          predecessor_hash TEXT,
+          status TEXT DEFAULT 'draft' NOT NULL,
+          regression_fingerprint TEXT,
+          validated_at TEXT,
+          canary_at TEXT,
+          activated_at TEXT,
+          revoked_at TEXT,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
+        CREATE TABLE IF NOT EXISTS declarative_rule_events (
+          id TEXT PRIMARY KEY NOT NULL,
+          rule_version_id TEXT NOT NULL,
+          event_type TEXT NOT NULL,
+          from_status TEXT,
+          to_status TEXT,
+          evidence_json TEXT DEFAULT '{}' NOT NULL,
+          actor_user_id INTEGER,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL
+        )
+      `),
+      env.DB.prepare(`
         CREATE TABLE IF NOT EXISTS fiscal_reference_cases (
           id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
           rule_set_id INTEGER NOT NULL,
@@ -908,6 +943,12 @@ export function ensureScenarioSchema() {
       env.DB.prepare("CREATE INDEX IF NOT EXISTS report_shares_scenario_owner_idx ON report_shares (scenario_id, owner_user_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_rule_sets_code_version_idx ON fiscal_rule_sets (code, version)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_rule_sets_status_effective_idx ON fiscal_rule_sets (status, effective_from, effective_to)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS declarative_rule_versions_code_version_idx ON declarative_rule_versions (rule_code, version)"),
+      env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS declarative_rule_versions_hash_idx ON declarative_rule_versions (content_hash)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS declarative_rule_versions_selector_period_idx ON declarative_rule_versions (selector_key, effective_from, effective_to, priority)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS declarative_rule_versions_status_updated_idx ON declarative_rule_versions (status, updated_at)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS declarative_rule_events_version_created_idx ON declarative_rule_events (rule_version_id, created_at, id)"),
+      env.DB.prepare("CREATE INDEX IF NOT EXISTS declarative_rule_events_type_created_idx ON declarative_rule_events (event_type, created_at, id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_reference_cases_rule_code_idx ON fiscal_reference_cases (rule_set_id, code)"),
       env.DB.prepare("CREATE INDEX IF NOT EXISTS fiscal_reference_cases_rule_set_idx ON fiscal_reference_cases (rule_set_id)"),
       env.DB.prepare("CREATE UNIQUE INDEX IF NOT EXISTS fiscal_knowledge_bases_code_version_idx ON fiscal_knowledge_bases (code, version)"),
