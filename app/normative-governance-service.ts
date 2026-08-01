@@ -423,6 +423,7 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
       checkedToday: todayRuns.reduce((total, run) => total + run.sourceCount, 0),
       checked: todayRuns.reduce((total, run) => total + run.checked, 0),
       dailyShardsCompleted: todayRuns.filter((run) => run.status === "completed").length,
+      dailyShardsTotal: NORMATIVE_MONITOR_SHARD_COUNT,
       unavailable: sourceCatalog.filter((source) => source.captureStatus === "unavailable").length,
       changeSignals: queue.length,
       potentiallyNormative: queue.filter((event) => event.changeKind === "potentially_normative_change").length,

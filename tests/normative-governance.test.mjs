@@ -5,6 +5,7 @@ import {
   classifyCapturedChange,
   governedNormativeSources,
   NORMATIVE_MONITOR_BATCH_SIZE,
+  NORMATIVE_MONITOR_MAX_SUBREQUESTS_PER_SOURCE,
   NORMATIVE_MONITOR_SHARD_COUNT,
   normativeMonitorShardForScheduledTime,
   ruleHealthStatus,
@@ -48,6 +49,8 @@ test("monitor diário é determinístico e cobre o catálogo inteiro a cada cicl
   const sharded = Array.from({ length: NORMATIVE_MONITOR_SHARD_COUNT }, (_, shard) => sourcesForMonitorDate("2026-07-26", governedNormativeSources, shard, NORMATIVE_MONITOR_SHARD_COUNT));
   assert.equal(new Set(sharded.flatMap((item) => item.sources.map((source) => source.code))).size, governedNormativeSources.length);
   assert.ok(sharded.every((item) => item.sources.length <= Math.ceil(governedNormativeSources.length / NORMATIVE_MONITOR_SHARD_COUNT)));
+  assert.ok(sharded.every((item) => item.sources.length <= NORMATIVE_MONITOR_BATCH_SIZE));
+  assert.ok(sharded.every((item) => item.sources.length * NORMATIVE_MONITOR_MAX_SUBREQUESTS_PER_SOURCE <= 50));
 });
 
 test("capturas distinguem mudança técnica, editorial, potencialmente normativa e disponibilidade", () => {
@@ -97,12 +100,11 @@ test("saúde da regra sinaliza ausência de fonte, futuro, vencimento e validade
   assert.equal(ruleHealthStatus({ effectiveFrom: "2020-01-01", effectiveTo: "2027-12-31", sourceCount: 1 }, "2026-07-26"), "current");
 });
 
-test("four daily source shards share the 30-minute cron without duplicate runs", () => {
+test("twelve daily source shards share the 30-minute cron without duplicate runs", () => {
   const at = (hour, minute = 0) => Date.UTC(2026, 7, 1, hour, minute, 0);
-  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(8)), 0);
-  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(11)), 1);
-  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(14)), 2);
-  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(17)), 3);
+  for (let shard = 0; shard < 12; shard += 1) {
+    assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(shard * 2)), shard);
+  }
   assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(8, 30)), null);
   assert.equal(normativeMonitorShardForScheduledTime("15 8 * * *", at(8)), null);
   assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(9)), null);

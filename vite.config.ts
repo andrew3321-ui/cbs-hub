@@ -39,8 +39,8 @@ const localBindingConfig = {
     },
   ],
   triggers: {
-    // The half-hour trigger dispatches the four daily normative shards at
-    // 08:00, 11:00, 14:00 and 17:00 UTC while using one cron slot.
+    // The half-hour trigger dispatches 12 daily normative shards on even UTC
+    // hours while using one cron slot and staying below 50 subrequests/run.
     crons: ["*/30 * * * *", "15 8 * * *"],
   },
   r2_buckets: [],

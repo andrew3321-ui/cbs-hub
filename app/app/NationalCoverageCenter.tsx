@@ -82,7 +82,7 @@ type Monitor = {
   catalogValidation: { passed: boolean; errors: string[]; sources: number };
   rotation: { offset: number; totalSources: number; cycleDays: number };
   metrics: {
-    monitored: number; checkedToday: number; checked: number; dailyShardsCompleted: number; unavailable: number; changeSignals: number;
+    monitored: number; checkedToday: number; checked: number; dailyShardsCompleted: number; dailyShardsTotal: number; unavailable: number; changeSignals: number;
     pendingReview: number; awaitingNewVersion: number; invalidatedResults: number; unreadNotifications: number;
     expiringRules: number; expiredRules: number; unverifiableSources: number;
     potentiallyNormative: number; technicalOrEditorial: number;
@@ -905,7 +905,7 @@ export default function NationalCoverageCenter() {
         </div>
         <div className={`governance-catalog-status ${monitor.catalogValidation.passed ? "passed" : "blocked"}`}>
           <b>{monitor.catalogValidation.passed ? "✓ Catálogo íntegro" : "! Catálogo bloqueado"}</b>
-          <span>{monitor.catalogValidation.sources} fontes verificadas diariamente · {monitor.metrics.checkedToday} no ciclo atual · {monitor.metrics.dailyShardsCompleted}/4 lotes concluídos · versão {monitor.version}</span>
+          <span>{monitor.catalogValidation.sources} fontes verificadas diariamente · {monitor.metrics.checkedToday} no ciclo atual · {monitor.metrics.dailyShardsCompleted}/{monitor.metrics.dailyShardsTotal} lotes concluídos · versão {monitor.version}</span>
         </div>
         <section className="governance-subsection">
           <header><div><span>FILA DE ANÁLISE</span><h3>Mudanças detectadas</h3></div><b>{monitor.metrics.pendingReview} aguardam revisão · {monitor.metrics.awaitingNewVersion} aguardam versão</b></header>

@@ -3,7 +3,7 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { runScheduledBillingReconciliation } from "../app/billing-scheduled-reconciliation";
 import { runNormativeMonitor } from "../app/normative-governance-service";
-import { normativeMonitorShardForScheduledTime } from "../domain/normative-governance";
+import { NORMATIVE_MONITOR_SHARD_COUNT, normativeMonitorShardForScheduledTime } from "../domain/normative-governance";
 
 interface Env {
   ASSETS: Fetcher;
@@ -251,7 +251,7 @@ const worker = {
     }
     const normativeShard = normativeMonitorShardForScheduledTime(controller.cron, controller.scheduledTime);
     if (normativeShard !== null) {
-      ctx.waitUntil(runNormativeMonitor({ DB: env.DB }, date, normativeShard, 4).catch((error) => {
+      ctx.waitUntil(runNormativeMonitor({ DB: env.DB }, date, normativeShard, NORMATIVE_MONITOR_SHARD_COUNT).catch((error) => {
         console.error(JSON.stringify({
           event: "normative_monitor.failed",
           date,

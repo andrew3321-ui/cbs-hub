@@ -2,8 +2,9 @@ import { normativeMonitorSources, stateCoverage } from "./national-tax-coverage.
 import { issDeepCityProfiles, issDeepSources } from "./iss-deep-coverage.ts";
 
 export const NORMATIVE_GOVERNANCE_VERSION = "normative-governance.v2";
-export const NORMATIVE_MONITOR_BATCH_SIZE = 10;
-export const NORMATIVE_MONITOR_SHARD_COUNT = 4;
+export const NORMATIVE_MONITOR_BATCH_SIZE = 15;
+export const NORMATIVE_MONITOR_SHARD_COUNT = 12;
+export const NORMATIVE_MONITOR_MAX_SUBREQUESTS_PER_SOURCE = 3;
 
 export type GovernedSourceKind =
   | "legal_act"
@@ -241,10 +242,18 @@ export function sourcesForMonitorDate(date: string, sources: readonly GovernedNo
 }
 
 const dailyNormativeShardByUtcHour = new Map([
-  [8, 0],
-  [11, 1],
-  [14, 2],
-  [17, 3],
+  [0, 0],
+  [2, 1],
+  [4, 2],
+  [6, 3],
+  [8, 4],
+  [10, 5],
+  [12, 6],
+  [14, 7],
+  [16, 8],
+  [18, 9],
+  [20, 10],
+  [22, 11],
 ]);
 
 export function normativeMonitorShardForScheduledTime(cron: string, scheduledTime: number) {
