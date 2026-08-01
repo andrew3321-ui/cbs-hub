@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1702" height="630" viewBox="0 0 1702 630" fill="none">
+  <defs>
+    <linearGradient id="iconBg" x1="258" y1="105" x2="326" y2="181" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D3143"/>
+      <stop offset="1" stop-color="#071D2B"/>
+    </linearGradient>
+    <linearGradient id="linkTop" x1="278" y1="143" x2="312" y2="124" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4B94F"/>
+      <stop offset="1" stop-color="#27C2B8"/>
+    </linearGradient>
+    <linearGradient id="linkBottom" x1="278" y1="143" x2="312" y2="162" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4B94F"/>
+      <stop offset="1" stop-color="#27C2B8"/>
+    </linearGradient>
+    <linearGradient id="fade" x1="0" y1="315" x2="1020" y2="315" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#071D2B" stop-opacity=".78"/>
+      <stop offset=".65" stop-color="#071D2B" stop-opacity=".28"/>
+      <stop offset="1" stop-color="#071D2B" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="softShadow" x="-30%" y="-30%" width="160%" height="180%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#020C12" flood-opacity=".34"/>
+    </filter>
+  </defs>
+
+  <rect x="0" y="0" width="1050" height="630" fill="url(#fade)"/>
+
+  <g filter="url(#softShadow)">
+    <rect x="250" y="98" width="76" height="76" rx="22" fill="url(#iconBg)" stroke="#fff" stroke-opacity=".14"/>
+    <path d="M272 137L309 117" stroke="url(#linkTop)" stroke-width="3.2" stroke-linecap="round"/>
+    <path d="M272 137L309 157" stroke="url(#linkBottom)" stroke-width="3.2" stroke-linecap="round"/>
+    <circle cx="272" cy="137" r="9" fill="#F4B94F" stroke="#071D2B" stroke-width="3"/>
+    <circle cx="312" cy="115" r="6.5" fill="#27C2B8" stroke="#fff" stroke-opacity=".9" stroke-width="2.6"/>
+    <circle cx="317" cy="137" r="6.5" fill="#27C2B8" fill-opacity=".75" stroke="#fff" stroke-opacity=".68" stroke-width="2.6"/>
+    <circle cx="312" cy="159" r="6.5" fill="#27C2B8" stroke="#fff" stroke-opacity=".9" stroke-width="2.6"/>
+  </g>
+
+  <text x="347" y="149" fill="#F5FBFC" font-family="Arial, Helvetica, sans-serif" font-size="42" letter-spacing="-1.7"><tspan font-weight="800">CBS</tspan><tspan font-weight="500">Hub</tspan></text>
+
+  <text x="250" y="255" fill="#F5FBFC" font-family="Arial, Helvetica, sans-serif" font-size="59" font-weight="760" letter-spacing="-2.5">
+    <tspan x="250" dy="0">Da regra fiscal à</tspan>
+    <tspan x="250" dy="66">decisão</tspan><tspan x="477" fill="#27C2B8">defensável.</tspan>
+  </text>
+
+  <text x="252" y="420" fill="#B9CED6" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="500" letter-spacing="-.3">
+    Inteligência tributária para contadores e tributaristas.
+  </text>
+
+  <g transform="translate(250 478)">
+    <rect width="232" height="50" rx="25" fill="#27C2B8" fill-opacity=".13" stroke="#27C2B8" stroke-opacity=".48"/>
+    <circle cx="25" cy="25" r="5" fill="#F4B94F"/>
+    <text x="44" y="32" fill="#E9F7F7" font-family="Arial, Helvetica, sans-serif" font-size="19" font-weight="700" letter-spacing=".2">cbshub.com.br</text>
+  </g>
+</svg>

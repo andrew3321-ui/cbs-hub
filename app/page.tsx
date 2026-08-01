@@ -3,7 +3,6 @@ import BrandMark from "./BrandMark";
 import LandingHeroShowcase from "./LandingHeroShowcase";
 import { getCurrentUser } from "./auth";
 import { coverageMetrics } from "../domain/national-tax-coverage";
-import { platformIdentity } from "../domain/platform-identity";
 
 export const dynamic = "force-dynamic";
 
@@ -211,7 +210,7 @@ export default async function LandingPage() {
           <BrandMark />
           <span className="cbs-wordmark"><strong>CBS</strong>Hub</span>
         </Link>
-        <p>Responsável pela plataforma: <Link href="/responsavel">{platformIdentity.responsibleName}</Link></p>
+        <p>Suporte: <a href="mailto:supportofficial@cbshub.com.br">supportofficial@cbshub.com.br</a></p>
         <nav aria-label="Links institucionais">
           <Link href="/privacidade">Privacidade</Link>
           <Link href="/termos">Termos</Link>

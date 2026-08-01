@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 38 38" fill="none">
+  <defs>
+    <linearGradient id="background" x1="5" y1="2" x2="34" y2="38" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#0D3143"/>
+      <stop offset="1" stop-color="#071D2B"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0" cy="0" r="1" gradientTransform="translate(31.16 4.56) rotate(135) scale(17.7)">
+      <stop stop-color="#27C2B8" stop-opacity=".30"/>
+      <stop offset="1" stop-color="#27C2B8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="linkA" x1="10" y1="18.75" x2="27" y2="7.3" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4B94F"/>
+      <stop offset="1" stop-color="#27C2B8"/>
+    </linearGradient>
+    <linearGradient id="linkB" x1="10" y1="18.75" x2="27" y2="30.2" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F4B94F"/>
+      <stop offset="1" stop-color="#27C2B8"/>
+    </linearGradient>
+    <filter id="shadow" x="-30%" y="-30%" width="160%" height="180%" color-interpolation-filters="sRGB">
+      <feDropShadow dx="0" dy="2" stdDeviation="2.4" flood-color="#071D2B" flood-opacity=".22"/>
+    </filter>
+  </defs>
+  <g filter="url(#shadow)">
+    <rect x="1" y="1" width="36" height="36" rx="11" fill="url(#background)" stroke="#fff" stroke-opacity=".1"/>
+    <rect x="1" y="1" width="36" height="36" rx="11" fill="url(#glow)"/>
+    <path d="M10 18.75L25.2 8.5" stroke="url(#linkA)" stroke-width="1.5" stroke-linecap="round"/>
+    <path d="M10 18.75L25.2 29" stroke="url(#linkB)" stroke-width="1.5" stroke-linecap="round"/>
+    <circle cx="11" cy="19" r="4" fill="#F4B94F" stroke="#071D2B" stroke-width="1.5"/>
+    <circle cx="28" cy="10" r="3" fill="#27C2B8" stroke="#fff" stroke-opacity=".85" stroke-width="1.5"/>
+    <circle cx="31" cy="19" r="3" fill="#27C2B8" fill-opacity=".72" stroke="#fff" stroke-opacity=".61" stroke-width="1.5"/>
+    <circle cx="28" cy="28" r="3" fill="#27C2B8" stroke="#fff" stroke-opacity=".85" stroke-width="1.5"/>
+  </g>
+</svg>

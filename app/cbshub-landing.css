@@ -15,61 +15,15 @@
 .cbs-brand-symbol {
   width: 38px;
   height: 38px;
-  position: relative;
-  display: inline-block;
+  display: block;
   flex: 0 0 auto;
-  overflow: hidden;
-  border: 1px solid rgba(255, 255, 255, .1);
-  border-radius: 12px;
-  background:
-    radial-gradient(circle at 82% 12%, rgba(39, 194, 184, .3), transparent 33%),
-    linear-gradient(145deg, var(--cbs-navy), var(--cbs-night));
-  box-shadow: 0 8px 22px rgba(7, 29, 43, .2);
+  overflow: visible;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  filter: drop-shadow(0 6px 10px rgba(7, 29, 43, .2));
 }
-
-.cbs-brand-symbol .cbs-brand-link {
-  height: 1.5px;
-  position: absolute;
-  left: 10px;
-  top: 18px;
-  transform-origin: left center;
-  background: linear-gradient(90deg, var(--cbs-amber), var(--cbs-cyan));
-  opacity: .95;
-}
-
-.cbs-brand-symbol .cbs-brand-link-a {
-  width: 18px;
-  transform: rotate(-34deg);
-}
-
-.cbs-brand-symbol .cbs-brand-link-b {
-  width: 18px;
-  transform: rotate(34deg);
-}
-
-.cbs-brand-symbol .cbs-brand-node {
-  width: 6px;
-  height: 6px;
-  position: absolute;
-  z-index: 2;
-  border: 1.5px solid rgba(255, 255, 255, .85);
-  border-radius: 50%;
-  background: var(--cbs-cyan);
-  box-shadow: 0 0 0 2px rgba(39, 194, 184, .12);
-}
-
-.cbs-brand-symbol .cbs-brand-node-center {
-  width: 8px;
-  height: 8px;
-  left: 7px;
-  top: 15px;
-  border-color: var(--cbs-night);
-  background: var(--cbs-amber);
-}
-
-.cbs-brand-symbol .cbs-brand-node-top { right: 7px; top: 7px; }
-.cbs-brand-symbol .cbs-brand-node-right { right: 4px; top: 16px; opacity: .72; }
-.cbs-brand-symbol .cbs-brand-node-bottom { right: 7px; bottom: 7px; }
 
 .cbs-landing {
   min-height: 100vh;
@@ -592,10 +546,7 @@
 .cbs-preview-lockup .cbs-brand-symbol {
   width: 24px;
   height: 24px;
-  border-radius: 7px;
-  transform: scale(.83);
-  transform-origin: left center;
-  box-shadow: none;
+  filter: none;
 }
 
 .cbs-preview-context { color: #6e828a; font-size: 7px; font-weight: 750; }
@@ -1147,7 +1098,7 @@
   border-top: 1px solid #d5e0e3;
 }
 
-.cbs-footer .cbs-brand-symbol { width: 32px; height: 32px; transform: scale(.9); }
+.cbs-footer .cbs-brand-symbol { width: 32px; height: 32px; }
 .cbs-footer .cbs-wordmark { font-size: 17px; }
 .cbs-footer p { margin: 0; color: #70858d; font-size: 9px; }
 .cbs-footer p a { color: var(--cbs-blue); font-weight: 800; }
@@ -1205,8 +1156,7 @@
   width: 22px;
   height: 22px;
   margin: 0;
-  transform: scale(.72);
-  box-shadow: none;
+  filter: none;
 }
 
 @media (max-width: 1100px) {
@@ -1238,7 +1188,7 @@
 @media (max-width: 720px) {
   .cbs-landing-nav { width: calc(100% - 30px); height: 72px; }
   .cbs-wordmark { font-size: 18px; }
-  .cbs-brand-symbol { width: 34px; height: 34px; transform: scale(.9); }
+  .cbs-brand-symbol { width: 34px; height: 34px; }
   .cbs-text-link { display: none; }
   .cbs-button-small { min-height: 38px; padding-inline: 12px; font-size: 9px; }
   .cbs-hero { width: calc(100% - 30px); min-height: auto; padding: 46px 0 58px; }
