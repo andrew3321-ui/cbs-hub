@@ -17,6 +17,14 @@ test("the app shell and dense fiscal surfaces expose responsive layout contracts
   assert.match(reportCss, /@media print/);
 });
 
+test("the landing showcase stays inside mobile viewports and hides the public indicator shortcut", () => {
+  const landingCss = read("../app/cbshub-landing.css");
+  const landing = read("../app/page.tsx");
+  assert.match(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-showcase-video-shell\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;/);
+  assert.match(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-showcase-video-shell video\s*\{\s*object-fit:\s*contain;/);
+  assert.doesNotMatch(landing, /Consultar indicador público|href="\/api\/public\/coverage"/);
+});
+
 test("minimum readability, visible focus and native keyboard controls are preserved", () => {
   const css = read("../app/globals.css");
   const shell = read("../app/app/CBSHubApp.tsx");

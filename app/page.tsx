@@ -138,7 +138,6 @@ export default async function LandingPage() {
             A matriz pública separa mapeamento nacional, recortes profundos e cenários ainda
             incompletos. Nenhuma meta interna é apresentada como regra pronta.
           </p>
-          <a href="/api/public/coverage" target="_blank" rel="noreferrer">Consultar indicador público <span>↗</span></a>
         </div>
         <div className="cbs-coverage-metrics">
           <article><small>ICMS GERAL</small><b>{coverage.states}<em>/27</em></b><span>UFs mapeadas</span></article>
