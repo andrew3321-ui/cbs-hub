@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v23";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v24";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-08-01";
 
 export type PublicCoverageMaturity = {
@@ -338,6 +338,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "pis-cofins-v105-one-hundred-twenty-profiles",
+        changedAt: "2026-08-01T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "PIS/Cofins passou a publicar 120 perfis de NCM, operação e papel, onze livros segregados, doze controles adicionais de crédito e 300 novos casos. Devolução apenas reproduz documento original; bonificação, suspensão e substituição sem memória específica permanecem bloqueadas.",
+        affectedCodes: ["PIS_COFINS_DEEP", "PIS_COFINS_120_EXPANSION", "PIS-COFINS-CUM", "PIS-COFINS-NC", "PIS-COFINS-SPECIAL"],
+        clientDataExposed: false,
+      },
       {
         id: "simples-v104-one-hundred-activities",
         changedAt: "2026-08-01T00:00:00.000Z",

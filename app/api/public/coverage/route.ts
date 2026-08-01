@@ -24,6 +24,7 @@ import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomat
 import { hashSimplesNationalDeep, simplesActivityProfiles, simplesAnnexTables, simplesEligibilityGates, simplesExclusionRules, simplesNationalDeepMetrics, simplesNationalReferenceCases, simplesNationalSources, simplesSegregationRules, SIMPLES_NATIONAL_DEEP_CHECKED_AT, SIMPLES_NATIONAL_DEEP_VERSION, validateSimplesNationalDeep } from "../../../../domain/simples-national-deep";
 import { hashSimplesNational100Expansion, SIMPLES_NATIONAL_100_EXPANSION_CHECKED_AT, SIMPLES_NATIONAL_100_EXPANSION_VERSION, SIMPLES_REVENUE_BOOKS, simplesNational100ExpansionMetrics, simplesNational100ExpansionSources, simplesNational100Profiles, simplesNational100ReferenceCases, validateSimplesNational100Expansion } from "../../../../domain/simples-national-100-expansion";
 import { hashPisCofinsDeep, pisCofinsCreditHypotheses, pisCofinsDeepMetrics, pisCofinsDeepSources, pisCofinsProductProfiles, pisCofinsReferenceCases, PIS_COFINS_DEEP_CHECKED_AT, PIS_COFINS_DEEP_SUPPORTED_PERIOD, PIS_COFINS_DEEP_VERSION, PIS_COFINS_LC224_EFFECTIVE_FROM, validatePisCofinsDeep } from "../../../../domain/pis-cofins-deep";
+import { hashPisCofins120Expansion, PIS_COFINS_120_EXPANSION_CHECKED_AT, PIS_COFINS_120_EXPANSION_VERSION, PIS_COFINS_BOOKS, pisCofins120ExpansionMetrics, pisCofins120ExpansionSources, pisCofins120Profiles, pisCofins120ReferenceCases, pisCofinsExpandedCreditControls, validatePisCofins120Expansion } from "../../../../domain/pis-cofins-120-expansion";
 import { hashServiceWithholdingsDeep, serviceWithholdingProfiles, serviceWithholdingReferenceCases, serviceWithholdingRuleControls, serviceWithholdingSources, serviceWithholdingsDeepMetrics, SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT, SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD, SERVICE_WITHHOLDINGS_DEEP_VERSION, validateServiceWithholdingsDeep } from "../../../../domain/service-withholdings-deep";
 import { hashIpiTipiDeep, ipiTipiDeepMetrics, ipiTipiDeepSources, ipiTipiDeterministicCases, ipiTipiPriorityProfiles, IPI_TIPI_DEEP_CHECKED_AT, IPI_TIPI_DEEP_SUPPORTED_PERIOD, IPI_TIPI_DEEP_VERSION, validateIpiTipiDeep } from "../../../../domain/ipi-tipi-deep";
 import { financialSpecificCombinedRateSchedule, fuelSpecificProductCatalog, hashTaxReformSectorCatalog, taxReformSectorMetrics, taxReformSectorProfiles, taxReformSectorSources, taxReformSpecificCases, TAX_REFORM_SECTOR_CHECKED_AT, TAX_REFORM_SECTOR_VERSION, validateTaxReformSectorCatalog } from "../../../../domain/tax-reform-sector-scenarios";
@@ -63,6 +64,7 @@ async function publicCoverage() {
   const simplesNationalFingerprint = (await hashSimplesNationalDeep()).slice(0, 12);
   const simplesNational100Fingerprint = (await hashSimplesNational100Expansion()).slice(0, 12);
   const pisCofinsFingerprint = (await hashPisCofinsDeep()).slice(0, 12);
+  const pisCofins120Fingerprint = (await hashPisCofins120Expansion()).slice(0, 12);
   const serviceWithholdingsFingerprint = (await hashServiceWithholdingsDeep()).slice(0, 12);
   const ipiTipiFingerprint = (await hashIpiTipiDeep()).slice(0, 12);
   const taxReformSectorFingerprint = (await hashTaxReformSectorCatalog()).slice(0, 12);
@@ -383,6 +385,19 @@ async function publicCoverage() {
       referenceCases: pisCofinsReferenceCases,
       sources: pisCofinsDeepSources,
       policy: "NCM exato na tabela oficial, papel na cadeia, documento, receita segregada, vínculo, incidência da aquisição e vigência são gates. Créditos com método específico nunca herdam automaticamente 1,65% e 7,60%.",
+    },
+    pisCofins120Expansion: {
+      version: PIS_COFINS_120_EXPANSION_VERSION,
+      checkedAt: PIS_COFINS_120_EXPANSION_CHECKED_AT,
+      fingerprint: pisCofins120Fingerprint,
+      validation: validatePisCofins120Expansion(),
+      metrics: pisCofins120ExpansionMetrics(),
+      profiles: pisCofins120Profiles,
+      books: PIS_COFINS_BOOKS,
+      creditControls: pisCofinsExpandedCreditControls,
+      referenceCases: pisCofins120ReferenceCases,
+      sources: pisCofins120ExpansionSources,
+      policy: "NCM, operação, papel, documento, vigência e livro são cumulativos. Regimes, tratamentos, receitas e aquisições permanecem em livros separados; devolução apenas reproduz o documento original. Bonificação, suspensão e substituição sem memória específica falham fechadas.",
     },
     serviceWithholdingsDeep: {
       version: SERVICE_WITHHOLDINGS_DEEP_VERSION,

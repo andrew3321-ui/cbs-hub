@@ -8,6 +8,7 @@ import { nfeAuditSources } from "./nfe-audit.ts";
 import { legalReferences } from "./legal-reference-catalog.ts";
 import { coverageSources, normativeMonitorSources } from "./national-tax-coverage.ts";
 import { pisCofinsDeepSources } from "./pis-cofins-deep.ts";
+import { pisCofins120ExpansionSources } from "./pis-cofins-120-expansion.ts";
 import { serviceWithholdingSources } from "./service-withholdings-deep.ts";
 import { simplesNationalSources } from "./simples-national-deep.ts";
 import { simplesNational100ExpansionSources } from "./simples-national-100-expansion.ts";
@@ -26,7 +27,7 @@ import { ST_MG_ANNEX_VII_SOURCE } from "./st-sp-mg-legal.ts";
 import { taxReformSources } from "./tax-reform-impact.ts";
 import { taxReformSectorSources } from "./tax-reform-sector-scenarios.ts";
 
-export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v104";
+export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v105";
 export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-08-01";
 
 export type OfficialSourceClass = "primary" | "official_index" | "official_guidance";
@@ -80,6 +81,7 @@ const groups: SourceGroup[] = [
   { sources: simplesNationalSources, sourceClass: "primary", taxes: ["SIMPLES"], jurisdictions: ["BR"], impactedRuleCodes: ["SIMPLES_NATIONAL_DEEP"] },
   { sources: simplesNational100ExpansionSources, sourceClass: "primary", taxes: ["SIMPLES"], jurisdictions: ["BR"], impactedRuleCodes: ["SIMPLES_NATIONAL_100_EXPANSION"] },
   { sources: pisCofinsDeepSources, sourceClass: "primary", taxes: ["PIS", "COFINS"], jurisdictions: ["BR"], impactedRuleCodes: ["PIS_COFINS_DEEP"] },
+  { sources: pisCofins120ExpansionSources, sourceClass: "primary", taxes: ["PIS", "COFINS"], jurisdictions: ["BR"], impactedRuleCodes: ["PIS_COFINS_120_EXPANSION"] },
   { sources: ipiTipiDeepSources, sourceClass: "primary", taxes: ["IPI"], jurisdictions: ["BR"], impactedRuleCodes: ["IPI_TIPI_DEEP"] },
   { sources: serviceWithholdingSources, sourceClass: "primary", taxes: ["IRRF", "CSRF", "INSS", "ISS"], jurisdictions: ["BR"], impactedRuleCodes: ["SERVICE_WITHHOLDINGS_DEEP"] },
   { sources: federalPmeSources, sourceClass: "primary", taxes: ["FEDERAIS"], jurisdictions: ["BR"], impactedRuleCodes: ["FEDERAL_PME_COMPLIANCE"] },

@@ -148,6 +148,13 @@ import {
   validatePisCofinsDeep,
 } from "./pis-cofins-deep.ts";
 import {
+  PIS_COFINS_120_EXPANSION_VERSION,
+  hashPisCofins120Expansion,
+  pisCofins120ExpansionMetrics,
+  pisCofins120ExpansionSources,
+  validatePisCofins120Expansion,
+} from "./pis-cofins-120-expansion.ts";
+import {
   SERVICE_WITHHOLDINGS_DEEP_VERSION,
   hashServiceWithholdingsDeep,
   serviceWithholdingSources,
@@ -169,7 +176,7 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v7";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v8";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-08-01";
 export const FISCAL_REGRESSION_REPORT_CASE_TARGET = 3_000;
 export const FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET = 100;
@@ -212,7 +219,7 @@ const MAJOR_TAX_MODULES = {
   ICMS: ["ICMS_GENERAL_NATIONAL", "ICMS_OWN_DIFAL_FCP_EXPANSION"],
   ISS: ["ISS_DEEP_EXPANSION", "ISS_RECURRING_PRIORITY", "ISS_MUNICIPAL_100_EXPANSION"],
   SIMPLES: ["SIMPLES_NATIONAL_DEEP", "SIMPLES_NATIONAL_100_EXPANSION"],
-  PIS_COFINS: ["PIS_COFINS_DEEP"],
+  PIS_COFINS: ["PIS_COFINS_DEEP", "PIS_COFINS_120_EXPANSION"],
   RETENCOES: ["SERVICE_WITHHOLDINGS_DEEP"],
   IPI: ["IPI_TIPI_DEEP"],
   REFORMA: ["RTC_SECTOR_SCENARIOS"],
@@ -254,6 +261,18 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     metrics: pisCofinsDeepMetrics,
     sourceCodes: () => pisCofinsDeepSources.map((source) => source.code).sort(),
     requiredGates: ["regime e papel na cadeia", "NCM completo e tabela oficial", "produto e operação", "vigência e LC 224/2025", "documento fiscal", "receita segregada", "hipótese legal do crédito", "vínculo e incidência da aquisição"],
+  },
+  {
+    code: "PIS_COFINS_120_EXPANSION",
+    label: "PIS/Cofins — 120 perfis, tratamentos especiais e créditos segregados",
+    ruleCodes: ["PIS-COFINS-CUM", "PIS-COFINS-NC", "PIS-COFINS-SPECIAL", "PIS-COFINS-120-V105"],
+    version: PIS_COFINS_120_EXPANSION_VERSION,
+    validate: validatePisCofins120Expansion,
+    hash: hashPisCofins120Expansion,
+    testKinds: ALL_TEST_KINDS,
+    metrics: pisCofins120ExpansionMetrics,
+    sourceCodes: () => pisCofins120ExpansionSources.map((source) => source.code).sort(),
+    requiredGates: ["NCM exato", "operação e papel", "regime e tratamento", "documento e vigência", "livro de receita", "livro de aquisição", "incidência e vínculo do crédito", "documento original na devolução"],
   },
   {
     code: "SIMPLES_NATIONAL_DEEP",
