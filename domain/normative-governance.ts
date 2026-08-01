@@ -1,8 +1,9 @@
 import { normativeMonitorSources, stateCoverage } from "./national-tax-coverage.ts";
 import { issDeepCityProfiles, issDeepSources } from "./iss-deep-coverage.ts";
 
-export const NORMATIVE_GOVERNANCE_VERSION = "normative-governance.v1";
-export const NORMATIVE_MONITOR_BATCH_SIZE = 8;
+export const NORMATIVE_GOVERNANCE_VERSION = "normative-governance.v2";
+export const NORMATIVE_MONITOR_BATCH_SIZE = 10;
+export const NORMATIVE_MONITOR_SHARD_COUNT = 4;
 
 export type GovernedSourceKind =
   | "legal_act"
@@ -24,12 +25,18 @@ export type GovernedNormativeSource = {
   effectiveTo: string | null;
   verificationStatus: "rule_evidence" | "monitor_only";
   impactedRuleCodes: string[];
+  criticality: "critical" | "high" | "standard";
+  monitoringFrequency: "daily";
+  officialAlternativeUrl: string | null;
+  alternativeEvidenceScope: "technical_availability_only" | "not_available";
 };
 
 export type CapturedSourceState = {
   sourceCode: string;
   status: "checked" | "unavailable";
   contentHash: string | null;
+  normalizedContentHash?: string | null;
+  finalUrl?: string | null;
 };
 
 const DOSSIER_RULE_CODES = [
@@ -124,7 +131,9 @@ function yearFromTitle(title: string) {
   return year ? `${year}-01-01` : null;
 }
 
-function governedSource(source: typeof normativeMonitorSources[number]): GovernedNormativeSource {
+type GovernedNormativeSourceBase = Omit<GovernedNormativeSource, "criticality" | "monitoringFrequency" | "officialAlternativeUrl" | "alternativeEvidenceScope">;
+
+function governedSource(source: typeof normativeMonitorSources[number]): GovernedNormativeSourceBase {
   const national = nationalMetadata[source.code];
   if (national) return { ...source, ...national };
 
@@ -170,7 +179,35 @@ function governedSource(source: typeof normativeMonitorSources[number]): Governe
   };
 }
 
-export const governedNormativeSources = normativeMonitorSources.map(governedSource);
+const officialAuthorityAlternatives: Record<string, string> = {
+  CONFAZ: "https://www.gov.br/confaz/pt-br/assuntos/legislacao",
+  "NFE-PORTAL": "https://www.gov.br/nfe/pt-br",
+  "RTC-CALCULATOR": "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo",
+  "RFB-NEWS": "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/legislacao",
+  "SIMPLES-NEWS": "https://www8.receita.fazenda.gov.br/SimplesNacional/Noticias/NoticiaCompleta.aspx",
+};
+
+function officialAlternative(source: GovernedNormativeSourceBase) {
+  const declared = officialAuthorityAlternatives[source.code];
+  if (declared && declared !== source.url) return declared;
+  try {
+    const root = new URL("/", source.url).toString();
+    return root !== source.url ? root : null;
+  } catch {
+    return null;
+  }
+}
+
+export const governedNormativeSources: GovernedNormativeSource[] = normativeMonitorSources.map(governedSource).map((source) => {
+  const officialAlternativeUrl = officialAlternative(source);
+  return {
+    ...source,
+    criticality: source.verificationStatus === "rule_evidence" ? "critical" : source.impactedRuleCodes.length > 1 ? "high" : "standard",
+    monitoringFrequency: "daily",
+    officialAlternativeUrl,
+    alternativeEvidenceScope: officialAlternativeUrl ? "technical_availability_only" : "not_available",
+  };
+});
 
 export function validateGovernedSourceCatalog(sources: readonly GovernedNormativeSource[] = governedNormativeSources) {
   const errors: string[] = [];
@@ -182,23 +219,24 @@ export function validateGovernedSourceCatalog(sources: readonly GovernedNormativ
     if (!/^https:\/\//.test(source.url)) errors.push(`non_https_source:${source.code}`);
     if (source.verificationStatus === "rule_evidence" && !source.effectiveFrom) errors.push(`missing_effective_from:${source.code}`);
     if (source.impactedRuleCodes.length === 0) errors.push(`missing_rule_impact:${source.code}`);
+    if (source.monitoringFrequency !== "daily") errors.push(`non_daily_frequency:${source.code}`);
+    if (!source.criticality) errors.push(`missing_criticality:${source.code}`);
+    if (source.officialAlternativeUrl && (!source.officialAlternativeUrl.startsWith("https://") || source.officialAlternativeUrl === source.url)) errors.push(`invalid_official_alternative:${source.code}`);
   }
   return { passed: errors.length === 0, errors, sources: sources.length };
 }
 
-export function sourcesForMonitorDate(date: string, sources: readonly GovernedNormativeSource[] = governedNormativeSources) {
+export function sourcesForMonitorDate(date: string, sources: readonly GovernedNormativeSource[] = governedNormativeSources, shard = 0, shardCount = 1) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("invalid_monitor_date");
-  const dayNumber = Math.floor(Date.parse(`${date}T00:00:00Z`) / 86_400_000);
-  const offset = (dayNumber * NORMATIVE_MONITOR_BATCH_SIZE) % sources.length;
-  const batch = Array.from(
-    { length: Math.min(NORMATIVE_MONITOR_BATCH_SIZE, sources.length) },
-    (_, index) => sources[(offset + index) % sources.length],
-  );
+  if (!Number.isInteger(shard) || !Number.isInteger(shardCount) || shard < 0 || shardCount < 1 || shard >= shardCount) throw new Error("invalid_monitor_shard");
+  const ordered = [...sources].sort((left, right) => left.code.localeCompare(right.code));
   return {
-    sources: batch,
-    offset,
+    sources: ordered.filter((_, index) => index % shardCount === shard),
+    offset: shard,
     totalSources: sources.length,
-    cycleDays: Math.ceil(sources.length / NORMATIVE_MONITOR_BATCH_SIZE),
+    cycleDays: 1,
+    shard,
+    shardCount,
   };
 }
 
@@ -206,7 +244,11 @@ export function classifyCapturedChange(previous: CapturedSourceState | null, cur
   if (!previous) return "baseline" as const;
   if (previous.status === "unavailable" && current.status === "checked") return "recovered" as const;
   if (previous.status === "checked" && current.status === "unavailable") return "unavailable" as const;
-  if (previous.contentHash && current.contentHash && previous.contentHash !== current.contentHash) return "content_changed" as const;
+  if (previous.finalUrl && current.finalUrl && previous.finalUrl !== current.finalUrl && previous.contentHash === current.contentHash) return "technical_change" as const;
+  if (previous.contentHash && current.contentHash && previous.contentHash !== current.contentHash) {
+    if (previous.normalizedContentHash && current.normalizedContentHash && previous.normalizedContentHash === current.normalizedContentHash) return "editorial_change" as const;
+    return "potentially_normative_change" as const;
+  }
   return "unchanged" as const;
 }
 

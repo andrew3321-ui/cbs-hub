@@ -532,7 +532,8 @@ test("versão 55 cria esteira fiscal sem custo por consulta e com verificação 
   assert.match(domain, /officialSources: 200/);
   assert.match(domain, /automaticTests: 100/);
   assert.match(schema, /fiscalExpansionProgress/);
-  assert.match(monitor, /DAILY_BATCH_SIZE = 8/);
+  assert.match(monitor, /DAILY_SHARDS = 4/);
+  assert.match(monitor, /Nunca altera regra ou/);
   assert.match(monitor, /limit\(14\)/);
   assert.match(shell, /Expansão fiscal/);
   assert.match(layout, /fiscal-expansion\.css/);

@@ -1,12 +1,12 @@
 import { env } from "cloudflare:workers";
-import { getNormativeGovernanceDashboard, monitorDate, runNormativeMonitor } from "../../normative-governance-service";
+import { getNormativeGovernanceDashboard } from "../../normative-governance-service";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { isPlatformAdminEmail } from "../../platform-admin";
 import { withWorkspaceFeature } from "../../plan-entitlements";
 import { getWorkspaceContext } from "../../workspace";
 
-const DAILY_BATCH_SIZE = 8;
+const DAILY_SHARDS = 4;
 const MONITOR_SAFETY_POLICY = "Nunca altera regra ou cálculo automaticamente; apenas registra evidência, sinaliza mudança e abre revisão.";
 
 async function monitor() {
@@ -15,13 +15,12 @@ async function monitor() {
   const workspace = await getWorkspaceContext(user.id);
   if (!workspace) return Response.json({ error: "Espaço contábil não encontrado." }, { status: 403 });
 
-  await runNormativeMonitor({ DB: env.DB }, monitorDate());
   const dashboard = await getNormativeGovernanceDashboard(env.DB, workspace.id);
   const limit = (count: number) => dashboard.runs.slice(0, count);
   return Response.json({
     ...dashboard,
     runs: limit(14),
-    dailyBatchSize: DAILY_BATCH_SIZE,
+    dailyShards: DAILY_SHARDS,
     monitorSafetyPolicy: MONITOR_SAFETY_POLICY,
     canReviewNormativeChanges: isPlatformAdminEmail(user.email),
   }, { headers: { "Cache-Control": "no-store" } });

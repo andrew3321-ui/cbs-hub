@@ -239,6 +239,13 @@
       "when": 1785540959955,
       "tag": "0033_brief_amphibian",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "6",
+      "when": 1785566380587,
+      "tag": "0034_hard_ted_forrester",
+      "breakpoints": true
     }
   ]
 }

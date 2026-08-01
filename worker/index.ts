@@ -31,6 +31,12 @@ interface ExecutionContext {
 
 type RateLimitRule = { scope: string; limit: number; windowSeconds: number };
 type ScheduledController = { scheduledTime: number; cron: string };
+const normativeMonitorShardByCron: Record<string, number> = {
+  "15 8 * * *": 0,
+  "15 11 * * *": 1,
+  "15 14 * * *": 2,
+  "15 17 * * *": 3,
+};
 
 const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const defaultSlowRequestMs = 2_500;
@@ -247,7 +253,10 @@ const worker = {
         console.error(JSON.stringify({ event: "security.retention_cleanup_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
-      ctx.waitUntil(runNormativeMonitor({ DB: env.DB }, date).catch((error) => {
+    }
+    const normativeShard = normativeMonitorShardByCron[controller.cron];
+    if (normativeShard !== undefined) {
+      ctx.waitUntil(runNormativeMonitor({ DB: env.DB }, date, normativeShard, 4).catch((error) => {
         console.error(JSON.stringify({
           event: "normative_monitor.failed",
           date,
