@@ -134,6 +134,13 @@ import {
   validateSimplesNationalDeep,
 } from "./simples-national-deep.ts";
 import {
+  SIMPLES_NATIONAL_100_EXPANSION_VERSION,
+  hashSimplesNational100Expansion,
+  simplesNational100ExpansionMetrics,
+  simplesNational100ExpansionSources,
+  validateSimplesNational100Expansion,
+} from "./simples-national-100-expansion.ts";
+import {
   PIS_COFINS_DEEP_VERSION,
   hashPisCofinsDeep,
   pisCofinsDeepMetrics,
@@ -162,7 +169,7 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v6";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v7";
 export const FISCAL_REGRESSION_CHECKED_AT = "2026-08-01";
 export const FISCAL_REGRESSION_REPORT_CASE_TARGET = 3_000;
 export const FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET = 100;
@@ -204,7 +211,7 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 const MAJOR_TAX_MODULES = {
   ICMS: ["ICMS_GENERAL_NATIONAL", "ICMS_OWN_DIFAL_FCP_EXPANSION"],
   ISS: ["ISS_DEEP_EXPANSION", "ISS_RECURRING_PRIORITY", "ISS_MUNICIPAL_100_EXPANSION"],
-  SIMPLES: ["SIMPLES_NATIONAL_DEEP"],
+  SIMPLES: ["SIMPLES_NATIONAL_DEEP", "SIMPLES_NATIONAL_100_EXPANSION"],
   PIS_COFINS: ["PIS_COFINS_DEEP"],
   RETENCOES: ["SERVICE_WITHHOLDINGS_DEEP"],
   IPI: ["IPI_TIPI_DEEP"],
@@ -259,6 +266,18 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     metrics: simplesNationalDeepMetrics,
     sourceCodes: () => simplesNationalSources.map((source) => source.code).sort(),
     requiredGates: ["CNAE e atividade efetiva", "anexo confirmado", "RBT12 e receita mensal", "fator R quando aplicável", "segregações", "limite e sublimite", "impedimentos", "período fechado"],
+  },
+  {
+    code: "SIMPLES_NATIONAL_100_EXPANSION",
+    label: "Simples Nacional — 100 atividades, fator R e livros segregados",
+    ruleCodes: ["SIMPLES-PGDAS", "SIMPLES-NATIONAL-100-V104"],
+    version: SIMPLES_NATIONAL_100_EXPANSION_VERSION,
+    validate: validateSimplesNational100Expansion,
+    hash: hashSimplesNational100Expansion,
+    testKinds: ALL_TEST_KINDS,
+    metrics: simplesNational100ExpansionMetrics,
+    sourceCodes: () => simplesNational100ExpansionSources.map((source) => source.code).sort(),
+    requiredGates: ["atividade efetiva", "anexo confirmado", "RBT12 e início de atividade", "folha e encargos em doze meses", "livros de receita segregados", "CPP fora do DAS no Anexo IV", "limite, sublimite e impedimentos", "período fechado"],
   },
   {
     code: "ISS_DEEP_EXPANSION",

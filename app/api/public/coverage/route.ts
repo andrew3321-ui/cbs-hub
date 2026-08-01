@@ -22,6 +22,7 @@ import { hashStFoodCleaningPetPriority, stFoodCleaningPetDossiers, stFoodCleanin
 import { hashStSectoralPriorityExpansion, stSectoralPriorityCases, stSectoralPriorityCells, stSectoralPriorityMetrics, ST_SECTORAL_PRIORITY_EXPANSION_CHECKED_AT, ST_SECTORAL_PRIORITY_EXPANSION_VERSION, ST_SECTORAL_RANKED_ROUTES, ST_SECTORAL_REPRESENTATIVES, validateStSectoralPriorityExpansion } from "../../../../domain/st-sectoral-priority-expansion";
 import { hashNationalCoverageAutomaticAssurance, validateNationalCoverageAutomatically } from "../../../../domain/national-coverage-automatic-assurance";
 import { hashSimplesNationalDeep, simplesActivityProfiles, simplesAnnexTables, simplesEligibilityGates, simplesExclusionRules, simplesNationalDeepMetrics, simplesNationalReferenceCases, simplesNationalSources, simplesSegregationRules, SIMPLES_NATIONAL_DEEP_CHECKED_AT, SIMPLES_NATIONAL_DEEP_VERSION, validateSimplesNationalDeep } from "../../../../domain/simples-national-deep";
+import { hashSimplesNational100Expansion, SIMPLES_NATIONAL_100_EXPANSION_CHECKED_AT, SIMPLES_NATIONAL_100_EXPANSION_VERSION, SIMPLES_REVENUE_BOOKS, simplesNational100ExpansionMetrics, simplesNational100ExpansionSources, simplesNational100Profiles, simplesNational100ReferenceCases, validateSimplesNational100Expansion } from "../../../../domain/simples-national-100-expansion";
 import { hashPisCofinsDeep, pisCofinsCreditHypotheses, pisCofinsDeepMetrics, pisCofinsDeepSources, pisCofinsProductProfiles, pisCofinsReferenceCases, PIS_COFINS_DEEP_CHECKED_AT, PIS_COFINS_DEEP_SUPPORTED_PERIOD, PIS_COFINS_DEEP_VERSION, PIS_COFINS_LC224_EFFECTIVE_FROM, validatePisCofinsDeep } from "../../../../domain/pis-cofins-deep";
 import { hashServiceWithholdingsDeep, serviceWithholdingProfiles, serviceWithholdingReferenceCases, serviceWithholdingRuleControls, serviceWithholdingSources, serviceWithholdingsDeepMetrics, SERVICE_WITHHOLDINGS_DEEP_CHECKED_AT, SERVICE_WITHHOLDINGS_DEEP_SUPPORTED_PERIOD, SERVICE_WITHHOLDINGS_DEEP_VERSION, validateServiceWithholdingsDeep } from "../../../../domain/service-withholdings-deep";
 import { hashIpiTipiDeep, ipiTipiDeepMetrics, ipiTipiDeepSources, ipiTipiDeterministicCases, ipiTipiPriorityProfiles, IPI_TIPI_DEEP_CHECKED_AT, IPI_TIPI_DEEP_SUPPORTED_PERIOD, IPI_TIPI_DEEP_VERSION, validateIpiTipiDeep } from "../../../../domain/ipi-tipi-deep";
@@ -60,6 +61,7 @@ async function publicCoverage() {
   const foodCleaningPetFingerprint = (await hashStFoodCleaningPetPriority()).slice(0, 12);
   const sectoralPriorityFingerprint = (await hashStSectoralPriorityExpansion()).slice(0, 12);
   const simplesNationalFingerprint = (await hashSimplesNationalDeep()).slice(0, 12);
+  const simplesNational100Fingerprint = (await hashSimplesNational100Expansion()).slice(0, 12);
   const pisCofinsFingerprint = (await hashPisCofinsDeep()).slice(0, 12);
   const serviceWithholdingsFingerprint = (await hashServiceWithholdingsDeep()).slice(0, 12);
   const ipiTipiFingerprint = (await hashIpiTipiDeep()).slice(0, 12);
@@ -355,6 +357,18 @@ async function publicCoverage() {
       referenceCases: simplesNationalReferenceCases,
       sources: simplesNationalSources,
       policy: "CNAE somente localiza um perfil candidato. DAS em centavos exige atividade e anexo confirmados, RBT12, folha quando houver fator R, receita mensal segregada, período fechado, elegibilidade, sublimite e tratamentos especiais reconciliados.",
+    },
+    simplesNational100Expansion: {
+      version: SIMPLES_NATIONAL_100_EXPANSION_VERSION,
+      checkedAt: SIMPLES_NATIONAL_100_EXPANSION_CHECKED_AT,
+      fingerprint: simplesNational100Fingerprint,
+      validation: validateSimplesNational100Expansion(),
+      metrics: simplesNational100ExpansionMetrics(),
+      profiles: simplesNational100Profiles,
+      revenueBooks: SIMPLES_REVENUE_BOOKS,
+      referenceCases: simplesNational100ReferenceCases,
+      sources: simplesNational100ExpansionSources,
+      policy: "CNAE apenas abre a trilha. A janela de RBT12 e FS12 é mensal; salários, pró-labore, contribuição patronal e FGTS compõem o fator R. ST, monofásico, ISS retido, exportação e receita não tributada ficam em livros separados. No Anexo IV, CPP permanece fora do DAS e nunca é estimada sem a folha real.",
     },
     pisCofinsDeep: {
       version: PIS_COFINS_DEEP_VERSION,

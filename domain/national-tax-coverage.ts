@@ -14,10 +14,14 @@ import {
   icmsOwnDifalFcpStateInventory,
 } from "./icms-own-difal-fcp-expansion.ts";
 import {
-  SIMPLES_NATIONAL_DEEP_VERSION,
-  simplesActivityProfiles,
   simplesNationalSources,
 } from "./simples-national-deep.ts";
+import {
+  SIMPLES_NATIONAL_100_EXPANSION_VERSION,
+  SIMPLES_REVENUE_BOOKS,
+  simplesNational100ExpansionMetrics,
+  simplesNational100Profiles,
+} from "./simples-national-100-expansion.ts";
 import {
   PIS_COFINS_DEEP_VERSION,
   pisCofinsCreditHypotheses,
@@ -40,7 +44,7 @@ import {
   taxReformSectorSources,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const NATIONAL_COVERAGE_VERSION = "2026.08.01-v103";
+export const NATIONAL_COVERAGE_VERSION = "2026.08.01-v104";
 export const NATIONAL_COVERAGE_CHECKED_AT = "2026-08-01";
 
 export type CoverageStatus = "supported" | "partial" | "not_supported";
@@ -188,7 +192,7 @@ export const cityCoverage: CityCoverage[] = cityRows.map(([ibgeCode, city, uf]) 
 });
 
 export const recurringScenarios: ScenarioCoverage[] = [
-  { code: "SIMPLES-PGDAS", tax: "Simples", title: "Atividades, cinco anexos, fator R e segregações", status: "partial", supported: [`${simplesActivityProfiles.length} perfis CNAE prioritários como candidatos, nunca como conclusão isolada`, "30 memórias de faixa em centavos nos Anexos I a V", `fator R, segregações, limite nacional e sublimite de 2026 versionados em ${SIMPLES_NATIONAL_DEEP_VERSION}`], blockers: ["DAS definitivo depende de atividade efetiva, RBT12, composição integral da receita, período fechado, sublimite, impedimentos e reconciliação no PGDAS-D"] },
+  { code: "SIMPLES-PGDAS", tax: "Simples", title: "Cem atividades, cinco anexos, fator R e seis livros de receita", status: "partial", supported: [`${simplesNational100Profiles.length} perfis CNAE prioritários como candidatos, nunca como conclusão isolada`, "30 memórias de faixa em centavos nos Anexos I a V", `${simplesNational100ExpansionMetrics().deterministicCases} casos adicionais com RBT12 e início de atividade`, `${SIMPLES_REVENUE_BOOKS.length} livros separam receita comum, ST, monofásico, ISS retido, exportação e não tributada`, `fator R mensal e CPP do Anexo IV fora do DAS versionados em ${SIMPLES_NATIONAL_100_EXPANSION_VERSION}`], blockers: ["DAS definitivo depende de atividade efetiva, RBT12, composição integral da receita, folha e encargos dos 12 meses, período fechado, sublimite, impedimentos e reconciliação no PGDAS-D", "CPP do Anexo IV não é estimada sem folha, rubricas e enquadramento previdenciário"] },
   { code: "PIS-COFINS-CUM", tax: "PIS/Cofins", title: "Regime cumulativo recorrente", status: "partial", supported: ["débitos de PIS 0,65% e Cofins 3% em centavos", "receita segregada e saldo sem crédito presumido", `motor versionado em ${PIS_COFINS_DEEP_VERSION}`], blockers: ["regime, papel, documento, receita mista e tratamento especial precisam ser confirmados"] },
   { code: "PIS-COFINS-NC", tax: "PIS/Cofins", title: "Não cumulativo com créditos", status: "partial", supported: ["débitos de PIS 1,65% e Cofins 7,6% separados", `${pisCofinsCreditHypotheses.length} hipóteses recorrentes de crédito com gates`, "saldo não compensado automaticamente"], blockers: ["crédito exige hipótese legal, documento, incidência na aquisição e vínculo com atividade tributada"] },
   { code: "PIS-COFINS-SPECIAL", tax: "PIS/Cofins", title: "Monofásico, alíquota zero e suspensão", status: "partial", supported: [`${pisCofinsProductProfiles.length} perfis prioritários por NCM como candidatos`, "papel de fabricante/importador separado da revenda", "vigência de 2026 e LC 224/2025 tratadas explicitamente"], blockers: ["NCM exato nas tabelas oficiais, papel, documento, operação, vigência e alíquota pós-2026 são obrigatórios"] },
@@ -232,7 +236,7 @@ export function coverageMetrics() {
 }
 
 export async function hashNationalCoverage() {
-  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, icmsGeneralVersion: ICMS_GENERAL_NATIONAL_VERSION, icmsGeneralProfiles: icmsStateGeneralProfiles, icmsExpansionVersion: ICMS_OWN_DIFAL_FCP_EXPANSION_VERSION, icmsExpansionStates: icmsOwnDifalFcpStateInventory, icmsExpansionMatrix: icmsOwnDifalFcpMatrix, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, issDeepServiceCoverage, issRecurringVersion: ISS_RECURRING_PRIORITY_VERSION, issRecurringPriorityItems, issRecurringPriorityCells, ipiTipiVersion: IPI_TIPI_DEEP_VERSION, ipiTipiProfiles: ipiTipiPriorityProfiles, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
+  const body = JSON.stringify({ version: NATIONAL_COVERAGE_VERSION, states: stateCoverage, icmsGeneralVersion: ICMS_GENERAL_NATIONAL_VERSION, icmsGeneralProfiles: icmsStateGeneralProfiles, icmsExpansionVersion: ICMS_OWN_DIFAL_FCP_EXPANSION_VERSION, icmsExpansionStates: icmsOwnDifalFcpStateInventory, icmsExpansionMatrix: icmsOwnDifalFcpMatrix, cities: cityCoverage, issDeepProfiles: issDeepCityProfiles, issDeepServiceCoverage, issRecurringVersion: ISS_RECURRING_PRIORITY_VERSION, issRecurringPriorityItems, issRecurringPriorityCells, simplesVersion: SIMPLES_NATIONAL_100_EXPANSION_VERSION, simplesProfiles: simplesNational100Profiles, simplesRevenueBooks: SIMPLES_REVENUE_BOOKS, ipiTipiVersion: IPI_TIPI_DEEP_VERSION, ipiTipiProfiles: ipiTipiPriorityProfiles, segments: stSegments, scenarios: recurringScenarios, sources: coverageSources });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(body));
   return Array.from(new Uint8Array(digest), (byte) => byte.toString(16).padStart(2, "0")).join("");
 }

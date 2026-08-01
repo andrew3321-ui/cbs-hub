@@ -54,6 +54,11 @@ import {
   validateSimplesNationalDeep,
 } from "./simples-national-deep.ts";
 import {
+  hashSimplesNational100Expansion,
+  simplesNational100ExpansionMetrics,
+  validateSimplesNational100Expansion,
+} from "./simples-national-100-expansion.ts";
+import {
   hashPisCofinsDeep,
   pisCofinsDeepMetrics,
   validatePisCofinsDeep,
@@ -80,7 +85,7 @@ import {
 } from "./st-sectoral-priority-expansion.ts";
 import { fiscalImportCorpusMetrics, hashFiscalImportCorpus, validateFiscalImportCorpus } from "./fiscal-import-corpus.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.08.01-v103";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.08.01-v104";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-08-01";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -114,6 +119,7 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("ISS_RECURRING_PRIORITY", "ISS recorrente em 180 combinações município-item", validateIssRecurringPriority()),
     moduleResult("ISS_MUNICIPAL_100_EXPANSION", "ISS recorrente em 50 novos municípios e 500 combinações", validateIssMunicipal100Expansion()),
     moduleResult("SIMPLES_NATIONAL_DEEP", "Simples Nacional em 50 atividades e cinco anexos", validateSimplesNationalDeep()),
+    moduleResult("SIMPLES_NATIONAL_100_EXPANSION", "Simples Nacional em 100 atividades, seis livros e janela de doze meses", validateSimplesNational100Expansion()),
     moduleResult("PIS_COFINS_DEEP", "PIS/Cofins por regime, produto, papel e crédito", validatePisCofinsDeep()),
     moduleResult("SERVICE_WITHHOLDINGS_DEEP", "IRRF, CSRF, INSS e ISS em serviços recorrentes", validateServiceWithholdingsDeep()),
     moduleResult("IPI_TIPI_DEEP", "IPI/TIPI por NCM, Ex, operação, papel e vigência", validateIpiTipiDeep()),
@@ -133,6 +139,7 @@ export function validateNationalCoverageAutomatically() {
   const issRecurring = issRecurringPriorityMetrics();
   const issMunicipal100 = issMunicipal100Metrics();
   const simples = simplesNationalDeepMetrics();
+  const simples100 = simplesNational100ExpansionMetrics();
   const pisCofins = pisCofinsDeepMetrics();
   const withholdings = serviceWithholdingsDeepMetrics();
   const ipiTipi = ipiTipiDeepMetrics();
@@ -161,9 +168,9 @@ export function validateNationalCoverageAutomatically() {
         + beveragesAudit.deterministicCases
         + sectoral.deterministicCases
         + constructionElectrical.deterministicCases
-        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + icmsExpansion.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + issMunicipal100.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases + fiscalImports.cases,
-      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + sectoral.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + icmsExpansion.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories + fiscalImports.positive,
-      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + icmsExpansion.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + issMunicipal100.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases + fiscalImports.negative + fiscalImports.incomplete,
+        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + icmsExpansion.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + issMunicipal100.deterministicCases + simples.deterministicCases + simples100.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases + fiscalImports.cases,
+      referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + sectoral.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + icmsExpansion.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + simples100.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories + fiscalImports.positive,
+      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + icmsExpansion.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + issMunicipal100.safelyBlockedCases + simples.safelyBlockedCases + simples100.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases + fiscalImports.negative + fiscalImports.incomplete,
       failed: calculation.failed + autoParts.failedProductRouteCases,
     },
     modules,
@@ -197,6 +204,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashIssRecurringPriority(),
     hashIssMunicipal100Expansion(),
     hashSimplesNationalDeep(),
+    hashSimplesNational100Expansion(),
     hashPisCofinsDeep(),
     hashServiceWithholdingsDeep(),
     hashIpiTipiDeep(),

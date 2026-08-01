@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v22";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v23";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-08-01";
 
 export type PublicCoverageMaturity = {
@@ -338,6 +338,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       modules: regressionReport.metrics.modules,
     },
     changeHistory: [
+      {
+        id: "simples-v104-one-hundred-activities",
+        changedAt: "2026-08-01T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "O Simples Nacional passou a auditar 100 perfis de atividade e 300 casos adicionais. RBT12, início de atividade, fator R em janela mensal, seis livros de receita e CPP do Anexo IV fora do DAS permanecem separados e falham fechados quando algum fato obrigatório não é comprovado.",
+        affectedCodes: ["SIMPLES_NATIONAL_DEEP", "SIMPLES_NATIONAL_100_EXPANSION", "SIMPLES-PGDAS"],
+        clientDataExposed: false,
+      },
       {
         id: "icms-v103-own-difal-fcp-return-books",
         changedAt: "2026-08-01T00:00:00.000Z",

@@ -10,6 +10,7 @@ import { coverageSources, normativeMonitorSources } from "./national-tax-coverag
 import { pisCofinsDeepSources } from "./pis-cofins-deep.ts";
 import { serviceWithholdingSources } from "./service-withholdings-deep.ts";
 import { simplesNationalSources } from "./simples-national-deep.ts";
+import { simplesNational100ExpansionSources } from "./simples-national-100-expansion.ts";
 import { stAutoPartsPrioritySources } from "./st-auto-parts-priority-batch.ts";
 import { stAutoPartsHighUseSources } from "./st-auto-parts-high-use-corridors.ts";
 import { ST_CEMENT_PRODUCT_SOURCE, ST_CEMENT_PROTOCOL_SOURCE } from "./st-cement-sp-routes.ts";
@@ -25,7 +26,7 @@ import { ST_MG_ANNEX_VII_SOURCE } from "./st-sp-mg-legal.ts";
 import { taxReformSources } from "./tax-reform-impact.ts";
 import { taxReformSectorSources } from "./tax-reform-sector-scenarios.ts";
 
-export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v102";
+export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v104";
 export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-08-01";
 
 export type OfficialSourceClass = "primary" | "official_index" | "official_guidance";
@@ -77,6 +78,7 @@ const groups: SourceGroup[] = [
   { sources: icmsGeneralSources, sourceClass: "primary", taxes: ["ICMS"], jurisdictions: ["BR"], impactedRuleCodes: ["ICMS_GENERAL_NATIONAL"] },
   { sources: issDeepSources, sourceClass: "primary", taxes: ["ISS"], jurisdictions: ["BR"], impactedRuleCodes: ["ISS_DEEP"] },
   { sources: simplesNationalSources, sourceClass: "primary", taxes: ["SIMPLES"], jurisdictions: ["BR"], impactedRuleCodes: ["SIMPLES_NATIONAL_DEEP"] },
+  { sources: simplesNational100ExpansionSources, sourceClass: "primary", taxes: ["SIMPLES"], jurisdictions: ["BR"], impactedRuleCodes: ["SIMPLES_NATIONAL_100_EXPANSION"] },
   { sources: pisCofinsDeepSources, sourceClass: "primary", taxes: ["PIS", "COFINS"], jurisdictions: ["BR"], impactedRuleCodes: ["PIS_COFINS_DEEP"] },
   { sources: ipiTipiDeepSources, sourceClass: "primary", taxes: ["IPI"], jurisdictions: ["BR"], impactedRuleCodes: ["IPI_TIPI_DEEP"] },
   { sources: serviceWithholdingSources, sourceClass: "primary", taxes: ["IRRF", "CSRF", "INSS", "ISS"], jurisdictions: ["BR"], impactedRuleCodes: ["SERVICE_WITHHOLDINGS_DEEP"] },
