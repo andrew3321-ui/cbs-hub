@@ -18,9 +18,9 @@ import {
   validateIssDeepCoverage,
 } from "../domain/iss-deep-coverage.ts";
 
-test("V88 audits 50 priority ISS municipalities and preserves exact calculations only where proved", () => {
-  assert.equal(issDeepCityProfiles.length, 50);
-  assert.equal(new Set(issDeepCityProfiles.map((item) => item.ibgeCode)).size, 50);
+test("V102 audits 100 priority ISS municipalities and preserves exact calculations only where proved", () => {
+  assert.equal(issDeepCityProfiles.length, 100);
+  assert.equal(new Set(issDeepCityProfiles.map((item) => item.ibgeCode)).size, 100);
   assert.ok(issDeepCityProfiles.every((item) => item.stage === "structured"));
   assert.ok(issDeepCityProfiles.every((item) => item.supportStatus === "partial"));
   assert.ok(issDeepCityProfiles.every((item) => item.sourceCodes.length >= 1));
@@ -31,31 +31,31 @@ test("V88 audits 50 priority ISS municipalities and preserves exact calculations
     && item.specialTreatments.professionalSociety.status === "separate_analysis_required"
     && item.specialTreatments.specialRegime.status === "separate_analysis_required"
   ));
-  assert.equal(issDeepMetrics.structuredCities, 50);
-  assert.equal(issDeepMetrics.sourceCatalogReviewedCities, 50);
-  assert.equal(issDeepMetrics.technicalGateValidatedCities, 50);
+  assert.equal(issDeepMetrics.structuredCities, 100);
+  assert.equal(issDeepMetrics.sourceCatalogReviewedCities, 100);
+  assert.equal(issDeepMetrics.technicalGateValidatedCities, 100);
   assert.equal(issDeepMetrics.rateReferenceLocatedCities, 25);
-  assert.equal(issDeepMetrics.testedCities, 50);
-  assert.equal(issDeepMetrics.serviceCoverageRows, 50);
+  assert.equal(issDeepMetrics.testedCities, 100);
+  assert.equal(issDeepMetrics.serviceCoverageRows, 100);
   assert.equal(issDeepMetrics.supportedServiceRules, 25);
-  assert.equal(issDeepMetrics.partialServiceRules, 25);
+  assert.equal(issDeepMetrics.partialServiceRules, 75);
   assert.equal(issDeepMetrics.professionallyApprovedCities, 0);
   assert.equal(issDeepMetrics.automaticHomologation, false);
-  assert.equal(issDeepMetrics.referenceCases, 200);
+  assert.equal(issDeepMetrics.referenceCases, 400);
   assert.equal(issDeepMetrics.calculatedMemories, 25);
-  assert.equal(issDeepMetrics.safelyBlockedCases, 175);
+  assert.equal(issDeepMetrics.safelyBlockedCases, 375);
 });
 
-test("all 50 municipalities have controlled, classifier, validity and withholding cases", () => {
+test("all 100 municipalities have controlled, classifier, validity and withholding cases", () => {
   assert.deepEqual(validateIssDeepCoverage(), { passed: true, errors: [] });
-  assert.equal(issDeepReferenceCases.length, 200);
-  assert.equal(new Set(issDeepReferenceCases.map((reference) => reference.code)).size, 200);
+  assert.equal(issDeepReferenceCases.length, 400);
+  assert.equal(new Set(issDeepReferenceCases.map((reference) => reference.code)).size, 400);
   assert.deepEqual(issDeepReferenceMetrics(), {
-    deterministicCases: 200,
+    deterministicCases: 400,
     calculatedMemories: 25,
-    safelyBlockedCases: 175,
+    safelyBlockedCases: 375,
     positiveMunicipalities: 25,
-    partialMunicipalities: 25,
+    partialMunicipalities: 75,
   });
   for (const profile of issDeepCityProfiles) {
     const municipalityCases = issDeepReferenceCases.filter((reference) => reference.input.ibgeCode === profile.ibgeCode);
@@ -90,8 +90,8 @@ test("the 22-city expansion queue preserves the original partial backlog and pri
 
 test("technical review produces one unique SHA-256 evidence record per city", async () => {
   const evidence = await buildIssDeepTechnicalEvidence();
-  assert.equal(evidence.length, 50);
-  assert.equal(new Set(evidence.map((item) => item.evidenceHash)).size, 50);
+  assert.equal(evidence.length, 100);
+  assert.equal(new Set(evidence.map((item) => item.evidenceHash)).size, 100);
   assert.ok(evidence.every((item) => /^[a-f0-9]{64}$/.test(item.evidenceHash)));
   assert.ok(evidence.every((item) => item.status === "passed"));
   assert.ok(evidence.every((item) => item.passedChecks.length === 8));
@@ -137,7 +137,7 @@ test("all deep ISS references are unique official HTTPS sources with legal refer
   assert.ok(issDeepSources.every((item) => ["verified_reachable", "official_server_recheck_required"].includes(item.linkAudit.status)));
 });
 
-test("all 50 municipal service dossiers satisfy the auditable acceptance structure", () => {
+test("all 100 municipal service dossiers satisfy the auditable acceptance structure", () => {
   for (const service of issDeepServiceCoverage) {
     assert.match(service.lc116Item, /^\d{1,2}\.\d{2}$/);
     assert.ok(service.placeOfIncidence.conclusion.length >= 30);

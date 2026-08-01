@@ -113,6 +113,14 @@ import {
   validateIssRecurringPriority,
 } from "./iss-recurring-priority.ts";
 import {
+  ISS_MUNICIPAL_100_EXPANSION_VERSION,
+  ISS_MUNICIPAL_100_NATIONAL_SOURCE,
+  hashIssMunicipal100Expansion,
+  issMunicipal100Metrics,
+  issMunicipal100Sources,
+  validateIssMunicipal100Expansion,
+} from "./iss-municipal-100-expansion.ts";
+import {
   SIMPLES_NATIONAL_DEEP_VERSION,
   hashSimplesNationalDeep,
   simplesNationalDeepMetrics,
@@ -148,8 +156,8 @@ import {
   validateTaxReformSectorCatalog,
 } from "./tax-reform-sector-scenarios.ts";
 
-export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v4";
-export const FISCAL_REGRESSION_CHECKED_AT = "2026-07-31";
+export const FISCAL_REGRESSION_REPORT_VERSION = "fiscal-regression.v5";
+export const FISCAL_REGRESSION_CHECKED_AT = "2026-08-01";
 export const FISCAL_REGRESSION_REPORT_CASE_TARGET = 3_000;
 export const FISCAL_REGRESSION_MAJOR_MODULE_CASE_TARGET = 100;
 
@@ -189,7 +197,7 @@ const ALL_TEST_KINDS: readonly FiscalRegressionTestKind[] = [
 
 const MAJOR_TAX_MODULES = {
   ICMS: ["ICMS_GENERAL_NATIONAL"],
-  ISS: ["ISS_DEEP_EXPANSION", "ISS_RECURRING_PRIORITY"],
+  ISS: ["ISS_DEEP_EXPANSION", "ISS_RECURRING_PRIORITY", "ISS_MUNICIPAL_100_EXPANSION"],
   SIMPLES: ["SIMPLES_NATIONAL_DEEP"],
   PIS_COFINS: ["PIS_COFINS_DEEP"],
   RETENCOES: ["SERVICE_WITHHOLDINGS_DEEP"],
@@ -248,8 +256,8 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   },
   {
     code: "ISS_DEEP_EXPANSION",
-    label: "ISS 17.01 — 50 municípios auditados",
-    ruleCodes: ["ISS-DEEP-NATIONAL", "ISS-DEEP-17.01-V88"],
+    label: "ISS 17.01 — 100 municípios auditados",
+    ruleCodes: ["ISS-DEEP-NATIONAL", "ISS-DEEP-17.01-V102"],
     version: ISS_DEEP_VERSION,
     validate: validateIssDeepCoverage,
     hash: hashIssDeepCoverage,
@@ -269,6 +277,18 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     metrics: issRecurringPriorityMetrics,
     sourceCodes: () => [ISS_RECURRING_PRIORITY_SOURCE.code],
     requiredGates: ["serviço representativo", "município", "subatividade e código municipal", "alíquota e vigência", "incidência", "tomador e retenção"],
+  },
+  {
+    code: "ISS_MUNICIPAL_100_EXPANSION",
+    label: "ISS recorrente — 50 novos municípios e 500 combinações seguras",
+    ruleCodes: ["ISS-DEEP-NATIONAL", "ISS-MUNICIPAL-100-V102"],
+    version: ISS_MUNICIPAL_100_EXPANSION_VERSION,
+    validate: validateIssMunicipal100Expansion,
+    hash: hashIssMunicipal100Expansion,
+    testKinds: ALL_TEST_KINDS,
+    metrics: issMunicipal100Metrics,
+    sourceCodes: () => [ISS_MUNICIPAL_100_NATIONAL_SOURCE.code, ...issMunicipal100Sources.map((source) => source.code)].sort(),
+    requiredGates: ["município e item exatos", "código municipal", "alíquota e vigência", "incidência pelos fatos", "responsável pela retenção", "deduções, benefícios e regimes especiais"],
   },
   {
     code: "ICMS_GENERAL_NATIONAL",

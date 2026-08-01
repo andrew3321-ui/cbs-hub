@@ -25,7 +25,7 @@ import { ST_MG_ANNEX_VII_SOURCE } from "./st-sp-mg-legal.ts";
 import { taxReformSources } from "./tax-reform-impact.ts";
 import { taxReformSectorSources } from "./tax-reform-sector-scenarios.ts";
 
-export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v101";
+export const OFFICIAL_SOURCE_CERTIFICATION_VERSION = "2026.08.01-v102";
 export const OFFICIAL_SOURCE_CERTIFICATION_CHECKED_AT = "2026-08-01";
 
 export type OfficialSourceClass = "primary" | "official_index" | "official_guidance";

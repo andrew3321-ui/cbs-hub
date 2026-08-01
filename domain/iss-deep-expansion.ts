@@ -6,7 +6,7 @@ export type IssDeepExpansionSource = {
   title: string;
   publisher: string;
   url: string;
-  kind: "municipal_law" | "rate_table" | "operational_guidance";
+  kind: "municipal_law" | "rate_table" | "operational_guidance" | "official_portal";
   legalReference: string;
 };
 

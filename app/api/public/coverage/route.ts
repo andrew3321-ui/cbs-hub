@@ -1,6 +1,7 @@
 import { cityCoverage, coverageMetrics, coverageSources, hashNationalCoverage, NATIONAL_COVERAGE_CHECKED_AT, NATIONAL_COVERAGE_VERSION, recurringScenarios, stateCoverage, stSegments } from "../../../../domain/national-tax-coverage";
 import { buildIssDeepTechnicalEvidence, ISS_DEEP_CHECKED_AT, ISS_DEEP_VERSION, issDeepCityProfiles, issDeepMetrics, issDeepServiceCoverage, issDeepSources } from "../../../../domain/iss-deep-coverage";
 import { ISS_RECURRING_PRIORITY_CHECKED_AT, ISS_RECURRING_PRIORITY_VERSION, hashIssRecurringPriority, issRecurringPriorityCells, issRecurringPriorityItems, issRecurringPriorityMetrics, issRecurringPriorityMunicipalities, issRecurringPriorityReferenceCases, validateIssRecurringPriority } from "../../../../domain/iss-recurring-priority";
+import { ISS_MUNICIPAL_100_EXPANSION_CHECKED_AT, ISS_MUNICIPAL_100_EXPANSION_VERSION, ISS_MUNICIPAL_100_NATIONAL_SOURCE, hashIssMunicipal100Expansion, issMunicipal100Cells, issMunicipal100Cities, issMunicipal100Metrics, issMunicipal100ReferenceCases, issMunicipal100ServiceItems, issMunicipal100Sources, validateIssMunicipal100Expansion } from "../../../../domain/iss-municipal-100-expansion";
 import { hashStSpMgLegalCatalog, stSpMgLegalMetrics, stSpMgLegalPackages, ST_SP_MG_LEGAL_VERSION, validateStSpMgLegalCatalog } from "../../../../domain/st-sp-mg-legal";
 import { hashStSpOriginMatrix, stSpOriginCells, stSpOriginDestinations, stSpOriginMandatoryFacts, stSpOriginMatrixMetrics, ST_SP_ORIGIN_MATRIX_VERSION, validateStSpOriginMatrix } from "../../../../domain/st-sp-origin-matrix";
 import { hashStRepresentativeProducts, stRepresentativeProducts, ST_REPRESENTATIVE_PRODUCTS_SOURCE, ST_REPRESENTATIVE_PRODUCTS_VERSION, validateStRepresentativeProducts } from "../../../../domain/st-representative-products";
@@ -36,6 +37,7 @@ async function publicCoverage() {
   const fingerprint = (await hashNationalCoverage()).slice(0, 12);
   const technicalEvidence = await buildIssDeepTechnicalEvidence();
   const issRecurringFingerprint = (await hashIssRecurringPriority()).slice(0, 12);
+  const issMunicipal100Fingerprint = (await hashIssMunicipal100Expansion()).slice(0, 12);
   const stValidation = validateStSpMgLegalCatalog();
   const stFingerprint = (await hashStSpMgLegalCatalog()).slice(0, 12);
   const spOriginValidation = validateStSpOriginMatrix();
@@ -132,6 +134,20 @@ async function publicCoverage() {
       cells: issRecurringPriorityCells,
       referenceCases: issRecurringPriorityReferenceCases,
       policy: "A célula auditada não é uma alíquota. Código, alíquota, vigência, incidência, tomador e retenção municipais precisam estar exatos antes de qualquer memória; ausência de prova mantém o status parcial e bloqueia o valor.",
+    },
+    issMunicipal100Expansion: {
+      version: ISS_MUNICIPAL_100_EXPANSION_VERSION,
+      checkedAt: ISS_MUNICIPAL_100_EXPANSION_CHECKED_AT,
+      fingerprint: issMunicipal100Fingerprint,
+      validation: validateIssMunicipal100Expansion(),
+      metrics: issMunicipal100Metrics(),
+      nationalSource: ISS_MUNICIPAL_100_NATIONAL_SOURCE,
+      municipalSources: issMunicipal100Sources,
+      municipalities: issMunicipal100Cities,
+      serviceItems: issMunicipal100ServiceItems,
+      cells: issMunicipal100Cells,
+      referenceCases: issMunicipal100ReferenceCases,
+      policy: "Os 50 novos municípios e os dez itens recorrentes estão estruturados para triagem. Nenhuma faixa nacional vira alíquota local: código, alíquota, vigência, incidência, retenção e deduções municipais ausentes mantêm a célula parcial e o valor bloqueado.",
     },
     stSegments,
     stSpMg: {

@@ -39,6 +39,11 @@ import {
   validateIssRecurringPriority,
 } from "./iss-recurring-priority.ts";
 import {
+  hashIssMunicipal100Expansion,
+  issMunicipal100Metrics,
+  validateIssMunicipal100Expansion,
+} from "./iss-municipal-100-expansion.ts";
+import {
   hashSimplesNationalDeep,
   simplesNationalDeepMetrics,
   validateSimplesNationalDeep,
@@ -70,7 +75,7 @@ import {
 } from "./st-sectoral-priority-expansion.ts";
 import { fiscalImportCorpusMetrics, hashFiscalImportCorpus, validateFiscalImportCorpus } from "./fiscal-import-corpus.ts";
 
-export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.08.01-v101";
+export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_VERSION = "2026.08.01-v102";
 export const NATIONAL_COVERAGE_AUTOMATIC_ASSURANCE_CHECKED_AT = "2026-08-01";
 
 type Validation = { passed: boolean; errors: string[] };
@@ -99,8 +104,9 @@ export function validateNationalCoverageAutomatically() {
     moduleResult("FOOD_CLEANING_PET_PRIORITY", "Alimentos, limpeza, higiene doméstica e pet food em nove destinos prioritários", validateStFoodCleaningPetPriority()),
     moduleResult("ST_SECTORAL_PRIORITY_EXPANSION", "Dez segmentos de ST auditados em dez rotas prioritárias", validateStSectoralPriorityExpansion()),
     moduleResult("ICMS_GENERAL_NATIONAL", "ICMS modal nas 27 UFs e DIFAL/FCP em recortes prioritários", validateIcmsGeneralNational()),
-    moduleResult("ISS_DEEP_EXPANSION", "ISS 17.01 auditado em 50 municípios", validateIssDeepCoverage()),
+    moduleResult("ISS_DEEP_EXPANSION", "ISS 17.01 auditado em 100 municípios", validateIssDeepCoverage()),
     moduleResult("ISS_RECURRING_PRIORITY", "ISS recorrente em 180 combinações município-item", validateIssRecurringPriority()),
+    moduleResult("ISS_MUNICIPAL_100_EXPANSION", "ISS recorrente em 50 novos municípios e 500 combinações", validateIssMunicipal100Expansion()),
     moduleResult("SIMPLES_NATIONAL_DEEP", "Simples Nacional em 50 atividades e cinco anexos", validateSimplesNationalDeep()),
     moduleResult("PIS_COFINS_DEEP", "PIS/Cofins por regime, produto, papel e crédito", validatePisCofinsDeep()),
     moduleResult("SERVICE_WITHHOLDINGS_DEEP", "IRRF, CSRF, INSS e ISS em serviços recorrentes", validateServiceWithholdingsDeep()),
@@ -118,6 +124,7 @@ export function validateNationalCoverageAutomatically() {
   const icmsGeneral = icmsGeneralNationalMetrics();
   const issDeep = issDeepReferenceMetrics();
   const issRecurring = issRecurringPriorityMetrics();
+  const issMunicipal100 = issMunicipal100Metrics();
   const simples = simplesNationalDeepMetrics();
   const pisCofins = pisCofinsDeepMetrics();
   const withholdings = serviceWithholdingsDeepMetrics();
@@ -147,9 +154,9 @@ export function validateNationalCoverageAutomatically() {
         + beveragesAudit.deterministicCases
         + sectoral.deterministicCases
         + constructionElectrical.deterministicCases
-        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases + fiscalImports.cases,
+        + foodCleaningPet.controlledCells + foodCleaningPet.safeFailureScenarios + icmsGeneral.deterministicCases + issDeep.deterministicCases + issRecurring.deterministicCases + issMunicipal100.deterministicCases + simples.deterministicCases + pisCofins.deterministicCases + withholdings.deterministicCases + ipiTipi.deterministicCases + taxReformSectors.deterministicCases + fiscalImports.cases,
       referenceReproduced: calculation.referenceReproduced + autoParts.calculatedProductRouteCases + beveragesSc.positiveMemories + sectoral.positiveMemories + constructionElectrical.reproducedMemories + foodCleaningPet.reproducedMemories + icmsGeneral.calculatedMemories + issDeep.calculatedMemories + simples.calculatedMemories + pisCofins.calculatedMemories + withholdings.calculatedMemories + ipiTipi.calculatedMemories + taxReformSectors.calculatedMemories + fiscalImports.positive,
-      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases + fiscalImports.negative + fiscalImports.incomplete,
+      safelyBlocked: calculation.safelyBlocked + autoParts.safelyBlockedProductRouteCases + beveragesSc.negativeGates + beveragesAudit.negativeGates + sectoral.deterministicCases - sectoral.positiveMemories + constructionElectrical.safeFailureScenarios + foodCleaningPet.coverage.partial + foodCleaningPet.safeFailureScenarios + icmsGeneral.safelyBlockedCases + issDeep.safelyBlockedCases + issRecurring.safelyBlockedCases + issMunicipal100.safelyBlockedCases + simples.safelyBlockedCases + pisCofins.safelyBlockedCases + withholdings.safelyBlockedCases + ipiTipi.safelyBlockedCases + taxReformSectors.safelyBlockedCases + fiscalImports.negative + fiscalImports.incomplete,
       failed: calculation.failed + autoParts.failedProductRouteCases,
     },
     modules,
@@ -180,6 +187,7 @@ export async function hashNationalCoverageAutomaticAssurance() {
     hashIcmsGeneralNational(),
     hashIssDeepCoverage(),
     hashIssRecurringPriority(),
+    hashIssMunicipal100Expansion(),
     hashSimplesNationalDeep(),
     hashPisCofinsDeep(),
     hashServiceWithholdingsDeep(),

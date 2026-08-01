@@ -9,8 +9,8 @@ import {
 import { issDeepProfileByIbge, sourcesForIssDeepProfile } from "./iss-deep-coverage.ts";
 import { fiscalAutomaticAssuranceCapacity } from "./fiscal-automatic-assurance.ts";
 
-export const FISCAL_EXPANSION_VERSION = "2026.07.30-v84";
-export const FISCAL_EXPANSION_MONTH = "2026-07";
+export const FISCAL_EXPANSION_VERSION = "2026.08.01-v102";
+export const FISCAL_EXPANSION_MONTH = "2026-08";
 
 export type ExpansionScope = "icms" | "iss" | "st" | "federal" | "sources";
 export type ExpansionStage = "catalogued" | "source_connected" | "structured" | "tested" | "automatically_verified" | "blocked";
@@ -45,7 +45,7 @@ export type ExpansionProgress = {
 export const expansionTargets = {
   month: FISCAL_EXPANSION_MONTH,
   icmsBundles: 27,
-  issDeepCities: 50,
+  issDeepCities: 100,
   stRouteBundles: 40,
   officialSources: 200,
   testedBundles: 100,

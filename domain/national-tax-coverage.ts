@@ -145,7 +145,7 @@ export const stSegments: SegmentCoverage[] = [
   { code: "ICE_CREAM", name: "Sorvetes e preparados para sorvete", status: "partial", routes: ["CEST/NCM, rota e vigência por UF"], supported: ["triagem de produto, NCM/CEST, destino e período"], blockers: ["lista estadual, pauta/PMPF, MVA e acordo da rota devem ser confirmados antes de qualquer cálculo"] },
 ];
 
-const cityRows: Array<[string, string, UfCode]> = [
+const priorityCityRows: Array<[string, string, UfCode]> = [
   ["3550308", "São Paulo", "SP"], ["3304557", "Rio de Janeiro", "RJ"], ["5300108", "Brasília", "DF"], ["3106200", "Belo Horizonte", "MG"], ["4106902", "Curitiba", "PR"],
   ["2927408", "Salvador", "BA"], ["2304400", "Fortaleza", "CE"], ["1302603", "Manaus", "AM"], ["2611606", "Recife", "PE"], ["4314902", "Porto Alegre", "RS"],
   ["5208707", "Goiânia", "GO"], ["1501402", "Belém", "PA"], ["3509502", "Campinas", "SP"], ["2111300", "São Luís", "MA"], ["2507507", "João Pessoa", "PB"],
@@ -156,6 +156,14 @@ const cityRows: Array<[string, string, UfCode]> = [
   ["3548500", "Santos", "SP"], ["4209102", "Joinville", "SC"], ["4305108", "Caxias do Sul", "RS"], ["3510609", "Carapicuíba", "SP"], ["3529401", "Mauá", "SP"],
   ["2919207", "Lauro de Freitas", "BA"], ["2933307", "Vitória da Conquista", "BA"], ["2611101", "Petrolina", "PE"], ["2607901", "Jaboatão dos Guararapes", "PE"], ["5201405", "Aparecida de Goiânia", "GO"],
   ["1500800", "Ananindeua", "PA"], ["5107602", "Rondonópolis", "MT"], ["5008305", "Três Lagoas", "MS"], ["1100205", "Porto Velho", "RO"], ["1200401", "Rio Branco", "AC"],
+];
+
+const priorityCityCodes = new Set(priorityCityRows.map(([ibgeCode]) => ibgeCode));
+const cityRows: Array<[string, string, UfCode]> = [
+  ...priorityCityRows,
+  ...issDeepCityProfiles
+    .filter((profile) => !priorityCityCodes.has(profile.ibgeCode))
+    .map((profile) => [profile.ibgeCode, profile.city, profile.uf as UfCode]),
 ];
 
 export const cityCoverage: CityCoverage[] = cityRows.map(([ibgeCode, city, uf]) => {

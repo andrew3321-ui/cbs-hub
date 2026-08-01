@@ -565,7 +565,7 @@ export default function NationalCoverageCenter() {
 
     <section className="coverage-kpis">
       <article><span>ICMS geral</span><strong>{coverage.metrics.states}/27</strong><small>UFs mapeadas</small></article>
-      <article><span>ISS profundo</span><strong>{coverage.metrics.deepIssCities}/50</strong><small>{coverage.metrics.cities} municípios indexados</small></article>
+      <article><span>ISS profundo</span><strong>{coverage.metrics.deepIssCities}/100</strong><small>{coverage.metrics.cities} municípios indexados</small></article>
       <article><span>ST prioritária</span><strong>{coverage.metrics.stSegments}</strong><small>segmentos controlados</small></article>
       <article><span>Cenários federais</span><strong>{coverage.metrics.recurringScenarios}</strong><small>rotinas recorrentes</small></article>
       <article className={automaticAssurance.status === "automatically_verified" ? "ready" : "locked"}><span>Motor técnico</span><strong>{automaticAssurance.status === "automatically_verified" ? "Verificado" : "Bloqueado"}</strong><small>{automaticAssurance.metrics.totalRuns} células · {automaticAssurance.metrics.failed} falhas</small></article>
@@ -852,16 +852,16 @@ export default function NationalCoverageCenter() {
     </section>}
 
     {tab === "iss" && <section className="iss-coverage">
-      <div className="coverage-section-heading"><span>50 PACOTES MUNICIPAIS ESTRUTURADOS</span><h2>ISS municipal com fonte, status por serviço e cálculo conservador</h2><p>Os 50 municípios prioritários têm pacote fiscal e fonte oficial estruturados. Os 25 recortes exatos já comprovados preservam cálculo controlado; os outros 25 permanecem parciais e sem valor até código, alíquota, vigência, incidência, retenção, regime e exceções coincidirem com uma regra municipal versionada.</p></div>
+      <div className="coverage-section-heading"><span>100 PACOTES MUNICIPAIS ESTRUTURADOS</span><h2>ISS municipal com fonte, status por serviço e cálculo conservador</h2><p>Os 100 municípios prioritários têm pacote fiscal e fonte oficial estruturados. Os 25 recortes exatos já comprovados preservam cálculo controlado; os outros 75 permanecem parciais e sem valor até código, alíquota, vigência, incidência, retenção, regime e exceções coincidirem com uma regra municipal versionada.</p></div>
       <div className="iss-depth-metrics">
         <article><span>Estruturados</span><strong>{coverage.issDeep.metrics.structuredCities}</strong><small>pacotes municipais profundos</small></article>
-        <article className="technical"><span>Portões técnicos</span><strong>{coverage.issDeep.metrics.technicalGateValidatedCities}/50</strong><small>8 contratos reproduzíveis por cidade</small></article>
+        <article className="technical"><span>Portões técnicos</span><strong>{coverage.issDeep.metrics.technicalGateValidatedCities}/100</strong><small>8 contratos reproduzíveis por cidade</small></article>
         <article><span>Regras exatas</span><strong>{coverage.issDeep.metrics.supportedServiceRules}</strong><small>recortes controlados com memória</small></article>
-        <article><span>Fontes municipais</span><strong>{coverage.issDeep.metrics.officialSources}</strong><small>catálogos revisados em 50 cidades</small></article>
+        <article><span>Fontes municipais</span><strong>{coverage.issDeep.metrics.officialSources}</strong><small>catálogos revisados em 100 cidades</small></article>
         <article><span>Pacotes exercitados</span><strong>{coverage.issDeep.metrics.testedCities}</strong><small>status e bloqueios reproduzidos</small></article>
         <article><span>Serviços parciais</span><strong>{coverage.issDeep.metrics.partialServiceRules}</strong><small>sem valor final até completar a regra</small></article>
       </div>
-      <div className="iss-technical-round"><div><span>RODADA TÉCNICA CONCLUÍDA</span><b>50/50 pacotes passaram nos contratos do software</b><p>Unicidade, fonte HTTPS, fatos obrigatórios, status por serviço, vínculo da evidência, centavos inteiros e separação de tratamentos especiais foram exercitados. O teste prova o comportamento do motor, sem ampliar uma regra além do recorte publicado.</p></div><div><strong>{coverage.issDeep.metrics.supportedServiceRules}</strong><span>regras exatas</span><small>os outros {coverage.issDeep.metrics.partialServiceRules} serviços permanecem bloqueados</small></div></div>
+      <div className="iss-technical-round"><div><span>RODADA TÉCNICA CONCLUÍDA</span><b>100/100 pacotes passaram nos contratos do software</b><p>Unicidade, fonte HTTPS, fatos obrigatórios, status por serviço, vínculo da evidência, centavos inteiros e separação de tratamentos especiais foram exercitados. O teste prova o comportamento do motor, sem ampliar uma regra além do recorte publicado.</p></div><div><strong>{coverage.issDeep.metrics.supportedServiceRules}</strong><span>regras exatas</span><small>os outros {coverage.issDeep.metrics.partialServiceRules} serviços permanecem bloqueados</small></div></div>
       <div className="iss-depth-policy"><b>Política fail-closed · versão {coverage.issDeep.version}</b><span>{coverage.issDeep.policy}</span></div>
       <div className="city-search"><input value={cityQuery} onChange={(event) => setCityQuery(event.target.value)} placeholder="Buscar cidade ou UF" /><span>{cities.length} cidades</span></div>
       <div className="city-table"><div className="city-table-head"><span>Município</span><span>IBGE</span><span>Faixa nacional</span><span>Profundidade</span></div>{cities.map((item) => {

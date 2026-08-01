@@ -26,7 +26,7 @@ import {
   type CoverageStatus,
 } from "./national-tax-coverage.ts";
 
-export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v20";
+export const PUBLIC_COVERAGE_INDICATOR_VERSION = "2026.08.01-v21";
 export const PUBLIC_COVERAGE_INDICATOR_CHECKED_AT = "2026-08-01";
 
 export type PublicCoverageMaturity = {
@@ -411,6 +411,14 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
         clientDataExposed: false,
       },
       {
+        id: "iss-municipal-v102-100-cities",
+        changedAt: "2026-08-01T00:00:00.000Z",
+        version: PUBLIC_COVERAGE_INDICATOR_VERSION,
+        summary: "O recorte profundo de ISS alcançou 100 municípios. Os 50 novos municípios publicam dez itens recorrentes, 500 combinações e 300 cenários determinísticos bloqueados até a prova de código, alíquota, vigência, incidência, retenção e deduções locais.",
+        affectedCodes: ["ISS-DEEP-NATIONAL", "ISS-MUNICIPAL-100-V102"],
+        clientDataExposed: false,
+      },
+      {
         id: "iss-recurring-v89-180-cells",
         changedAt: "2026-07-31T00:00:00.000Z",
         version: PUBLIC_COVERAGE_INDICATOR_VERSION,
@@ -419,11 +427,11 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
         clientDataExposed: false,
       },
       {
-        id: "iss-17-01-v88-50-municipalities",
+        id: "iss-17-01-v102-100-municipalities",
         changedAt: "2026-07-31T00:00:00.000Z",
         version: PUBLIC_COVERAGE_INDICATOR_VERSION,
-        summary: "Os 50 municípios do recorte ISS 17.01 passaram a possuir matriz determinística de cenário controlado, classificador divergente, fronteira de vigência e mutação de retenção; cálculo continua restrito às 25 regras integralmente provadas.",
-        affectedCodes: ["ISS-DEEP-NATIONAL", "ISS-DEEP-17.01-V88"],
+        summary: "Os 100 municípios do recorte ISS 17.01 possuem matriz determinística de cenário controlado, classificador divergente, fronteira de vigência e mutação de retenção; cálculo continua restrito às 25 regras integralmente provadas.",
+        affectedCodes: ["ISS-DEEP-NATIONAL", "ISS-DEEP-17.01-V102"],
         clientDataExposed: false,
       },
       {

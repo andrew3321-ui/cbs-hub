@@ -4,9 +4,13 @@ import {
   issDeepExpansionCities,
   issDeepExpansionSources,
 } from "./iss-deep-expansion.ts";
+import {
+  issMunicipal100Cities,
+  issMunicipal100Sources,
+} from "./iss-municipal-100-expansion.ts";
 
-export const ISS_DEEP_VERSION = "2026.07.31-v88";
-export const ISS_DEEP_CHECKED_AT = "2026-07-31";
+export const ISS_DEEP_VERSION = "2026.08.01-v102";
+export const ISS_DEEP_CHECKED_AT = "2026-08-01";
 
 export const ISS_DEEP_TECHNICAL_CHECKS = [
   "unique_profile_and_ibge",
@@ -238,7 +242,11 @@ export const issDeepSources: IssDeepSource[] = [
   source({ code: "ISS-FLN-NFSE", title: "NFPS-e — códigos e grade de validação tributária", publisher: "Prefeitura de Florianópolis", url: "https://nfps-e.pmf.sc.gov.br/faq/", kind: "operational_guidance", legalReference: "CNAE, CFPS, CST e grade municipal de validação" }),
   source({ code: "ISS-AJU-CTM", title: "Código Tributário de Aracaju — atualizado em 2025", publisher: "Prefeitura de Aracaju", url: "https://transparencia.aracaju.se.gov.br/wp-content/uploads/desoneracoes/CTMA_ATUALIZADO_2025.pdf", kind: "municipal_law", legalReference: "arts. 98 a 131 e lista de serviços" }),
   source({ code: "ISS-AJU-DESON", title: "Desonerações e benefícios fiscais municipais", publisher: "Prefeitura de Aracaju", url: "https://transparencia.aracaju.se.gov.br/prefeitura/prestacao-de-contas/", kind: "operational_guidance", legalReference: "benefícios de ISS e respectivos instrumentos legais" }),
-  ...issDeepExpansionSources.map(source),
+  ...issDeepExpansionSources.map((item) => source({
+    ...item,
+    kind: item.kind === "official_portal" ? "operational_guidance" : item.kind,
+  })),
+  ...issMunicipal100Sources.map(source),
 ];
 
 const commonRequiredFacts = [
@@ -296,6 +304,14 @@ const citySeeds = [
   { code: "ISS-DEEP-SC-FLORIANOPOLIS", ibgeCode: "4205407", city: "Florianópolis", uf: "SC", sourceCodes: ["ISS-FLN-LC7", "ISS-FLN-CAMARA", "ISS-FLN-NFSE"] },
   { code: "ISS-DEEP-SE-ARACAJU", ibgeCode: "2800308", city: "Aracaju", uf: "SE", sourceCodes: ["ISS-AJU-CTM", "ISS-AJU-DESON"] },
   ...issDeepExpansionCities.map((item) => ({
+    code: item.code,
+    ibgeCode: item.ibgeCode,
+    city: item.city,
+    uf: item.uf,
+    sourceCodes: item.sourceCodes,
+    rateReferenceStatus: "pending_exact_table" as const,
+  })),
+  ...issMunicipal100Cities.map((item) => ({
     code: item.code,
     ibgeCode: item.ibgeCode,
     city: item.city,
@@ -1247,8 +1263,8 @@ export function issDeepReferenceMetrics() {
 
 export function validateIssDeepCoverage() {
   const errors: string[] = [];
-  if (issDeepCityProfiles.length !== 50 || issDeepServiceCoverage.length !== 50) errors.push("expected_50_municipal_dossiers");
-  if (issDeepReferenceCases.length !== 200) errors.push("expected_200_reference_cases");
+  if (issDeepCityProfiles.length !== 100 || issDeepServiceCoverage.length !== 100) errors.push("expected_100_municipal_dossiers");
+  if (issDeepReferenceCases.length !== 400) errors.push("expected_400_reference_cases");
   if (new Set(issDeepReferenceCases.map((reference) => reference.code)).size !== issDeepReferenceCases.length) errors.push("duplicate_reference_case");
   for (const reference of issDeepReferenceCases) {
     const result = calculateIssDeep(reference.input);

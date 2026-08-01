@@ -11,10 +11,10 @@ import {
 import { cityCoverage, coverageSources, recurringScenarios, stateCoverage, stSegments } from "../domain/national-tax-coverage.ts";
 import { fiscalAutomaticAssuranceCapacity } from "../domain/fiscal-automatic-assurance.ts";
 
-test("V79 preserves a deterministic national backlog without overstating coverage", () => {
+test("V102 preserves a deterministic national backlog without overstating coverage", () => {
   const byScope = (scope) => fiscalExpansionBacklog.filter((item) => item.scope === scope);
   assert.equal(byScope("icms").length, 27);
-  assert.equal(byScope("iss").length, 50);
+  assert.equal(byScope("iss").length, 100);
   assert.equal(byScope("st").length, 25);
   assert.equal(byScope("federal").length, recurringScenarios.length);
   assert.equal(byScope("sources").length, coverageSources.length + stateCoverage.length);
@@ -35,13 +35,13 @@ test("ordinary pipeline ends in server-side automatic verification", () => {
 test("monthly metrics expose actual gaps instead of converting targets into achievements", () => {
   const metrics = expansionMetrics(fiscalExpansionBacklog);
   assert.equal(metrics.actual.icmsBundles, 27);
-  assert.equal(metrics.actual.issDeepCities, 50);
+  assert.equal(metrics.actual.issDeepCities, 100);
   assert.equal(metrics.actual.stRouteBundles, 25);
   assert.equal(metrics.actual.officialSources, coverageSources.length + stateCoverage.length);
   assert.equal(metrics.actual.testedBundles, fiscalAutomaticAssuranceCapacity().testPacks);
   assert.equal(metrics.actual.automaticTests, fiscalAutomaticAssuranceCapacity().automaticallyVerified);
-  assert.equal(metrics.gaps.officialSources, expansionTargets.officialSources - metrics.actual.officialSources);
-  assert.equal(metrics.gaps.automaticTests, expansionTargets.automaticTests - metrics.actual.automaticTests);
+  assert.equal(metrics.gaps.officialSources, Math.max(0, expansionTargets.officialSources - metrics.actual.officialSources));
+  assert.equal(metrics.gaps.automaticTests, Math.max(0, expansionTargets.automaticTests - metrics.actual.automaticTests));
   assert.ok(metrics.progressPercent > 0 && metrics.progressPercent < 100);
 });
 
