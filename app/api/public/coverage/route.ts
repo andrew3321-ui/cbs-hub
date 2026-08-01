@@ -14,7 +14,7 @@ import { hashStColdBeverageSpDestination, stColdBeverageSpDestinationMetrics, st
 import { hashStColdBeverageSpOrigin, stColdBeverageSpOriginMetrics, stColdBeverageSpOriginReferenceRuns, stColdBeverageSpOriginSources, ST_COLD_BEVERAGES_SP_ORIGIN_FACT_LABELS, ST_COLD_BEVERAGES_SP_ORIGIN_PERIOD, ST_COLD_BEVERAGES_SP_ORIGIN_PMPF_PROFILES, ST_COLD_BEVERAGES_SP_ORIGIN_ROUTES, ST_COLD_BEVERAGES_SP_ORIGIN_VERSION, validateStColdBeverageSpOrigin } from "../../../../domain/st-cold-beverages-sp-origin";
 import { hashStColdBeverageScDestination, stColdBeverageScMetrics, stColdBeverageScNegativeRuns, stColdBeverageScReferenceRuns, stColdBeverageScSources, ST_COLD_BEVERAGES_SC_DESTINATION_PERIOD, ST_COLD_BEVERAGES_SC_DESTINATION_VERSION, ST_COLD_BEVERAGES_SC_FACT_LABELS, ST_COLD_BEVERAGES_SC_PMPF_PROFILES, ST_COLD_BEVERAGES_SC_ROUTE, validateStColdBeverageScDestination } from "../../../../domain/st-cold-beverages-sc-destination";
 import { hashStColdBeveragePriorityAudit, stColdBeveragePriorityAuditCases, stColdBeveragePriorityAuditCells, stColdBeveragePriorityAuditMetrics, ST_COLD_BEVERAGES_AUDITED_CORRIDORS, ST_COLD_BEVERAGES_PRIORITY_AUDIT_VERSION, validateStColdBeveragePriorityAudit } from "../../../../domain/st-cold-beverages-priority-audit";
-import { hashStPharmaCosmeticsPriority, stPharmaCosmeticsCoverageCells, stPharmaCosmeticsLegalRoutes, stPharmaCosmeticsMetrics, stPharmaCosmeticsReferenceRuns, stPharmaCosmeticsSources, stPharmaCosmeticsStateRules, ST_PHARMA_COSMETICS_FACT_LABELS, ST_PHARMA_COSMETICS_PRIORITY_VERSION, ST_PHARMA_COSMETICS_PRODUCTS, ST_PHARMA_COSMETICS_ROUTES, validateStPharmaCosmeticsPriority } from "../../../../domain/st-pharma-cosmetics-priority";
+import { hashStPharmaCosmeticsPriority, stPharmaCosmeticsCoverageCells, stPharmaCosmeticsLegalRoutes, stPharmaCosmeticsMetrics, stPharmaCosmeticsReferenceRuns, stPharmaCosmeticsSources, stPharmaCosmeticsStateRules, ST_PHARMA_COSMETICS_FACT_LABELS, ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT, ST_PHARMA_COSMETICS_PRIORITY_EVIDENCE, ST_PHARMA_COSMETICS_PRIORITY_VERSION, ST_PHARMA_COSMETICS_PRODUCTS, ST_PHARMA_COSMETICS_ROUTES, validateStPharmaCosmeticsPriority } from "../../../../domain/st-pharma-cosmetics-priority";
 import { hashStConstructionElectricalPriority, stConstructionElectricalDossiers, stConstructionElectricalMetrics, stConstructionElectricalNegativeRuns, stConstructionElectricalReferenceRuns, stConstructionElectricalSources, ST_CONSTRUCTION_ELECTRICAL_FACT_LABELS, ST_CONSTRUCTION_ELECTRICAL_PERIOD, ST_CONSTRUCTION_ELECTRICAL_PRODUCTS, ST_CONSTRUCTION_ELECTRICAL_ROUTES, ST_CONSTRUCTION_ELECTRICAL_VERSION, validateStConstructionElectricalPriority } from "../../../../domain/st-construction-electrical-priority";
 import { hashStFoodCleaningPetPriority, stFoodCleaningPetDossiers, stFoodCleaningPetMetrics, stFoodCleaningPetMvaFallbackRun, stFoodCleaningPetNegativeRuns, stFoodCleaningPetReferenceRuns, stFoodCleaningPetSources, ST_FOOD_CLEANING_PET_FACT_LABELS, ST_FOOD_CLEANING_PET_PERIOD, ST_FOOD_CLEANING_PET_PRODUCTS, ST_FOOD_CLEANING_PET_ROUTES, ST_FOOD_CLEANING_PET_VERSION, validateStFoodCleaningPetPriority } from "../../../../domain/st-food-cleaning-pet-priority";
 import { hashStSectoralPriorityExpansion, stSectoralPriorityCases, stSectoralPriorityCells, stSectoralPriorityMetrics, ST_SECTORAL_PRIORITY_EXPANSION_CHECKED_AT, ST_SECTORAL_PRIORITY_EXPANSION_VERSION, ST_SECTORAL_RANKED_ROUTES, ST_SECTORAL_REPRESENTATIVES, validateStSectoralPriorityExpansion } from "../../../../domain/st-sectoral-priority-expansion";
@@ -353,9 +353,11 @@ async function publicCoverage() {
     },
     stPharmaCosmeticsPriority: {
       version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,
+      checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
       fingerprint: pharmaCosmeticsFingerprint,
       validation: validateStPharmaCosmeticsPriority(),
       metrics: stPharmaCosmeticsMetrics(),
+      priorityEvidence: ST_PHARMA_COSMETICS_PRIORITY_EVIDENCE,
       factLabels: ST_PHARMA_COSMETICS_FACT_LABELS,
       products: ST_PHARMA_COSMETICS_PRODUCTS,
       routes: ST_PHARMA_COSMETICS_ROUTES,
@@ -364,7 +366,7 @@ async function publicCoverage() {
       cells: stPharmaCosmeticsCoverageCells,
       runs: stPharmaCosmeticsReferenceRuns,
       sources: stPharmaCosmeticsSources,
-      policy: "A ordem é heurística operacional interna. A memória de R$ 0,00 representa apenas ICMS-ST não aplicável nos recortes de destino paulista comprovados; não é isenção e não conclui ICMS próprio, PIS/Cofins monofásico, IPI ou tratamento especial. MG, RJ e PR possuem fontes e parâmetros catalogados, mas permanecem condicionais ou não suportados até o fechamento dos fatos da operação.",
+      policy: "A ordem é uma heurística econômica e operacional documentada, não frequência oficial de NF-e. R$ 0,00 representa somente ICMS-ST não aplicável nos recortes estaduais comprovados; não é isenção. PMC, PMPF, MVA, FCP, benefícios e responsabilidade permanecem bloqueados quando a apresentação e o item estadual não estão integralmente fechados.",
     },
     stConstructionElectricalPriority: {
       version: ST_CONSTRUCTION_ELECTRICAL_VERSION,

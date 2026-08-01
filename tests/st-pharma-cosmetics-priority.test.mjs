@@ -7,7 +7,10 @@ import {
   stPharmaCosmeticsLegalRoutes,
   stPharmaCosmeticsMetrics,
   stPharmaCosmeticsStateRules,
+  stPharmaCosmeticsVerificationCases,
+  ST_PHARMA_COSMETICS_PRIORITY_EVIDENCE,
   ST_PHARMA_COSMETICS_PRODUCTS,
+  ST_PHARMA_COSMETICS_ROUTES,
   validateStPharmaCosmeticsPriority,
 } from "../domain/st-pharma-cosmetics-priority.ts";
 
@@ -28,26 +31,33 @@ const profile = (destination, productCode) => {
 
 test("pharma and cosmetics catalogue closes legal routes and parameter profiles", () => {
   assert.deepEqual(validateStPharmaCosmeticsPriority(), { passed: true, errors: [] });
-  assert.equal(ST_PHARMA_COSMETICS_PRODUCTS.length, 6);
-  assert.deepEqual(new Set(ST_PHARMA_COSMETICS_PRODUCTS.map((item) => item.family)), new Set(["medicine", "cosmetics", "perfumery"]));
-  assert.equal(ST_PHARMA_COSMETICS_PRODUCTS.every((item) => item.cest && item.ncms.length > 0 && item.federalTreatment), true);
-  assert.equal(stPharmaCosmeticsLegalRoutes.length, 7);
-  assert.equal(stPharmaCosmeticsStateRules.length, 24);
+  assert.equal(ST_PHARMA_COSMETICS_PRODUCTS.length, 8);
+  assert.deepEqual(new Set(ST_PHARMA_COSMETICS_PRODUCTS.map((item) => item.family)), new Set(["medicine", "cosmetics", "perfumery", "personal_hygiene"]));
+  assert.equal(ST_PHARMA_COSMETICS_PRODUCTS.every((item) => item.cest && item.ncms.length > 0 && item.presentation && item.federalTreatment), true);
+  assert.equal(ST_PHARMA_COSMETICS_ROUTES.length, 15);
+  assert.equal(stPharmaCosmeticsLegalRoutes.length, 15);
+  assert.equal(stPharmaCosmeticsStateRules.length, 64);
+  assert.equal(ST_PHARMA_COSMETICS_PRIORITY_EVIDENCE.sourceCodes.length, 3);
   assert.deepEqual(stPharmaCosmeticsMetrics(), {
-    rankedProducts: 6,
-    rankedRoutes: 7,
-    legalRouteProfiles: 7,
-    parameterProfiles: 24,
-    exactNoStProfiles: 6,
-    conditionalProfiles: 17,
-    explicitlyUnavailableProfiles: 1,
-    controlledCells: 42,
-    supportedCells: 24,
-    partialCells: 17,
-    notSupportedCells: 1,
-    deterministicMemories: 24,
-    safeFailures: 18,
-    officialSources: 14,
+    rankedProducts: 8,
+    rankedRoutes: 15,
+    legalRouteProfiles: 15,
+    parameterProfiles: 64,
+    exactNoStProfiles: 20,
+    conditionalProfiles: 26,
+    explicitlyUnavailableProfiles: 18,
+    controlledCells: 120,
+    supportedCells: 76,
+    partialCells: 26,
+    notSupportedCells: 18,
+    deterministicMemories: 76,
+    safeFailures: 44,
+    verificationCases: 180,
+    positiveCases: 76,
+    negativeCases: 104,
+    temporalCases: 15,
+    identityDivergentCases: 15,
+    officialSources: 23,
   });
 });
 
@@ -128,6 +138,36 @@ test("PR profiles expose exact conventional MVA and fail closed for unresolved d
   });
   assert.equal(result.coverageStatus, "not_supported");
   assert.equal(result.output, null);
+});
+
+test("SC current catalogue and conventional RS cosmetics produce explicit zero-ST memories", () => {
+  for (const [route, productCode] of [["SP-SC", "REFERENCE_POSITIVE"], ["SP-SC", "SHAMPOO"], ["SP-RS", "DENTIFRICE"], ["SP-RS", "PERFUME"]]) {
+    const result = resolvePharmaCosmeticsOperation({ route, productCode, operationDate: "2026-07-31", operationCents: 123_456, facts: confirmedFacts });
+    assert.equal(result.status, "ordinary_icms_no_st", `${route}:${productCode}`);
+    assert.equal(result.output?.icmsStCents, 0);
+    assert.equal(result.output?.fcpStCents, 0);
+  }
+  assert.equal(profile("SC", "REFERENCE_POSITIVE").baseMethod, "not_applicable_no_st");
+  assert.equal(profile("RS", "SHAMPOO").baseMethod, "not_applicable_no_st");
+});
+
+test("RS medicines expose official PMPF/MVA gates while GO and BA remain fail-closed", () => {
+  assert.equal(profile("RS", "REFERENCE_POSITIVE").mvaOriginal.bps, 6560);
+  assert.equal(profile("RS", "REFERENCE_POSITIVE").internalRate.bps, 1700);
+  assert.match(profile("RS", "REFERENCE_POSITIVE").baseMethod, /pmpf/i);
+  assert.equal(profile("GO", "BEAUTY_CREAM").parameterStatus, "explicitly_unavailable");
+  assert.equal(profile("BA", "REFERENCE_POSITIVE").parameterStatus, "explicitly_unavailable");
+  assert.equal(resolvePharmaCosmeticsOperation({ route: "SP-GO", productCode: "BEAUTY_CREAM", operationDate: "2026-07-31", operationCents: 100_000, facts: confirmedFacts }).output, null);
+  assert.equal(resolvePharmaCosmeticsOperation({ route: "SP-BA", productCode: "REFERENCE_POSITIVE", operationDate: "2026-07-31", operationCents: 100_000, facts: confirmedFacts }).output, null);
+});
+
+test("180 verification cases cover positive, negative, temporal and identity-divergent paths", () => {
+  assert.equal(stPharmaCosmeticsVerificationCases.length, 180);
+  assert.equal(new Set(stPharmaCosmeticsVerificationCases.map((item) => item.key)).size, 180);
+  assert.equal(stPharmaCosmeticsVerificationCases.filter((item) => item.category === "positive").length, 76);
+  assert.equal(stPharmaCosmeticsVerificationCases.filter((item) => item.category === "temporal").length, 15);
+  assert.equal(stPharmaCosmeticsVerificationCases.filter((item) => item.category === "identity_divergent").length, 15);
+  assert.equal(stPharmaCosmeticsVerificationCases.every((item) => item.category === "positive" ? item.result.output !== null : item.result.output === null), true);
 });
 
 test("destination law, benefit, stale validity and missing documents fail closed", () => {

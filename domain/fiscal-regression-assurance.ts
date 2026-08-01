@@ -480,7 +480,7 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
   },
   {
     code: "PHARMA_COSMETICS_PRIORITY",
-    label: "Medicamentos, cosméticos e perfumaria nas rotas prioritárias",
+    label: "Medicamentos, cosméticos, perfumaria e higiene nas rotas prioritárias",
     ruleCodes: ["NATIONAL-COVERAGE-V27", "PHARMA_COSMETICS_PRIORITY"],
     version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,
     validate: validateStPharmaCosmeticsPriority,
@@ -489,13 +489,13 @@ const MODULE_DEFINITIONS: readonly ModuleDefinition[] = [
     metrics: () => {
       const metrics = stPharmaCosmeticsMetrics();
       return {
-        deterministicCases: metrics.controlledCells,
-        calculatedMemories: metrics.deterministicMemories,
-        safelyBlockedCases: metrics.safeFailures,
+        deterministicCases: metrics.verificationCases,
+        calculatedMemories: metrics.positiveCases,
+        safelyBlockedCases: metrics.negativeCases,
       };
     },
     sourceCodes: () => stPharmaCosmeticsSources.map((source) => source.code).sort(),
-    requiredGates: ["NCM/CEST e descrição", "rota e vigência", "regra do destino", "tratamento especial", "documentos", "separação do PIS/Cofins monofásico"],
+    requiredGates: ["NCM/CEST, descrição e apresentação", "rota e vigência", "regra do destino", "PMC/PMPF ou MVA", "FCP e benefício", "responsabilidade", "tratamento especial", "documentos", "separação do PIS/Cofins monofásico"],
   },
   {
     code: "CONSTRUCTION_ELECTRICAL_PRIORITY",

@@ -17,9 +17,9 @@ test("dez segmentos são auditados nas dez rotas prioritárias sem emprestar par
   assert.equal(ST_SECTORAL_REPRESENTATIVES.length, 10);
   assert.equal(ST_SECTORAL_RANKED_ROUTES.length, 10);
   assert.equal(stSectoralPriorityCells.length, 100);
-  assert.equal(stSectoralPriorityMetrics().positiveMemories, 19);
+  assert.equal(stSectoralPriorityMetrics().positiveMemories, 28);
   assert.equal(stSectoralPriorityMetrics().coverage.partial, 13);
-  assert.equal(stSectoralPriorityMetrics().coverage.notSupported, 68);
+  assert.equal(stSectoralPriorityMetrics().coverage.notSupported, 59);
 });
 
 test("cada memória liberada tem snapshot legal e quatro mutações negativas", () => {
@@ -29,7 +29,7 @@ test("cada memória liberada tem snapshot legal e quatro mutações negativas", 
     assert.ok(cell.expectedMemory?.output !== null);
     assert.equal(stSectoralPriorityCases.filter((item) => item.cellKey === cell.key && item.kind === "negative").length, 4);
   }
-  assert.equal(stSectoralPriorityCases.length, 176);
+  assert.equal(stSectoralPriorityCases.length, 212);
   assert.equal(stSectoralPriorityCases.filter((item) => item.kind === "negative" && item.expectedOutput !== null).length, 0);
 });
 

@@ -1,5 +1,5 @@
-export const ST_PHARMA_COSMETICS_PRIORITY_VERSION = "2026.07.30-v2";
-export const ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT = "2026-07-30";
+export const ST_PHARMA_COSMETICS_PRIORITY_VERSION = "2026.07.31-v3";
+export const ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT = "2026-07-31";
 
 export const ST_PHARMA_COSMETICS_FACT_LABELS = {
   exactProductConfirmed: "NCM, CEST, descrição e finalidade do produto foram conferidos",
@@ -14,16 +14,18 @@ export type PharmaCosmeticsFactKey = keyof typeof ST_PHARMA_COSMETICS_FACT_LABEL
 export type PharmaCosmeticsFacts = Record<PharmaCosmeticsFactKey, boolean>;
 
 export const ST_PHARMA_COSMETICS_PRODUCTS = [
-  { code: "REFERENCE_POSITIVE", family: "medicine", priorityRank: 1, cest: "13.001.00", ncms: ["3003", "3004"], description: "Medicamento de referência — lista positiva", federalTreatment: "monophase_must_be_confirmed_separately" },
-  { code: "GENERIC_POSITIVE", family: "medicine", priorityRank: 2, cest: "13.002.00", ncms: ["3003", "3004"], description: "Medicamento genérico — lista positiva", federalTreatment: "monophase_must_be_confirmed_separately" },
-  { code: "REFERENCE_NEGATIVE", family: "medicine", priorityRank: 3, cest: "13.001.01", ncms: ["3003", "3004"], description: "Medicamento de referência — lista negativa", federalTreatment: "monophase_must_be_confirmed_separately" },
-  { code: "BEAUTY_CREAM", family: "cosmetics", priorityRank: 4, cest: "20.014.00", ncms: ["3304.99.10"], description: "Cremes de beleza, cremes nutritivos e loções tônicas", federalTreatment: "ordinary_or_monophase_must_be_confirmed" },
-  { code: "PERFUME", family: "perfumery", priorityRank: 5, cest: "20.007.00", ncms: ["3303.00.10"], description: "Perfumes (extratos) fora do sistema porta a porta", federalTreatment: "ordinary_or_monophase_must_be_confirmed" },
-  { code: "PERFUME_DOOR_TO_DOOR", family: "perfumery", priorityRank: 6, cest: "28.001.00", ncms: ["3303.00.10"], description: "Perfumes (extratos) no sistema porta a porta", federalTreatment: "door_to_door_and_federal_treatment_must_be_confirmed" },
+  { code: "REFERENCE_POSITIVE", family: "medicine", priorityRank: 1, cest: "13.001.00", ncms: ["3003", "3004"], presentation: "apresentação CMED exata obrigatória", description: "Medicamento de referência — lista positiva", federalTreatment: "monophase_must_be_confirmed_separately" },
+  { code: "GENERIC_POSITIVE", family: "medicine", priorityRank: 2, cest: "13.002.00", ncms: ["3003", "3004"], presentation: "apresentação CMED exata obrigatória", description: "Medicamento genérico — lista positiva", federalTreatment: "monophase_must_be_confirmed_separately" },
+  { code: "REFERENCE_NEGATIVE", family: "medicine", priorityRank: 3, cest: "13.001.01", ncms: ["3003", "3004"], presentation: "apresentação CMED exata obrigatória", description: "Medicamento de referência — lista negativa", federalTreatment: "monophase_must_be_confirmed_separately" },
+  { code: "BEAUTY_CREAM", family: "cosmetics", priorityRank: 4, cest: "20.014.00", ncms: ["3304.99.10"], presentation: "creme, loção ou tônico; marca e volume devem coincidir quando houver pauta", description: "Cremes de beleza, cremes nutritivos e loções tônicas", federalTreatment: "ordinary_or_monophase_must_be_confirmed" },
+  { code: "PERFUME", family: "perfumery", priorityRank: 5, cest: "20.007.00", ncms: ["3303.00.10"], presentation: "extrato fora do sistema porta a porta", description: "Perfumes (extratos) fora do sistema porta a porta", federalTreatment: "ordinary_or_monophase_must_be_confirmed" },
+  { code: "SHAMPOO", family: "personal_hygiene", priorityRank: 6, cest: "20.017.00", ncms: ["3305.10.00"], presentation: "xampu para o cabelo; marca e volume devem coincidir quando houver pauta", description: "Xampus para o cabelo", federalTreatment: "ordinary_or_monophase_must_be_confirmed" },
+  { code: "DENTIFRICE", family: "personal_hygiene", priorityRank: 7, cest: "20.023.00", ncms: ["3306.10.00"], presentation: "dentifrício acondicionado para venda a varejo", description: "Dentifrícios", federalTreatment: "ordinary_or_monophase_must_be_confirmed" },
+  { code: "PERFUME_DOOR_TO_DOOR", family: "perfumery", priorityRank: 8, cest: "28.001.00", ncms: ["3303.00.10"], presentation: "extrato comercializado em sistema porta a porta comprovado", description: "Perfumes (extratos) no sistema porta a porta", federalTreatment: "door_to_door_and_federal_treatment_must_be_confirmed" },
 ] as const;
 
 export type PharmaCosmeticsProductCode = typeof ST_PHARMA_COSMETICS_PRODUCTS[number]["code"];
-export type PharmaCosmeticsDestination = "SP" | "MG" | "RJ" | "PR";
+export type PharmaCosmeticsDestination = "SP" | "MG" | "RJ" | "PR" | "SC" | "RS" | "GO" | "BA";
 type CoverageStatus = "supported" | "partial" | "not_supported";
 type Treatment = "ordinary_icms_no_st" | "destination_entry_responsibility" | "origin_substitute_conditional" | "destination_law_required";
 type ParameterStatus = "exact_no_st" | "complete_conditional" | "explicitly_unavailable";
@@ -64,7 +66,26 @@ export const ST_PHARMA_COSMETICS_ROUTES = [
   { route: "RJ-SP", priorityRank: 5, priorityBasis: "internal_operational_heuristic" },
   { route: "SP-PR", priorityRank: 6, priorityBasis: "internal_operational_heuristic" },
   { route: "PR-SP", priorityRank: 7, priorityBasis: "internal_operational_heuristic" },
+  { route: "SP-SC", priorityRank: 8, priorityBasis: "internal_operational_heuristic" },
+  { route: "SC-SP", priorityRank: 9, priorityBasis: "internal_operational_heuristic" },
+  { route: "SP-RS", priorityRank: 10, priorityBasis: "internal_operational_heuristic" },
+  { route: "RS-SP", priorityRank: 11, priorityBasis: "internal_operational_heuristic" },
+  { route: "SP-GO", priorityRank: 12, priorityBasis: "internal_operational_heuristic" },
+  { route: "GO-SP", priorityRank: 13, priorityBasis: "internal_operational_heuristic" },
+  { route: "SP-BA", priorityRank: 14, priorityBasis: "internal_operational_heuristic" },
+  { route: "BA-SP", priorityRank: 15, priorityBasis: "internal_operational_heuristic" },
 ] as const;
+
+export const ST_PHARMA_COSMETICS_PRIORITY_EVIDENCE = {
+  method: "Heurística operacional documentada; não representa frequência oficial de NF-e.",
+  criteria: [
+    "peso econômico das UFs nas Contas Regionais do IBGE",
+    "relevância regulatória e diversidade de tratamento estadual",
+    "recorrência operacional interna dos corredores com São Paulo",
+    "representatividade das classes CMED e do catálogo CEST nacional",
+  ],
+  sourceCodes: ["IBGE-CONTAS-REGIONAIS", "ANVISA-CMED-MERCADO", "CONFAZ-CV142-2018"],
+} as const;
 
 export const stPharmaCosmeticsSources = [
   {
@@ -179,6 +200,78 @@ export const stPharmaCosmeticsSources = [
     checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
     proves: ["regime estadual vigente de medicamentos", "alterações e revogações do catálogo farmacêutico"],
   },
+  {
+    code: "IBGE-CONTAS-REGIONAIS",
+    title: "Sistema de Contas Regionais do Brasil",
+    publisher: "IBGE",
+    url: "https://www.ibge.gov.br/estatisticas/economicas/contas-nacionais/9054-contas-regionais-do-brasil.html",
+    checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
+    proves: ["critério econômico comparável entre as UFs", "base pública para priorização, sem alegar frequência de NF-e"],
+  },
+  {
+    code: "ANVISA-CMED-MERCADO",
+    title: "Anuário Estatístico do Mercado Farmacêutico",
+    publisher: "ANVISA/CMED",
+    url: "https://www.gov.br/anvisa/pt-br/assuntos/medicamentos/cmed/informes/anuario-estatistico",
+    checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
+    proves: ["relevância econômica das classes de medicamentos", "necessidade de identidade e apresentação CMED"],
+  },
+  {
+    code: "SC-RICMS-ANEXO-1A",
+    title: "RICMS/SC — Anexo 1-A",
+    publisher: "SEF-SC",
+    url: "https://legislacao.sef.sc.gov.br/legtrib_internet/html/regulamentos/icms/ricms_01_01_a.htm",
+    checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
+    proves: ["seção de medicamentos revogada", "seção de perfumaria, higiene pessoal e cosméticos revogada", "catálogo estadual vigente"],
+  },
+  {
+    code: "RS-MINI-RICMS-FARMA-2026",
+    title: "Mini RICMS — Produtos farmacêuticos, versão 09/01/2026",
+    publisher: "Receita Estadual-RS",
+    url: "https://atendimento.receita.rs.gov.br/upload/arquivos/202601/12090753-mini-ricms-produtos-farmaceuticos-v09012026.pdf",
+    checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
+    proves: ["PMPF como primeira base", "MVA de 65,60%, 75,57% e 91,53%", "alíquota de 17% e redutor da cesta básica"],
+  },
+  {
+    code: "RS-SETOR-MEDICOS-COSMETICOS",
+    title: "Setor de Produtos Médicos e Cosméticos",
+    publisher: "Receita Estadual-RS",
+    url: "https://atendimento.receita.rs.gov.br/setor-de-produtos-medicos-e-cosmeticos",
+    checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
+    proves: ["índice oficial setorial", "fontes correntes de farmacêuticos, perfumaria, cosméticos e higiene"],
+  },
+  {
+    code: "RS-AMPARA-COSMETICOS",
+    title: "Pagamento do AMPARA-RS",
+    publisher: "Receita Estadual-RS",
+    url: "https://atendimento.receita.rs.gov.br/pagamento-do-ampara-rs",
+    checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
+    proves: ["cosméticos sem ST no exemplo oficial", "adicional AMPARA separado do ICMS-ST"],
+  },
+  {
+    code: "GO-DECRETO10799-2025",
+    title: "Decreto 10.799/2025 — tabelas de MVA",
+    publisher: "Casa Civil-GO",
+    url: "https://legisla.casacivil.go.gov.br/pesquisa_legislacao/111443/decreto-numerado-10799",
+    checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
+    proves: ["MVA por NCM/CEST e alíquota interestadual", "segmento de perfumaria, higiene e cosméticos"],
+  },
+  {
+    code: "GO-DECRETO8567-2016",
+    title: "Decreto 8.567/2016 — catálogo CEST estadual",
+    publisher: "Casa Civil-GO",
+    url: "https://legisla.casacivil.go.gov.br/pesquisa_legislacao/67817/decreto-numerado-8567",
+    checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
+    proves: ["catálogo estadual de medicamentos", "catálogo estadual de cosméticos, perfumaria e higiene", "identidade NCM/CEST"],
+  },
+  {
+    code: "BA-RICMS-ANEXO1-2026",
+    title: "RICMS/BA — Anexo 1, Substituição Tributária vigente 2026",
+    publisher: "SEFAZ-BA",
+    url: "https://www.sefaz.ba.gov.br/legislacao/textos-legais/",
+    checkedAt: ST_PHARMA_COSMETICS_PRIORITY_CHECKED_AT,
+    proves: ["mercadorias sujeitas à substituição ou antecipação", "regra estadual para medicamentos, perfumaria, cosméticos e higiene"],
+  },
 ] as const;
 
 const exact = (bps: number, note: string): ParameterValue => ({ status: "exact", bps, note });
@@ -188,6 +281,7 @@ const unavailable = (note: string): ParameterValue => ({ status: "unavailable", 
 
 const medicineCodes = ["REFERENCE_POSITIVE", "GENERIC_POSITIVE", "REFERENCE_NEGATIVE"] as const;
 const cosmeticsCodes = ["BEAUTY_CREAM", "PERFUME", "PERFUME_DOOR_TO_DOOR"] as const;
+const hygieneCodes = ["SHAMPOO", "DENTIFRICE"] as const;
 
 function stateRule(
   destination: PharmaCosmeticsDestination,
@@ -393,11 +487,139 @@ const prRules: PharmaCosmeticsStateRule[] = [
   }),
 ];
 
+function pendingHygieneRules(
+  destination: "MG" | "RJ" | "PR",
+  sourceCodes: string[],
+): PharmaCosmeticsStateRule[] {
+  return hygieneCodes.map((productCode) => stateRule(destination, productCode, {
+    effectiveFrom: "2026-01-01",
+    effectiveTo: null,
+    scope: `Perfil de higiene pessoal catalogado para ${destination}; o item estadual exato precisa prevalecer sobre qualquer parâmetro de família.`,
+    responsibility: "Confirmar acordo da origem, responsabilidade na entrada e condição do remetente antes de calcular.",
+    agreementStatus: "Catálogo NCM/CEST confirmado; parâmetro econômico não generalizado por segurança.",
+    baseMethod: "state_item_and_pmpf_or_mva_must_be_confirmed",
+    mvaOriginal: caseSpecific("MVA depende do item, da alíquota interestadual e da apresentação exata."),
+    internalRate: caseSpecific("Alíquota interna depende do produto e de eventual tratamento essencial."),
+    fcpRate: caseSpecific("FCP deve ser conferido por produto e vigência; não é presumido por família."),
+    reductions: ["Reduções e carga efetiva exigem dispositivo específico do produto."],
+    benefits: ["Essencialidade ou benefício de higiene não é presumido pelo CEST."],
+    exceptions: ["apresentação divergente", "benefício estadual", "PMPF ou pauta", "regime especial", "origem sem acordo"],
+    sourceCodes,
+    parameterStatus: "complete_conditional",
+    calculationReleased: false,
+  }));
+}
+
+const scRules: PharmaCosmeticsStateRule[] = ST_PHARMA_COSMETICS_PRODUCTS.map((product) => stateRule("SC", product.code, {
+  effectiveFrom: "2026-01-01",
+  effectiveTo: null,
+  scope: "No recorte vigente consultado, as seções estaduais de medicamentos e de perfumaria, higiene pessoal e cosméticos estão revogadas.",
+  responsibility: "ICMS próprio; sem retenção de ICMS-ST catarinense para estes perfis no recorte controlado.",
+  agreementStatus: "A presença no catálogo nacional CEST não restabelece seção estadual revogada.",
+  baseMethod: "not_applicable_no_st",
+  mvaOriginal: notApplicable("MVA não aplicável à memória de ST igual a zero."),
+  internalRate: notApplicable("ICMS próprio não integra esta memória restrita à ST."),
+  fcpRate: notApplicable("Não há FCP-ST nesta memória de ST igual a zero."),
+  reductions: ["Redução do ICMS próprio deve ser apurada separadamente."],
+  benefits: ["Benefícios e regimes especiais permanecem fora do resultado automático."],
+  exceptions: ["operação fora do recorte vigente", "identidade NCM/CEST divergente", "regime especial", "finalidade distinta de revenda"],
+  sourceCodes: ["CONFAZ-CV142-2018", "SC-RICMS-ANEXO-1A"],
+  parameterStatus: "exact_no_st",
+  calculationReleased: true,
+}));
+
+const rsNoStCodes = ["BEAUTY_CREAM", "PERFUME", "SHAMPOO", "DENTIFRICE"] as const;
+const rsRules: PharmaCosmeticsStateRule[] = [
+  ...medicineCodes.map((productCode) => stateRule("RS", productCode, {
+    effectiveFrom: "2026-01-09",
+    effectiveTo: null,
+    scope: "Medicamento sujeito à sequência PMPF, cesta básica e MVA prevista no Mini RICMS farmacêutico de 2026.",
+    responsibility: "Confirmar substituto, PMPF vigente, enquadramento na cesta básica e apresentação CMED antes da memória.",
+    agreementStatus: "Regime farmacêutico estadual vigente; o método depende da apresentação exata e da existência de PMPF.",
+    baseMethod: "pmpf_then_mva_by_interstate_rate",
+    mvaOriginal: exact(6560, "MVA interna de 65,60%; para origem a 12% a fonte publica 75,57% e, a 4%, 91,53%."),
+    internalRate: exact(1700, "Alíquota de 17% no recorte do guia oficial."),
+    fcpRate: exact(0, "AMPARA não foi incluído automaticamente no perfil farmacêutico."),
+    reductions: ["Cesta básica usa redutor de 0,4118 quando a apresentação estiver expressamente enquadrada."],
+    benefits: ["PMPF vigente prevalece quando a apresentação constar da lista oficial."],
+    exceptions: ["PMPF por apresentação", "cesta básica", "PMC sem aplicabilidade atual", "bonificação", "decisão judicial", "alíquota interestadual de 4%"],
+    sourceCodes: ["CONFAZ-CV142-2018", "RS-MINI-RICMS-FARMA-2026", "RS-SETOR-MEDICOS-COSMETICOS"],
+    parameterStatus: "complete_conditional",
+    calculationReleased: false,
+  })),
+  ...rsNoStCodes.map((productCode) => stateRule("RS", productCode, {
+    effectiveFrom: "2026-01-01",
+    effectiveTo: null,
+    scope: "Cosmético, perfumaria convencional ou higiene pessoal fora da ST no exemplo e orientação setorial oficiais consultados.",
+    responsibility: "ICMS próprio e eventual AMPARA são apurados separadamente; sem ICMS-ST neste recorte.",
+    agreementStatus: "Recorte estadual tratado sem ST; CEST não cria incidência isoladamente.",
+    baseMethod: "not_applicable_no_st",
+    mvaOriginal: notApplicable("MVA não aplicável à memória de ST igual a zero."),
+    internalRate: notApplicable("ICMS próprio e AMPARA não integram esta memória restrita à ST."),
+    fcpRate: notApplicable("AMPARA pode existir fora da memória de ICMS-ST e deve ser apurado separadamente."),
+    reductions: ["Qualquer redução do ICMS próprio deve ser apurada fora desta memória."],
+    benefits: ["Nenhum benefício é presumido pela classificação do produto."],
+    exceptions: ["porta a porta", "regime especial", "operação anterior ao recorte", "identidade divergente"],
+    sourceCodes: ["CONFAZ-CV142-2018", "RS-SETOR-MEDICOS-COSMETICOS", "RS-AMPARA-COSMETICOS"],
+    parameterStatus: "exact_no_st",
+    calculationReleased: true,
+  })),
+  stateRule("RS", "PERFUME_DOOR_TO_DOOR", {
+    effectiveFrom: "2026-01-01", effectiveTo: null,
+    scope: "Sistema porta a porta permanece segregado do tratamento convencional de cosméticos.",
+    responsibility: "Confirmar vínculo comercial, regime específico e substituto definido antes da conclusão.",
+    agreementStatus: "Regime porta a porta não resolvido pela orientação de cosméticos sem ST.",
+    baseMethod: "state_specific_door_to_door_rule_required",
+    mvaOriginal: unavailable("Parâmetro porta a porta exato não confirmado na fonte setorial consultada."),
+    internalRate: caseSpecific("Alíquota e AMPARA dependem da operação e do regime confirmado."),
+    fcpRate: caseSpecific("AMPARA deve ser conferido separadamente."),
+    reductions: ["Não calculável sem a disciplina específica."],
+    benefits: ["Nenhum benefício presumido."],
+    exceptions: ["vínculo porta a porta", "regime especial", "convênio aplicável", "AMPARA"],
+    sourceCodes: ["CONFAZ-CV142-2018", "RS-SETOR-MEDICOS-COSMETICOS"],
+    parameterStatus: "explicitly_unavailable", calculationReleased: false,
+  }),
+];
+
+function unavailableDestinationRules(
+  destination: "GO" | "BA",
+  sourceCodes: string[],
+  baseMethod: string,
+): PharmaCosmeticsStateRule[] {
+  return ST_PHARMA_COSMETICS_PRODUCTS.map((product) => stateRule(destination, product.code, {
+    effectiveFrom: "2026-01-01",
+    effectiveTo: null,
+    scope: `NCM/CEST e sujeição estadual catalogados para ${destination}; a célula exige parâmetro vigente do item e apresentação exatos.`,
+    responsibility: "Confirmar substituto, antecipação na entrada, acordo da origem e enquadramento do destinatário.",
+    agreementStatus: "A fonte estadual confirma o catálogo, mas não autoriza transportar parâmetro entre itens ou regimes.",
+    baseMethod,
+    mvaOriginal: caseSpecific("MVA deve ser extraída da linha estadual exata e ajustada à alíquota interestadual aplicável."),
+    internalRate: caseSpecific("Alíquota interna exige conferência por NCM, essencialidade e vigência."),
+    fcpRate: caseSpecific("FCP não é inferido por segmento; depende do produto e da vigência."),
+    reductions: ["Redução de base ou carga efetiva exige dispositivo e condição comprovados."],
+    benefits: ["Preço máximo, PMPF, cesta básica ou tratamento de saúde podem alterar a base."],
+    exceptions: ["preço máximo ou PMPF", "apresentação divergente", "benefício", "regime especial", "antecipação na entrada", "origem sem acordo"],
+    sourceCodes,
+    parameterStatus: "explicitly_unavailable",
+    calculationReleased: false,
+  }));
+}
+
+const goRules = unavailableDestinationRules("GO", ["CONFAZ-CV142-2018", "GO-DECRETO10799-2025", "GO-DECRETO8567-2016"], "state_mva_table_by_exact_item");
+const baRules = unavailableDestinationRules("BA", ["CONFAZ-CV142-2018", "BA-RICMS-ANEXO1-2026"], "price_cap_or_state_mva_and_entry_anticipation");
+
 export const stPharmaCosmeticsStateRules: PharmaCosmeticsStateRule[] = [
   ...spRules,
   ...mgRules,
+  ...pendingHygieneRules("MG", ["CONFAZ-CV142-2018", "MG-RICMS-ANEXO-VII", "MG-LEI6763-FEM"]),
   ...rjRules,
+  ...pendingHygieneRules("RJ", ["CONFAZ-CV142-2018", "RJ-ANEXO-I-LIVRO-II", "RJ-FECP"]),
   ...prRules,
+  ...pendingHygieneRules("PR", ["CONFAZ-CV142-2018", "PR-RESOLUCAO-1245-2025", "PR-LEI-COMPILADA"]),
+  ...scRules,
+  ...rsRules,
+  ...goRules,
+  ...baRules,
 ];
 
 export const stPharmaCosmeticsLegalRoutes = [
@@ -443,11 +665,59 @@ export const stPharmaCosmeticsLegalRoutes = [
     responsibility: "ICMS próprio; sem ICMS-ST paulista no recorte.",
     sourceCodes: ["CONFAZ-CV142-2018", "SP-RC33215-2026", "SP-RC33677-2026"],
   },
+  {
+    route: "SP-SC", effectiveFrom: "2026-01-01", effectiveTo: null,
+    agreementStatus: "Seções catarinenses de medicamentos e de perfumaria, higiene e cosméticos revogadas no catálogo vigente.",
+    responsibility: "ICMS próprio; sem ICMS-ST catarinense no recorte controlado.",
+    sourceCodes: ["CONFAZ-CV142-2018", "SC-RICMS-ANEXO-1A"],
+  },
+  {
+    route: "SC-SP", effectiveFrom: "2026-01-01", effectiveTo: null,
+    agreementStatus: "Destino paulista fora da ST para as famílias nas datas controladas.",
+    responsibility: "ICMS próprio; sem ICMS-ST paulista no recorte.",
+    sourceCodes: ["CONFAZ-CV142-2018", "SP-RC33215-2026", "SP-RC33677-2026"],
+  },
+  {
+    route: "SP-RS", effectiveFrom: "2026-01-09", effectiveTo: null,
+    agreementStatus: "Medicamentos seguem PMPF/MVA; cosméticos convencionais e higiene foram segregados como sem ST; porta a porta permanece bloqueado.",
+    responsibility: "Confirmar apresentação, PMPF, cesta básica, substituto e AMPARA conforme a família.",
+    sourceCodes: ["CONFAZ-CV142-2018", "RS-MINI-RICMS-FARMA-2026", "RS-SETOR-MEDICOS-COSMETICOS", "RS-AMPARA-COSMETICOS"],
+  },
+  {
+    route: "RS-SP", effectiveFrom: "2026-01-01", effectiveTo: null,
+    agreementStatus: "Destino paulista fora da ST para as famílias nas datas controladas.",
+    responsibility: "ICMS próprio; sem ICMS-ST paulista no recorte.",
+    sourceCodes: ["CONFAZ-CV142-2018", "SP-RC33215-2026", "SP-RC33677-2026"],
+  },
+  {
+    route: "SP-GO", effectiveFrom: "2026-01-01", effectiveTo: null,
+    agreementStatus: "Catálogo e tabelas goianas identificados; cálculo exige a linha exata e a alíquota interestadual aplicável.",
+    responsibility: "Confirmar substituto, acordo da origem e eventual antecipação antes da memória.",
+    sourceCodes: ["CONFAZ-CV142-2018", "GO-DECRETO10799-2025", "GO-DECRETO8567-2016"],
+  },
+  {
+    route: "GO-SP", effectiveFrom: "2026-01-01", effectiveTo: null,
+    agreementStatus: "Destino paulista fora da ST para as famílias nas datas controladas.",
+    responsibility: "ICMS próprio; sem ICMS-ST paulista no recorte.",
+    sourceCodes: ["CONFAZ-CV142-2018", "SP-RC33215-2026", "SP-RC33677-2026"],
+  },
+  {
+    route: "SP-BA", effectiveFrom: "2026-01-01", effectiveTo: null,
+    agreementStatus: "Anexo 1 baiano vigente cataloga substituição/antecipação; base depende de preço máximo, PMPF ou MVA do item.",
+    responsibility: "Confirmar substituto ou responsabilidade na entrada e a base estadual vigente.",
+    sourceCodes: ["CONFAZ-CV142-2018", "BA-RICMS-ANEXO1-2026"],
+  },
+  {
+    route: "BA-SP", effectiveFrom: "2026-01-01", effectiveTo: null,
+    agreementStatus: "Destino paulista fora da ST para as famílias nas datas controladas.",
+    responsibility: "ICMS próprio; sem ICMS-ST paulista no recorte.",
+    sourceCodes: ["CONFAZ-CV142-2018", "SP-RC33215-2026", "SP-RC33677-2026"],
+  },
 ] as const;
 
 function routeDestination(route: string): PharmaCosmeticsDestination | null {
   const destination = route.split("-")[1] ?? "";
-  return destination === "SP" || destination === "MG" || destination === "RJ" || destination === "PR" ? destination : null;
+  return destination === "SP" || destination === "MG" || destination === "RJ" || destination === "PR" || destination === "SC" || destination === "RS" || destination === "GO" || destination === "BA" ? destination : null;
 }
 
 export const stPharmaCosmeticsCoverageCells = ST_PHARMA_COSMETICS_ROUTES.flatMap((route) =>
@@ -489,7 +759,7 @@ export const stPharmaCosmeticsCoverageCells = ST_PHARMA_COSMETICS_ROUTES.flatMap
       sourceCodes: Array.from(new Set([...(routeProfile?.sourceCodes ?? []), ...(parameterProfile?.sourceCodes ?? [])])),
       blockers,
       reason: status === "supported"
-        ? "No destino paulista e no período controlado, a ST foi retirada; a operação segue com ICMS próprio, não com isenção."
+        ? `${parameterProfile?.scope ?? "A ST não se aplica no recorte controlado."} A operação segue com ICMS próprio, não com isenção.`
         : parameterProfile?.parameterStatus === "explicitly_unavailable"
           ? "A lacuna foi catalogada e classificada como não suportada: o sistema não inventa MVA nem libera valor."
           : "Fontes e parâmetros foram catalogados, mas o cálculo depende de fatos como PMC/PMPF, marca, benefício, acordo, MVA ajustada ou responsabilidade.",
@@ -563,6 +833,38 @@ export const stPharmaCosmeticsReferenceRuns = stPharmaCosmeticsCoverageCells.map
   }),
 }));
 
+export type PharmaCosmeticsVerificationCategory = "positive" | "negative" | "temporal" | "identity_divergent" | "invalid_value";
+
+const missingDocumentFacts: PharmaCosmeticsFacts = { ...allFacts, documentsConfirmed: false };
+
+export const stPharmaCosmeticsVerificationCases = [
+  ...stPharmaCosmeticsReferenceRuns.map((run) => ({
+    key: `matrix:${run.key}`,
+    category: (run.result.output ? "positive" : "negative") as PharmaCosmeticsVerificationCategory,
+    result: run.result,
+  })),
+  ...ST_PHARMA_COSMETICS_ROUTES.map((route) => ({
+    key: `missing-document:${route.route}`,
+    category: "negative" as const,
+    result: resolvePharmaCosmeticsOperation({ route: route.route, productCode: "BEAUTY_CREAM", operationDate: "2026-07-31", operationCents: 100_000, facts: missingDocumentFacts }),
+  })),
+  ...ST_PHARMA_COSMETICS_ROUTES.map((route) => ({
+    key: `temporal:${route.route}`,
+    category: "temporal" as const,
+    result: resolvePharmaCosmeticsOperation({ route: route.route, productCode: "REFERENCE_POSITIVE", operationDate: "1900-01-01", operationCents: 100_000, facts: allFacts }),
+  })),
+  ...ST_PHARMA_COSMETICS_ROUTES.map((route) => ({
+    key: `identity:${route.route}`,
+    category: "identity_divergent" as const,
+    result: resolvePharmaCosmeticsOperation({ route: route.route, productCode: "UNKNOWN_PRODUCT" as PharmaCosmeticsProductCode, operationDate: "2026-07-31", operationCents: 100_000, facts: allFacts }),
+  })),
+  ...ST_PHARMA_COSMETICS_ROUTES.map((route) => ({
+    key: `invalid-value:${route.route}`,
+    category: "invalid_value" as const,
+    result: resolvePharmaCosmeticsOperation({ route: route.route, productCode: "BEAUTY_CREAM", operationDate: "2026-07-31", operationCents: 0, facts: allFacts }),
+  })),
+] as const;
+
 export function stPharmaCosmeticsMetrics() {
   return {
     rankedProducts: ST_PHARMA_COSMETICS_PRODUCTS.length,
@@ -578,6 +880,11 @@ export function stPharmaCosmeticsMetrics() {
     notSupportedCells: stPharmaCosmeticsCoverageCells.filter((cell) => cell.status === "not_supported").length,
     deterministicMemories: stPharmaCosmeticsReferenceRuns.filter((run) => run.result.status === "ordinary_icms_no_st").length,
     safeFailures: stPharmaCosmeticsReferenceRuns.filter((run) => run.result.output === null).length,
+    verificationCases: stPharmaCosmeticsVerificationCases.length,
+    positiveCases: stPharmaCosmeticsVerificationCases.filter((item) => item.category === "positive").length,
+    negativeCases: stPharmaCosmeticsVerificationCases.filter((item) => item.result.output === null).length,
+    temporalCases: stPharmaCosmeticsVerificationCases.filter((item) => item.category === "temporal").length,
+    identityDivergentCases: stPharmaCosmeticsVerificationCases.filter((item) => item.category === "identity_divergent").length,
     officialSources: stPharmaCosmeticsSources.length,
   };
 }
@@ -585,11 +892,14 @@ export function stPharmaCosmeticsMetrics() {
 export function validateStPharmaCosmeticsPriority() {
   const errors: string[] = [];
   const sourceCodes = new Set(stPharmaCosmeticsSources.map((source) => source.code));
-  if (ST_PHARMA_COSMETICS_PRODUCTS.length !== 6 || new Set(ST_PHARMA_COSMETICS_PRODUCTS.map((item) => item.code)).size !== 6) errors.push("six_unique_product_profiles_required");
-  if (ST_PHARMA_COSMETICS_ROUTES.length !== 7 || new Set(ST_PHARMA_COSMETICS_ROUTES.map((item) => item.route)).size !== 7) errors.push("seven_unique_priority_routes_required");
-  if (stPharmaCosmeticsLegalRoutes.length !== 7 || new Set(stPharmaCosmeticsLegalRoutes.map((item) => item.route)).size !== 7) errors.push("seven_legal_route_profiles_required");
-  if (stPharmaCosmeticsStateRules.length !== 24 || new Set(stPharmaCosmeticsStateRules.map((item) => item.key)).size !== 24) errors.push("twenty_four_unique_state_parameter_profiles_required");
-  if (stPharmaCosmeticsCoverageCells.length !== 42) errors.push("product_route_matrix_must_have_42_cells");
+  if (ST_PHARMA_COSMETICS_PRODUCTS.length !== 8 || new Set(ST_PHARMA_COSMETICS_PRODUCTS.map((item) => item.code)).size !== 8) errors.push("eight_unique_product_profiles_required");
+  if (new Set(ST_PHARMA_COSMETICS_PRODUCTS.map((item) => item.family)).size !== 4) errors.push("four_segregated_product_families_required");
+  if (ST_PHARMA_COSMETICS_PRODUCTS.some((item) => !item.presentation || !item.cest || item.ncms.length === 0)) errors.push("product_identity_and_presentation_required");
+  if (ST_PHARMA_COSMETICS_ROUTES.length !== 15 || new Set(ST_PHARMA_COSMETICS_ROUTES.map((item) => item.route)).size !== 15) errors.push("fifteen_unique_priority_routes_required");
+  if (stPharmaCosmeticsLegalRoutes.length !== 15 || new Set(stPharmaCosmeticsLegalRoutes.map((item) => item.route)).size !== 15) errors.push("fifteen_legal_route_profiles_required");
+  if (stPharmaCosmeticsStateRules.length !== 64 || new Set(stPharmaCosmeticsStateRules.map((item) => item.key)).size !== 64) errors.push("sixty_four_unique_state_parameter_profiles_required");
+  if (stPharmaCosmeticsCoverageCells.length !== 120) errors.push("product_route_matrix_must_have_120_cells");
+  if (ST_PHARMA_COSMETICS_PRIORITY_EVIDENCE.sourceCodes.some((code) => !sourceCodes.has(code))) errors.push("priority_evidence_with_unknown_source");
   if (stPharmaCosmeticsLegalRoutes.some((profile) => profile.sourceCodes.some((code) => !sourceCodes.has(code)))) errors.push("legal_route_with_unknown_source");
   if (stPharmaCosmeticsStateRules.some((profile) =>
     !profile.effectiveFrom ||
@@ -610,12 +920,16 @@ export function validateStPharmaCosmeticsPriority() {
       (parameter.status !== "exact" && parameter.bps !== null)
     )
   )) errors.push("invalid_parameter_value");
-  if (stPharmaCosmeticsStateRules.some((profile) => profile.parameterStatus === "exact_no_st" && (!profile.calculationReleased || profile.destination !== "SP"))) errors.push("unsafe_exact_profile");
+  if (stPharmaCosmeticsStateRules.some((profile) => profile.parameterStatus === "exact_no_st" && (!profile.calculationReleased || profile.baseMethod !== "not_applicable_no_st"))) errors.push("unsafe_exact_profile");
   if (stPharmaCosmeticsStateRules.some((profile) => profile.parameterStatus !== "exact_no_st" && profile.calculationReleased)) errors.push("conditional_profile_released_calculation");
   if (stPharmaCosmeticsCoverageCells.some((cell) => cell.status === "supported" && (cell.blockers.length > 0 || cell.sourceCodes.length < 2))) errors.push("supported_cell_without_closed_evidence");
   if (stPharmaCosmeticsCoverageCells.some((cell) => cell.status !== "supported" && cell.blockers.length === 0)) errors.push("blocked_cell_without_blockers");
   if (stPharmaCosmeticsReferenceRuns.some((run) => run.result.coverageStatus === "supported" && (run.result.output?.icmsStCents !== 0 || run.result.output.fcpStCents !== 0))) errors.push("supported_no_st_memory_must_equal_zero");
   if (stPharmaCosmeticsReferenceRuns.some((run) => run.result.coverageStatus !== "supported" && run.result.output !== null)) errors.push("blocked_cell_leaked_value");
+  if (stPharmaCosmeticsVerificationCases.length < 150 || new Set(stPharmaCosmeticsVerificationCases.map((item) => item.key)).size !== stPharmaCosmeticsVerificationCases.length) errors.push("at_least_150_unique_verification_cases_required");
+  if (stPharmaCosmeticsVerificationCases.some((item) => item.category === "positive" ? item.result.output === null : item.result.output !== null)) errors.push("verification_case_expectation_failed");
+  if (stPharmaCosmeticsVerificationCases.filter((item) => item.category === "temporal").some((item) => !item.result.blockers.some((blocker) => blocker.includes("anterior")))) errors.push("temporal_cases_must_fail_by_validity");
+  if (stPharmaCosmeticsVerificationCases.filter((item) => item.category === "identity_divergent").some((item) => !item.result.blockers.some((blocker) => blocker.includes("produto ou rota")))) errors.push("identity_cases_must_fail_by_identity");
   const stale = resolvePharmaCosmeticsOperation({ route: "SP-SP", productCode: "REFERENCE_POSITIVE", operationDate: "2025-12-31", operationCents: 100_000, facts: allFacts });
   if (stale.output !== null || !stale.blockers.some((item) => item.includes("anterior"))) errors.push("medicine_validity_gate_failed");
   const missing = resolvePharmaCosmeticsOperation({ route: "SP-SP", productCode: "BEAUTY_CREAM", operationDate: "2026-07-30", operationCents: 100_000, facts: { ...allFacts, documentsConfirmed: false } });
@@ -633,11 +947,13 @@ export function validateStPharmaCosmeticsPriority() {
 export async function hashStPharmaCosmeticsPriority() {
   const payload = JSON.stringify({
     version: ST_PHARMA_COSMETICS_PRIORITY_VERSION,
+    priorityEvidence: ST_PHARMA_COSMETICS_PRIORITY_EVIDENCE,
     products: ST_PHARMA_COSMETICS_PRODUCTS,
     routes: ST_PHARMA_COSMETICS_ROUTES,
     legalRoutes: stPharmaCosmeticsLegalRoutes,
     stateRules: stPharmaCosmeticsStateRules,
     cells: stPharmaCosmeticsCoverageCells,
+    verificationCases: stPharmaCosmeticsVerificationCases,
     sources: stPharmaCosmeticsSources,
   });
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(payload));

@@ -13,9 +13,9 @@ test("garantia automática libera somente uma base tecnicamente íntegra", () =>
   assert.equal(assurance.humanReviewRequired, false);
   assert.equal(assurance.metrics.modules, 26);
   assert.equal(assurance.metrics.modulesPassed, 26);
-  assert.equal(assurance.metrics.totalRuns, 3_984);
-  assert.equal(assurance.metrics.referenceReproduced, 826);
-  assert.equal(assurance.metrics.safelyBlocked, 3_105);
+  assert.equal(assurance.metrics.totalRuns, 4_020);
+  assert.equal(assurance.metrics.referenceReproduced, 835);
+  assert.equal(assurance.metrics.safelyBlocked, 3_132);
   assert.equal(assurance.metrics.failed, 0);
   assert.deepEqual(assurance.errors, []);
 });

@@ -94,7 +94,7 @@ const groups: SourceGroup[] = [
   { sources: stColdBeverageSpOriginSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ"], impactedRuleCodes: ["COLD_BEVERAGES_SP_ORIGIN"] },
   { sources: stConstructionElectricalSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ"], impactedRuleCodes: ["CONSTRUCTION_ELECTRICAL_PRIORITY"] },
   { sources: stFoodCleaningPetSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ"], impactedRuleCodes: ["FOOD_CLEANING_PET_PRIORITY"] },
-  { sources: stPharmaCosmeticsSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ", "PR"], impactedRuleCodes: ["PHARMA_COSMETICS_PRIORITY"] },
+  { sources: stPharmaCosmeticsSources, sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["SP", "MG", "RJ", "PR", "SC", "RS", "GO", "BA", "BR"], impactedRuleCodes: ["PHARMA_COSMETICS_PRIORITY"] },
   { sources: [ST_REPRESENTATIVE_PRODUCTS_SOURCE], sourceClass: "official_index", taxes: ["ICMS_ST"], jurisdictions: ["BR"], impactedRuleCodes: ["ST_REPRESENTATIVE_PRODUCTS"] },
   { sources: [ST_MG_ANNEX_VII_SOURCE], sourceClass: "primary", taxes: ["ICMS_ST"], jurisdictions: ["MG"], impactedRuleCodes: ["ST_SP_MG_LEGAL"] },
 ];
