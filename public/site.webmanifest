@@ -1,0 +1,17 @@
+{
+  "name": "CBSHub — Inteligência tributária rastreável",
+  "short_name": "CBSHub",
+  "description": "Inteligência tributária rastreável para contadores e tributaristas.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#061f2c",
+  "theme_color": "#061f2c",
+  "icons": [
+    {
+      "src": "/cbshub-icon-1024.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

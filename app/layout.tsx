@@ -17,6 +17,12 @@ export const metadata: Metadata = {
   metadataBase: new URL("https://cbshub.com.br"),
   title: "CBSHub — Inteligência tributária rastreável",
   description: "Pesquise normas, estruture operações, execute cálculos determinísticos e entregue dossiês fiscais com fonte, memória e versão.",
+  icons: {
+    icon: [{ url: "/cbshub-icon-1024.png", type: "image/png", sizes: "1024x1024" }],
+    shortcut: [{ url: "/cbshub-icon-1024.png", type: "image/png" }],
+    apple: [{ url: "/cbshub-icon-1024.png", type: "image/png", sizes: "1024x1024" }],
+  },
+  manifest: "/site.webmanifest",
   openGraph: {
     title: "CBSHub — Da regra fiscal à decisão defendível",
     description: "Inteligência tributária, cálculo determinístico e dossiês versionados para contadores e tributaristas.",
