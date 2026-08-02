@@ -23,6 +23,16 @@ type TrialResult = {
 
 const TRIAL_DEVICE_STORAGE_KEY = "mc_trial_device_v1";
 
+function safeClientReturnPath(value: string | null) {
+  if (!value || !value.startsWith("/") || value.startsWith("//")) return "/app";
+  try {
+    const url = new URL(value, "https://cbshub.local");
+    return url.origin === "https://cbshub.local" ? `${url.pathname}${url.search}${url.hash}` : "/app";
+  } catch {
+    return "/app";
+  }
+}
+
 function bytesToHex(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
 }
@@ -101,6 +111,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const [resetComplete, setResetComplete] = useState(false);
   const [accountType, setAccountType] = useState<AccountType>("individual");
   const [officeName, setOfficeName] = useState("");
+  const [returnTo, setReturnTo] = useState("/app");
   const [inviteToken, setInviteToken] = useState("");
   const [inviteInfo, setInviteInfo] = useState<{ workspaceName: string; email: string; role: string } | null>(null);
   const copy = content[mode];
@@ -110,6 +121,10 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
     const timer = window.setTimeout(() => setResetComplete(mode === "login" && new URLSearchParams(window.location.search).get("senha") === "alterada"), 0);
     return () => window.clearTimeout(timer);
   }, [mode]);
+
+  useEffect(() => {
+    setReturnTo(safeClientReturnPath(new URLSearchParams(window.location.search).get("returnTo")));
+  }, []);
 
   useEffect(() => {
     if (mode !== "register") return;
@@ -175,8 +190,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
         window.location.assign("/entrar?senha=alterada");
         return;
       }
-      const returnTo = new URLSearchParams(window.location.search).get("returnTo");
-      window.location.assign(returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/app");
+      window.location.assign(returnTo);
     } catch (caught) {
       if (mode === "register" && !apiResponded) trackSignupEvent("signup_client_error", "before_api_response");
       setError(caught instanceof Error ? caught.message : "Não foi possível concluir.");
@@ -211,7 +225,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
                 ? "Seu acesso acompanha as regras e o período do escritório para o qual você foi convidado."
                 : "Este aparelho já utilizou o período de teste ou não pôde ser validado. Nenhuma cobrança foi iniciada."}</small>
           </div>
-          <a className="auth-primary-link" href="/app">Guardei a chave · entrar no painel <span>→</span></a>
+          <a className="auth-primary-link" href={returnTo}>Guardei a chave · concluir minha análise <span>→</span></a>
         </section>
       </main>
     );

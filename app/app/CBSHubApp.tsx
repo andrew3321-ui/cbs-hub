@@ -532,10 +532,16 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
   }, [companies]);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("view") !== "academy") return;
-    const timer = window.setTimeout(() => setSection("academy"), 0);
+    const requestedView = new URLSearchParams(window.location.search).get("view");
+    const target = requestedView === "academy"
+      ? "academy"
+      : requestedView === "intelligence" && entitlements.fiscalIntelligenceEnabled
+        ? "intelligence"
+        : null;
+    if (!target) return;
+    const timer = window.setTimeout(() => setSection(target), 0);
     return () => window.clearTimeout(timer);
-  }, []);
+  }, [entitlements.fiscalIntelligenceEnabled]);
 
   useEffect(() => {
     if (section !== "academy" || !demoPlaying) return;

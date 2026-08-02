@@ -33,6 +33,54 @@ test("CTAs da landing registram posição sem sobrescrever a origem de aquisiç�
   assert.doesNotMatch(trackedCta, /source:\s*"google"/);
 });
 
+test("visitante experimenta uma triagem antes do cadastro e continua com a mesma pergunta", async () => {
+  const [page, hero, preview, endpoint, auth, shell, intelligence, worker, css] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/LandingHeroShowcase.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/LandingFiscalPreview.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/public/fiscal-preview/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/auth-ui/AuthScreen.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/app/CBSHubApp.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/app/FiscalIntelligence.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/cbshub-landing.css", import.meta.url), "utf8"),
+  ]);
+
+  assert.match(page, /LandingHeroShowcase authenticated=/);
+  assert.match(hero, /LandingFiscalPreview/);
+  assert.match(hero, /Cenários ilustrativos de uso — não são depoimentos de clientes/);
+  assert.match(hero, /activeSlide === "scenarios" \? 5000/);
+  assert.match(preview, /TESTE SEM CADASTRO/);
+  assert.match(preview, /api\/public\/fiscal-preview/);
+  assert.match(preview, /returnTo/);
+  assert.match(preview, /view=intelligence&question=/);
+  assert.match(preview, /Criar conta e concluir/);
+  assert.match(preview, /home_public_preview_continue/);
+  assert.match(endpoint, /evaluateExpandedFiscalQuestion/);
+  assert.match(endpoint, /identifiedFacts/);
+  assert.match(endpoint, /pendingFacts/);
+  assert.match(endpoint, /sources\.find/);
+  assert.doesNotMatch(endpoint, /question[,)]\s*\}\s*\)\s*;/);
+  assert.match(auth, /href=\{returnTo\}/);
+  assert.match(shell, /requestedView === "intelligence"/);
+  assert.match(intelligence, /requestedQuestion/);
+  assert.match(worker, /public-fiscal-preview/);
+  assert.match(css, /\.cbs-live-preview/);
+  assert.match(css, /@media \(max-width: 720px\)[\s\S]*\.cbs-live-preview-input\s*\{\s*grid-template-columns:\s*1fr;/);
+});
+
+test("vídeo completo fica abaixo do carrossel de produto, cenários e experimentação", async () => {
+  const [page, hero, video] = await Promise.all([
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/LandingHeroShowcase.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/LandingVideoShowcase.tsx", import.meta.url), "utf8"),
+  ]);
+  assert.match(page, /<LandingVideoShowcase \/>/);
+  assert.doesNotMatch(hero, /cbshub-overview-completo-v2\.webm/);
+  assert.match(video, /cbshub-overview-completo-v2\.webm/);
+  assert.match(video, /IntersectionObserver/);
+});
+
 test("showcase apresenta a regressão e os módulos fiscais atuais sem números legados", async () => {
   const [showcase, page, generated] = await Promise.all([
     readFile(new URL("../app/LandingHeroShowcase.tsx", import.meta.url), "utf8"),

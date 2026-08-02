@@ -2,6 +2,7 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import BrandMark from "./BrandMark";
 import LandingHeroShowcase from "./LandingHeroShowcase";
+import LandingVideoShowcase from "./LandingVideoShowcase";
 import { getCurrentUser } from "./auth";
 import { coverageMetrics } from "../domain/national-tax-coverage";
 import { buildHomeStructuredData } from "../domain/seo-structured-data";
@@ -92,8 +93,10 @@ export default async function LandingPage() {
           </div>
         </div>
 
-        <LandingHeroShowcase />
+        <LandingHeroShowcase authenticated={Boolean(user)} />
       </section>
+
+      <LandingVideoShowcase />
 
       <section className="cbs-audience-bar" aria-label="Público do CBSHub">
         <p>A dúvida chega em uma linha. <strong>A resposta não precisa ficar espalhada em seis lugares.</strong></p>

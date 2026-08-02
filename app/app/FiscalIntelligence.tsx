@@ -179,6 +179,7 @@ export default function FiscalIntelligence() {
   const [catalogRetry, setCatalogRetry] = useState(0);
   const searchSequence = useRef(0);
   const searchController = useRef<AbortController | null>(null);
+  const deepLinkLoaded = useRef(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -202,6 +203,20 @@ export default function FiscalIntelligence() {
   }, [catalogRetry]);
 
   useEffect(() => () => searchController.current?.abort(), []);
+
+  useEffect(() => {
+    if (deepLinkLoaded.current) return;
+    deepLinkLoaded.current = true;
+    const requestedQuestion = new URLSearchParams(window.location.search).get("question")?.trim() ?? "";
+    if (requestedQuestion.length < 5 || requestedQuestion.length > 500) return;
+    const timer = window.setTimeout(() => {
+      setQuestion(requestedQuestion);
+      setForm(emptyFacts);
+      setResult(null);
+      void search(requestedQuestion, emptyFacts);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
 
   function updateFact(field: keyof FactForm, value: string) {
     setForm((current) => ({ ...current, [field]: value }));
