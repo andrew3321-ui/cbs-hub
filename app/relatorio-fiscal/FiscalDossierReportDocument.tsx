@@ -25,6 +25,7 @@ type SharedProps = {
   reviewerName: string | null;
   actions: ReactNode;
   deliveryNote?: string | null;
+  superveningNotice?: string | null;
 };
 
 type Props = SharedProps & (
@@ -38,7 +39,7 @@ const date = (value: string) => new Date(`${value.slice(0, 10)}T12:00:00`).toLoc
 const timestamp = (value: string) => new Date(value).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 
 export default function FiscalDossierReportDocument(props: Props) {
-  const { dossier, snapshot, company, preparerName, reviewerName, actions, deliveryNote } = props;
+  const { dossier, snapshot, company, preparerName, reviewerName, actions, deliveryNote, superveningNotice } = props;
   const isBeverage = props.kind === "beverage";
   const dossierLabel = isBeverage ? "DOSSIÊ FISCAL DE BEBIDAS" : "DOSSIÊ FISCAL DE AUTOPEÇAS";
   const taxEyebrow = isBeverage ? `ICMS-ST · BEBIDAS · ${snapshot.operation.route}` : `ICMS-ST · AUTOPEÇAS · ${snapshot.operation.route}`;
@@ -59,6 +60,7 @@ export default function FiscalDossierReportDocument(props: Props) {
       </section>
 
       {deliveryNote && <section className="fiscal-report-delivery-note"><span>MENSAGEM DO RESPONSÁVEL</span><p>{deliveryNote}</p></section>}
+      {superveningNotice && <section className="fiscal-report-supervening-notice"><span>AVISO DE REGRA SUPERVENIENTE</span><strong>Fotografia histórica preservada</strong><p>{superveningNotice}</p><small>Os valores abaixo continuam sendo exatamente os aprovados nesta versão. Para uma decisão atual, solicite um novo dossiê reprocessado.</small></section>}
 
       <section className="report-assurance versioned">
         <div><span>ESTADO DO DOSSIÊ</span><strong>{statusLabel}</strong><small>{dossier.status === "approved" ? `${reviewerName ?? "Responsável"} · ${dossier.professionalRegistration}${dossier.decidedAt ? ` · ${timestamp(dossier.decidedAt)}` : ""}` : "Exige revisão profissional antes da entrega definitiva"}</small></div>

@@ -2,6 +2,7 @@ import { env } from "cloudflare:workers";
 import { normalizeProfessionalRegistration, professionalRegistrationError } from "../../../professional-registration";
 import { ensureNormativeGovernanceSchema, sha256Hex } from "../../../normative-governance-service";
 import { withApiTelemetry } from "../../../api-infrastructure";
+import { reconcileFiscalImpactRun } from "../../../fiscal-impact-graph-service";
 import { getPlatformAdminUser } from "../../../platform-admin";
 import { getWorkspaceContext } from "../../../workspace";
 
@@ -126,16 +127,19 @@ async function review(request: Request) {
       );
     }
     if (nextStatus === "resolved") {
-      statements.push(
-        env.DB.prepare("UPDATE fiscal_result_invalidations SET status = ?, resolved_at = ?, resolution_release_id = ? WHERE change_event_id = ? AND status = 'open'")
-          .bind(decision === "no_legal_impact" ? "dismissed_no_legal_impact" : "resolved_by_new_version", decidedAt, releaseId, eventId),
-        env.DB.prepare("UPDATE governance_notifications SET read_at = ? WHERE notification_type = 'fiscal_result_invalidated' AND subject_id IN (SELECT dossier_id FROM fiscal_result_invalidations WHERE change_event_id = ?) AND read_at IS NULL")
-          .bind(decidedAt, eventId),
-      );
+      if (decision === "no_legal_impact") {
+        statements.push(
+          env.DB.prepare("UPDATE fiscal_result_invalidations SET status = 'dismissed_no_legal_impact', resolved_at = ? WHERE change_event_id = ? AND status IN ('open', 'historical_notice')").bind(decidedAt, eventId),
+          env.DB.prepare("UPDATE governance_notifications SET read_at = ? WHERE subject_id IN (SELECT dossier_id FROM fiscal_result_invalidations WHERE change_event_id = ?) AND read_at IS NULL").bind(decidedAt, eventId),
+        );
+      } else {
+        statements.push(env.DB.prepare("UPDATE fiscal_result_invalidations SET resolution_release_id = ? WHERE change_event_id = ? AND status = 'historical_notice'").bind(releaseId, eventId));
+      }
     }
     const results = await env.DB.batch(statements);
     if (results[1].meta.changes !== 1) return Response.json({ error: "A mudança recebeu outra decisão enquanto você revisava. Atualize a página." }, { status: 409 });
-    return Response.json({ eventId, status: nextStatus, decision, release: releaseId ? { id: releaseId, version: releaseVersion, fingerprint: releaseHash?.slice(0, 12) } : null }, { status: 201 });
+    const impactReconciliation = releaseId ? await reconcileFiscalImpactRun(env.DB, eventId, releaseId) : null;
+    return Response.json({ eventId, status: nextStatus, decision, release: releaseId ? { id: releaseId, version: releaseVersion, fingerprint: releaseHash?.slice(0, 12) } : null, impactReconciliation }, { status: 201 });
   } catch (error) {
     if (String(error).toLowerCase().includes("unique")) return Response.json({ error: "Esta versão ou manifesto já foi registrado. Use uma versão nova." }, { status: 409 });
     if (error instanceof Error && error.message === "governance_signing_key_unavailable") return Response.json({ error: "A chave de assinatura da governança não está configurada." }, { status: 503 });

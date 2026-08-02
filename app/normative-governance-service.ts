@@ -16,10 +16,13 @@ import {
   validateOfficialConnectorContracts,
   type OfficialArtifactInspection,
 } from "../domain/official-source-connectors.ts";
+import { createFiscalImpactRun, ensureFiscalImpactGraphSchema } from "./fiscal-impact-graph-service.ts";
 
 export type NormativeMonitorEnvironment = {
   DB: D1Database;
 };
+
+export const NORMATIVE_DOSSIER_EVENT_TYPE = "fiscal_dossier.normative_change_detected";
 
 type SourceCapture = {
   source: GovernedNormativeSource;
@@ -114,6 +117,7 @@ async function sourceVersion(source: GovernedNormativeSource) {
 }
 
 export async function ensureNormativeGovernanceSchema(db: D1Database) {
+  await ensureFiscalImpactGraphSchema(db);
   await db.batch([
     db.prepare("CREATE TABLE IF NOT EXISTS normative_sources (id TEXT PRIMARY KEY NOT NULL, code TEXT NOT NULL, catalog_version TEXT NOT NULL, title TEXT NOT NULL, publisher TEXT NOT NULL, jurisdiction TEXT NOT NULL, legal_device TEXT NOT NULL, source_kind TEXT NOT NULL, source_url TEXT NOT NULL, effective_from TEXT, effective_to TEXT, verification_status TEXT NOT NULL, impacted_rule_codes_json TEXT DEFAULT '[]' NOT NULL, metadata_hash TEXT NOT NULL, criticality TEXT DEFAULT 'standard' NOT NULL, monitoring_frequency TEXT DEFAULT 'daily' NOT NULL, alternative_url TEXT, alternative_evidence_scope TEXT DEFAULT 'not_available' NOT NULL, connector_id TEXT, connector_contract_version TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS normative_monitor_runs (id TEXT PRIMARY KEY NOT NULL, run_date TEXT NOT NULL, status TEXT DEFAULT 'running' NOT NULL, catalog_version TEXT NOT NULL, source_count INTEGER DEFAULT 0 NOT NULL, checked_count INTEGER DEFAULT 0 NOT NULL, unavailable_count INTEGER DEFAULT 0 NOT NULL, change_count INTEGER DEFAULT 0 NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, error_code TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
@@ -261,28 +265,6 @@ async function reconcileConnectorIncident(db: D1Database, capture: SourceCapture
   }
 }
 
-async function invalidateAffectedDossiers(db: D1Database, eventId: string, source: GovernedNormativeSource, detectedAt: string) {
-  if (source.impactedRuleCodes.length === 0) return 0;
-  const placeholders = source.impactedRuleCodes.map(() => "?").join(", ");
-  const dossiers = await db.prepare(`SELECT id, workspace_id, owner_user_id, base_code, base_version FROM fiscal_dossiers WHERE base_code IN (${placeholders})`)
-    .bind(...source.impactedRuleCodes).all<{ id: string; workspace_id: number; owner_user_id: number; base_code: string; base_version: string }>();
-  if (!dossiers.results.length) return 0;
-  const reason = `Mudança detectada em ${source.code}; o snapshot permanece imutável, mas a entrega fica bloqueada até revisão ou nova versão.`;
-  const statements: D1PreparedStatement[] = [];
-  for (const dossier of dossiers.results) {
-    statements.push(
-      db.prepare("INSERT OR IGNORE INTO fiscal_result_invalidations (id, change_event_id, workspace_id, owner_user_id, dossier_id, rule_code, rule_version, status, reason, notified_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)")
-        .bind(crypto.randomUUID(), eventId, dossier.workspace_id, dossier.owner_user_id, dossier.id, dossier.base_code, dossier.base_version, reason, detectedAt, detectedAt),
-      db.prepare("INSERT OR IGNORE INTO governance_notifications (id, workspace_id, recipient_user_id, notification_type, subject_type, subject_id, message, created_at) VALUES (?, ?, ?, 'fiscal_result_invalidated', 'fiscal_dossier', ?, ?, ?)")
-        .bind(crypto.randomUUID(), dossier.workspace_id, dossier.owner_user_id, dossier.id, reason, detectedAt),
-      db.prepare("INSERT INTO fiscal_dossier_events (dossier_id, workspace_id, actor_user_id, event_type, note, event_data, created_at) VALUES (?, ?, NULL, 'fiscal_dossier.normative_change_detected', ?, ?, ?)")
-        .bind(dossier.id, dossier.workspace_id, reason, JSON.stringify({ eventId, sourceCode: source.code, ruleCode: dossier.base_code, ruleVersion: dossier.base_version }), detectedAt),
-    );
-  }
-  await db.batch(statements);
-  return dossiers.results.length;
-}
-
 type PersistedChangeKind = "new_source" | "technical_change" | "editorial_change" | "potentially_normative_change" | "unavailable" | "recovered";
 
 async function createChangeEvent(db: D1Database, capture: SourceCapture, currentSnapshotId: string, previous: PreviousSnapshot | null, changeKind: PersistedChangeKind) {
@@ -291,8 +273,14 @@ async function createChangeEvent(db: D1Database, capture: SourceCapture, current
   const inserted = await db.prepare("INSERT OR IGNORE INTO normative_change_events (id, source_code, previous_snapshot_id, current_snapshot_id, change_kind, status, impacted_rule_codes_json, detected_at, created_at) VALUES (?, ?, ?, ?, ?, 'pending_review', ?, ?, ?)")
     .bind(eventId, capture.source.code, previous?.id ?? null, currentSnapshotId, changeKind, JSON.stringify(capture.source.impactedRuleCodes), detectedAt, detectedAt).run();
   if (inserted.meta.changes !== 1) return 0;
-  const invalidated = await invalidateAffectedDossiers(db, eventId, capture.source, detectedAt);
   const regression = await buildFiscalRegressionReport(capture.source.impactedRuleCodes);
+  const impact = await createFiscalImpactRun(db, {
+    changeEventId: eventId,
+    sourceCode: capture.source.code,
+    impactedRuleCodes: capture.source.impactedRuleCodes,
+    regressionFingerprint: regression.fingerprint,
+    detectedAt,
+  });
   const regressionEvidence = {
     reportVersion: regression.reportVersion,
     status: regression.status,
@@ -311,7 +299,7 @@ async function createChangeEvent(db: D1Database, capture: SourceCapture, current
   await db.prepare("INSERT INTO normative_governance_audit_events (change_event_id, event_type, event_data, created_at) VALUES (?, 'fiscal_regression.affected_rules_reexecuted', ?, ?)")
     .bind(eventId, JSON.stringify(regressionEvidence), detectedAt).run();
   await db.prepare("INSERT INTO normative_governance_audit_events (change_event_id, event_type, event_data, created_at) VALUES (?, 'normative_change.detected', ?, ?)")
-    .bind(eventId, JSON.stringify({ sourceCode: capture.source.code, changeKind, impactedRuleCodes: capture.source.impactedRuleCodes, invalidatedDossiers: invalidated, regressionStatus: regression.status, regressionFingerprint: regression.fingerprint }), detectedAt).run();
+    .bind(eventId, JSON.stringify({ sourceCode: capture.source.code, changeKind, impactedRuleCodes: capture.source.impactedRuleCodes, impactRunId: impact.runId, impactMetrics: impact.metrics, regressionStatus: regression.status, regressionFingerprint: regression.fingerprint }), detectedAt).run();
   return 1;
 }
 

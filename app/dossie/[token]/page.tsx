@@ -40,6 +40,11 @@ export default async function PublicFiscalDossierPage({ params }: { params: Prom
     eq(fiscalResultInvalidations.status, "open"),
   )).limit(1);
   if (openInvalidation) return normativeReviewBlocked();
+  const [historicalNotice] = await db.select({ reason: fiscalResultInvalidations.reason }).from(fiscalResultInvalidations).where(and(
+    eq(fiscalResultInvalidations.dossierId, record.dossier.id),
+    eq(fiscalResultInvalidations.workspaceId, record.dossier.workspaceId),
+    eq(fiscalResultInvalidations.status, "historical_notice"),
+  )).limit(1);
   if (await sha256Hex(record.dossier.snapshotJson) !== record.dossier.inputHash) return integrityBlocked();
 
   let parsed: unknown;
@@ -63,6 +68,7 @@ export default async function PublicFiscalDossierPage({ params }: { params: Prom
     preparerName: names.get(record.dossier.createdByUserId) ?? "Profissional",
     reviewerName: names.get(record.dossier.decisionByUserId) ?? "Responsável",
     deliveryNote: record.share.note,
+    superveningNotice: historicalNotice?.reason ?? null,
     actions: <PublicFiscalReportActions />,
   };
   return autoPartsSnapshot

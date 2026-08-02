@@ -527,6 +527,96 @@ export const fiscalResultInvalidations = sqliteTable("fiscal_result_invalidation
   index("fiscal_result_invalidations_dossier_status_idx").on(table.dossierId, table.status, table.id),
 ]);
 
+export const fiscalImpactRuns = sqliteTable("fiscal_impact_runs", {
+  id: text("id").primaryKey(),
+  changeEventId: text("change_event_id").notNull(),
+  sourceCode: text("source_code").notNull(),
+  status: text("status").notNull().default("queued"),
+  impactedRuleCodesJson: text("impacted_rule_codes_json").notNull().default("[]"),
+  regressionFingerprint: text("regression_fingerprint"),
+  affectedCompanies: integer("affected_companies").notNull().default(0),
+  affectedCompetences: integer("affected_competences").notNull().default(0),
+  affectedArtifacts: integer("affected_artifacts").notNull().default(0),
+  blockedArtifacts: integer("blocked_artifacts").notNull().default(0),
+  historicalNotices: integer("historical_notices").notNull().default(0),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  finishedAt: text("finished_at"),
+}, (table) => [
+  uniqueIndex("fiscal_impact_runs_change_event_idx").on(table.changeEventId),
+  index("fiscal_impact_runs_status_created_idx").on(table.status, table.createdAt, table.id),
+]);
+
+export const fiscalImpactNodes = sqliteTable("fiscal_impact_nodes", {
+  id: text("id").primaryKey(),
+  impactRunId: text("impact_run_id").notNull(),
+  nodeKey: text("node_key").notNull(),
+  nodeType: text("node_type").notNull(),
+  externalId: text("external_id").notNull(),
+  workspaceId: integer("workspace_id"),
+  companyId: integer("company_id"),
+  competence: text("competence"),
+  immutableSnapshot: integer("immutable_snapshot", { mode: "boolean" }).notNull().default(false),
+  contentHash: text("content_hash"),
+  metadataJson: text("metadata_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_impact_nodes_run_key_idx").on(table.impactRunId, table.nodeKey),
+  index("fiscal_impact_nodes_workspace_company_idx").on(table.workspaceId, table.companyId, table.competence),
+  index("fiscal_impact_nodes_type_external_idx").on(table.nodeType, table.externalId),
+]);
+
+export const fiscalImpactEdges = sqliteTable("fiscal_impact_edges", {
+  id: text("id").primaryKey(),
+  impactRunId: text("impact_run_id").notNull(),
+  edgeKey: text("edge_key").notNull(),
+  fromNodeKey: text("from_node_key").notNull(),
+  toNodeKey: text("to_node_key").notNull(),
+  relation: text("relation").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("fiscal_impact_edges_run_key_idx").on(table.impactRunId, table.edgeKey),
+  index("fiscal_impact_edges_from_idx").on(table.impactRunId, table.fromNodeKey),
+  index("fiscal_impact_edges_to_idx").on(table.impactRunId, table.toNodeKey),
+]);
+
+export const fiscalReexecutionJobs = sqliteTable("fiscal_reexecution_jobs", {
+  id: text("id").primaryKey(),
+  impactRunId: text("impact_run_id").notNull(),
+  artifactType: text("artifact_type").notNull(),
+  artifactId: text("artifact_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  companyId: integer("company_id"),
+  competence: text("competence"),
+  disposition: text("disposition").notNull(),
+  status: text("status").notNull().default("queued"),
+  idempotencyKey: text("idempotency_key").notNull(),
+  beforeContentHash: text("before_content_hash").notNull(),
+  afterContentHash: text("after_content_hash"),
+  beforeRuleVersion: text("before_rule_version").notNull(),
+  afterRuleVersion: text("after_rule_version"),
+  diffJson: text("diff_json").notNull().default("{}"),
+  attempts: integer("attempts").notNull().default(0),
+  lockToken: text("lock_token"),
+  lockedAt: text("locked_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  finishedAt: text("finished_at"),
+}, (table) => [
+  uniqueIndex("fiscal_reexecution_jobs_idempotency_idx").on(table.idempotencyKey),
+  index("fiscal_reexecution_jobs_run_status_idx").on(table.impactRunId, table.status, table.createdAt),
+  index("fiscal_reexecution_jobs_workspace_company_idx").on(table.workspaceId, table.companyId, table.competence),
+]);
+
+export const fiscalImpactRunEvents = sqliteTable("fiscal_impact_run_events", {
+  id: text("id").primaryKey(),
+  impactRunId: text("impact_run_id").notNull(),
+  eventType: text("event_type").notNull(),
+  eventDataJson: text("event_data_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("fiscal_impact_run_events_run_created_idx").on(table.impactRunId, table.createdAt, table.id),
+  index("fiscal_impact_run_events_type_created_idx").on(table.eventType, table.createdAt, table.id),
+]);
+
 export const governanceNotifications = sqliteTable("governance_notifications", {
   id: text("id").primaryKey(),
   workspaceId: integer("workspace_id").notNull(),
