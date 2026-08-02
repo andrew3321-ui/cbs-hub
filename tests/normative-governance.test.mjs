@@ -137,6 +137,10 @@ test("governança persiste fila, classificação, revisão, bloqueio, histórico
   assert.match(service, /normalized_content_hash/);
   assert.match(service, /fiscal_dossier\.normative_change_detected/);
   assert.match(service, /status = 'open'/);
+  assert.match(service, /GROUP BY status, change_kind/);
+  assert.match(service, /WHERE run_date = \?/);
+  assert.match(service, /sourcesWithoutBaseline/);
+  assert.match(service, /queueBreakdown/);
   assert.match(reviewRoute, /getPlatformAdminUser/);
   assert.match(reviewRoute, /\["accountant", "tax_lawyer"\]/);
   assert.match(reviewRoute, /SCENARIO_SIGNING_KEY_V1/);
@@ -153,4 +157,10 @@ test("governança persiste fila, classificação, revisão, bloqueio, histórico
   assert.match(panel, /SAÚDE DAS REGRAS/);
   assert.match(panel, /Histórico de mudanças e decisões/);
   assert.match(panel, /Registrar decisão profissional assinada/);
+  assert.match(panel, /Estrutura do catálogo válida/);
+  assert.doesNotMatch(panel, /fontes verificadas diariamente/);
+  assert.doesNotMatch(panel, /Catálogo íntegro/);
+  for (const label of ["NOVA FONTE", "POTENCIALMENTE NORMATIVA", "EDITORIAL", "TÉCNICA", "INDISPONÍVEL", "RECUPERADA", "CONTEÚDO ALTERADO"]) {
+    assert.match(panel, new RegExp(label));
+  }
 });

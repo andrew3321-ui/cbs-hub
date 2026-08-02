@@ -81,9 +81,11 @@ type Governance = { identity: { ruleCode: string; ruleVersion: string; ruleHash:
 type Monitor = {
   version: string;
   catalogValidation: { passed: boolean; errors: string[]; sources: number };
+  operationalStatus: { level: "healthy" | "in_progress" | "attention" | "blocked"; cycleDate: string; timezone: "UTC"; title: string };
+  queueBreakdown: { total: number; newSources: number; potentiallyNormative: number; editorial: number; technical: number; unavailable: number; recovered: number; legacyContentChanged: number };
   rotation: { offset: number; totalSources: number; cycleDays: number };
   metrics: {
-    monitored: number; checkedToday: number; checked: number; dailyShardsCompleted: number; dailyShardsTotal: number; unavailable: number; changeSignals: number;
+    monitored: number; checkedToday: number; scheduledToday: number; attemptedToday: number; checked: number; unavailableToday: number; dailyShardsCompleted: number; dailyShardsTotal: number; failedShardsToday: number; runningShardsToday: number; sourcesWithBaseline: number; sourcesWithoutBaseline: number; unavailable: number; changeSignals: number;
     pendingReview: number; awaitingNewVersion: number; invalidatedResults: number; unreadNotifications: number;
     expiringRules: number; expiredRules: number; unverifiableSources: number;
     potentiallyNormative: number; technicalOrEditorial: number; connectorIncidents: number;
@@ -170,6 +172,17 @@ async function json<T>(url: string, init?: RequestInit) {
 
 function StatusPill({ status }: { status: Status }) {
   return <span className={`coverage-status ${status}`}><i />{statusLabel[status]}</span>;
+}
+
+function normativeChangeLabel(kind: string, status: string) {
+  if (kind === "new_source") return "NOVA FONTE";
+  if (kind === "potentially_normative_change") return "POTENCIALMENTE NORMATIVA";
+  if (kind === "editorial_change") return "EDITORIAL";
+  if (kind === "technical_change") return "TÉCNICA";
+  if (kind === "unavailable") return "INDISPONÍVEL";
+  if (kind === "recovered") return "RECUPERADA";
+  if (kind === "content_changed") return "CONTEÚDO ALTERADO";
+  return status === "pending_review" ? "REVISAR" : "NOVA VERSÃO";
 }
 
 function BeverageDossierPanel({
@@ -906,28 +919,46 @@ export default function NationalCoverageCenter() {
     {tab === "governance" && <section className="governance-area">
       <div className="monitor-panel"><div className="coverage-section-heading"><span>MONITOR DIÁRIO PERSISTENTE</span><h2>Alterações viram fila, bloqueio e trilha de auditoria</h2><p>{monitor?.policy ?? "Consultando fontes oficiais…"}</p></div>{monitor && <>
         <div className="monitor-kpis">
-          <span><b>{monitor.metrics.monitored}</b>fontes registradas</span>
-          <span><b>{monitor.metrics.checked}</b>conferidas hoje</span>
-          <span className={monitor.metrics.changeSignals ? "alert" : ""}><b>{monitor.metrics.changeSignals}</b>mudanças na fila</span>
+          <span><b>{monitor.metrics.monitored}</b>fontes catalogadas</span>
+          <span><b>{monitor.metrics.attemptedToday}</b>tentativas no ciclo</span>
+          <span><b>{monitor.metrics.checked}</b>verificações concluídas</span>
+          <span className={monitor.metrics.unavailableToday ? "alert" : ""}><b>{monitor.metrics.unavailableToday}</b>indisponíveis no ciclo</span>
+          <span className={monitor.metrics.changeSignals ? "alert" : ""}><b>{monitor.metrics.changeSignals}</b>itens para triagem</span>
+          <span className={monitor.metrics.potentiallyNormative ? "alert" : ""}><b>{monitor.metrics.potentiallyNormative}</b>sinais normativos</span>
           <span className={monitor.metrics.invalidatedResults ? "alert" : ""}><b>{monitor.metrics.invalidatedResults}</b>entregas bloqueadas</span>
           <span><b>{monitor.metrics.expiringRules}</b>regras vencendo</span>
           <span className={monitor.metrics.expiredRules ? "alert" : ""}><b>{monitor.metrics.expiredRules}</b>regras vencidas</span>
         </div>
         <div className={`governance-catalog-status ${monitor.catalogValidation.passed ? "passed" : "blocked"}`}>
-          <b>{monitor.catalogValidation.passed ? "✓ Catálogo íntegro" : "! Catálogo bloqueado"}</b>
-          <span>{monitor.catalogValidation.sources} fontes verificadas diariamente · {monitor.metrics.checkedToday} no ciclo atual · {monitor.metrics.dailyShardsCompleted}/{monitor.metrics.dailyShardsTotal} lotes concluídos · versão {monitor.version}</span>
+          <b>{monitor.catalogValidation.passed ? "✓ Estrutura do catálogo válida" : "! Estrutura do catálogo bloqueada"}</b>
+          <span>{monitor.catalogValidation.sources} fontes cadastradas para monitoramento diário. Esta validação confirma campos, vínculos e duplicidades — não comprova disponibilidade nem atualização do conteúdo.</span>
+        </div>
+        <div className={`governance-cycle-status ${monitor.operationalStatus.level}`}>
+          <div><b>{monitor.operationalStatus.title}</b><span>Ciclo {monitor.operationalStatus.cycleDate} · referência {monitor.operationalStatus.timezone}</span></div>
+          <div className="governance-cycle-metrics">
+            <span><b>{monitor.metrics.dailyShardsCompleted}/{monitor.metrics.dailyShardsTotal}</b> lotes concluídos</span>
+            <span><b>{monitor.metrics.checked}</b> verificadas</span>
+            <span><b>{monitor.metrics.unavailableToday}</b> indisponíveis</span>
+            <span><b>{monitor.metrics.sourcesWithoutBaseline}</b> sem captura-base</span>
+            {monitor.metrics.failedShardsToday > 0 && <span className="alert"><b>{monitor.metrics.failedShardsToday}</b> lote(s) com falha</span>}
+          </div>
+        </div>
+        <div className="governance-queue-summary">
+          <b>{monitor.queueBreakdown.total} itens aguardam classificação</b>
+          <span>{monitor.queueBreakdown.newSources} fontes novas · {monitor.queueBreakdown.potentiallyNormative} sinais potencialmente normativos · {monitor.queueBreakdown.editorial} editoriais · {monitor.queueBreakdown.technical} técnicos · {monitor.queueBreakdown.unavailable} indisponibilidades · {monitor.queueBreakdown.recovered} recuperações · {monitor.queueBreakdown.legacyContentChanged} alterações legadas</span>
+          <small>Item na fila não significa mudança de lei. Nenhuma captura altera regra ou cálculo automaticamente.</small>
         </div>
         <div className={`governance-catalog-status ${monitor.connectorHealth.contract.passed && monitor.connectorHealth.openIncidents === 0 ? "passed" : "blocked"}`}>
-          <b>{monitor.connectorHealth.contract.passed ? `${monitor.connectorHealth.contract.connectors} conectores oficiais versionados` : "! Contratos dos conectores inválidos"}</b>
-          <span>NF-e · RTC · CONFAZ · RFB · DOU · {monitor.connectorHealth.parsed} capturas interpretadas · {monitor.connectorHealth.blocked} bloqueadas · {monitor.connectorHealth.openIncidents} incidentes abertos</span>
+          <b>{!monitor.connectorHealth.contract.passed ? "! Contratos dos conectores inválidos" : monitor.connectorHealth.openIncidents > 0 ? "Contratos válidos · operação com pendências" : `${monitor.connectorHealth.contract.connectors} conectores oficiais operacionais`}</b>
+          <span>{monitor.connectorHealth.contract.connectors} conectores contratados · NF-e · RTC · CONFAZ · RFB · DOU · {monitor.connectorHealth.parsed} capturas interpretadas · {monitor.connectorHealth.blocked} bloqueadas · {monitor.connectorHealth.openIncidents} incidentes abertos</span>
         </div>
         <section className="governance-subsection">
           <header><div><span>FILA DE ANÁLISE</span><h3>Mudanças detectadas</h3></div><b>{monitor.metrics.pendingReview} aguardam revisão · {monitor.metrics.awaitingNewVersion} aguardam versão</b></header>
-          {monitor.queue.length === 0 ? <p className="governance-empty">Nenhuma mudança normativa pendente. A ausência de sinal não substitui a conferência do caso concreto.</p> : <div className="governance-queue">{monitor.queue.map((item) => <article key={item.id}>
-            <span className={item.status}>{item.changeKind === "potentially_normative_change" ? "POTENCIALMENTE NORMATIVA" : item.changeKind === "editorial_change" ? "EDITORIAL" : item.changeKind === "technical_change" ? "TÉCNICA" : item.changeKind === "unavailable" ? "INDISPONÍVEL" : item.status === "pending_review" ? "REVISAR" : "NOVA VERSÃO"}</span>
+          {monitor.queue.length === 0 ? <p className="governance-empty">Nenhum item pendente de triagem. A ausência de sinal não substitui a conferência do caso concreto.</p> : <div className="governance-queue">{monitor.queue.map((item) => <article key={item.id}>
+            <span className={item.status}>{normativeChangeLabel(item.changeKind, item.status)}</span>
             <div><b>{item.sourceCode} · {item.jurisdiction}</b><p>{item.legalDevice}</p><small>{item.impactedRuleCodes.join(" · ")} · detectada em {new Date(item.detectedAt).toLocaleString("pt-BR")}</small></div>
             <a href={item.sourceUrl} target="_blank" rel="noreferrer">Fonte ↗</a>
-          </article>)}</div>}
+          </article>)}{monitor.queueBreakdown.total > monitor.queue.length && <p className="governance-empty">Exibindo os {monitor.queue.length} itens mais recentes de {monitor.queueBreakdown.total} pendências.</p>}</div>}
         </section>
         {monitor.canReviewNormativeChanges && monitor.queue.length > 0 && <form className="governance-review-form" onSubmit={submitGovernanceReview}>
           <h3>Registrar decisão profissional assinada</h3>

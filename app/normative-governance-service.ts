@@ -364,15 +364,18 @@ function parseList(value: string | null | undefined) {
 
 export async function getNormativeGovernanceDashboard(db: D1Database, workspaceId: number, today = monitorDate()) {
   await ensureNormativeGovernanceSchema(db);
-  const [runs, events, invalidations, notifications, rules, releases, regressionRuns, connectorIncidents] = await Promise.all([
-    db.prepare("SELECT id, run_date, status, source_count, checked_count, unavailable_count, change_count, started_at, finished_at FROM normative_monitor_runs ORDER BY run_date DESC, created_at DESC LIMIT 14").all<Record<string, string | number | null>>(),
+  const [runs, events, eventCounts, todayRunSummary, invalidations, notifications, rules, releases, regressionRuns, connectorIncidents, connectorIncidentCounts] = await Promise.all([
+    db.prepare("SELECT id, run_date, status, source_count, checked_count, unavailable_count, change_count, started_at, finished_at FROM normative_monitor_runs ORDER BY run_date DESC, created_at DESC LIMIT 36").all<Record<string, string | number | null>>(),
     db.prepare("SELECT e.*, s.title, s.publisher, s.jurisdiction, s.legal_device, s.source_url FROM normative_change_events e LEFT JOIN normative_sources s ON s.id = (SELECT s2.id FROM normative_sources s2 WHERE s2.code = e.source_code ORDER BY s2.created_at DESC, s2.id DESC LIMIT 1) ORDER BY e.detected_at DESC, e.id DESC LIMIT 100").all<Record<string, string | number | null>>(),
+    db.prepare("SELECT status, change_kind, COUNT(*) AS total FROM normative_change_events GROUP BY status, change_kind").all<Record<string, string | number | null>>(),
+    db.prepare("SELECT COALESCE(SUM(CASE WHEN status = 'completed' THEN source_count ELSE 0 END), 0) AS scheduled_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN checked_count ELSE 0 END), 0) AS checked_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN unavailable_count ELSE 0 END), 0) AS unavailable_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN change_count ELSE 0 END), 0) AS change_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_shards, COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed_shards, COALESCE(SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END), 0) AS running_shards FROM normative_monitor_runs WHERE run_date = ?").bind(today).first<Record<string, string | number | null>>(),
     db.prepare("SELECT id, change_event_id, dossier_id, rule_code, rule_version, status, reason, created_at FROM fiscal_result_invalidations WHERE workspace_id = ? AND status = 'open' ORDER BY created_at DESC LIMIT 100").bind(workspaceId).all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, notification_type, subject_type, subject_id, message, read_at, created_at FROM governance_notifications WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 50").bind(workspaceId).all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, code, version, name, status, effective_from, effective_to, source_count, content_hash FROM fiscal_rule_sets ORDER BY effective_to, code, version").all<RuleRow>(),
     db.prepare("SELECT id, version, manifest_hash, previous_release_hash, source_change_event_id, release_kind, status, created_at FROM fiscal_rule_releases ORDER BY created_at DESC LIMIT 20").all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, change_event_id, event_data, created_at FROM normative_governance_audit_events WHERE event_type = 'fiscal_regression.affected_rules_reexecuted' ORDER BY created_at DESC, id DESC LIMIT 20").all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, source_code, snapshot_id, connector_id, incident_kind, status, details_json, detected_at, resolved_at FROM normative_source_incidents ORDER BY detected_at DESC, id DESC LIMIT 100").all<Record<string, string | number | null>>(),
+    db.prepare("SELECT status, COUNT(*) AS total FROM normative_source_incidents GROUP BY status").all<Record<string, string | number | null>>(),
   ]);
 
   const sourceRows = await db.prepare("SELECT s.*, snap.capture_status, snap.http_status, snap.content_hash, snap.normalized_content_hash, snap.final_url, snap.access_path, snap.attempts, snap.bytes_hashed, snap.alternative_http_status, snap.checked_at, snap.not_modified, snap.artifact_kind, snap.parser_version, snap.parse_status, snap.detected_version, snap.published_at, snap.detected_effective_from, snap.promotion_status, snap.contract_errors_json FROM normative_sources s LEFT JOIN normative_source_snapshots snap ON snap.id = (SELECT ss.id FROM normative_source_snapshots ss WHERE ss.source_code = s.code ORDER BY ss.checked_at DESC, ss.id DESC LIMIT 1) WHERE s.id = (SELECT ns.id FROM normative_sources ns WHERE ns.code = s.code ORDER BY ns.created_at DESC, ns.id DESC LIMIT 1) ORDER BY s.jurisdiction, s.code")
@@ -392,7 +395,23 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     resolvedAt: event.resolved_at ? String(event.resolved_at) : null,
     resolutionReleaseId: event.resolution_release_id ? String(event.resolution_release_id) : null,
   }));
-  const queue = changeHistory.filter((event) => ["pending_review", "awaiting_new_version"].includes(event.status));
+  const queueStatuses = new Set(["pending_review", "awaiting_new_version"]);
+  const queue = changeHistory.filter((event) => queueStatuses.has(event.status));
+  const countEvents = (kinds?: string[]) => eventCounts.results.reduce((total, row) => {
+    if (!queueStatuses.has(String(row.status))) return total;
+    if (kinds && !kinds.includes(String(row.change_kind))) return total;
+    return total + Number(row.total ?? 0);
+  }, 0);
+  const queueBreakdown = {
+    total: countEvents(),
+    newSources: countEvents(["new_source"]),
+    potentiallyNormative: countEvents(["potentially_normative_change"]),
+    editorial: countEvents(["editorial_change"]),
+    technical: countEvents(["technical_change"]),
+    unavailable: countEvents(["unavailable"]),
+    recovered: countEvents(["recovered"]),
+    legacyContentChanged: countEvents(["content_changed"]),
+  };
   const sourceCatalog = sourceRows.results.map((source) => ({
     code: String(source.code),
     title: String(source.title),
@@ -464,17 +483,46 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     startedAt: String(run.started_at),
     finishedAt: run.finished_at ? String(run.finished_at) : null,
   }));
-  const todayRuns = recentRuns.filter((run) => run.runDate === today);
+  const todaySummary = {
+    scheduled: Number(todayRunSummary?.scheduled_count ?? 0),
+    checked: Number(todayRunSummary?.checked_count ?? 0),
+    unavailable: Number(todayRunSummary?.unavailable_count ?? 0),
+    changes: Number(todayRunSummary?.change_count ?? 0),
+    completedShards: Number(todayRunSummary?.completed_shards ?? 0),
+    failedShards: Number(todayRunSummary?.failed_shards ?? 0),
+    runningShards: Number(todayRunSummary?.running_shards ?? 0),
+  };
+  const catalogValidation = validateGovernedSourceCatalog();
+  const connectorContract = validateOfficialConnectorContracts();
+  const openConnectorIncidents = connectorIncidentCounts.results
+    .filter((row) => String(row.status) === "open")
+    .reduce((total, row) => total + Number(row.total ?? 0), 0);
+  const sourcesWithBaseline = sourceCatalog.filter((source) => source.captureStatus !== "not_checked").length;
+  const sourcesWithoutBaseline = Math.max(0, governedNormativeSources.length - sourcesWithBaseline);
+  const operationalLevel = !catalogValidation.passed || openInvalidations.length > 0 || ruleCatalog.some((rule) => rule.health === "expired")
+    ? "blocked"
+    : todaySummary.failedShards > 0 || openConnectorIncidents > 0 || todaySummary.unavailable > 0 || queueBreakdown.potentiallyNormative > 0
+      ? "attention"
+      : todaySummary.completedShards < NORMATIVE_MONITOR_SHARD_COUNT
+        ? "in_progress"
+        : "healthy";
   return {
     version: NORMATIVE_GOVERNANCE_VERSION,
-    catalogValidation: validateGovernedSourceCatalog(),
+    catalogValidation,
+    operationalStatus: {
+      level: operationalLevel,
+      cycleDate: today,
+      timezone: "UTC",
+      title: operationalLevel === "blocked" ? "Bloqueio operacional" : operationalLevel === "attention" ? "Ciclo com pendências" : operationalLevel === "in_progress" ? "Ciclo diário em andamento" : "Ciclo diário concluído",
+    },
+    queueBreakdown,
     sources: sourceCatalog,
     connectorHealth: {
-      contract: validateOfficialConnectorContracts(),
+      contract: connectorContract,
       connected: sourceCatalog.filter((source) => source.connectorId !== null).length,
       parsed: sourceCatalog.filter((source) => source.parseStatus === "parsed").length,
       blocked: sourceCatalog.filter((source) => source.promotionStatus === "blocked_contract").length,
-      openIncidents: connectorIncidents.results.filter((incident) => incident.status === "open").length,
+      openIncidents: openConnectorIncidents,
       incidents: connectorIncidents.results.map((incident) => ({
         id: String(incident.id), sourceCode: String(incident.source_code), connectorId: String(incident.connector_id), incidentKind: String(incident.incident_kind), status: String(incident.status), detectedAt: String(incident.detected_at), resolvedAt: incident.resolved_at ? String(incident.resolved_at) : null,
       })),
@@ -495,22 +543,29 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     runs: recentRuns,
     metrics: {
       monitored: governedNormativeSources.length,
-      checkedToday: todayRuns.reduce((total, run) => total + run.sourceCount, 0),
-      checked: todayRuns.reduce((total, run) => total + run.checked, 0),
-      dailyShardsCompleted: todayRuns.filter((run) => run.status === "completed").length,
+      checkedToday: todaySummary.scheduled,
+      scheduledToday: todaySummary.scheduled,
+      attemptedToday: todaySummary.checked + todaySummary.unavailable,
+      checked: todaySummary.checked,
+      unavailableToday: todaySummary.unavailable,
+      dailyShardsCompleted: todaySummary.completedShards,
       dailyShardsTotal: NORMATIVE_MONITOR_SHARD_COUNT,
+      failedShardsToday: todaySummary.failedShards,
+      runningShardsToday: todaySummary.runningShards,
+      sourcesWithBaseline,
+      sourcesWithoutBaseline,
       unavailable: sourceCatalog.filter((source) => source.captureStatus === "unavailable").length,
-      changeSignals: queue.length,
-      potentiallyNormative: queue.filter((event) => event.changeKind === "potentially_normative_change").length,
-      technicalOrEditorial: queue.filter((event) => ["technical_change", "editorial_change", "unavailable", "recovered"].includes(event.changeKind)).length,
-      pendingReview: queue.filter((event) => event.status === "pending_review").length,
-      awaitingNewVersion: queue.filter((event) => event.status === "awaiting_new_version").length,
+      changeSignals: queueBreakdown.total,
+      potentiallyNormative: queueBreakdown.potentiallyNormative,
+      technicalOrEditorial: queueBreakdown.technical + queueBreakdown.editorial + queueBreakdown.unavailable + queueBreakdown.recovered,
+      pendingReview: eventCounts.results.filter((row) => String(row.status) === "pending_review").reduce((total, row) => total + Number(row.total ?? 0), 0),
+      awaitingNewVersion: eventCounts.results.filter((row) => String(row.status) === "awaiting_new_version").reduce((total, row) => total + Number(row.total ?? 0), 0),
       invalidatedResults: openInvalidations.length,
       unreadNotifications: notifications.results.filter((row) => !row.read_at).length,
       expiringRules: ruleCatalog.filter((rule) => rule.health === "expiring").length,
       expiredRules: ruleCatalog.filter((rule) => rule.health === "expired").length,
       unverifiableSources: sourceCatalog.filter((source) => source.verificationStatus === "monitor_only").length,
-      connectorIncidents: connectorIncidents.results.filter((incident) => incident.status === "open").length,
+      connectorIncidents: openConnectorIncidents,
     },
     rotation: recentRuns[0] ? sourcesForMonitorDate(recentRuns[0].runDate) : sourcesForMonitorDate(today),
     policy: "Mudanças geram fila, invalidam entregas afetadas e exigem decisão assinada. Nenhuma captura altera regra ou cálculo automaticamente.",
