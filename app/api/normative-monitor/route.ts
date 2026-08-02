@@ -5,8 +5,8 @@ import { getCurrentUser } from "../../auth";
 import { isPlatformAdminEmail } from "../../platform-admin";
 import { withWorkspaceFeature } from "../../plan-entitlements";
 import { getWorkspaceContext } from "../../workspace";
+import { NORMATIVE_MONITOR_SHARD_COUNT } from "../../../domain/normative-governance";
 
-const DAILY_SHARDS = 4;
 const MONITOR_SAFETY_POLICY = "Nunca altera regra ou cálculo automaticamente; apenas registra evidência, sinaliza mudança e abre revisão.";
 
 async function monitor() {
@@ -20,7 +20,7 @@ async function monitor() {
   return Response.json({
     ...dashboard,
     runs: limit(14),
-    dailyShards: DAILY_SHARDS,
+    dailyShards: NORMATIVE_MONITOR_SHARD_COUNT,
     monitorSafetyPolicy: MONITOR_SAFETY_POLICY,
     canReviewNormativeChanges: isPlatformAdminEmail(user.email),
   }, { headers: { "Cache-Control": "no-store" } });

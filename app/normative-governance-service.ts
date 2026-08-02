@@ -1,5 +1,6 @@
 import {
   classifyCapturedChange,
+  expectedNormativeMonitorShards,
   governedNormativeSources,
   NORMATIVE_GOVERNANCE_VERSION,
   NORMATIVE_MONITOR_SHARD_COUNT,
@@ -37,6 +38,7 @@ type SourceCapture = {
   attempts: number;
   bytesHashed: number;
   alternativeHttpStatus: number | null;
+  failureCode: string | null;
   notModified: boolean;
   inspection: OfficialArtifactInspection;
   checkedAt: string;
@@ -120,8 +122,8 @@ export async function ensureNormativeGovernanceSchema(db: D1Database) {
   await ensureFiscalImpactGraphSchema(db);
   await db.batch([
     db.prepare("CREATE TABLE IF NOT EXISTS normative_sources (id TEXT PRIMARY KEY NOT NULL, code TEXT NOT NULL, catalog_version TEXT NOT NULL, title TEXT NOT NULL, publisher TEXT NOT NULL, jurisdiction TEXT NOT NULL, legal_device TEXT NOT NULL, source_kind TEXT NOT NULL, source_url TEXT NOT NULL, effective_from TEXT, effective_to TEXT, verification_status TEXT NOT NULL, impacted_rule_codes_json TEXT DEFAULT '[]' NOT NULL, metadata_hash TEXT NOT NULL, criticality TEXT DEFAULT 'standard' NOT NULL, monitoring_frequency TEXT DEFAULT 'daily' NOT NULL, alternative_url TEXT, alternative_evidence_scope TEXT DEFAULT 'not_available' NOT NULL, connector_id TEXT, connector_contract_version TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
-    db.prepare("CREATE TABLE IF NOT EXISTS normative_monitor_runs (id TEXT PRIMARY KEY NOT NULL, run_date TEXT NOT NULL, status TEXT DEFAULT 'running' NOT NULL, catalog_version TEXT NOT NULL, source_count INTEGER DEFAULT 0 NOT NULL, checked_count INTEGER DEFAULT 0 NOT NULL, unavailable_count INTEGER DEFAULT 0 NOT NULL, change_count INTEGER DEFAULT 0 NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, error_code TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
-    db.prepare("CREATE TABLE IF NOT EXISTS normative_source_snapshots (id TEXT PRIMARY KEY NOT NULL, run_id TEXT NOT NULL, source_version_id TEXT NOT NULL, source_code TEXT NOT NULL, capture_status TEXT NOT NULL, http_status INTEGER, content_hash TEXT, previous_content_hash TEXT, normalized_content_hash TEXT, final_url TEXT, access_path TEXT DEFAULT 'none' NOT NULL, attempts INTEGER DEFAULT 0 NOT NULL, bytes_hashed INTEGER DEFAULT 0 NOT NULL, alternative_http_status INTEGER, etag TEXT, last_modified TEXT, not_modified INTEGER DEFAULT 0 NOT NULL, connector_id TEXT, artifact_kind TEXT, parser_version TEXT, parse_status TEXT DEFAULT 'not_applicable' NOT NULL, detected_version TEXT, published_at TEXT, detected_effective_from TEXT, promotion_status TEXT DEFAULT 'not_applicable' NOT NULL, contract_errors_json TEXT DEFAULT '[]' NOT NULL, checked_at TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS normative_monitor_runs (id TEXT PRIMARY KEY NOT NULL, run_date TEXT NOT NULL, status TEXT DEFAULT 'running' NOT NULL, catalog_version TEXT NOT NULL, source_count INTEGER DEFAULT 0 NOT NULL, checked_count INTEGER DEFAULT 0 NOT NULL, unavailable_count INTEGER DEFAULT 0 NOT NULL, change_count INTEGER DEFAULT 0 NOT NULL, attempt_count INTEGER DEFAULT 1 NOT NULL, started_at TEXT NOT NULL, last_attempt_at TEXT, finished_at TEXT, error_code TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
+    db.prepare("CREATE TABLE IF NOT EXISTS normative_source_snapshots (id TEXT PRIMARY KEY NOT NULL, run_id TEXT NOT NULL, source_version_id TEXT NOT NULL, source_code TEXT NOT NULL, capture_status TEXT NOT NULL, http_status INTEGER, content_hash TEXT, previous_content_hash TEXT, normalized_content_hash TEXT, final_url TEXT, access_path TEXT DEFAULT 'none' NOT NULL, attempts INTEGER DEFAULT 0 NOT NULL, bytes_hashed INTEGER DEFAULT 0 NOT NULL, alternative_http_status INTEGER, failure_code TEXT, etag TEXT, last_modified TEXT, not_modified INTEGER DEFAULT 0 NOT NULL, connector_id TEXT, artifact_kind TEXT, parser_version TEXT, parse_status TEXT DEFAULT 'not_applicable' NOT NULL, detected_version TEXT, published_at TEXT, detected_effective_from TEXT, promotion_status TEXT DEFAULT 'not_applicable' NOT NULL, contract_errors_json TEXT DEFAULT '[]' NOT NULL, checked_at TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS normative_source_incidents (id TEXT PRIMARY KEY NOT NULL, source_code TEXT NOT NULL, snapshot_id TEXT NOT NULL, connector_id TEXT NOT NULL, incident_kind TEXT NOT NULL, status TEXT DEFAULT 'open' NOT NULL, details_json TEXT DEFAULT '{}' NOT NULL, detected_at TEXT NOT NULL, resolved_at TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS normative_change_events (id TEXT PRIMARY KEY NOT NULL, source_code TEXT NOT NULL, previous_snapshot_id TEXT, current_snapshot_id TEXT NOT NULL, change_kind TEXT NOT NULL, status TEXT DEFAULT 'pending_review' NOT NULL, impacted_rule_codes_json TEXT DEFAULT '[]' NOT NULL, detected_at TEXT NOT NULL, resolved_at TEXT, resolution_release_id TEXT, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
     db.prepare("CREATE TABLE IF NOT EXISTS normative_change_reviews (id TEXT PRIMARY KEY NOT NULL, change_event_id TEXT NOT NULL, workspace_id INTEGER NOT NULL, reviewer_user_id INTEGER NOT NULL, reviewer_name TEXT NOT NULL, professional_role TEXT NOT NULL, professional_registration TEXT NOT NULL, decision TEXT NOT NULL, decision_note TEXT NOT NULL, release_version TEXT, release_hash TEXT, declaration_version TEXT NOT NULL, decision_signature TEXT NOT NULL, created_at TEXT DEFAULT CURRENT_TIMESTAMP NOT NULL)"),
@@ -169,6 +171,7 @@ type NormativeFetcher = (input: string, init?: RequestInit) => Promise<Response>
 async function fetchWithRetry(url: string, fetcher: NormativeFetcher, maxAttempts = 2, conditional?: { etag: string | null; lastModified: string | null }) {
   let response: Response | null = null;
   let attempts = 0;
+  let errorCode: string | null = null;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
     attempts = attempt;
     try {
@@ -183,12 +186,41 @@ async function fetchWithRetry(url: string, fetcher: NormativeFetcher, maxAttempt
         redirect: "follow",
         signal: AbortSignal.timeout(10_000),
       });
-      if (response.ok || response.status === 304 || ![408, 425, 429, 500, 502, 503, 504].includes(response.status)) break;
-    } catch {
+      errorCode = response.ok || response.status === 304 ? null : `http_${response.status}`;
+      if (response.ok || response.status === 304 || !([408, 425, 429].includes(response.status) || response.status >= 500)) break;
+    } catch (error) {
       response = null;
+      errorCode = error instanceof Error ? error.name : "fetch_failed";
     }
   }
-  return { response, attempts };
+  return { response, attempts, errorCode };
+}
+
+async function readResponseBytes(response: Response, maxBytes: number) {
+  if (!response.body) return new Uint8Array();
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    while (total < maxBytes) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const remaining = maxBytes - total;
+      const chunk = value.byteLength > remaining ? value.slice(0, remaining) : value;
+      chunks.push(chunk);
+      total += chunk.byteLength;
+      if (value.byteLength > remaining) break;
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
+  const bytes = new Uint8Array(total);
+  let offset = 0;
+  for (const chunk of chunks) {
+    bytes.set(chunk, offset);
+    offset += chunk.byteLength;
+  }
+  return bytes;
 }
 
 function normalizedText(bytes: Uint8Array) {
@@ -217,19 +249,22 @@ export async function captureNormativeSource(source: GovernedNormativeSource, fe
       contractErrors: parseList(previous.contract_errors_json),
       promotionStatus: previous.promotion_status === "blocked_contract" ? "blocked_contract" : "metadata_review",
     } : { connectorId: null, connectorName: null, artifactKind: null, parserVersion: null, parseStatus: "not_applicable", detectedVersion: null, publishedAt: null, effectiveFrom: null, contractErrors: [], promotionStatus: "not_applicable" };
-    return { source, status: "checked", httpStatus: 304, contentHash: previous.content_hash, normalizedContentHash: previous.normalized_content_hash, etag: direct.response.headers.get("etag") ?? previous.etag, lastModified: direct.response.headers.get("last-modified") ?? previous.last_modified, finalUrl: direct.response.url || previous.final_url || source.url, accessPath: "direct", attempts: direct.attempts, bytesHashed: 0, alternativeHttpStatus: null, notModified: true, inspection, checkedAt };
+    return { source, status: "checked", httpStatus: 304, contentHash: previous.content_hash, normalizedContentHash: previous.normalized_content_hash, etag: direct.response.headers.get("etag") ?? previous.etag, lastModified: direct.response.headers.get("last-modified") ?? previous.last_modified, finalUrl: direct.response.url || previous.final_url || source.url, accessPath: "direct", attempts: direct.attempts, bytesHashed: 0, alternativeHttpStatus: null, failureCode: null, notModified: true, inspection, checkedAt };
   }
   if (direct.response?.ok) {
-    const rawBytes = new Uint8Array(await direct.response.arrayBuffer());
-    const bytes = rawBytes.slice(0, contract?.maxBytes ?? 750_000);
-    const bodyText = normalizedText(bytes);
-    const finalUrl = direct.response.url || source.url;
-    const inspection = inspectOfficialArtifact({ sourceCode: source.code, finalUrl, contentType: direct.response.headers.get("content-type"), bodyText });
-    return { source, status: "checked", httpStatus: direct.response.status, contentHash: await sha256Hex(bytes), normalizedContentHash: await sha256Hex(bodyText), etag: direct.response.headers.get("etag"), lastModified: direct.response.headers.get("last-modified"), finalUrl, accessPath: "direct", attempts: direct.attempts, bytesHashed: bytes.length, alternativeHttpStatus: null, notModified: false, inspection, checkedAt };
+    try {
+      const bytes = await readResponseBytes(direct.response, contract?.maxBytes ?? 750_000);
+      const bodyText = normalizedText(bytes);
+      const finalUrl = direct.response.url || source.url;
+      const inspection = inspectOfficialArtifact({ sourceCode: source.code, finalUrl, contentType: direct.response.headers.get("content-type"), bodyText });
+      return { source, status: "checked", httpStatus: direct.response.status, contentHash: await sha256Hex(bytes), normalizedContentHash: await sha256Hex(bodyText), etag: direct.response.headers.get("etag"), lastModified: direct.response.headers.get("last-modified"), finalUrl, accessPath: "direct", attempts: direct.attempts, bytesHashed: bytes.length, alternativeHttpStatus: null, failureCode: null, notModified: false, inspection, checkedAt };
+    } catch (error) {
+      direct.errorCode = `body_${error instanceof Error ? error.name : "read_failed"}`;
+    }
   }
   const alternative = source.officialAlternativeUrl ? await fetchWithRetry(source.officialAlternativeUrl, fetcher, 1) : { response: null, attempts: 0 };
   const inspection = inspectOfficialArtifact({ sourceCode: source.code, finalUrl: direct.response?.url || source.url, contentType: direct.response?.headers.get("content-type") ?? null, bodyText: "" });
-  return { source, status: "unavailable", httpStatus: direct.response?.status ?? null, contentHash: null, normalizedContentHash: null, etag: direct.response?.headers.get("etag") ?? null, lastModified: direct.response?.headers.get("last-modified") ?? null, finalUrl: direct.response?.url || source.url, accessPath: alternative.response?.ok ? "official_alternative" : "none", attempts: direct.attempts + alternative.attempts, bytesHashed: 0, alternativeHttpStatus: alternative.response?.status ?? null, notModified: false, inspection, checkedAt };
+  return { source, status: "unavailable", httpStatus: direct.response?.status ?? null, contentHash: null, normalizedContentHash: null, etag: direct.response?.headers.get("etag") ?? null, lastModified: direct.response?.headers.get("last-modified") ?? null, finalUrl: direct.response?.url || source.url, accessPath: alternative.response?.ok ? "official_alternative" : "none", attempts: direct.attempts + alternative.attempts, bytesHashed: 0, alternativeHttpStatus: alternative.response?.status ?? null, failureCode: direct.errorCode ?? (direct.response ? `http_${direct.response.status}` : "fetch_failed"), notModified: false, inspection, checkedAt };
 }
 
 async function captureDailySources(db: D1Database, sources: readonly GovernedNormativeSource[]) {
@@ -311,12 +346,19 @@ export async function runNormativeMonitor(environment: NormativeMonitorEnvironme
   const runCatalogVersion = `${NORMATIVE_GOVERNANCE_VERSION}:daily-${shard + 1}-of-${shardCount}`;
   const startedAt = isoNow();
   const requestedRunId = crypto.randomUUID();
-  await db.prepare("INSERT OR IGNORE INTO normative_monitor_runs (id, run_date, status, catalog_version, source_count, started_at, created_at) VALUES (?, ?, 'running', ?, ?, ?, ?)")
-    .bind(requestedRunId, date, runCatalogVersion, rotation.sources.length, startedAt, startedAt).run();
-  const run = await db.prepare("SELECT id, status FROM normative_monitor_runs WHERE run_date = ? AND catalog_version = ? LIMIT 1")
-    .bind(date, runCatalogVersion).first<{ id: string; status: string }>();
+  await db.prepare("INSERT OR IGNORE INTO normative_monitor_runs (id, run_date, status, catalog_version, source_count, attempt_count, started_at, last_attempt_at, created_at) VALUES (?, ?, 'running', ?, ?, 1, ?, ?, ?)")
+    .bind(requestedRunId, date, runCatalogVersion, rotation.sources.length, startedAt, startedAt, startedAt).run();
+  const run = await db.prepare("SELECT id, status, started_at, attempt_count FROM normative_monitor_runs WHERE run_date = ? AND catalog_version = ? LIMIT 1")
+    .bind(date, runCatalogVersion).first<{ id: string; status: string; started_at: string; attempt_count: number }>();
   if (!run) throw new Error("normative_monitor_run_unavailable");
   if (run.status === "completed") return { runId: run.id, status: "already_completed" as const, rotation };
+  if (run.status === "running" && run.id !== requestedRunId && Date.now() - Date.parse(run.started_at) < 20 * 60_000) {
+    return { runId: run.id, status: "already_running" as const, rotation };
+  }
+  if (run.id !== requestedRunId) {
+    await db.prepare("UPDATE normative_monitor_runs SET status = 'running', checked_count = 0, unavailable_count = 0, change_count = 0, attempt_count = attempt_count + 1, started_at = ?, last_attempt_at = ?, finished_at = NULL, error_code = NULL WHERE id = ?")
+      .bind(startedAt, startedAt, run.id).run();
+  }
 
   const previousCompleted = await db.prepare("SELECT COUNT(*) AS total FROM normative_monitor_runs WHERE status = 'completed' AND id <> ?")
     .bind(run.id).first<{ total: number }>();
@@ -328,8 +370,8 @@ export async function runNormativeMonitor(environment: NormativeMonitorEnvironme
       const previous = await previousSnapshot(db, capture.source.code);
       const classification = classifyCapturedChange(previous ? { sourceCode: capture.source.code, status: previous.capture_status, contentHash: previous.content_hash, normalizedContentHash: previous.normalized_content_hash, finalUrl: previous.final_url } : null, { sourceCode: capture.source.code, status: capture.status, contentHash: capture.contentHash, normalizedContentHash: capture.normalizedContentHash, finalUrl: capture.finalUrl });
       const snapshotId = `${run.id}:${capture.source.code}`;
-      const insertedSnapshot = await db.prepare("INSERT OR IGNORE INTO normative_source_snapshots (id, run_id, source_version_id, source_code, capture_status, http_status, content_hash, previous_content_hash, normalized_content_hash, final_url, access_path, attempts, bytes_hashed, alternative_http_status, etag, last_modified, not_modified, connector_id, artifact_kind, parser_version, parse_status, detected_version, published_at, detected_effective_from, promotion_status, contract_errors_json, checked_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .bind(snapshotId, run.id, sourceVersionIds.get(capture.source.code), capture.source.code, capture.status, capture.httpStatus, capture.contentHash, previous?.content_hash ?? null, capture.normalizedContentHash, capture.finalUrl, capture.accessPath, capture.attempts, capture.bytesHashed, capture.alternativeHttpStatus, capture.etag, capture.lastModified, capture.notModified ? 1 : 0, capture.inspection.connectorId, capture.inspection.artifactKind, capture.inspection.parserVersion, capture.inspection.parseStatus, capture.inspection.detectedVersion, capture.inspection.publishedAt, capture.inspection.effectiveFrom, capture.inspection.promotionStatus, JSON.stringify(capture.inspection.contractErrors), capture.checkedAt, capture.checkedAt).run();
+      const insertedSnapshot = await db.prepare("INSERT OR IGNORE INTO normative_source_snapshots (id, run_id, source_version_id, source_code, capture_status, http_status, content_hash, previous_content_hash, normalized_content_hash, final_url, access_path, attempts, bytes_hashed, alternative_http_status, failure_code, etag, last_modified, not_modified, connector_id, artifact_kind, parser_version, parse_status, detected_version, published_at, detected_effective_from, promotion_status, contract_errors_json, checked_at, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+        .bind(snapshotId, run.id, sourceVersionIds.get(capture.source.code), capture.source.code, capture.status, capture.httpStatus, capture.contentHash, previous?.content_hash ?? null, capture.normalizedContentHash, capture.finalUrl, capture.accessPath, capture.attempts, capture.bytesHashed, capture.alternativeHttpStatus, capture.failureCode, capture.etag, capture.lastModified, capture.notModified ? 1 : 0, capture.inspection.connectorId, capture.inspection.artifactKind, capture.inspection.parserVersion, capture.inspection.parseStatus, capture.inspection.detectedVersion, capture.inspection.publishedAt, capture.inspection.effectiveFrom, capture.inspection.promotionStatus, JSON.stringify(capture.inspection.contractErrors), capture.checkedAt, capture.checkedAt).run();
       if (insertedSnapshot.meta.changes !== 1) continue;
       await reconcileConnectorIncident(db, capture, snapshotId);
       if (classification !== "unchanged" && classification !== "baseline") {
@@ -362,13 +404,13 @@ function parseList(value: string | null | undefined) {
   }
 }
 
-export async function getNormativeGovernanceDashboard(db: D1Database, workspaceId: number, today = monitorDate()) {
+export async function getNormativeGovernanceDashboard(db: D1Database, workspaceId: number, today = monitorDate(), now = new Date()) {
   await ensureNormativeGovernanceSchema(db);
   const [runs, events, eventCounts, todayRunSummary, invalidations, notifications, rules, releases, regressionRuns, connectorIncidents, connectorIncidentCounts] = await Promise.all([
-    db.prepare("SELECT id, run_date, status, source_count, checked_count, unavailable_count, change_count, started_at, finished_at FROM normative_monitor_runs ORDER BY run_date DESC, created_at DESC LIMIT 36").all<Record<string, string | number | null>>(),
+    db.prepare("SELECT id, run_date, status, source_count, checked_count, unavailable_count, change_count, attempt_count, started_at, last_attempt_at, finished_at, error_code FROM normative_monitor_runs ORDER BY run_date DESC, created_at DESC LIMIT 36").all<Record<string, string | number | null>>(),
     db.prepare("SELECT e.*, s.title, s.publisher, s.jurisdiction, s.legal_device, s.source_url FROM normative_change_events e LEFT JOIN normative_sources s ON s.id = (SELECT s2.id FROM normative_sources s2 WHERE s2.code = e.source_code ORDER BY s2.created_at DESC, s2.id DESC LIMIT 1) ORDER BY e.detected_at DESC, e.id DESC LIMIT 100").all<Record<string, string | number | null>>(),
     db.prepare("SELECT status, change_kind, COUNT(*) AS total FROM normative_change_events GROUP BY status, change_kind").all<Record<string, string | number | null>>(),
-    db.prepare("SELECT COALESCE(SUM(CASE WHEN status = 'completed' THEN source_count ELSE 0 END), 0) AS scheduled_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN checked_count ELSE 0 END), 0) AS checked_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN unavailable_count ELSE 0 END), 0) AS unavailable_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN change_count ELSE 0 END), 0) AS change_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_shards, COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed_shards, COALESCE(SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END), 0) AS running_shards FROM normative_monitor_runs WHERE run_date = ?").bind(today).first<Record<string, string | number | null>>(),
+    db.prepare("SELECT COALESCE(SUM(CASE WHEN status = 'completed' THEN source_count ELSE 0 END), 0) AS scheduled_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN checked_count ELSE 0 END), 0) AS checked_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN unavailable_count ELSE 0 END), 0) AS unavailable_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN change_count ELSE 0 END), 0) AS change_count, COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) AS completed_shards, COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) AS failed_shards, COALESCE(SUM(CASE WHEN status = 'running' THEN 1 ELSE 0 END), 0) AS running_shards, COALESCE(SUM(CASE WHEN attempt_count > 1 THEN 1 ELSE 0 END), 0) AS retried_shards FROM normative_monitor_runs WHERE run_date = ?").bind(today).first<Record<string, string | number | null>>(),
     db.prepare("SELECT id, change_event_id, dossier_id, rule_code, rule_version, status, reason, created_at FROM fiscal_result_invalidations WHERE workspace_id = ? AND status = 'open' ORDER BY created_at DESC LIMIT 100").bind(workspaceId).all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, notification_type, subject_type, subject_id, message, read_at, created_at FROM governance_notifications WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 50").bind(workspaceId).all<Record<string, string | number | null>>(),
     db.prepare("SELECT id, code, version, name, status, effective_from, effective_to, source_count, content_hash FROM fiscal_rule_sets ORDER BY effective_to, code, version").all<RuleRow>(),
@@ -378,7 +420,7 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     db.prepare("SELECT status, COUNT(*) AS total FROM normative_source_incidents GROUP BY status").all<Record<string, string | number | null>>(),
   ]);
 
-  const sourceRows = await db.prepare("SELECT s.*, snap.capture_status, snap.http_status, snap.content_hash, snap.normalized_content_hash, snap.final_url, snap.access_path, snap.attempts, snap.bytes_hashed, snap.alternative_http_status, snap.checked_at, snap.not_modified, snap.artifact_kind, snap.parser_version, snap.parse_status, snap.detected_version, snap.published_at, snap.detected_effective_from, snap.promotion_status, snap.contract_errors_json FROM normative_sources s LEFT JOIN normative_source_snapshots snap ON snap.id = (SELECT ss.id FROM normative_source_snapshots ss WHERE ss.source_code = s.code ORDER BY ss.checked_at DESC, ss.id DESC LIMIT 1) WHERE s.id = (SELECT ns.id FROM normative_sources ns WHERE ns.code = s.code ORDER BY ns.created_at DESC, ns.id DESC LIMIT 1) ORDER BY s.jurisdiction, s.code")
+  const sourceRows = await db.prepare("SELECT s.*, snap.capture_status, snap.http_status, snap.content_hash, snap.normalized_content_hash, snap.final_url, snap.access_path, snap.attempts, snap.bytes_hashed, snap.alternative_http_status, snap.failure_code, snap.checked_at, snap.not_modified, snap.artifact_kind, snap.parser_version, snap.parse_status, snap.detected_version, snap.published_at, snap.detected_effective_from, snap.promotion_status, snap.contract_errors_json FROM normative_sources s LEFT JOIN normative_source_snapshots snap ON snap.id = (SELECT ss.id FROM normative_source_snapshots ss WHERE ss.source_code = s.code ORDER BY ss.checked_at DESC, ss.id DESC LIMIT 1) WHERE s.id = (SELECT ns.id FROM normative_sources ns WHERE ns.code = s.code ORDER BY ns.created_at DESC, ns.id DESC LIMIT 1) ORDER BY s.jurisdiction, s.code")
     .all<Record<string, string | number | null>>();
   const changeHistory = events.results.map((event) => ({
     id: String(event.id),
@@ -438,6 +480,7 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     attempts: Number(source.attempts ?? 0),
     bytesHashed: Number(source.bytes_hashed ?? 0),
     alternativeHttpStatus: source.alternative_http_status === null ? null : Number(source.alternative_http_status),
+    failureCode: source.failure_code ? String(source.failure_code) : null,
     connectorId: source.connector_id ? String(source.connector_id) : null,
     connectorContractVersion: source.connector_contract_version ? String(source.connector_contract_version) : null,
     artifactKind: source.artifact_kind ? String(source.artifact_kind) : null,
@@ -480,8 +523,11 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     checked: Number(run.checked_count),
     unavailable: Number(run.unavailable_count),
     changes: Number(run.change_count),
+    attempts: Number(run.attempt_count ?? 1),
     startedAt: String(run.started_at),
+    lastAttemptAt: run.last_attempt_at ? String(run.last_attempt_at) : String(run.started_at),
     finishedAt: run.finished_at ? String(run.finished_at) : null,
+    errorCode: run.error_code ? String(run.error_code) : null,
   }));
   const todaySummary = {
     scheduled: Number(todayRunSummary?.scheduled_count ?? 0),
@@ -491,6 +537,7 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     completedShards: Number(todayRunSummary?.completed_shards ?? 0),
     failedShards: Number(todayRunSummary?.failed_shards ?? 0),
     runningShards: Number(todayRunSummary?.running_shards ?? 0),
+    retriedShards: Number(todayRunSummary?.retried_shards ?? 0),
   };
   const catalogValidation = validateGovernedSourceCatalog();
   const connectorContract = validateOfficialConnectorContracts();
@@ -499,11 +546,15 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
     .reduce((total, row) => total + Number(row.total ?? 0), 0);
   const sourcesWithBaseline = sourceCatalog.filter((source) => source.captureStatus !== "not_checked").length;
   const sourcesWithoutBaseline = Math.max(0, governedNormativeSources.length - sourcesWithBaseline);
+  const expectedShards = today === monitorDate(now) ? expectedNormativeMonitorShards(now.getTime()) : NORMATIVE_MONITOR_SHARD_COUNT;
+  const delayedShards = Math.max(0, expectedShards - todaySummary.completedShards - todaySummary.runningShards);
+  const cycleComplete = todaySummary.completedShards >= NORMATIVE_MONITOR_SHARD_COUNT;
+  const cycleHasPendingEvidence = todaySummary.unavailable > 0 || queueBreakdown.potentiallyNormative > 0 || openConnectorIncidents > 0;
   const operationalLevel = !catalogValidation.passed || openInvalidations.length > 0 || ruleCatalog.some((rule) => rule.health === "expired")
     ? "blocked"
-    : todaySummary.failedShards > 0 || openConnectorIncidents > 0 || todaySummary.unavailable > 0 || queueBreakdown.potentiallyNormative > 0
+    : delayedShards > 0 || (cycleComplete && cycleHasPendingEvidence)
       ? "attention"
-      : todaySummary.completedShards < NORMATIVE_MONITOR_SHARD_COUNT
+      : !cycleComplete
         ? "in_progress"
         : "healthy";
   return {
@@ -513,7 +564,7 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
       level: operationalLevel,
       cycleDate: today,
       timezone: "UTC",
-      title: operationalLevel === "blocked" ? "Bloqueio operacional" : operationalLevel === "attention" ? "Ciclo com pendências" : operationalLevel === "in_progress" ? "Ciclo diário em andamento" : "Ciclo diário concluído",
+      title: operationalLevel === "blocked" ? "Bloqueio operacional" : delayedShards > 0 ? "Ciclo atrasado; nova tentativa programada" : operationalLevel === "attention" ? "Ciclo concluído com pendências" : operationalLevel === "in_progress" ? "Ciclo diário em andamento" : "Ciclo diário concluído",
     },
     queueBreakdown,
     sources: sourceCatalog,
@@ -550,8 +601,11 @@ export async function getNormativeGovernanceDashboard(db: D1Database, workspaceI
       unavailableToday: todaySummary.unavailable,
       dailyShardsCompleted: todaySummary.completedShards,
       dailyShardsTotal: NORMATIVE_MONITOR_SHARD_COUNT,
+      expectedShardsToday: expectedShards,
+      delayedShardsToday: delayedShards,
       failedShardsToday: todaySummary.failedShards,
       runningShardsToday: todaySummary.runningShards,
+      retriedShardsToday: todaySummary.retriedShards,
       sourcesWithBaseline,
       sourcesWithoutBaseline,
       unavailable: sourceCatalog.filter((source) => source.captureStatus === "unavailable").length,

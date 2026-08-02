@@ -281,6 +281,13 @@
       "when": 1785634763110,
       "tag": "0039_eminent_mentallo",
       "breakpoints": true
+    },
+    {
+      "idx": 40,
+      "version": "6",
+      "when": 1785640697647,
+      "tag": "0040_jittery_speed",
+      "breakpoints": true
     }
   ]
 }

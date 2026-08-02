@@ -3,6 +3,7 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   classifyCapturedChange,
+  expectedNormativeMonitorShards,
   governedNormativeSources,
   NORMATIVE_MONITOR_BATCH_SIZE,
   NORMATIVE_MONITOR_MAX_SUBREQUESTS_PER_SOURCE,
@@ -92,6 +93,24 @@ test("captura aplica retry, não persiste conteúdo e usa alternativa só como d
   assert.equal(calls, 2);
 });
 
+test("falha durante leitura do corpo não derruba o lote e fica diagnosticável", async () => {
+  const source = governedNormativeSources.find((item) => !item.officialAlternativeUrl);
+  assert.ok(source);
+  const body = new ReadableStream({
+    pull(controller) {
+      controller.error(new DOMException("tempo esgotado", "TimeoutError"));
+    },
+  });
+  const capture = await captureNormativeSource(source, async () => new Response(body, {
+    status: 200,
+    headers: { "content-type": "text/html" },
+  }));
+  assert.equal(capture.status, "unavailable");
+  assert.equal(capture.httpStatus, 200);
+  assert.equal(capture.failureCode, "body_TimeoutError");
+  assert.equal(capture.contentHash, null);
+});
+
 test("saúde da regra sinaliza ausência de fonte, futuro, vencimento e validade", () => {
   assert.equal(ruleHealthStatus({ effectiveFrom: "2020-01-01", effectiveTo: "2030-01-01", sourceCount: 0 }, "2026-07-26"), "missing_source");
   assert.equal(ruleHealthStatus({ effectiveFrom: "2027-01-01", effectiveTo: "2030-01-01", sourceCount: 1 }, "2026-07-26"), "future");
@@ -100,14 +119,17 @@ test("saúde da regra sinaliza ausência de fonte, futuro, vencimento e validade
   assert.equal(ruleHealthStatus({ effectiveFrom: "2020-01-01", effectiveTo: "2027-12-31", sourceCount: 1 }, "2026-07-26"), "current");
 });
 
-test("twelve daily source shards share the 30-minute cron without duplicate runs", () => {
+test("twelve daily source shards use the half-hour tick as an idempotent retry window", () => {
   const at = (hour, minute = 0) => Date.UTC(2026, 7, 1, hour, minute, 0);
   for (let shard = 0; shard < 12; shard += 1) {
     assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(shard * 2)), shard);
+    assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(shard * 2, 30)), shard);
   }
-  assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(8, 30)), null);
   assert.equal(normativeMonitorShardForScheduledTime("15 8 * * *", at(8)), null);
   assert.equal(normativeMonitorShardForScheduledTime("*/30 * * * *", at(9)), null);
+  assert.equal(expectedNormativeMonitorShards(at(0)), 1);
+  assert.equal(expectedNormativeMonitorShards(at(8, 30)), 5);
+  assert.equal(expectedNormativeMonitorShards(at(23, 59)), 12);
 });
 
 test("governança persiste fila, classificação, revisão, bloqueio, histórico e auditoria", async () => {

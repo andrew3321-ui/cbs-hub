@@ -191,10 +191,12 @@ function governedSource(source: typeof normativeMonitorSources[number]): Governe
 
 const officialAuthorityAlternatives: Record<string, string> = {
   CONFAZ: "https://www.gov.br/confaz/pt-br/assuntos/legislacao",
+  "LC-116-2003": "https://planalto.gov.br/ccivil_03/leis/lcp/lcp116.htm",
   "NFE-PORTAL": "https://www.gov.br/nfe/pt-br",
   "RTC-CALCULATOR": "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/acoes-e-programas/programas-e-atividades/reforma-tributaria-do-consumo",
   "RFB-NEWS": "https://www.gov.br/receitafederal/pt-br/acesso-a-informacao/legislacao",
   "SIMPLES-NEWS": "https://www8.receita.fazenda.gov.br/SimplesNacional/Noticias/NoticiaCompleta.aspx",
+  "ISS-CWB-GUIA": "https://financas.curitiba.pr.gov.br/conteudo/iss-imposto-sobre-servicos/24",
 };
 
 function officialAlternative(source: GovernedNormativeSourceBase) {
@@ -268,8 +270,15 @@ const dailyNormativeShardByUtcHour = new Map([
 export function normativeMonitorShardForScheduledTime(cron: string, scheduledTime: number) {
   if (cron !== "*/30 * * * *" || !Number.isFinite(scheduledTime)) return null;
   const instant = new Date(scheduledTime);
-  if (Number.isNaN(instant.getTime()) || instant.getUTCMinutes() !== 0) return null;
+  if (Number.isNaN(instant.getTime()) || ![0, 30].includes(instant.getUTCMinutes())) return null;
   return dailyNormativeShardByUtcHour.get(instant.getUTCHours()) ?? null;
+}
+
+export function expectedNormativeMonitorShards(scheduledTime: number) {
+  if (!Number.isFinite(scheduledTime)) return 0;
+  const instant = new Date(scheduledTime);
+  if (Number.isNaN(instant.getTime())) return 0;
+  return Array.from(dailyNormativeShardByUtcHour.keys()).filter((hour) => hour <= instant.getUTCHours()).length;
 }
 
 export function classifyCapturedChange(previous: CapturedSourceState | null, current: CapturedSourceState) {

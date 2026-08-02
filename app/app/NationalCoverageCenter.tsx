@@ -85,7 +85,7 @@ type Monitor = {
   queueBreakdown: { total: number; newSources: number; potentiallyNormative: number; editorial: number; technical: number; unavailable: number; recovered: number; legacyContentChanged: number };
   rotation: { offset: number; totalSources: number; cycleDays: number };
   metrics: {
-    monitored: number; checkedToday: number; scheduledToday: number; attemptedToday: number; checked: number; unavailableToday: number; dailyShardsCompleted: number; dailyShardsTotal: number; failedShardsToday: number; runningShardsToday: number; sourcesWithBaseline: number; sourcesWithoutBaseline: number; unavailable: number; changeSignals: number;
+    monitored: number; checkedToday: number; scheduledToday: number; attemptedToday: number; checked: number; unavailableToday: number; dailyShardsCompleted: number; dailyShardsTotal: number; expectedShardsToday: number; delayedShardsToday: number; failedShardsToday: number; runningShardsToday: number; retriedShardsToday: number; sourcesWithBaseline: number; sourcesWithoutBaseline: number; unavailable: number; changeSignals: number;
     pendingReview: number; awaitingNewVersion: number; invalidatedResults: number; unreadNotifications: number;
     expiringRules: number; expiredRules: number; unverifiableSources: number;
     potentiallyNormative: number; technicalOrEditorial: number; connectorIncidents: number;
@@ -101,7 +101,7 @@ type Monitor = {
     verificationStatus: string; impactedRuleCodes: string[]; captureStatus: string;
     httpStatus: number | null; checkedAt: string | null; contentFingerprint: string | null;
     normalizedFingerprint: string | null; finalUrl: string | null; accessPath: string; attempts: number;
-    bytesHashed: number; alternativeHttpStatus: number | null; criticality: string;
+    bytesHashed: number; alternativeHttpStatus: number | null; failureCode: string | null; criticality: string;
     monitoringFrequency: string; officialAlternativeUrl: string | null; alternativeEvidenceScope: string;
     connectorId: string | null; connectorContractVersion: string | null; artifactKind: string | null;
     parserVersion: string | null; parseStatus: string; detectedVersion: string | null; publishedAt: string | null;
@@ -118,7 +118,7 @@ type Monitor = {
   }>;
   invalidations: Array<{ id: string; eventId: string; dossierId: string; ruleCode: string; ruleVersion: string; status: string; reason: string; createdAt: string }>;
   rules: Array<{ id: number; code: string; version: string; name: string; approvalStatus: string; effectiveFrom: string; effectiveTo: string; sourceCount: number; fingerprint: string; health: "current" | "future" | "expiring" | "expired" | "missing_source" }>;
-  runs: Array<{ id: string; runDate: string; status: string; sourceCount: number; checked: number; unavailable: number; changes: number; startedAt: string; finishedAt: string | null }>;
+  runs: Array<{ id: string; runDate: string; status: string; sourceCount: number; checked: number; unavailable: number; changes: number; attempts: number; startedAt: string; lastAttemptAt: string; finishedAt: string | null; errorCode: string | null }>;
   releases: Array<Record<string, string | number | null>>;
   canReviewNormativeChanges: boolean;
   policy: string;
@@ -920,7 +920,7 @@ export default function NationalCoverageCenter() {
       <div className="monitor-panel"><div className="coverage-section-heading"><span>MONITOR DIÁRIO PERSISTENTE</span><h2>Alterações viram fila, bloqueio e trilha de auditoria</h2><p>{monitor?.policy ?? "Consultando fontes oficiais…"}</p></div>{monitor && <>
         <div className="monitor-kpis">
           <span><b>{monitor.metrics.monitored}</b>fontes catalogadas</span>
-          <span><b>{monitor.metrics.attemptedToday}</b>tentativas no ciclo</span>
+          <span><b>{monitor.metrics.attemptedToday}</b>fontes processadas</span>
           <span><b>{monitor.metrics.checked}</b>verificações concluídas</span>
           <span className={monitor.metrics.unavailableToday ? "alert" : ""}><b>{monitor.metrics.unavailableToday}</b>indisponíveis no ciclo</span>
           <span className={monitor.metrics.changeSignals ? "alert" : ""}><b>{monitor.metrics.changeSignals}</b>itens para triagem</span>
@@ -936,10 +936,13 @@ export default function NationalCoverageCenter() {
         <div className={`governance-cycle-status ${monitor.operationalStatus.level}`}>
           <div><b>{monitor.operationalStatus.title}</b><span>Ciclo {monitor.operationalStatus.cycleDate} · referência {monitor.operationalStatus.timezone}</span></div>
           <div className="governance-cycle-metrics">
-            <span><b>{monitor.metrics.dailyShardsCompleted}/{monitor.metrics.dailyShardsTotal}</b> lotes concluídos</span>
+            <span><b>{monitor.metrics.dailyShardsCompleted}/{monitor.metrics.expectedShardsToday}</b> lotes previstos até agora</span>
+            <span><b>{monitor.metrics.dailyShardsCompleted}/{monitor.metrics.dailyShardsTotal}</b> ciclo completo</span>
             <span><b>{monitor.metrics.checked}</b> verificadas</span>
             <span><b>{monitor.metrics.unavailableToday}</b> indisponíveis</span>
             <span><b>{monitor.metrics.sourcesWithoutBaseline}</b> sem captura-base</span>
+            {monitor.metrics.retriedShardsToday > 0 && <span><b>{monitor.metrics.retriedShardsToday}</b> lote(s) recuperados por retry</span>}
+            {monitor.metrics.delayedShardsToday > 0 && <span className="alert"><b>{monitor.metrics.delayedShardsToday}</b> lote(s) atrasados</span>}
             {monitor.metrics.failedShardsToday > 0 && <span className="alert"><b>{monitor.metrics.failedShardsToday}</b> lote(s) com falha</span>}
           </div>
         </div>
@@ -980,9 +983,9 @@ export default function NationalCoverageCenter() {
           <header><div><span>SAÚDE DAS REGRAS</span><h3>Vigência, fonte e fingerprint</h3></div><b>{monitor.rules.length} versões</b></header>
           <div className="governance-rule-grid">{monitor.rules.map((rule) => <article className={rule.health} key={`${rule.code}-${rule.version}`}><span>{rule.health === "current" ? "VIGENTE" : rule.health === "expiring" ? "VENCENDO" : rule.health === "expired" ? "VENCIDA" : rule.health === "future" ? "FUTURA" : "SEM FONTE"}</span><b>{rule.name}</b><small>{rule.code} · {rule.version} · #{rule.fingerprint}</small><em>{rule.effectiveFrom} → {rule.effectiveTo} · {rule.sourceCount} fonte(s)</em></article>)}</div>
         </section>
-        <details className="governance-source-catalog"><summary>Ver cadastro canônico e últimas capturas ({monitor.sources.length})</summary><div>{monitor.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span className={source.captureStatus}>{source.captureStatus === "checked" ? "✓" : source.captureStatus === "unavailable" ? "!" : "·"}</span><p><b>{source.title}</b><small>{source.jurisdiction} · {source.criticality} · monitor diário · vigência {source.effectiveFrom ?? "a individualizar"} · #{source.contentFingerprint ?? "sem captura"} · {source.attempts} tentativa(s){source.notModified ? " · HTTP 304" : ""}{source.connectorId ? ` · ${source.connectorId.toUpperCase()} ${source.detectedVersion ?? "sem versão extraída"} · ${source.parseStatus}` : ""}</small></p><em>{source.promotionStatus === "blocked_contract" ? "Contrato bloqueado" : source.connectorId ? "Metadado para revisão" : source.accessPath === "official_alternative" ? "Alternativa técnica" : source.verificationStatus === "rule_evidence" ? "Evidência" : "Monitor"}</em></a>)}</div></details>
+        <details className="governance-source-catalog"><summary>Ver cadastro canônico e últimas capturas ({monitor.sources.length})</summary><div>{monitor.sources.map((source) => <a href={source.url} target="_blank" rel="noreferrer" key={source.code}><span className={source.captureStatus}>{source.captureStatus === "checked" ? "✓" : source.captureStatus === "unavailable" ? "!" : "·"}</span><p><b>{source.title}</b><small>{source.jurisdiction} · {source.criticality} · monitor diário · vigência {source.effectiveFrom ?? "a individualizar"} · #{source.contentFingerprint ?? "sem captura"} · {source.attempts} tentativa(s){source.notModified ? " · HTTP 304" : ""}{source.failureCode ? ` · ${source.failureCode}` : ""}{source.connectorId ? ` · ${source.connectorId.toUpperCase()} ${source.detectedVersion ?? "sem versão extraída"} · ${source.parseStatus}` : ""}</small></p><em>{source.promotionStatus === "blocked_contract" ? "Contrato bloqueado" : source.connectorId ? "Metadado para revisão" : source.accessPath === "official_alternative" ? "Alternativa técnica" : source.verificationStatus === "rule_evidence" ? "Evidência" : "Monitor"}</em></a>)}</div></details>
         <details className="governance-run-history"><summary>Histórico de mudanças e decisões ({monitor.changeHistory.length})</summary>{monitor.changeHistory.map((event) => <p key={event.id}><b>{event.sourceCode} · {event.changeKind}</b><span>{event.status} · detectada em {new Date(event.detectedAt).toLocaleString("pt-BR")}{event.resolvedAt ? ` · decidida em ${new Date(event.resolvedAt).toLocaleString("pt-BR")}` : " · decisão pendente"}</span></p>)}</details>
-        <details className="governance-run-history"><summary>Histórico append-only das execuções ({monitor.runs.length})</summary>{monitor.runs.map((run) => <p key={run.id}><b>{run.runDate}</b><span>{run.status} · {run.checked}/{run.sourceCount} conferidas · {run.unavailable} indisponíveis · {run.changes} mudanças</span></p>)}</details>
+        <details className="governance-run-history"><summary>Histórico append-only das execuções ({monitor.runs.length})</summary>{monitor.runs.map((run) => <p key={run.id}><b>{run.runDate}</b><span>{run.status} · {run.checked}/{run.sourceCount} conferidas · {run.unavailable} indisponíveis · {run.changes} mudanças · {run.attempts} tentativa(s){run.errorCode ? ` · ${run.errorCode}` : ""}</span></p>)}</details>
       </>}</div>
       <div className="approval-panel"><div className="coverage-section-heading"><span>GARANTIA EM DUAS CAMADAS</span><h2>Teste automático agora; responsabilidade no caso concreto</h2><p>A base técnica é liberada por controles reproduzíveis. Nenhuma assinatura humana é exigida para consultar referências condicionais ou executar a bateria automática.</p></div>
         <div className={`automatic-assurance-card ${automaticAssurance.status}`}><span>{automaticAssurance.status === "automatically_verified" ? "✓" : "!"}</span><div><small>VERIFICAÇÃO AUTOMÁTICA · #{automaticAssurance.fingerprint}</small><h3>{automaticAssurance.status === "automatically_verified" ? "Base técnica íntegra" : "Base técnica bloqueada"}</h3><p>{automaticAssurance.metrics.modulesPassed}/{automaticAssurance.metrics.modules} módulos · {automaticAssurance.metrics.totalRuns} células · {automaticAssurance.metrics.referenceReproduced} referências reproduzidas · {automaticAssurance.metrics.safelyBlocked} bloqueios seguros</p></div></div>
