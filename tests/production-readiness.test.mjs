@@ -38,6 +38,7 @@ test("quality gate and Workers Builds block publishing before checks and migrati
   assert.match(build, /"test:unit"/);
   assert.match(build, /"build"/);
   assert.match(deploy, /d1", "migrations", "apply"/);
+  assert.match(deploy, /finalize-workers-config\.mjs/);
   assert.match(deploy, /"deploy", "--config", "dist\/server\/wrangler\.json"/);
   assert.match(deploy, /post-deploy-smoke\.mjs/);
   assert.match(deploy, /currentVersionId/);

@@ -27,6 +27,9 @@ function currentVersionId() {
 
 const previousVersionId = currentVersionId();
 
+// Refuse stale/local Vinext artifacts before touching D1 or uploading assets.
+execFileSync(node, ["scripts/finalize-workers-config.mjs"], { stdio: "inherit" });
+
 execFileSync(node, [wrangler,
   "d1", "migrations", "apply", "margem-clara-production",
   "--remote", "--config", "wrangler.migrations.jsonc",
