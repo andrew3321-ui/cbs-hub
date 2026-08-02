@@ -123,7 +123,10 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   }, [mode]);
 
   useEffect(() => {
-    setReturnTo(safeClientReturnPath(new URLSearchParams(window.location.search).get("returnTo")));
+    const timer = window.setTimeout(() => {
+      setReturnTo(safeClientReturnPath(new URLSearchParams(window.location.search).get("returnTo")));
+    }, 0);
+    return () => window.clearTimeout(timer);
   }, []);
 
   useEffect(() => {
