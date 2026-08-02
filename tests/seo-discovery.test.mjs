@@ -23,6 +23,7 @@ test("sitemap contém somente páginas públicas canônicas", () => {
     "https://cbshub.com.br",
     "https://cbshub.com.br/planos",
     "https://cbshub.com.br/metodologia",
+    "https://cbshub.com.br/cobertura",
     "https://cbshub.com.br/privacidade",
     "https://cbshub.com.br/termos",
     "https://cbshub.com.br/responsavel",
@@ -43,6 +44,7 @@ test("todas as URLs do sitemap declaram canonical correspondente", () => {
     ["https://cbshub.com.br", "../app/page.tsx"],
     ["https://cbshub.com.br/planos", "../app/planos/page.tsx"],
     ["https://cbshub.com.br/metodologia", "../app/metodologia/page.tsx"],
+    ["https://cbshub.com.br/cobertura", "../app/cobertura/page.tsx"],
     ["https://cbshub.com.br/privacidade", "../app/privacidade/page.tsx"],
     ["https://cbshub.com.br/termos", "../app/termos/page.tsx"],
     ["https://cbshub.com.br/responsavel", "../app/responsavel/page.tsx"],
@@ -61,7 +63,7 @@ test("todas as URLs do sitemap declaram canonical correspondente", () => {
       continue;
     }
     const source = fs.readFileSync(new URL(files.get(entry.url), import.meta.url), "utf8");
-    if (pathname.split("/").filter(Boolean).length === 1 && pathname !== "/planos" && pathname !== "/metodologia" && pathname !== "/privacidade" && pathname !== "/termos" && pathname !== "/responsavel" && pathname !== "/conteudos") {
+    if (pathname.split("/").filter(Boolean).length === 1 && pathname !== "/planos" && pathname !== "/metodologia" && pathname !== "/cobertura" && pathname !== "/privacidade" && pathname !== "/termos" && pathname !== "/responsavel" && pathname !== "/conteudos") {
       assert.match(source, /seoIntentMetadata\(page\)/);
     } else {
       assert.match(source, new RegExp(`canonical:\\s*["']${pathname.replace("/", "\\/")}["']`));

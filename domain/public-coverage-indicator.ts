@@ -53,6 +53,8 @@ export type PublicCoverageMatrixEntry = {
   status: CoverageStatus;
   maturity: PublicCoverageMaturity;
   checkedAt: string;
+  effectiveFrom: string | null;
+  effectiveTo: string | null;
   officialSources: Array<Pick<CoverageSource, "code" | "title" | "publisher" | "url" | "checkedAt">>;
   regression: {
     cases: number;
@@ -105,6 +107,10 @@ export type PublicCoverageIndicator = {
 };
 
 const allSurfaces: PublicCoverageSurface[] = ["search", "calculation", "dossier", "report", "public_api"];
+
+const recurringScenarioPeriod = (code: string) => code === "RTC-SECTOR-SCENARIOS"
+  ? { effectiveFrom: "2026-01-01", effectiveTo: "2033-12-31" }
+  : { effectiveFrom: "2026-01-01", effectiveTo: "2026-12-31" };
 
 const fallbackSource = (code: string): CoverageSource => {
   const catalogued = coverageSources.find((source) => source.code === code);
@@ -174,6 +180,8 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       status: item.status,
       maturity: maturity({ catalogued: true, structured: true, tested: true }),
       checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
+      effectiveFrom: item.generalRateEffectiveFrom,
+      effectiveTo: null,
       officialSources: sourceByCode([item.generalRateSourceCode, `SEFAZ-${item.uf}`, "LC-87-1996", "RSF-22-1989"]),
       regression: { cases: regressionCases, failures: regressionFailures },
       objectiveReason: item.blockers[0] ?? "Cobertura parcial por depender de regra estadual e fatos da operacao.",
@@ -193,6 +201,8 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       status: item.status,
       maturity: maturity({ catalogued: true, structured: item.depth === "structured", tested: item.depth === "structured" }),
       checkedAt: item.structuredAt ?? NATIONAL_COVERAGE_CHECKED_AT,
+      effectiveFrom: null,
+      effectiveTo: null,
       officialSources: sourceByCode(item.officialSourceCodes.length ? item.officialSourceCodes : ["LC-116-2003"]),
       regression: { cases: regressionCases, failures: regressionFailures },
       objectiveReason: item.blockers[0] ?? "Aliquota exata e responsabilidade dependem do municipio e do servico.",
@@ -214,6 +224,8 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
         status: item.coverageStatus,
         maturity: maturity({ catalogued: true, structured: true, tested: true }),
         checkedAt: item.checkedAt,
+        effectiveFrom: item.effectiveFrom,
+        effectiveTo: item.effectiveTo,
         officialSources: sourceByCode(item.sourceCodes),
         regression: { cases: regressionCases, failures: regressionFailures },
         objectiveReason: item.coverageStatus === "supported"
@@ -238,6 +250,8 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
         status: cell.status,
         maturity: maturity({ catalogued: true, structured: true, tested: true }),
         checkedAt: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_CHECKED_AT,
+        effectiveFrom: cell.effectiveFrom,
+        effectiveTo: cell.effectiveTo,
         officialSources: ST_CONSTRUCTION_ELECTRICAL_NATIONAL_SOURCES
           .filter((source) => cell.sourceCodes.includes(source.code))
           .map(({ code, title, publisher, url, checkedAt }) => ({ code, title, publisher, url, checkedAt })),
@@ -264,6 +278,8 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
         status: run.result.coverageStatus,
         maturity: maturity({ catalogued: true, structured: true, tested: true }),
         checkedAt: ST_FOOD_CLEANING_PET_CHECKED_AT,
+        effectiveFrom: product?.effectiveFrom ?? null,
+        effectiveTo: product?.effectiveTo ?? null,
         officialSources: stFoodCleaningPetSources
           .filter((source) => run.result.sourceCodes.includes(source.code))
           .map(({ code, title, publisher, url, checkedAt }) => ({ code, title, publisher, url, checkedAt })),
@@ -288,6 +304,8 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       status: item.status,
       maturity: maturity({ catalogued: true, structured: true, tested: ["AUTO_PARTS", "BEVERAGES", "CEMENT"].includes(item.code) }),
       checkedAt: NATIONAL_COVERAGE_CHECKED_AT,
+      effectiveFrom: null,
+      effectiveTo: null,
       officialSources: sourceByCode(["CONFAZ", "LC-87-1996"]),
       regression: { cases: regressionCases, failures: regressionFailures },
       objectiveReason: item.blockers[0] ?? "Segmento estruturado, mas calculo depende de rota, produto e parametros oficiais.",
@@ -307,6 +325,7 @@ export async function buildPublicCoverageIndicator(): Promise<PublicCoverageIndi
       status: item.status,
       maturity: maturity({ catalogued: true, structured: true, tested: true }),
       checkedAt: PUBLIC_COVERAGE_INDICATOR_CHECKED_AT,
+      ...recurringScenarioPeriod(item.code),
       officialSources: sourceByCode(["RFB-NEWS"]),
       regression: { cases: regressionCases, failures: regressionFailures },
       objectiveReason: item.blockers[0] ?? "Rotina federal condicionada aos fatos do periodo e ao regime confirmado.",

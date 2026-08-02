@@ -11,6 +11,7 @@ export const publicIndexableRoutes = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: "/planos", changeFrequency: "monthly", priority: 0.8 },
   { path: "/metodologia", changeFrequency: "monthly", priority: 0.8 },
+  { path: "/cobertura", changeFrequency: "daily", priority: 0.9 },
   { path: "/privacidade", changeFrequency: "monthly", priority: 0.4 },
   { path: "/termos", changeFrequency: "monthly", priority: 0.4 },
   { path: "/responsavel", changeFrequency: "monthly", priority: 0.3 },

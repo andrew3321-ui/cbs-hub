@@ -149,6 +149,37 @@ export function buildTaxContentCollectionStructuredData(items: Array<{ path: str
   };
 }
 
+export function buildPublicCoverageStructuredData(input: {
+  dateModified: string;
+  version: string;
+  entries: number;
+  sourceUrls: string[];
+  taxes: string[];
+}) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dateModified) || !input.version.trim() || input.entries < 1 || input.sourceUrls.length < 2 || input.taxes.length < 1) {
+    throw new Error("invalid_public_coverage_dataset");
+  }
+  return {
+    "@context": "https://schema.org",
+    "@type": "Dataset",
+    "@id": `${SEO_SITE_URL}/cobertura#dataset`,
+    name: "Matriz pública de cobertura tributária do CBSHub",
+    description: "Cobertura versionada por tributo e recorte, classificada como suportada, parcial ou não suportada, com fontes oficiais, vigência, testes e bloqueios explícitos.",
+    url: `${SEO_SITE_URL}/cobertura`,
+    inLanguage: "pt-BR",
+    dateModified: input.dateModified,
+    version: input.version,
+    creator: { "@id": seoOrganization["@id"] },
+    publisher: { "@id": seoOrganization["@id"] },
+    license: `${SEO_SITE_URL}/termos`,
+    isAccessibleForFree: true,
+    measurementTechnique: "Classificação determinística derivada de catálogos fiscais versionados e regressões automáticas",
+    variableMeasured: input.taxes,
+    size: `${input.entries} recortes`,
+    citation: input.sourceUrls,
+  };
+}
+
 export function serializeStructuredData(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }

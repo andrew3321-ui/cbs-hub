@@ -14,6 +14,7 @@ import "./tax-reform-impact.css";
 import "./account-onboarding.css";
 import "./seo-intent.css";
 import "./tax-content.css";
+import "./public-coverage.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://cbshub.com.br"),

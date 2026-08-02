@@ -161,6 +161,7 @@ export default async function LandingPage() {
             A matriz pública separa mapeamento nacional, recortes profundos e cenários ainda
             incompletos. Nenhuma meta interna é apresentada como regra pronta.
           </p>
+          <Link href="/cobertura">Abrir a matriz pública completa <span>→</span></Link>
         </div>
         <div className="cbs-coverage-metrics">
           <article><small>ICMS GERAL</small><b>{coverage.states}<em>/27</em></b><span>UFs mapeadas</span></article>
@@ -237,6 +238,7 @@ export default async function LandingPage() {
           <Link href="/privacidade">Privacidade</Link>
           <Link href="/termos">Termos</Link>
           <Link href="/metodologia">Metodologia</Link>
+          <Link href="/cobertura">Cobertura pública</Link>
           <Link href="/planos">Planos</Link>
           <Link href="/calculadora-reforma-tributaria">Reforma Tributária</Link>
           <Link href="/icms-st-contadores">ICMS-ST</Link>

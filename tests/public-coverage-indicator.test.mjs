@@ -23,6 +23,8 @@ test("public coverage indicator exposes normalized matrix with sources and regre
   assert.ok(indicator.matrix.some((item) => item.dimension === "scenario" && item.code === "FED-IPI-TIPI"));
   assert.ok(indicator.matrix.every((item) => ["supported", "partial", "not_supported"].includes(item.status)));
   assert.ok(indicator.matrix.every((item) => item.version && item.checkedAt && item.officialSources.length > 0));
+  assert.ok(indicator.matrix.every((item) => Object.hasOwn(item, "effectiveFrom") && Object.hasOwn(item, "effectiveTo")));
+  assert.ok(indicator.matrix.some((item) => item.effectiveFrom));
   assert.ok(indicator.matrix.every((item) => item.officialSources.every((source) => source.url.startsWith("https://"))));
   assert.ok(indicator.matrix.every((item) => item.objectiveReason.length > 10));
   assert.ok(indicator.matrix.every((item) => item.regression.cases >= 900 && item.regression.failures === 0));
