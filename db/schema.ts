@@ -1244,3 +1244,70 @@ export const supportTicketEvents = sqliteTable("support_ticket_events", {
 }, (table) => [
   index("support_ticket_events_ticket_created_idx").on(table.ticketId, table.createdAt, table.id),
 ]);
+
+export const rtcCalculatorVersions = sqliteTable("rtc_calculator_versions", {
+  id: text("id").primaryKey(),
+  applicationVersion: text("application_version").notNull(),
+  databaseVersion: text("database_version").notNull(),
+  databaseDate: text("database_date").notNull(),
+  environment: text("environment").notNull(),
+  packageManifestJson: text("package_manifest_json").notNull(),
+  packageLicenseStatus: text("package_license_status").notNull(),
+  status: text("status").notNull().default("candidate"),
+  fingerprint: text("fingerprint").notNull(),
+  detectedAt: text("detected_at").notNull(),
+  canaryAt: text("canary_at"),
+  activatedAt: text("activated_at"),
+  revokedAt: text("revoked_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("rtc_calculator_versions_app_db_idx").on(table.applicationVersion, table.databaseVersion, table.environment),
+  index("rtc_calculator_versions_status_updated_idx").on(table.status, table.updatedAt, table.id),
+]);
+
+export const rtcCalculatorDatasets = sqliteTable("rtc_calculator_datasets", {
+  id: text("id").primaryKey(),
+  versionId: text("version_id").notNull(),
+  datasetCode: text("dataset_code").notNull(),
+  datasetKind: text("dataset_kind").notNull(),
+  effectiveDate: text("effective_date").notNull(),
+  recordCount: integer("record_count").notNull(),
+  contentHash: text("content_hash").notNull(),
+  payloadJson: text("payload_json").notNull(),
+  capturedAt: text("captured_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("rtc_calculator_datasets_version_code_idx").on(table.versionId, table.datasetCode),
+  index("rtc_calculator_datasets_code_captured_idx").on(table.datasetCode, table.capturedAt, table.id),
+]);
+
+export const rtcCalculatorReconciliations = sqliteTable("rtc_calculator_reconciliations", {
+  id: text("id").primaryKey(),
+  versionId: text("version_id").notNull(),
+  corpusVersion: text("corpus_version").notNull(),
+  status: text("status").notNull(),
+  caseCount: integer("case_count").notNull(),
+  datasetCount: integer("dataset_count").notNull(),
+  differenceCount: integer("difference_count").notNull(),
+  differencesJson: text("differences_json").notNull().default("[]"),
+  reportJson: text("report_json").notNull().default("{}"),
+  fingerprint: text("fingerprint").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("rtc_calculator_reconciliations_version_fingerprint_idx").on(table.versionId, table.fingerprint),
+  index("rtc_calculator_reconciliations_status_created_idx").on(table.status, table.createdAt, table.id),
+]);
+
+export const rtcCalculatorEvents = sqliteTable("rtc_calculator_events", {
+  id: text("id").primaryKey(),
+  versionId: text("version_id").notNull(),
+  eventType: text("event_type").notNull(),
+  fromStatus: text("from_status"),
+  toStatus: text("to_status"),
+  evidenceJson: text("evidence_json").notNull().default("{}"),
+  actorUserId: integer("actor_user_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("rtc_calculator_events_version_created_idx").on(table.versionId, table.createdAt, table.id),
+]);

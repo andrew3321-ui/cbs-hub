@@ -30,6 +30,7 @@ import { hashIpiTipiDeep, ipiTipiDeepMetrics, ipiTipiDeepSources, ipiTipiDetermi
 import { hashIpiTipi100Expansion, ipiTipi100AdditionalProfiles, ipiTipi100ExpansionCases, ipiTipi100ExpansionMetrics, ipiTipi100ExpansionSources, ipiTipi100Profiles, IPI_EXTERNAL_TREATMENT_CONTROLS, IPI_TIPI_100_EXPANSION_CHECKED_AT, IPI_TIPI_100_EXPANSION_VERSION, validateIpiTipi100Expansion } from "../../../../domain/ipi-tipi-100-expansion";
 import { financialSpecificCombinedRateSchedule, fuelSpecificProductCatalog, hashTaxReformSectorCatalog, taxReformSectorMetrics, taxReformSectorProfiles, taxReformSectorSources, taxReformSpecificCases, TAX_REFORM_SECTOR_CHECKED_AT, TAX_REFORM_SECTOR_VERSION, validateTaxReformSectorCatalog } from "../../../../domain/tax-reform-sector-scenarios";
 import { hashRtc2027Readiness, rtc2027ActInventory, rtc2027ReadinessCases, rtc2027ReadinessMetrics, rtc2027Sources, rtcOfficialCalculator2027Snapshot, rtcTransitionTimeline, TAX_REFORM_2027_READINESS_CHECKED_AT, TAX_REFORM_2027_READINESS_VERSION, validateRtc2027Readiness } from "../../../../domain/tax-reform-2027-readiness";
+import { rtcOfficialPublicIndicator } from "../../../../domain/rtc-official-calculator-governance";
 import { buildPublicCoverageIndicator } from "../../../../domain/public-coverage-indicator";
 import { buildFiscalRegressionReport } from "../../../../domain/fiscal-regression-assurance";
 import { hashIcmsGeneralNational, icmsGeneralNationalMetrics, icmsGeneralReferenceRuns, icmsGeneralSources, icmsStateGeneralProfiles, ICMS_GENERAL_NATIONAL_CHECKED_AT, ICMS_GENERAL_NATIONAL_VERSION, validateIcmsGeneralNational } from "../../../../domain/icms-general-national";
@@ -72,6 +73,7 @@ async function publicCoverage() {
   const ipiTipi100Fingerprint = (await hashIpiTipi100Expansion()).slice(0, 12);
   const taxReformSectorFingerprint = (await hashTaxReformSectorCatalog()).slice(0, 12);
   const rtc2027ReadinessFingerprint = (await hashRtc2027Readiness()).slice(0, 12);
+  const officialRtcCalculator = await rtcOfficialPublicIndicator();
   const icmsGeneralFingerprint = (await hashIcmsGeneralNational()).slice(0, 12);
   const icmsOwnDifalFcpFingerprint = (await hashIcmsOwnDifalFcpExpansion()).slice(0, 12);
   const automaticAssuranceFingerprint = (await hashNationalCoverageAutomaticAssurance()).slice(0, 12);
@@ -376,6 +378,7 @@ async function publicCoverage() {
       sources: rtc2027Sources,
       policy: "A prontidão 2027 é técnica e falha fechada. O ambiente beta da Calculadora oficial é apenas um fixture de conformidade: alíquota de referência da CBS, redutor governamental, Imposto Seletivo e ato ad rem de combustíveis pendentes impedem conclusão fiscal e valor líquido.",
     },
+    officialRtcCalculator,
     simplesNationalDeep: {
       version: SIMPLES_NATIONAL_DEEP_VERSION,
       checkedAt: SIMPLES_NATIONAL_DEEP_CHECKED_AT,

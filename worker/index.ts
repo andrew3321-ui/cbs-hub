@@ -3,6 +3,7 @@ import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } fr
 import handler from "vinext/server/app-router-entry";
 import { runScheduledBillingReconciliation } from "../app/billing-scheduled-reconciliation";
 import { runNormativeMonitor } from "../app/normative-governance-service";
+import { runScheduledRtcCalculatorSync } from "../app/rtc-official-calculator-service";
 import { NORMATIVE_MONITOR_SHARD_COUNT, normativeMonitorShardForScheduledTime } from "../domain/normative-governance";
 
 interface Env {
@@ -246,6 +247,12 @@ const worker = {
     if (controller.cron === "15 8 * * *") {
       ctx.waitUntil(runSecurityRetentionCleanup(env).catch((error) => {
         console.error(JSON.stringify({ event: "security.retention_cleanup_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
+      ctx.waitUntil(runScheduledRtcCalculatorSync(env.DB).then((result) => {
+        console.info(JSON.stringify({ event: "rtc.official_sync_completed", date, versionId: result.versionId, status: result.status, differenceCount: result.report.differences.length }));
+      }).catch((error) => {
+        console.error(JSON.stringify({ event: "rtc.official_sync_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
     }
