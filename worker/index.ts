@@ -4,6 +4,7 @@ import handler from "vinext/server/app-router-entry";
 import { runScheduledBillingReconciliation } from "../app/billing-scheduled-reconciliation";
 import { runNormativeMonitor } from "../app/normative-governance-service";
 import { runScheduledRtcCalculatorSync } from "../app/rtc-official-calculator-service";
+import { runSearchConsoleSync } from "../app/search-console-service";
 import { NORMATIVE_MONITOR_SHARD_COUNT, normativeMonitorShardForScheduledTime } from "../domain/normative-governance";
 import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
 
@@ -13,6 +14,9 @@ interface Env {
   SECURITY_HASH_KEY?: string;
   PUBLIC_APP_URL?: string;
   OBSERVABILITY_SLOW_REQUEST_MS?: string;
+  GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL?: string;
+  GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY?: string;
+  GOOGLE_SEARCH_CONSOLE_SITE_URL?: string;
   CF_VERSION_METADATA?: {
     id: string;
     tag?: string;
@@ -258,6 +262,12 @@ const worker = {
         console.info(JSON.stringify({ event: "rtc.official_sync_completed", date, versionId: result.versionId, status: result.status, differenceCount: result.report.differences.length }));
       }).catch((error) => {
         console.error(JSON.stringify({ event: "rtc.official_sync_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
+      ctx.waitUntil(runSearchConsoleSync(env).then((result) => {
+        console.info(JSON.stringify({ event: "search_console.sync_completed", date, status: result.status, metricRows: result.metricRows, inspectedPages: result.inspectedPages, configured: result.configured }));
+      }).catch((error) => {
+        console.error(JSON.stringify({ event: "search_console.sync_failed", date, error: error instanceof Error ? error.message : "SYNC_FAILED" }));
         throw error;
       }));
     }

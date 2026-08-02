@@ -15,10 +15,11 @@ import {
 } from "../domain/platform-metrics.ts";
 
 test("dicionário define aquisição, atividade, trials, pagadores e conversão", () => {
-  assert.deepEqual(Object.keys(platformMetricDefinitions), ["pageViews", "visitors", "sessions", "signups", "activeUsers", "trials", "payers", "conversion"]);
+  assert.deepEqual(Object.keys(platformMetricDefinitions), ["pageViews", "visitors", "sessions", "signups", "activeUsers", "trials", "payers", "conversion", "organicAttribution", "searchConsole"]);
   assert.match(platformMetricDefinitions.activeUsers, /DAU\/WAU\/MAU/);
   assert.match(platformMetricDefinitions.visitors, /mesmo dia contam uma vez/);
   assert.match(platformMetricDefinitions.visitors, /novo dia abre uma nova visita/);
+  assert.match(platformMetricDefinitions.organicAttribution, /consulta do Google nunca é vinculada à pessoa/);
   assert.equal(PLATFORM_METRIC_EVENT_RETENTION_DAYS, 90);
   assert.equal(PLATFORM_METRIC_DAILY_RETENTION_DAYS, 730);
 });

@@ -7,13 +7,23 @@ type Payload = {
   generatedAt: string;
   window: { days: number; startDate: string; endDate: string };
   definitions: Record<string, string>;
-  acquisition: { pageViews: number; visitors: number; sessions: number; sources: Array<{ source: string; medium: string; pageViews: number; visitors: number }>; seoCtas: Array<{ pathGroup: string; campaign: string; clicks: number; visitors: number }> };
+  acquisition: { pageViews: number; visitors: number; sessions: number; sources: Array<{ source: string; medium: string; pageViews: number; visitors: number }>; seoCtas: Array<{ pathGroup: string; campaign: string; clicks: number; visitors: number }>; organic: { visitors: number; signups: number; trials: number; payers: number } };
   users: { total: number; signups: number; dau: number; wau: number; mau: number };
   trials: { started: number; active: number; expired: number; denied: number; converted: number; signupToTrialPercent: number; trialToPayerPercent: number };
   billing: { activePayers: number; mrrCents: number; grossAmountCents: number; delinquent: number; canceled: number; paymentFailures: number };
   funnel: Array<{ key: string; label: string; value: number }>;
   daily: Daily[];
   privacy: { rawIpStored: boolean; rawUserAgentStored: boolean; pseudonymousIdentifiers: boolean; eventRetentionDays: number; dailyRetentionDays: number };
+  searchConsole: {
+    configured: boolean; siteUrl: string; retentionDays: number;
+    range: { startDate: string; endDate: string };
+    current: { clicks: number; impressions: number; ctrPercent: number; position: number };
+    pages: Array<{ page: string; clicks: number; impressions: number; ctr: number; position: number }>;
+    opportunities: Array<{ label: string; page: string; impressions: number; clicks: number; ctrPercent: number; position: number; score: number }>;
+    indexation: { snapshotDate: string | null; indexedPages: number; expectedPages: number; pages: Array<{ page: string; verdict: string; coverageState: string; indexingState: string; pageFetchState: string; lastCrawlTime: string | null }> };
+    alerts: Array<{ severity: "warning" | "critical"; code: string; title: string; detail: string }>;
+    lastSync: { status?: string; completedAt?: string; metricRows?: number; inspectedPages?: number; errorCode?: string } | null;
+  };
 };
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
@@ -24,6 +34,7 @@ export default function OwnerMetricsCenter() {
   const [data, setData] = useState<Payload | null>(null);
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(true);
+  const [syncingSearch, setSyncingSearch] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -45,6 +56,21 @@ export default function OwnerMetricsCenter() {
     setLoading(true);
     setMessage("");
     setDays(value);
+  }
+  async function syncSearchConsole() {
+    setSyncingSearch(true);
+    setMessage("");
+    try {
+      const response = await fetch("/api/admin/search-console", { method: "POST", headers: { "Content-Type": "application/json" } });
+      const payload = await response.json() as { error?: string; code?: string };
+      if (!response.ok) throw new Error(payload.error ?? `Sincronização indisponível (${payload.code ?? response.status}).`);
+      const refreshed = await fetch(`/api/admin/metrics?days=${days}`, { cache: "no-store" });
+      const refreshedPayload = await refreshed.json() as Payload & { error?: string };
+      if (!refreshed.ok) throw new Error(refreshedPayload.error ?? "Não foi possível atualizar as métricas.");
+      setData(refreshedPayload);
+      setMessage("Search Console sincronizada com sucesso.");
+    } catch (error) { setMessage(error instanceof Error ? error.message : "Não foi possível sincronizar a Search Console."); }
+    finally { setSyncingSearch(false); }
   }
   if (!data && loading) return <div className="page-content owner-metrics-page"><div className="billing-admin-loading">Consolidando métricas operacionais…</div></div>;
   if (!data) return <div className="page-content owner-metrics-page"><div className="billing-admin-loading">{message || "Métricas indisponíveis."}</div></div>;
@@ -85,6 +111,24 @@ export default function OwnerMetricsCenter() {
     <section className="panel owner-series-panel">
       <div className="panel-heading"><div><span className="eyebrow">EVOLUÇÃO DIÁRIA</span><h3>Aquisição e ativação</h3></div><div className="owner-legend"><span><i className="visitors" />Visitas únicas</span><span><i className="signups" />Cadastros</span><span><i className="trials" />Trials</span></div></div>
       <div className="owner-series" aria-label="Série diária">{data.daily.map((row) => <div className="owner-series-day" title={`${row.date}: ${row.visitors} visitas únicas, ${row.signups} cadastros, ${row.trialsStarted} trials`} key={row.date}><div><i className="visitors" style={{ height: `${Math.max(2, row.visitors / chartMax * 100)}%` }} /><i className="signups" style={{ height: `${Math.max(2, row.signups / chartMax * 100)}%` }} /><i className="trials" style={{ height: `${Math.max(2, row.trialsStarted / chartMax * 100)}%` }} /></div><span>{row.date.slice(8)}</span></div>)}</div>
+    </section>
+
+    <section className="panel owner-search-console-panel">
+      <div className="panel-heading"><div><span className="eyebrow">GOOGLE SEARCH CONSOLE · SOMENTE LEITURA</span><h3>Busca orgânica e indexação</h3><p className="owner-panel-copy">Consultas agregadas nunca são ligadas a usuários. Atribuição do funil usa apenas o navegador pseudonimizado e uma janela de 30 dias.</p></div><button type="button" className="secondary-button" onClick={syncSearchConsole} disabled={syncingSearch || !data.searchConsole.configured}>{syncingSearch ? "Sincronizando…" : "Sincronizar agora"}</button></div>
+      {!data.searchConsole.configured && <div className="owner-search-setup"><b>Integração preparada, credencial pendente</b><p>Cadastre no Worker a conta de serviço com escopo <code>webmasters.readonly</code> e conceda acesso à propriedade {data.searchConsole.siteUrl}. Nenhuma chave é enviada ao navegador.</p></div>}
+      <div className="owner-search-summary">
+        <article><span>IMPRESSÕES</span><strong>{compact.format(data.searchConsole.current.impressions)}</strong><small>{data.searchConsole.range.startDate} — {data.searchConsole.range.endDate}</small></article>
+        <article><span>CLIQUES ORGÂNICOS</span><strong>{compact.format(data.searchConsole.current.clicks)}</strong><small>CTR {data.searchConsole.current.ctrPercent.toLocaleString("pt-BR")}%</small></article>
+        <article><span>POSIÇÃO MÉDIA</span><strong>{data.searchConsole.current.position ? data.searchConsole.current.position.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "—"}</strong><small>ponderada por impressões</small></article>
+        <article><span>INDEXAÇÃO</span><strong>{data.searchConsole.indexation.indexedPages}/{data.searchConsole.indexation.expectedPages}</strong><small>{data.searchConsole.indexation.snapshotDate ? `inspeção ${data.searchConsole.indexation.snapshotDate}` : "aguarda primeira inspeção"}</small></article>
+      </div>
+      <div className="owner-search-funnel" aria-label="Funil orgânico"><article><span>01</span><b>{data.acquisition.organic.visitors}</b><small>visitas orgânicas</small></article><i>→</i><article><span>02</span><b>{data.acquisition.organic.signups}</b><small>cadastros atribuídos</small></article><i>→</i><article><span>03</span><b>{data.acquisition.organic.trials}</b><small>trials atribuídos</small></article><i>→</i><article><span>04</span><b>{data.acquisition.organic.payers}</b><small>pagadores atribuídos</small></article></div>
+      {!!data.searchConsole.alerts.length && <div className="owner-search-alerts">{data.searchConsole.alerts.map((alert) => <article className={alert.severity} key={alert.code}><b>{alert.title}</b><p>{alert.detail}</p></article>)}</div>}
+      <div className="owner-search-columns">
+        <div><h4>Oportunidades de CTR</h4><div className="owner-search-list">{data.searchConsole.opportunities.map((item) => <article key={`${item.label}:${item.page}`}><p><b>{item.label}</b><small>{new URL(item.page).pathname}</small></p><span>{item.impressions} imp. · CTR {item.ctrPercent.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% · pos. {item.position.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}</span></article>)}{!data.searchConsole.opportunities.length && <p className="owner-search-empty">O ranking aparecerá após a primeira importação com volume suficiente.</p>}</div></div>
+        <div><h4>Páginas na busca</h4><div className="owner-search-list">{data.searchConsole.pages.slice(0, 10).map((item) => <article key={item.page}><p><b>{new URL(item.page).pathname || "/"}</b><small>{item.clicks} clique(s)</small></p><span>{item.impressions} imp. · CTR {item.ctr.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}% · pos. {item.position.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}</span></article>)}{!data.searchConsole.pages.length && <p className="owner-search-empty">Nenhuma métrica oficial importada neste período.</p>}</div></div>
+      </div>
+      <p className="owner-search-footnote">Última sincronização: {data.searchConsole.lastSync?.completedAt ? new Date(data.searchConsole.lastSync.completedAt).toLocaleString("pt-BR") : "não executada"} · retenção agregada: {data.searchConsole.retentionDays} dias · rotina recomendada: revisar alertas, oportunidades, páginas e conversões toda semana.</p>
     </section>
 
     <div className="owner-metrics-layout owner-bottom-layout">

@@ -1,4 +1,4 @@
-export const PLATFORM_METRICS_VERSION = "platform-metrics.v2";
+export const PLATFORM_METRICS_VERSION = "platform-metrics.v3";
 export const PLATFORM_METRIC_EVENT_RETENTION_DAYS = 90;
 export const PLATFORM_METRIC_DAILY_RETENTION_DAYS = 730;
 
@@ -11,6 +11,8 @@ export const platformMetricDefinitions = {
   trials: "Claims de trial persistidos; ativo e expirado são resolvidos pela data e pelo estado atual.",
   payers: "Contas de cobrança ativas; MRR usa o preço contratado e os blocos adicionais.",
   conversion: "Conversões usam registros operacionais persistidos, nunca eventos de interface isolados.",
+  organicAttribution: "Atribui cadastro, trial e pagamento ao navegador pseudonimizado que chegou por busca orgânica nos 30 dias anteriores; a consulta do Google nunca é vinculada à pessoa.",
+  searchConsole: "Impressões, cliques, CTR e posição são agregados pela API oficial; consultas raras omitidas pelo Google não são reidentificadas.",
 } as const;
 
 export type MetricAcquisition = { source: string; medium: string; campaign: string };

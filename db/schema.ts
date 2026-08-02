@@ -167,6 +167,60 @@ export const platformMetricDaily = sqliteTable("platform_metric_daily", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const searchConsoleMetrics = sqliteTable("search_console_metrics", {
+  id: text("id").primaryKey(),
+  metricDate: text("metric_date").notNull(),
+  query: text("query").notNull().default(""),
+  page: text("page").notNull().default(""),
+  country: text("country").notNull().default(""),
+  device: text("device").notNull().default(""),
+  clicks: integer("clicks").notNull().default(0),
+  impressions: integer("impressions").notNull().default(0),
+  ctrMicros: integer("ctr_micros").notNull().default(0),
+  positionMicros: integer("position_micros").notNull().default(0),
+  syncedAt: text("synced_at").notNull(),
+}, (table) => [
+  index("search_console_metrics_date_idx").on(table.metricDate),
+  index("search_console_metrics_page_date_idx").on(table.page, table.metricDate),
+  index("search_console_metrics_query_date_idx").on(table.query, table.metricDate),
+]);
+
+export const searchConsoleIndexSnapshots = sqliteTable("search_console_index_snapshots", {
+  id: text("id").primaryKey(),
+  snapshotDate: text("snapshot_date").notNull(),
+  page: text("page").notNull(),
+  verdict: text("verdict").notNull().default("VERDICT_UNSPECIFIED"),
+  coverageState: text("coverage_state").notNull().default(""),
+  robotsTxtState: text("robots_txt_state").notNull().default("ROBOTS_TXT_STATE_UNSPECIFIED"),
+  indexingState: text("indexing_state").notNull().default("INDEXING_STATE_UNSPECIFIED"),
+  pageFetchState: text("page_fetch_state").notNull().default("PAGE_FETCH_STATE_UNSPECIFIED"),
+  lastCrawlTime: text("last_crawl_time"),
+  googleCanonical: text("google_canonical"),
+  userCanonical: text("user_canonical"),
+  crawledAs: text("crawled_as"),
+  inspectedAt: text("inspected_at").notNull(),
+}, (table) => [
+  uniqueIndex("search_console_index_snapshots_date_page_idx").on(table.snapshotDate, table.page),
+  index("search_console_index_snapshots_page_date_idx").on(table.page, table.snapshotDate),
+  index("search_console_index_snapshots_verdict_date_idx").on(table.verdict, table.snapshotDate),
+]);
+
+export const searchConsoleSyncRuns = sqliteTable("search_console_sync_runs", {
+  id: text("id").primaryKey(),
+  status: text("status").notNull(),
+  startedAt: text("started_at").notNull(),
+  completedAt: text("completed_at"),
+  startDate: text("start_date").notNull(),
+  endDate: text("end_date").notNull(),
+  metricRows: integer("metric_rows").notNull().default(0),
+  inspectedPages: integer("inspected_pages").notNull().default(0),
+  errorCode: text("error_code"),
+  detailsJson: text("details_json").notNull().default("{}"),
+}, (table) => [
+  index("search_console_sync_runs_started_idx").on(table.startedAt, table.id),
+  index("search_console_sync_runs_status_started_idx").on(table.status, table.startedAt),
+]);
+
 export const scenarios = sqliteTable("scenarios", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),
