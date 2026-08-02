@@ -39,6 +39,9 @@ test("showcase, cache, gate e painel do proprietário permanecem conectados", as
   assert.match(workflow, /performance:budget/); assert.match(workflow, /performance:crawl/);
   assert.match(crawl, /Googlebot/); assert.match(crawl, /missing-from-sitemap/);
   assert.match(lab, /INP is field-only/);
+  assert.match(lab, /measure\(route, device, 2\)/);
+  assert.match(lab, /cold-edge\/network outlier/);
+  assert.match(lab, /preset: "desktop"/);
   const video = await stat(new URL("../public/media/cbshub-overview-completo-v2.webm", import.meta.url));
   assert.ok(video.size <= publicAssetBudgets.showcaseVideoBytes);
 });
