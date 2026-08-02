@@ -1,6 +1,8 @@
 import {
   buildFiscalRegressionReport,
 } from "../domain/fiscal-regression-assurance.ts";
+import { writeFile } from "node:fs/promises";
+import { NATIONAL_COVERAGE_VERSION } from "../domain/national-tax-coverage.ts";
 import {
   SCENARIO_SIGNATURE_VERSION,
   signScenarioRecordWithSecret,
@@ -116,6 +118,21 @@ requireBuildInvariant(
   "required_test_kind_missing",
 );
 await verifySignatureTamperResistance();
+
+const showcaseSummary = {
+  reportVersion: report.reportVersion,
+  coverageVersion: NATIONAL_COVERAGE_VERSION,
+  moduleCount: report.metrics.modules,
+  deterministicCases: report.metrics.deterministicCases,
+  calculatedMemories: report.metrics.calculatedMemories,
+  safelyBlockedCases: report.metrics.safelyBlockedCases,
+  fingerprint: report.fingerprint,
+};
+await writeFile(
+  new URL("../app/fiscal-showcase.generated.ts", import.meta.url),
+  `// Gerado por scripts/verify-fiscal-build.mjs. O valor versionado serve como fallback no desenvolvimento.\nexport const fiscalShowcaseSummary = ${JSON.stringify(showcaseSummary, null, 2)} as const;\n`,
+  "utf8",
+);
 
 process.stdout.write(
   `Fiscal build assurance passed: ${report.metrics.modules} modules, ${report.metrics.deterministicCases} deterministic cases, #${report.fingerprint.slice(0, 12)}\n`,

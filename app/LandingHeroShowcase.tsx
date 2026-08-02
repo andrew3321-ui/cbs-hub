@@ -2,8 +2,12 @@
 
 import { useEffect, useRef, useState } from "react";
 import BrandMark from "./BrandMark";
+import { fiscalShowcaseSummary } from "./fiscal-showcase.generated";
 
 type ShowcaseSlide = "product" | "tour";
+
+const formatNumber = (value: number) => new Intl.NumberFormat("pt-BR").format(value);
+const compactCoverageVersion = fiscalShowcaseSummary.coverageVersion.match(/v(\d+)$/i)?.[1] ?? fiscalShowcaseSummary.coverageVersion;
 
 const tourMessages = [
   {
@@ -107,12 +111,15 @@ export default function LandingHeroShowcase() {
               <span><i>∑</i> Laboratório</span>
               <span><i>◇</i> Cobertura</span>
               <span><i>≡</i> Dossiês</span>
+              <span><i>⇧</i> Importações</span>
+              <span><i>↻</i> Monitor</span>
+              <span><i>RTC</i> Reforma</span>
             </aside>
 
             <div className="cbs-preview-content">
               <div className="cbs-preview-heading">
                 <div><small>INTELIGÊNCIA FISCAL</small><b>Analise uma operação</b></div>
-                <span>Base V71</span>
+                <span>Base V{compactCoverageVersion} · {fiscalShowcaseSummary.moduleCount} módulos</span>
               </div>
 
               <div className="cbs-query-box">
@@ -147,19 +154,27 @@ export default function LandingHeroShowcase() {
                   <em>Vigência conferida ↗</em>
                 </div>
               </div>
+
+              <div className="cbs-preview-module-strip" aria-label="Módulos fiscais disponíveis">
+                <small>OUTROS MÓDULOS NO MESMO FLUXO</small>
+                <div>
+                  <span>ICMS/ST</span><span>ISS</span><span>Retenções</span><span>Simples</span>
+                  <span>PIS/Cofins</span><span>IPI/TIPI</span><span>IBS/CBS</span><span>NF-e/XML</span>
+                </div>
+              </div>
             </div>
           </div>
         </div>
 
         <div className="cbs-floating-card cbs-floating-tests">
-          <span>GARANTIA AUTOMÁTICA</span>
-          <b>914 casos determinísticos</b>
-          <small>reexecutados a cada versão</small>
+          <span>REGRESSÃO AUTOMÁTICA</span>
+          <b>{formatNumber(fiscalShowcaseSummary.deterministicCases)} casos determinísticos</b>
+          <small>{fiscalShowcaseSummary.moduleCount} módulos reexecutados a cada versão</small>
         </div>
         <div className="cbs-floating-card cbs-floating-version">
           <span>MEMÓRIA VERSIONADA</span>
-          <b>#938cf478fdf5</b>
-          <small>integridade verificável</small>
+          <b>#{fiscalShowcaseSummary.fingerprint.slice(0, 12)}</b>
+          <small>{formatNumber(fiscalShowcaseSummary.calculatedMemories)} memórias reproduzíveis</small>
         </div>
       </div>
 

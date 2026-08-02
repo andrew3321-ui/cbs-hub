@@ -7,6 +7,7 @@ import { coverageMetrics } from "../domain/national-tax-coverage";
 import { buildHomeStructuredData } from "../domain/seo-structured-data";
 import { StructuredData } from "./StructuredData";
 import LandingTrackedCta from "./LandingTrackedCta";
+import { fiscalShowcaseSummary } from "./fiscal-showcase.generated";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
@@ -261,7 +262,7 @@ export default async function LandingPage() {
         </div>
         <div className="cbs-assurance-board">
           <div><span>01</span><p><b>Fontes oficiais</b><small>Links, dispositivos e datas de conferência</small></p><em>ATIVO</em></div>
-          <div><span>02</span><p><b>Reexecução automática</b><small>Casos de referência a cada mudança</small></p><em>914 CASOS</em></div>
+          <div><span>02</span><p><b>Reexecução automática</b><small>{fiscalShowcaseSummary.moduleCount} módulos fiscais a cada mudança</small></p><em>{fiscalShowcaseSummary.deterministicCases.toLocaleString("pt-BR")} CASOS</em></div>
           <div><span>03</span><p><b>Integridade de versão</b><small>Hash identifica qualquer alteração</small></p><em>SHA-256</em></div>
           <div><span>04</span><p><b>Revisão responsável</b><small>Autoria e decisão preservadas na entrega</small></p><em>RASTREÁVEL</em></div>
         </div>

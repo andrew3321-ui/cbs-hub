@@ -32,3 +32,21 @@ test("CTAs da landing registram posição sem sobrescrever a origem de aquisiç�
   assert.match(trackedCta, /campaign,/);
   assert.doesNotMatch(trackedCta, /source:\s*"google"/);
 });
+
+test("showcase apresenta a regressão e os módulos fiscais atuais sem números legados", async () => {
+  const [showcase, page, generated] = await Promise.all([
+    readFile(new URL("../app/LandingHeroShowcase.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    import("../app/fiscal-showcase.generated.ts"),
+  ]);
+
+  assert.match(showcase, /fiscalShowcaseSummary\.deterministicCases/);
+  assert.match(showcase, /Importações/);
+  assert.match(showcase, /Monitor/);
+  assert.match(showcase, /Reforma/);
+  assert.match(showcase, /PIS\/Cofins/);
+  assert.match(showcase, /NF-e\/XML/);
+  assert.ok(generated.fiscalShowcaseSummary.deterministicCases > 914);
+  assert.ok(generated.fiscalShowcaseSummary.moduleCount >= 28);
+  assert.doesNotMatch(`${showcase}\n${page}`, /914/);
+});
