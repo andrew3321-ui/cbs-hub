@@ -112,7 +112,8 @@ test("fluxo remodelado trata o contador como usuário principal e exige aprovaç
     readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
   ]);
 
-  assert.match(landing, /Central de inteligência tributária/);
+  assert.match(landing, /Menos abas, planilhas e retrabalho/);
+  assert.match(landing, /LandingTrackedCta/);
   assert.match(client, /CLIENTE ATIVO DO ESCRITÓRIO/);
   assert.match(client, /Aprovar como responsável/);
   assert.match(client, /não será apresentado como revisão independente/);

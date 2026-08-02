@@ -36,7 +36,7 @@ export const seoSoftwareApplication = {
   applicationSubCategory: "Software tributário para contadores e tributaristas",
   operatingSystem: "Web",
   inLanguage: "pt-BR",
-  description: "Plataforma de inteligência tributária com pesquisa de normas, cálculos determinísticos e dossiês fiscais versionados.",
+  description: "Plataforma tributária que conecta pesquisa de normas, fatos da operação, cálculos determinísticos, revisão e dossiês fiscais versionados em um só fluxo.",
   publisher: { "@id": seoOrganization["@id"] },
   offers: {
     "@type": "Offer",
@@ -48,6 +48,7 @@ export const seoSoftwareApplication = {
   },
   featureList: [
     "Pesquisa de normas fiscais",
+    "Estruturação dos fatos da operação",
     "Cálculos tributários determinísticos",
     "Dossiês fiscais versionados",
     "Revisão responsável e trilha de auditoria",

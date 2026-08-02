@@ -6,8 +6,8 @@ import "./cbshub-landing.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://cbshub.com.br"),
-  title: "CBSHub — Inteligência tributária rastreável",
-  description: "Pesquise normas, estruture operações, execute cálculos determinísticos e entregue dossiês fiscais com fonte, memória e versão.",
+  title: "CBSHub — Pesquisa, cálculo e relatório fiscal em um só fluxo",
+  description: "Reduza o tempo gasto procurando normas, refazendo cálculos e montando relatórios. Organize fatos, fontes oficiais, memória e entrega fiscal no mesmo fluxo.",
   icons: {
     icon: [{ url: "/cbshub-icon-1024.png", type: "image/png", sizes: "1024x1024" }],
     shortcut: [{ url: "/cbshub-icon-1024.png", type: "image/png" }],
@@ -15,9 +15,9 @@ export const metadata: Metadata = {
   },
   manifest: "/site.webmanifest",
   openGraph: {
-    title: "CBSHub — Da regra fiscal à decisão defendível",
-    description: "Inteligência tributária, cálculo determinístico e dossiês versionados para contadores e tributaristas.",
-    images: [{ url: "/og-cbshub.png", width: 1734, height: 907, alt: "CBSHub — da regra fiscal à decisão defendível" }],
+    title: "CBSHub — Pare de refazer a análise fiscal do zero",
+    description: "Da pesquisa da norma ao relatório para o cliente: fatos, cálculo, fontes e histórico em um só fluxo.",
+    images: [{ url: "/og-cbshub.png", width: 1734, height: 907, alt: "CBSHub — pesquisa, cálculo e relatório fiscal em um só fluxo" }],
     locale: "pt_BR",
     type: "website",
   },

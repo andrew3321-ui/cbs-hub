@@ -6,24 +6,25 @@ import { getCurrentUser } from "./auth";
 import { coverageMetrics } from "../domain/national-tax-coverage";
 import { buildHomeStructuredData } from "../domain/seo-structured-data";
 import { StructuredData } from "./StructuredData";
+import LandingTrackedCta from "./LandingTrackedCta";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "CBSHub — Inteligência tributária rastreável",
-  description: "Pesquise normas, estruture operações, execute cálculos determinísticos e entregue dossiês fiscais com fonte, memória e versão.",
+  title: "CBSHub — Pesquisa, cálculo e relatório fiscal em um só fluxo",
+  description: "Reduza o tempo gasto procurando normas, refazendo cálculos e montando relatórios. Organize fatos, fontes oficiais, memória e entrega fiscal no mesmo fluxo.",
   alternates: { canonical: "/" },
   openGraph: {
-    title: "CBSHub — Da regra fiscal à decisão defendível",
-    description: "Inteligência tributária, cálculo determinístico e dossiês versionados para contadores e tributaristas.",
+    title: "CBSHub — Pare de refazer a análise fiscal do zero",
+    description: "Da pesquisa da norma ao relatório para o cliente: fatos, cálculo, fontes e histórico em um só fluxo para contadores e tributaristas.",
     url: "/",
-    images: [{ url: "/og-cbshub.png", width: 1734, height: 907, alt: "CBSHub — da regra fiscal à decisão defendível" }],
+    images: [{ url: "/og-cbshub.png", width: 1734, height: 907, alt: "CBSHub — pesquisa, cálculo e relatório fiscal em um só fluxo" }],
     locale: "pt_BR",
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CBSHub — Inteligência tributária rastreável",
-    description: "Da pesquisa da norma ao dossiê fiscal versionado.",
+    title: "CBSHub — Pesquisa, cálculo e relatório fiscal em um só fluxo",
+    description: "Menos tempo procurando, recalculando e reescrevendo. Mais contexto pronto para revisar e entregar.",
     images: ["/og-cbshub.png"],
   },
 };
@@ -33,7 +34,7 @@ export default async function LandingPage() {
   const coverage = coverageMetrics();
   const primaryPath = user ? "/app" : "/cadastro";
   const loginPath = user ? "/app" : "/entrar";
-  const demoPath = user ? "/app?view=academy" : "/cadastro";
+  const demoPath = user ? "/app?view=academy" : "#fluxo";
 
   return (
     <main className="cbs-landing">
@@ -45,7 +46,8 @@ export default async function LandingPage() {
         </Link>
 
         <nav aria-label="Navegação principal">
-          <a href="#plataforma">Plataforma</a>
+          <a href="#economia">O que economiza</a>
+          <a href="#plataforma">Funcionalidades</a>
           <a href="#fluxo">Como funciona</a>
           <a href="#cobertura">Cobertura</a>
           <a href="#confiabilidade">Confiabilidade</a>
@@ -54,27 +56,31 @@ export default async function LandingPage() {
 
         <div className="cbs-nav-actions">
           <Link className="cbs-text-link" href={loginPath}>{user ? "Abrir painel" : "Entrar"}</Link>
-          <Link className="cbs-button cbs-button-small" href={primaryPath}>
+          <LandingTrackedCta className="cbs-button cbs-button-small" href={primaryPath} campaign="home_nav_trial">
             {user ? "Continuar" : "Teste por 5 dias"} <span>→</span>
-          </Link>
+          </LandingTrackedCta>
         </div>
       </header>
 
       <section className="cbs-hero">
         <div className="cbs-hero-copy">
-          <span className="cbs-kicker"><i /> Central de inteligência tributária</span>
-          <h1>Da regra fiscal à decisão <em>defendível.</em></h1>
+          <span className="cbs-kicker"><i /> Menos abas, planilhas e retrabalho</span>
+          <h1>Pare de refazer a análise fiscal <em>do zero.</em></h1>
           <p>
-            Pesquise normas, estruture os fatos da operação, execute cálculos determinísticos
-            e entregue dossiês com fonte, memória e versão — em um único ambiente.
+            Reúna pesquisa da norma, fatos da operação, cálculo, revisão e relatório no mesmo fluxo.
+            Responda mais rápido ao cliente com a fonte oficial, a memória e o histórico prontos para conferir.
           </p>
 
+          <div className="cbs-hero-scope" aria-label="Áreas disponíveis no CBSHub">
+            <span>ICMS e ST</span><span>ISS e retenções</span><span>Simples e federais</span><span>IBS/CBS e Reforma</span>
+          </div>
+
           <div className="cbs-hero-actions">
-            <Link className="cbs-button" href={primaryPath}>
-              {user ? "Abrir meu workspace" : "Começar teste completo"} <span>→</span>
-            </Link>
-            <a className="cbs-secondary-action" href="#plataforma">
-              Explorar a plataforma <span>↓</span>
+            <LandingTrackedCta className="cbs-button" href={primaryPath} campaign="home_hero_real_case">
+              {user ? "Abrir meu workspace" : "Testar com um caso real"} <span>→</span>
+            </LandingTrackedCta>
+            <a className="cbs-secondary-action" href="#economia">
+              Ver onde economiza tempo <span>↓</span>
             </a>
           </div>
 
@@ -89,7 +95,7 @@ export default async function LandingPage() {
       </section>
 
       <section className="cbs-audience-bar" aria-label="Público do CBSHub">
-        <p>Um workspace fiscal para quem precisa <strong>pesquisar, calcular, revisar e responder.</strong></p>
+        <p>A dúvida chega em uma linha. <strong>A resposta não precisa ficar espalhada em seis lugares.</strong></p>
         <div>
           <span>Escritórios contábeis</span><i />
           <span>Contadores consultivos</span><i />
@@ -98,19 +104,63 @@ export default async function LandingPage() {
         </div>
       </section>
 
+      <section className="cbs-time-section" id="economia">
+        <div className="cbs-time-heading">
+          <span className="cbs-eyebrow">O TEMPO SOME NO TRABALHO FRAGMENTADO</span>
+          <h2>O trabalho não é só calcular. É encontrar, conferir, explicar e provar.</h2>
+          <p>
+            Quando cada etapa vive em um portal, uma planilha ou um arquivo diferente, toda nova dúvida
+            obriga você a reconstruir o contexto. O CBSHub preserva esse contexto do início à entrega.
+          </p>
+        </div>
+
+        <div className="cbs-time-comparison">
+          <div className="cbs-fragmented-work">
+            <div className="cbs-comparison-label"><i /> SEM UM FLUXO CONECTADO</div>
+            <h3>Uma pergunta curta vira uma sequência de tarefas manuais.</h3>
+            <div className="cbs-pain-list">
+              <span><b>01</b><p>Vasculhar portais e localizar a norma aplicável.</p></span>
+              <span><b>02</b><p>Reunir rota, produto, regime, período e finalidade.</p></span>
+              <span><b>03</b><p>Transferir parâmetros e remontar o cálculo na planilha.</p></span>
+              <span><b>04</b><p>Conferir fonte, vigência, exceções e arredondamento.</p></span>
+              <span><b>05</b><p>Reescrever a explicação e montar o relatório do cliente.</p></span>
+              <span><b>06</b><p>Procurar depois qual versão sustentou aquela resposta.</p></span>
+            </div>
+          </div>
+
+          <div className="cbs-connected-work">
+            <div className="cbs-comparison-label"><i /> COM O CBSHUB</div>
+            <h3>O mesmo contexto acompanha a análise inteira.</h3>
+            <div className="cbs-connected-flow" aria-label="Fluxo conectado do CBSHub">
+              <span><small>PERGUNTA</small><b>Estrutura os fatos</b></span><i>→</i>
+              <span><small>REGRA</small><b>Expõe fonte e vigência</b></span><i>→</i>
+              <span><small>CÁLCULO</small><b>Preserva a memória</b></span><i>→</i>
+              <span><small>ENTREGA</small><b>Gera o dossiê versionado</b></span>
+            </div>
+            <div className="cbs-time-payoff">
+              <strong>Menos tempo remontando.</strong>
+              <p>Mais tempo para revisar, orientar o cliente e conduzir a decisão com evidência.</p>
+            </div>
+            <LandingTrackedCta className="cbs-inline-cta" href={primaryPath} campaign="home_time_saving_case">
+              Levar uma dúvida real para o CBSHub <span>→</span>
+            </LandingTrackedCta>
+          </div>
+        </div>
+      </section>
+
       <section className="cbs-section cbs-platform-section" id="plataforma">
         <div className="cbs-section-heading">
-          <span className="cbs-eyebrow">UM HUB, QUATRO CAMADAS</span>
-          <h2>Mais do que encontrar uma alíquota.</h2>
-          <p>O CBSHub transforma uma dúvida fiscal em um processo documentado, com limites explícitos em cada etapa.</p>
+          <span className="cbs-eyebrow">FUNCIONALIDADES QUE ELIMINAM RETRABALHO</span>
+          <h2>Da primeira pesquisa ao relatório, sem recomeçar no meio.</h2>
+          <p>Cada módulo resolve uma parte do trabalho e entrega seu contexto para a etapa seguinte.</p>
         </div>
 
         <div className="cbs-capability-grid">
           <article className="cbs-capability-card cbs-capability-featured">
             <span className="cbs-card-index">01</span>
             <div className="cbs-card-icon">⌕</div>
-            <h3>Inteligência fiscal estruturada</h3>
-            <p>Faça a pergunta em linguagem natural. O motor identifica tributo, rota, produto e os fatos que ainda faltam — sem IA e sem inventar conclusões.</p>
+            <h3>Encontre a regra e saiba o que ainda falta</h3>
+            <p>Faça a pergunta em linguagem natural. O motor identifica tributo, rota, produto e os fatos pendentes — sem IA e sem inventar uma conclusão.</p>
             <div className="cbs-search-sample">
               <span>ICMS-ST · SP → MG · autopeças</span>
               <b>9 fatos identificados</b>
@@ -120,8 +170,8 @@ export default async function LandingPage() {
           <article className="cbs-capability-card">
             <span className="cbs-card-index">02</span>
             <div className="cbs-card-icon">∑</div>
-            <h3>Cálculo determinístico</h3>
-            <p>Fórmulas em centavos, parâmetros versionados e bloqueio automático quando um dado jurídico essencial não está confirmado.</p>
+            <h3>Calcule sem remontar a planilha</h3>
+            <p>Use fórmulas reproduzíveis em centavos, parâmetros versionados e bloqueio automático quando um dado jurídico essencial não estiver confirmado.</p>
             <div className="cbs-memory-sample">
               <span>Base da operação</span><b>R$ 10.000,00</b>
               <span>Memória</span><b>6 etapas</b>
@@ -132,8 +182,8 @@ export default async function LandingPage() {
           <article className="cbs-capability-card">
             <span className="cbs-card-index">03</span>
             <div className="cbs-card-icon">≡</div>
-            <h3>Dossiê fiscal versionado</h3>
-            <p>Resultado, premissas, fontes oficiais, vigência, pendências e hash reunidos em uma entrega rastreável para o cliente.</p>
+            <h3>Gere a entrega sem reescrever tudo</h3>
+            <p>Resultado, premissas, fontes oficiais, vigência, pendências e hash ficam reunidos em um dossiê rastreável para o cliente.</p>
             <div className="cbs-dossier-sample">
               <i>✓</i><span><b>Versão íntegra</b><small>Pronta para revisão responsável</small></span>
             </div>
@@ -142,14 +192,29 @@ export default async function LandingPage() {
           <article className="cbs-capability-card">
             <span className="cbs-card-index">04</span>
             <div className="cbs-card-icon">◇</div>
-            <h3>Cobertura sem maquiagem</h3>
-            <p>Cada cenário é classificado como suportado, parcial ou não suportado. O que falta para concluir aparece antes de qualquer número.</p>
+            <h3>Saiba quando não concluir</h3>
+            <p>Cada cenário é classificado como suportado, parcial ou não suportado. O que impede a conclusão aparece antes de qualquer número.</p>
             <div className="cbs-coverage-sample">
               <span className="supported">Suportado</span>
               <span className="partial">Parcial</span>
               <span className="blocked">Não suportado</span>
             </div>
           </article>
+        </div>
+
+        <div className="cbs-available-now">
+          <div>
+            <span className="cbs-eyebrow">O QUE VOCÊ JÁ PODE USAR NO TESTE</span>
+            <h3>Ferramentas para o trabalho que acontece depois da pesquisa.</h3>
+          </div>
+          <div className="cbs-available-grid">
+            <article><span>XML</span><h4>Auditar NF-e em lote</h4><p>Confira estrutura, chave, protocolo, totais, itens e divergências — com o XML bruto descartado após o processamento.</p></article>
+            <article><span>RTC</span><h4>Projetar IBS e CBS</h4><p>Compare carga atual, transição, custos e margem com premissas visíveis para a Reforma Tributária.</p></article>
+            <article><span>PME</span><h4>Mapear obrigações federais</h4><p>Organize tributos, retenções, folha, SPED e declarações conforme o perfil e o regime da empresa.</p></article>
+            <article><span>↻</span><h4>Acompanhar mudanças normativas</h4><p>Transforme sinais das fontes oficiais em fila de triagem, bloqueio e trilha de decisão.</p></article>
+            <article><span>10</span><h4>Organizar a carteira</h4><p>Mantenha empresas, cenários e documentos separados, com até 10 empresas liberadas durante o teste.</p></article>
+            <article><span>↗</span><h4>Revisar e compartilhar</h4><p>Preserve autoria, aprovação, versão e contexto até o dossiê entregue ao cliente.</p></article>
+          </div>
         </div>
       </section>
 
@@ -174,7 +239,7 @@ export default async function LandingPage() {
       <section className="cbs-section cbs-workflow-section" id="fluxo">
         <div className="cbs-section-heading cbs-section-heading-left">
           <span className="cbs-eyebrow">DO QUESTIONAMENTO À ENTREGA</span>
-          <h2>Um fluxo que acompanha o raciocínio técnico.</h2>
+          <h2>Preencha uma vez. Preserve o contexto até a entrega.</h2>
         </div>
         <div className="cbs-workflow-grid">
           <article><span>01</span><div><small>PERGUNTE</small><h3>Descreva a operação</h3><p>Rota, produto, regime, finalidade e período entram no mesmo contexto.</p></div></article>
@@ -208,22 +273,22 @@ export default async function LandingPage() {
           <h2>Cada profissional entra pelo problema que precisa resolver.</h2>
         </div>
         <div className="cbs-persona-grid">
-          <article><small>CONTADOR CONSULTIVO</small><h3>Responda clientes com mais contexto.</h3><p>Transforme dúvidas recorrentes em análises documentadas, comparáveis e prontas para explicar.</p></article>
-          <article><small>TRIBUTARISTA</small><h3>Concentre regra, cálculo e evidência.</h3><p>Reduza o tempo gasto procurando fontes e reconstruindo memórias em arquivos separados.</p></article>
-          <article><small>ESCRITÓRIO CONTÁBIL</small><h3>Padronize a qualidade da equipe.</h3><p>Separe preparação, revisão e entrega sem perder autoria, histórico ou controle da carteira.</p></article>
+          <article><small>CONTADOR CONSULTIVO</small><h3>Responda sem começar do zero.</h3><p>Transforme dúvidas recorrentes em análises documentadas, comparáveis e prontas para explicar ao cliente.</p></article>
+          <article><small>TRIBUTARISTA</small><h3>Pare de reconstruir a memória.</h3><p>Mantenha norma, fatos, cálculo, data e evidência conectados no mesmo caso para revisar com mais agilidade.</p></article>
+          <article><small>ESCRITÓRIO CONTÁBIL</small><h3>Evite que a equipe repita trabalho.</h3><p>Separe preparação, revisão e entrega sem perder autoria, histórico ou controle da carteira.</p></article>
         </div>
       </section>
 
       <section className="cbs-final-cta">
         <div>
-          <span className="cbs-eyebrow">TESTE O FLUXO COMPLETO</span>
-          <h2>Comece com uma dúvida fiscal real.</h2>
-          <p>Cinco dias, até 10 empresas e todos os módulos liberados. Sem cartão no cadastro.</p>
+          <span className="cbs-eyebrow">NÃO PRECISA MIGRAR SUA ROTINA PARA TESTAR</span>
+          <h2>Traga a dúvida que você resolveria hoje em planilha.</h2>
+          <p>Use o fluxo completo por cinco dias, com até 10 empresas e sem cartão. Compare o caminho até a entrega.</p>
         </div>
         <div className="cbs-final-actions">
-          <Link className="cbs-button cbs-button-light" href={primaryPath}>
-            {user ? "Voltar ao workspace" : "Criar meu acesso"} <span>→</span>
-          </Link>
+          <LandingTrackedCta className="cbs-button cbs-button-light" href={primaryPath} campaign="home_final_real_case">
+            {user ? "Voltar ao workspace" : "Testar com meu caso real"} <span>→</span>
+          </LandingTrackedCta>
           <Link href={demoPath}>{user ? "Ver demonstrações" : "Conhecer por dentro"}</Link>
         </div>
       </section>
