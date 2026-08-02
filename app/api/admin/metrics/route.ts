@@ -23,7 +23,7 @@ async function ownerMetrics(request: Request) {
   const sevenDays = new Date(`${window.endDate}T00:00:00.000Z`); sevenDays.setUTCDate(sevenDays.getUTCDate() - 6);
   const thirtyDays = new Date(`${window.endDate}T00:00:00.000Z`); thirtyDays.setUTCDate(thirtyDays.getUTCDate() - 29);
 
-  const [traffic, signups, trialsDaily, paymentsDaily, periodTotals, activity, usersTotal, trialRowsResult, billingRowsResult, approvedPayersResult, sourceRows, failureRows] = await Promise.all([
+  const [traffic, signups, trialsDaily, paymentsDaily, periodTotals, activity, usersTotal, trialRowsResult, billingRowsResult, approvedPayersResult, sourceRows, seoCtaRows, failureRows] = await Promise.all([
     db.prepare("SELECT event_date date, SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END) pageViews, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN visitor_hash END) visitors, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN session_hash END) sessions, COUNT(DISTINCT CASE WHEN event_type = 'app_active' THEN user_id END) activeUsers, SUM(CASE WHEN event_type = 'trial_denied' THEN 1 ELSE 0 END) trialsDenied FROM platform_metric_events WHERE event_date BETWEEN ? AND ? GROUP BY event_date ORDER BY event_date").bind(window.startDate, window.endDate).all<DailyRow>(),
     db.prepare("SELECT substr(created_at, 1, 10) date, COUNT(*) signups FROM users WHERE substr(created_at, 1, 10) BETWEEN ? AND ? GROUP BY substr(created_at, 1, 10)").bind(window.startDate, window.endDate).all<DailyRow>(),
     db.prepare("SELECT substr(started_at, 1, 10) date, COUNT(*) trialsStarted FROM trial_device_claims WHERE substr(started_at, 1, 10) BETWEEN ? AND ? GROUP BY substr(started_at, 1, 10)").bind(window.startDate, window.endDate).all<DailyRow>(),
@@ -35,6 +35,7 @@ async function ownerMetrics(request: Request) {
     db.prepare("SELECT user_id userId, plan_key planKey, company_addon_blocks companyAddonBlocks, pending_company_addon_blocks pendingCompanyAddonBlocks, provider_subscription_id providerSubscriptionId, status, updated_at updatedAt FROM billing_accounts").all<BillingRow>(),
     db.prepare("SELECT DISTINCT user_id userId FROM billing_transactions WHERE status = 'approved'").all<{ userId: number }>(),
     db.prepare("SELECT source, medium, COUNT(*) pageViews, COUNT(DISTINCT event_date || ':' || visitor_hash) visitors FROM platform_metric_events WHERE event_type = 'page_view' AND event_date BETWEEN ? AND ? GROUP BY source, medium ORDER BY visitors DESC, pageViews DESC LIMIT 8").bind(window.startDate, window.endDate).all<{ source: string; medium: string; pageViews: number; visitors: number }>(),
+    db.prepare("SELECT path_group pathGroup, campaign, COUNT(*) clicks, COUNT(DISTINCT event_date || ':' || visitor_hash) visitors FROM platform_metric_events WHERE event_type = 'seo_cta' AND event_date BETWEEN ? AND ? GROUP BY path_group, campaign ORDER BY clicks DESC, path_group LIMIT 20").bind(window.startDate, window.endDate).all<{ pathGroup: string; campaign: string; clicks: number; visitors: number }>(),
     db.prepare("SELECT COUNT(*) total FROM billing_transactions WHERE status IN ('rejected', 'cancelled', 'refunded', 'charged_back') AND substr(updated_at, 1, 10) BETWEEN ? AND ?").bind(window.startDate, window.endDate).first<{ total: number }>(),
   ]);
 
@@ -62,7 +63,7 @@ async function ownerMetrics(request: Request) {
     generatedAt: new Date().toISOString(),
     window,
     definitions: platformMetricDefinitions,
-    acquisition: { pageViews: number(periodTotals?.pageViews), visitors: number(periodTotals?.visitors), sessions: number(periodTotals?.sessions), sources: sourceRows.results.map((row) => ({ ...row, pageViews: number(row.pageViews), visitors: number(row.visitors) })) },
+    acquisition: { pageViews: number(periodTotals?.pageViews), visitors: number(periodTotals?.visitors), sessions: number(periodTotals?.sessions), sources: sourceRows.results.map((row) => ({ ...row, pageViews: number(row.pageViews), visitors: number(row.visitors) })), seoCtas: seoCtaRows.results.map((row) => ({ ...row, clicks: number(row.clicks), visitors: number(row.visitors) })) },
     users: { total: number(usersTotal?.total), signups: signupCount, dau: number(activity?.dau), wau: number(activity?.wau), mau: number(activity?.mau) },
     trials: { started: trialStarted, active: activeTrials, expired: expiredTrials, denied: daily.reduce((sum, row) => sum + row.trialsDenied, 0), converted: convertedTrials, signupToTrialPercent: percentage(trialStarted, signupCount), trialToPayerPercent: percentage(convertedTrials, trialCohort.length) },
     billing: { activePayers: activeBilling.length, mrrCents, grossAmountCents, delinquent, canceled, paymentFailures: number(failureRows?.total) },

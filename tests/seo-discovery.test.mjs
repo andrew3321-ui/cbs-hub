@@ -25,6 +25,11 @@ test("sitemap contém somente páginas públicas canônicas", () => {
     "https://cbshub.com.br/privacidade",
     "https://cbshub.com.br/termos",
     "https://cbshub.com.br/responsavel",
+    "https://cbshub.com.br/calculadora-reforma-tributaria",
+    "https://cbshub.com.br/cbs-ibs-contadores",
+    "https://cbshub.com.br/icms-st-contadores",
+    "https://cbshub.com.br/inteligencia-tributaria-escritorios",
+    "https://cbshub.com.br/relatorios-fiscais-rastreaveis",
   ]);
   assert.equal(new Set(entries.map((entry) => entry.url)).size, entries.length);
   assert.ok(entries.every((entry) => entry.url.startsWith("https://cbshub.com.br")));
@@ -38,11 +43,20 @@ test("todas as URLs do sitemap declaram canonical correspondente", () => {
     ["https://cbshub.com.br/privacidade", "../app/privacidade/page.tsx"],
     ["https://cbshub.com.br/termos", "../app/termos/page.tsx"],
     ["https://cbshub.com.br/responsavel", "../app/responsavel/page.tsx"],
+    ["https://cbshub.com.br/calculadora-reforma-tributaria", "../app/calculadora-reforma-tributaria/page.tsx"],
+    ["https://cbshub.com.br/cbs-ibs-contadores", "../app/cbs-ibs-contadores/page.tsx"],
+    ["https://cbshub.com.br/icms-st-contadores", "../app/icms-st-contadores/page.tsx"],
+    ["https://cbshub.com.br/inteligencia-tributaria-escritorios", "../app/inteligencia-tributaria-escritorios/page.tsx"],
+    ["https://cbshub.com.br/relatorios-fiscais-rastreaveis", "../app/relatorios-fiscais-rastreaveis/page.tsx"],
   ]);
   for (const entry of sitemap()) {
     const pathname = new URL(entry.url).pathname;
     const source = fs.readFileSync(new URL(files.get(entry.url), import.meta.url), "utf8");
-    assert.match(source, new RegExp(`canonical:\\s*["']${pathname.replace("/", "\\/")}["']`));
+    if (pathname.split("/").filter(Boolean).length === 1 && pathname !== "/planos" && pathname !== "/metodologia" && pathname !== "/privacidade" && pathname !== "/termos" && pathname !== "/responsavel") {
+      assert.match(source, /seoIntentMetadata\(page\)/);
+    } else {
+      assert.match(source, new RegExp(`canonical:\\s*["']${pathname.replace("/", "\\/")}["']`));
+    }
   }
 });
 

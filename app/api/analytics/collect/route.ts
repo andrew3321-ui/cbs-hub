@@ -4,7 +4,7 @@ import { withApiTelemetry } from "../../../api-infrastructure";
 
 async function collect(request: Request) {
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
-  const eventType = body.eventType === "app_active" ? "app_active" : body.eventType === "page_view" ? "page_view" : null;
+  const eventType = body.eventType === "app_active" ? "app_active" : body.eventType === "page_view" ? "page_view" : body.eventType === "seo_cta" ? "seo_cta" : null;
   if (!eventType) return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
   const user = eventType === "app_active" ? await getCurrentUser() : null;
   if (eventType === "app_active" && !user) return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });

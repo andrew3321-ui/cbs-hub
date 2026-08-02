@@ -238,6 +238,8 @@ export default async function LandingPage() {
           <Link href="/termos">Termos</Link>
           <Link href="/metodologia">Metodologia</Link>
           <Link href="/planos">Planos</Link>
+          <Link href="/calculadora-reforma-tributaria">Reforma Tributária</Link>
+          <Link href="/icms-st-contadores">ICMS-ST</Link>
         </nav>
         <small>© 2026 CBSHub</small>
       </footer>

@@ -6,7 +6,7 @@ const SESSION_COOKIE = "cbs_metric_session";
 const VISITOR_SECONDS = 365 * 24 * 60 * 60;
 const SESSION_SECONDS = 30 * 60;
 
-type MetricEventType = "page_view" | "app_active" | "signup" | "trial_started" | "trial_denied";
+type MetricEventType = "page_view" | "app_active" | "signup" | "trial_started" | "trial_denied" | "seo_cta";
 type MetricPayload = { pathname?: unknown; source?: unknown; medium?: unknown; campaign?: unknown; referrerHost?: unknown; reason?: unknown };
 
 function cookieValue(request: Request, name: string) {
@@ -57,7 +57,7 @@ export function metricIdentityCookies(request: Request) {
 }
 
 export async function recordPlatformMetricEvent(input: { request: Request; eventType: MetricEventType; userId?: number | null; payload?: MetricPayload; visitorId?: string; sessionId?: string; occurredAt?: string }) {
-  if (["page_view", "app_active"].includes(input.eventType) && isLikelyAutomatedTraffic(input.request.headers.get("user-agent") ?? "")) return { recorded: false, reason: "automated" };
+  if (["page_view", "app_active", "seo_cta"].includes(input.eventType) && isLikelyAutomatedTraffic(input.request.headers.get("user-agent") ?? "")) return { recorded: false, reason: "automated" };
   const runtime = env as unknown as { DB: D1Database; SECURITY_HASH_KEY?: string };
   const secret = String(runtime.SECURITY_HASH_KEY ?? "").trim();
   if (secret.length < 32) return { recorded: false, reason: "hash_key_unavailable" };

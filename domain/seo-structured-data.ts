@@ -80,6 +80,22 @@ export function buildBreadcrumbStructuredData(items: BreadcrumbItem[]) {
   };
 }
 
+export function buildSeoIntentPageStructuredData(input: { path: string; title: string; description: string; keywords: string[] }) {
+  if (!input.path.startsWith("/") || !input.title.trim() || !input.description.trim()) throw new Error("invalid_seo_intent_page");
+  return {
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "@id": `${SEO_SITE_URL}${input.path}#webpage`,
+    url: `${SEO_SITE_URL}${input.path}`,
+    name: input.title,
+    description: input.description,
+    inLanguage: "pt-BR",
+    keywords: input.keywords.join(", "),
+    isPartOf: { "@id": seoWebSite["@id"] },
+    about: { "@id": seoSoftwareApplication["@id"] },
+  };
+}
+
 export function serializeStructuredData(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }

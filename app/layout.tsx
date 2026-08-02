@@ -12,6 +12,7 @@ import "./deterministic-tax-lab.css";
 import "./legal-reference-center.css";
 import "./tax-reform-impact.css";
 import "./account-onboarding.css";
+import "./seo-intent.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://cbshub.com.br"),

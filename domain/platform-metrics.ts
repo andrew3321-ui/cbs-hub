@@ -27,6 +27,7 @@ export function normalizeMetricPath(value: unknown) {
   if (path === "/cadastro") return "signup";
   if (path === "/entrar") return "login";
   if (path === "/planos") return "pricing";
+  if (["/calculadora-reforma-tributaria", "/cbs-ibs-contadores", "/icms-st-contadores", "/inteligencia-tributaria-escritorios", "/relatorios-fiscais-rastreaveis"].includes(path)) return `seo:${path.slice(1)}`;
   if (path === "/app" || path.startsWith("/app/")) return "workspace";
   if (["/privacidade", "/termos", "/metodologia", "/responsavel"].includes(path)) return "institutional";
   return "other";

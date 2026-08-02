@@ -7,7 +7,7 @@ type Payload = {
   generatedAt: string;
   window: { days: number; startDate: string; endDate: string };
   definitions: Record<string, string>;
-  acquisition: { pageViews: number; visitors: number; sessions: number; sources: Array<{ source: string; medium: string; pageViews: number; visitors: number }> };
+  acquisition: { pageViews: number; visitors: number; sessions: number; sources: Array<{ source: string; medium: string; pageViews: number; visitors: number }>; seoCtas: Array<{ pathGroup: string; campaign: string; clicks: number; visitors: number }> };
   users: { total: number; signups: number; dau: number; wau: number; mau: number };
   trials: { started: number; active: number; expired: number; denied: number; converted: number; signupToTrialPercent: number; trialToPayerPercent: number };
   billing: { activePayers: number; mrrCents: number; grossAmountCents: number; delinquent: number; canceled: number; paymentFailures: number };
@@ -88,7 +88,7 @@ export default function OwnerMetricsCenter() {
     </section>
 
     <div className="owner-metrics-layout owner-bottom-layout">
-      <section className="panel owner-sources-panel"><div className="panel-heading"><div><span className="eyebrow">ORIGEM DO TRÁFEGO</span><h3>Fontes qualificadas</h3></div></div><div className="owner-source-list">{data.acquisition.sources.map((source) => <article key={`${source.source}:${source.medium}`}><p><b>{source.source}</b><small>{source.medium}</small></p><strong>{source.visitors}</strong><span>visitas únicas/dia · {source.pageViews} views</span></article>)}{!data.acquisition.sources.length && <div className="billing-empty"><b>A coleta começa nesta versão</b><p>As fontes aparecerão após as primeiras visitas qualificadas.</p></div>}</div></section>
+      <section className="panel owner-sources-panel"><div className="panel-heading"><div><span className="eyebrow">ORIGEM E INTENÇÃO</span><h3>Fontes e CTAs orgânicos</h3></div></div><div className="owner-source-list">{data.acquisition.sources.map((source) => <article key={`${source.source}:${source.medium}`}><p><b>{source.source}</b><small>{source.medium}</small></p><strong>{source.visitors}</strong><span>visitas únicas/dia · {source.pageViews} views</span></article>)}{data.acquisition.seoCtas.map((cta) => <article key={`${cta.pathGroup}:${cta.campaign}`}><p><b>{cta.campaign}</b><small>{cta.pathGroup}</small></p><strong>{cta.clicks}</strong><span>cliques · {cta.visitors} visitantes/dia</span></article>)}{!data.acquisition.sources.length && !data.acquisition.seoCtas.length && <div className="billing-empty"><b>A coleta começa nesta versão</b><p>As fontes e CTAs aparecerão após as primeiras visitas qualificadas.</p></div>}</div></section>
       <section className="panel owner-privacy-panel"><div className="panel-heading"><div><span className="eyebrow">DEFINIÇÕES E PRIVACIDADE</span><h3>Métrica sem caixa-preta</h3></div></div><div className="owner-definition-list">{Object.entries(data.definitions).map(([key, value]) => <article key={key}><b>{key}</b><p>{value}</p></article>)}</div><div className="owner-privacy-proof"><span>✓ IP bruto não armazenado</span><span>✓ User-agent bruto não armazenado</span><span>✓ Eventos por {data.privacy.eventRetentionDays} dias</span><span>✓ Agregados por {data.privacy.dailyRetentionDays} dias</span></div></section>
     </div>
     <p className="owner-generated">Atualizado em {new Date(data.generatedAt).toLocaleString("pt-BR")}{loading ? " · atualizando…" : ""}</p>
