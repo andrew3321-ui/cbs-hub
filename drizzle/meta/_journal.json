@@ -288,6 +288,13 @@
       "when": 1785640697647,
       "tag": "0040_jittery_speed",
       "breakpoints": true
+    },
+    {
+      "idx": 41,
+      "version": "6",
+      "when": 1785684838989,
+      "tag": "0041_clean_orphan_platform_metrics",
+      "breakpoints": true
     }
   ]
 }

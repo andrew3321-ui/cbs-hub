@@ -1,4 +1,4 @@
-export const PLATFORM_METRICS_VERSION = "platform-metrics.v4";
+export const PLATFORM_METRICS_VERSION = "platform-metrics.v5";
 export const PLATFORM_METRIC_EVENT_RETENTION_DAYS = 90;
 export const PLATFORM_METRIC_DAILY_RETENTION_DAYS = 730;
 
@@ -8,8 +8,8 @@ export const platformMetricDefinitions = {
   sessions: "Sessões pseudonimizadas distintas, renovadas após trinta minutos.",
   signups: "Contas persistidas com sucesso no período; convites também contam como cadastro.",
   signupFunnel: "Etapas pseudonimizadas do cadastro: visualização, início do preenchimento, clique, chegada à API, falha classificada e conta persistida. Nenhum valor digitado é armazenado.",
-  activeUsers: "Contas distintas que abriram o workspace em cada janela (DAU/WAU/MAU).",
-  trials: "Claims de trial persistidos; ativo e expirado são resolvidos pela data e pelo estado atual.",
+  activeUsers: "Contas existentes distintas que abriram o workspace em cada janela (DAU/WAU/MAU); contas apagadas não inflam o estado atual.",
+  trials: "Claims vinculados a contas existentes; ativo e expirado são resolvidos pela data e pelo estado atual, enquanto claims antifraude anonimizados ficam fora do painel.",
   payers: "Contas de cobrança ativas; MRR usa o preço contratado e os blocos adicionais.",
   conversion: "Conversões usam registros operacionais persistidos, nunca eventos de interface isolados.",
   organicAttribution: "Atribui cadastro, trial e pagamento ao navegador pseudonimizado que chegou por busca orgânica nos 30 dias anteriores; a consulta do Google nunca é vinculada à pessoa.",

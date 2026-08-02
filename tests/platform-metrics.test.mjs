@@ -74,12 +74,15 @@ test("API e interface preservam autorização server-side e privacidade", async 
   assert.match(route, /getPlatformAdminUser/);
   assert.match(route, /status: 403/);
   assert.match(route, /COUNT\(DISTINCT CASE WHEN event_type = 'page_view' THEN event_date \|\| ':' \|\| visitor_hash END\) visitors/);
+  assert.match(route, /EXISTS \(SELECT 1 FROM users current_users WHERE current_users.id = platform_metric_events.user_id\)/);
+  assert.match(route, /INNER JOIN users trial_users ON trial_users.id = t.user_id/);
   assert.match(route, /label: "Visitas únicas\/dia"/);
   assert.match(route, /signupFunnelRows/);
   assert.match(route, /signup_client_error/);
   assert.match(app, /isPlatformAdmin && <button title="Métricas da plataforma"/);
   assert.match(account, /platformActivity/);
   assert.match(account, /delete\(platformMetricEvents\)/);
+  assert.match(account, /status: "retained_antifraud"/);
   assert.doesNotMatch(collector, /cf-connecting-ip|x-forwarded-for/);
   assert.match(collector, /visitorHash/);
   assert.match(migration, /platform_metric_events/);

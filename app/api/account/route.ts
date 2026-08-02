@@ -230,6 +230,7 @@ async function deleteAccount(request: Request) {
       await db.delete(billingTransactions).where(eq(billingTransactions.userId, user.id));
       await db.delete(billingAccounts).where(eq(billingAccounts.userId, user.id));
       await db.delete(platformMetricEvents).where(eq(platformMetricEvents.userId, user.id));
+      await db.update(trialDeviceClaims).set({ userId: null, workspaceId: null, status: "retained_antifraud" }).where(eq(trialDeviceClaims.userId, user.id));
       await db.delete(sessions).where(eq(sessions.userId, user.id));
       await db.delete(users).where(eq(users.id, user.id));
       await recordPrivacyRequest({ request, email: user.email, workspaceId: workspace.id, action: "account_deletion", status: "completed", details: { scope: "workspace_member" } });
