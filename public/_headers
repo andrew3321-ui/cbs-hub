@@ -1,3 +1,21 @@
+/*
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self' https://api.mercadopago.com; upgrade-insecure-requests
+  Referrer-Policy: strict-origin-when-cross-origin
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: DENY
+  Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=()
+  Cross-Origin-Opener-Policy: same-origin
+  Strict-Transport-Security: max-age=31536000; includeSubDomains
+
+/cadastro
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/entrar
+  X-Robots-Tag: noindex, nofollow, noarchive
+
+/recuperar-senha
+  X-Robots-Tag: noindex, nofollow, noarchive
+
 /assets/*
   Cache-Control: public, max-age=31536000, immutable
 

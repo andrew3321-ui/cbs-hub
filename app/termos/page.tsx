@@ -1,10 +1,9 @@
 import Link from "next/link";
 import type { Metadata } from "next";
 import BrandMark from "../BrandMark";
-import { getPlatformOperationState, publicLegalSupplierIdentity } from "../platform-controls";
+import { platformIdentity } from "../../domain/platform-identity";
 import { PublicPageBreadcrumb } from "../StructuredData";
 
-export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Termos de uso | CBSHub",
   description: "Condições do teste, da contratação e da operação comercial do CBSHub.",
@@ -13,14 +12,12 @@ export const metadata: Metadata = {
   twitter: { card: "summary_large_image", title: "Termos de uso | CBSHub", description: "Contratação clara, capacidade previsível e limites documentados.", images: ["/og-cbshub.png"] },
 };
 
-export default async function TermsPage() {
-  const operation = await getPlatformOperationState();
-  const supplier = await publicLegalSupplierIdentity();
+export default function TermsPage() {
   return <main className="legal-shell"><PublicPageBreadcrumb current="Termos de uso" path="/termos" />
     <header className="legal-nav"><Link className="landing-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link><div><Link href="/privacidade">Privacidade</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div></header>
     <section className="legal-hero"><span>TERMOS DE USO · V2</span><h1>Contratação clara, capacidade previsível.</h1><p>Estes termos registram o período gratuito, a renovação, os limites do produto, o cancelamento e a responsabilidade profissional.</p></section>
-    <section className={`terms-mode ${operation.paymentsEnabled ? "live" : "beta"}`}><span>{operation.paymentsEnabled ? "PAGAMENTOS ATIVOS" : "PAGAMENTOS BLOQUEADOS"}</span><strong>{operation.paymentsEnabled ? "O checkout pode criar assinaturas no Mercado Pago." : "Nenhuma nova assinatura paga pode ser criada pelo servidor."}</strong></section>
-    {supplier ? <section className="supplier-identity"><span>IDENTIFICAÇÃO DO FORNECEDOR</span><h2>{supplier.name}</h2><p>CPF {supplier.cpf}</p><p>{supplier.address}</p><a href={`mailto:${supplier.email}`}>{supplier.email}</a></section> : <section className="supplier-identity pending"><span>IDENTIFICAÇÃO COMERCIAL</span><h2>Ainda não publicada</h2><p>A operação paga só poderá ser ativada depois que CPF, endereço, canal de atendimento e credenciais de produção forem configurados.</p></section>}
+    <section className="terms-mode live"><span>CONTRATAÇÃO CONTROLADA</span><strong>O servidor confirma a disponibilidade e o pagamento oficial antes de liberar qualquer assinatura.</strong></section>
+    <section className="supplier-identity"><span>IDENTIFICAÇÃO DO RESPONSÁVEL</span><h2>{platformIdentity.responsibleName}</h2><p>Pessoa física responsável pela operação do CBSHub. CPF e endereço fiscal não são expostos nesta página pública; os dados obrigatórios são apresentados no fluxo contratual quando aplicáveis.</p><a href="mailto:supportofficial@cbshub.com.br">supportofficial@cbshub.com.br</a></section>
     <section className="legal-list">
       <article><h2>1. Finalidade</h2><p>A plataforma auxilia contadores a organizar informações e produzir análises rastreáveis. Ela não substitui julgamento profissional, legislação vigente, documentos oficiais ou revisão do responsável técnico.</p></article>
       <article><h2>2. Conta e segurança</h2><p>O usuário deve proteger sua senha, manter dados corretos e comunicar suspeitas. Ações relevantes são vinculadas à conta e podem gerar trilha de auditoria.</p></article>

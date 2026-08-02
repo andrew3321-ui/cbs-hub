@@ -42,3 +42,18 @@ test("showcase, cache, gate e painel do proprietário permanecem conectados", as
   const video = await stat(new URL("../public/media/cbshub-overview-completo-v2.webm", import.meta.url));
   assert.ok(video.size <= publicAssetBudgets.showcaseVideoBytes);
 });
+
+test("HTML publico e exportado no edge sem consumir CPU do Worker", async () => {
+  const [packageSource, exporter, headers] = await Promise.all([
+    readFile(new URL("../package.json", import.meta.url), "utf8"),
+    readFile(new URL("../scripts/export-public-static.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../public/_headers", import.meta.url), "utf8"),
+  ]);
+  const packageJson = JSON.parse(packageSource);
+  assert.match(packageJson.scripts.build, /export-public-static\.mjs/);
+  assert.match(exporter, /publicIndexableRoutes/);
+  assert.match(exporter, /\/cadastro/);
+  assert.match(exporter, /data-cbshub-static-navigation/);
+  assert.match(headers, /\/cadastro[\s\S]*X-Robots-Tag: noindex/);
+  assert.match(headers, /Content-Security-Policy:/);
+});

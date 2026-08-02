@@ -71,6 +71,7 @@ function capacityBlocksFromBilling(data: BillingState) {
 }
 
 export default function PricingClient({ signedIn }: { signedIn: boolean }) {
+  const [authenticated, setAuthenticated] = useState(signedIn);
   const [billing, setBilling] = useState<BillingState | null>(null);
   const [loadingPlan, setLoadingPlan] = useState("");
   const [message, setMessage] = useState("");
@@ -88,13 +89,13 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
   }, []);
 
   useEffect(() => {
-    if (!signedIn) return;
     let current = true;
     const returnedFromProvider = new URLSearchParams(window.location.search).get("retorno") === "mercado-pago";
     fetch("/api/billing", { cache: "no-store" })
       .then((response) => response.ok ? response.json() as Promise<BillingState> : Promise.reject())
       .then((data) => {
         if (!current) return;
+        setAuthenticated(true);
         setBilling(data);
         setSelectedAddonBlocks(capacityBlocksFromBilling(data));
         if (returnedFromProvider) setMessage(data.billing.status === "active" ? "Pagamento confirmado pelo Mercado Pago. Seu acesso está ativo." : "Retorno recebido. A confirmação ainda está sendo conciliada.");
@@ -102,7 +103,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
       })
       .catch(() => { if (current) setBilling(null); });
     return () => { current = false; };
-  }, [signedIn]);
+  }, []);
 
   useEffect(() => {
     if (!billing?.billing.pix || !["pending", "in_process", "in_mediation"].includes(billing.billing.pix.status)) return;
@@ -111,7 +112,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
   }, [billing?.billing.pix, loadBilling]);
 
   async function choosePlan(paymentMethod: "card" | "pix") {
-    if (!signedIn) {
+    if (!authenticated) {
       window.location.assign(`/entrar?returnTo=${encodeURIComponent("/planos")}`);
       return;
     }
@@ -216,7 +217,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
     const pixBusy = loadingPlan === "unico:pix";
     const capacityBusy = loadingPlan === "unico:capacity";
 
-    if (signedIn && billing && !billing.canManageBilling) {
+    if (authenticated && billing && !billing.canManageBilling) {
       return <div className="pricing-payment-actions single">
         <p className="pricing-contract-note">A assinatura pertence ao espaço profissional. Somente o proprietário pode contratar, alterar capacidade ou cancelar.</p>
       </div>;
@@ -263,7 +264,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
         <span>PLANO ÚNICO COM CAPACIDADE AJUSTÁVEL</span>
         <p>R$ 450 por mês com 30 empresas. Cada bloco adicional inclui 10 empresas por R$ 100 mensais, sem liberar ou retirar módulos.</p>
       </section>
-      {signedIn && billing && <section className={`payment-mode-notice ${billing.paymentsEnabled ? "live" : "beta"}`}>
+      {authenticated && billing && <section className={`payment-mode-notice ${billing.paymentsEnabled ? "live" : "beta"}`}>
         <span>{billing.entitlements?.trialActive ? `TESTE PROFISSIONAL · ${billing.entitlements.trialDaysRemaining} DIA(S) RESTANTE(S)` : billing.paymentsEnabled ? "CONTRATAÇÃO DISPONÍVEL" : "CONTRATAÇÃO TEMPORARIAMENTE INDISPONÍVEL"}</span>
         <p>{billing.entitlements?.trialActive
           ? `Todos os recursos e até 10 empresas estão liberados até ${formatDate(billing.entitlements.trialEndsAt)}. Depois disso, a conta volta ao acesso básico se não houver contratação.`
@@ -271,7 +272,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
             ? "O servidor aplica a capacidade contratada. Todos os recursos profissionais permanecem incluídos."
             : "Nenhuma nova cobrança será iniciada enquanto o pagamento estiver bloqueado. Seu acesso atual permanece preservado."}</p>
       </section>}
-      {signedIn && billing && <section className={`billing-status-card ${billing.billing.status}`}>
+      {authenticated && billing && <section className={`billing-status-card ${billing.billing.status}`}>
         <div><span>SEU ACESSO EFETIVO</span><strong>Plano {billing.entitlements?.name ?? statusLabels[billing.billing.status] ?? billing.billing.status}</strong><small>{billing.entitlements?.companyLimit === null ? "Empresas e recursos sem restrições enquanto este acesso estiver vigente." : `Até ${billing.entitlements?.companyLimit ?? 1} empresa(s) · recursos aplicados pelo servidor.`}</small></div>
         {billing.billing.status === "active" && <div><span>ASSINATURA REGISTRADA</span><strong>{billing.billing.planKey === "unico" ? `${formatMoney(billing.entitlements?.monthlyPriceCents ?? billingPlans.unico.priceCents)}/mês` : `Contrato legado ${billing.billing.planKey}`}</strong><small>{billing.betaEnabled ? "O beta não cancela a renovação automática existente." : billing.billing.planKey === "unico" ? `${billing.billing.companyAddonBlocks} bloco(s) adicional(is) ativo(s).` : "Valor histórico preservado sem reajuste automático."}</small></div>}
         {billing.billing.nextPaymentAt && <div><span>{billing.billing.paymentFlow === "pix_monthly" ? "ACESSO PAGO ATÉ" : "PRÓXIMA COBRANÇA"}</span><strong>{new Date(billing.billing.nextPaymentAt).toLocaleDateString("pt-BR")}</strong><small>{billing.billing.paymentFlow === "pix_monthly" ? "Renove por Pix quando faltar até 7 dias" : "Renovação automática; cancele antes desta data para impedir a próxima cobrança"}</small></div>}
@@ -317,7 +318,7 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
           <div className="pricing-value"><strong>R$ 0</strong><small>/5 dias</small></div>
           <p>Conheça a operação profissional com todos os módulos liberados e capacidade suficiente para testar uma carteira real.</p>
           <ul><li>Até 10 empresas durante o teste</li><li>Todos os módulos fiscais e cálculos</li><li>Relatórios, documentos e importações</li><li>Equipe, revisão e entrega rastreável</li><li>Sem cobrança automática no cadastro</li></ul>
-          <a className="pricing-button secondary" href={signedIn ? "/app" : "/cadastro"}>{signedIn ? "Voltar ao aplicativo" : "Iniciar teste de 5 dias"}</a>
+          <a className="pricing-button secondary" href={authenticated ? "/app" : "/cadastro"}>{authenticated ? "Voltar ao aplicativo" : "Iniciar teste de 5 dias"}</a>
         </article>
 
         <article className="pricing-card featured">
@@ -335,9 +336,9 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
               <small>{selectedAddonBlocks === 0 ? "30 incluídas no plano" : `30 incluídas + ${selectedAddonBlocks * BILLING_ADDON_COMPANY_BLOCK_SIZE} adicionais`}</small>
             </div>
             <div className="capacity-stepper">
-              <button type="button" aria-label="Remover um bloco de empresas" onClick={() => setSelectedAddonBlocks((current) => Math.max(0, current - 1))} disabled={selectedAddonBlocks === 0 || Boolean(loadingPlan) || Boolean(signedIn && billing && !billing.canManageBilling)}>−</button>
+              <button type="button" aria-label="Remover um bloco de empresas" onClick={() => setSelectedAddonBlocks((current) => Math.max(0, current - 1))} disabled={selectedAddonBlocks === 0 || Boolean(loadingPlan) || Boolean(authenticated && billing && !billing.canManageBilling)}>−</button>
               <b>{selectedAddonBlocks}</b>
-              <button type="button" aria-label="Adicionar um bloco de empresas" onClick={() => setSelectedAddonBlocks((current) => Math.min(BILLING_MAX_ADDON_BLOCKS, current + 1))} disabled={selectedAddonBlocks === BILLING_MAX_ADDON_BLOCKS || Boolean(loadingPlan) || Boolean(signedIn && billing && !billing.canManageBilling)}>+</button>
+              <button type="button" aria-label="Adicionar um bloco de empresas" onClick={() => setSelectedAddonBlocks((current) => Math.min(BILLING_MAX_ADDON_BLOCKS, current + 1))} disabled={selectedAddonBlocks === BILLING_MAX_ADDON_BLOCKS || Boolean(loadingPlan) || Boolean(authenticated && billing && !billing.canManageBilling)}>+</button>
             </div>
             <p>Cada bloco adiciona {BILLING_ADDON_COMPANY_BLOCK_SIZE} empresas por {formatMoney(BILLING_ADDON_COMPANY_BLOCK_PRICE_CENTS)}/mês.</p>
             <output>Total mensal: <strong>{formatMoney(selectedMonthlyAmount)}</strong></output>

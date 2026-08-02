@@ -8,7 +8,7 @@
   "scripts": {
     "dev": "vinext dev",
     "prebuild": "node --experimental-strip-types scripts/verify-fiscal-build.mjs",
-    "build": "vinext build",
+    "build": "vinext build && node --experimental-strip-types scripts/export-public-static.mjs",
     "start": "vinext start",
     "test:unit": "node --experimental-strip-types --test tests/*.test.mjs",
     "test": "npm run build && npm run test:unit",
