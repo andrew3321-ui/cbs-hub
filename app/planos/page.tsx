@@ -5,12 +5,15 @@ import { getCurrentUser } from "../auth";
 import PricingClient from "./PricingClient";
 import { getPlatformOperationState } from "../platform-controls";
 import BrandMark from "../BrandMark";
+import { PublicPageBreadcrumb } from "../StructuredData";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Planos | CBSHub",
   description: "Plano CBSHub para centralizar inteligência fiscal, cálculos, documentos, revisão e rastreabilidade.",
   alternates: { canonical: "/planos" },
+  openGraph: { title: "Planos | CBSHub", description: "Plano profissional com inteligência fiscal, cálculos e dossiês versionados.", url: "/planos", images: ["/og-cbshub.png"], type: "website", locale: "pt_BR" },
+  twitter: { card: "summary_large_image", title: "Planos | CBSHub", description: "Conheça o plano profissional do CBSHub.", images: ["/og-cbshub.png"] },
 };
 
 export default async function PricingPage() {
@@ -18,6 +21,7 @@ export default async function PricingPage() {
   const operation = await getPlatformOperationState();
   return (
     <main className="pricing-shell">
+      <PublicPageBreadcrumb current="Planos" path="/planos" />
       <header className="pricing-nav">
         <Link className="landing-brand" href="/" aria-label="CBSHub — início"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
         <div><Link href={user ? "/app" : "/entrar"}>{user ? "Voltar ao painel" : "Entrar"}</Link><Link className="landing-cta small" href={user ? "/app" : "/cadastro"}>{user ? "Abrir aplicativo" : "Testar por 5 dias"}<span>→</span></Link></div>

@@ -5,6 +5,7 @@ import { runScheduledBillingReconciliation } from "../app/billing-scheduled-reco
 import { runNormativeMonitor } from "../app/normative-governance-service";
 import { runScheduledRtcCalculatorSync } from "../app/rtc-official-calculator-service";
 import { NORMATIVE_MONITOR_SHARD_COUNT, normativeMonitorShardForScheduledTime } from "../domain/normative-governance";
+import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
 
 interface Env {
   ASSETS: Fetcher;
@@ -142,6 +143,7 @@ async function enforceRateLimit(request: Request, env: Env, rule: RateLimitRule)
 
 function secureResponse(response: Response, request: Request) {
   const headers = new Headers(response.headers);
+  const pathname = new URL(request.url).pathname;
   headers.set("Content-Security-Policy", contentSecurityPolicy);
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
   headers.set("X-Content-Type-Options", "nosniff");
@@ -149,7 +151,10 @@ function secureResponse(response: Response, request: Request) {
   headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=(), payment=(), usb=()");
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   if (new URL(request.url).protocol === "https:") headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-  if (new URL(request.url).pathname.startsWith("/api/") && !new URL(request.url).pathname.startsWith("/api/public/")) headers.set("Cache-Control", "no-store");
+  if (pathname.startsWith("/api/") && !pathname.startsWith("/api/public/")) headers.set("Cache-Control", "no-store");
+  if (routeMustNotBeIndexed(pathname)) {
+    headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
+  }
   headers.delete("Server");
   return new Response(response.body, { status: response.status, statusText: response.statusText, headers });
 }

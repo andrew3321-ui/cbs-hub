@@ -1,0 +1,85 @@
+import { billingPlans } from "./billing-plans.ts";
+
+export const SEO_SITE_URL = "https://cbshub.com.br";
+export const SEO_STRUCTURED_DATA_VERSION = "seo-structured-v1.0.0";
+
+export const seoEligibilityPolicy = {
+  faqPage: "not_eligible_general_saas",
+  softwareRichResult: "not_eligible_without_real_review_or_rating",
+} as const;
+
+export const seoOrganization = {
+  "@type": "Organization",
+  "@id": `${SEO_SITE_URL}/#organization`,
+  name: "CBSHub",
+  url: SEO_SITE_URL,
+  logo: `${SEO_SITE_URL}/cbshub-icon-1024.png`,
+  email: "supportofficial@cbshub.com.br",
+} as const;
+
+export const seoWebSite = {
+  "@type": "WebSite",
+  "@id": `${SEO_SITE_URL}/#website`,
+  url: SEO_SITE_URL,
+  name: "CBSHub",
+  alternateName: "CBS Hub",
+  inLanguage: "pt-BR",
+  publisher: { "@id": seoOrganization["@id"] },
+} as const;
+
+export const seoSoftwareApplication = {
+  "@type": ["SoftwareApplication", "WebApplication"],
+  "@id": `${SEO_SITE_URL}/#software`,
+  name: "CBSHub",
+  url: SEO_SITE_URL,
+  applicationCategory: "BusinessApplication",
+  applicationSubCategory: "Software tributário para contadores e tributaristas",
+  operatingSystem: "Web",
+  inLanguage: "pt-BR",
+  description: "Plataforma de inteligência tributária com pesquisa de normas, cálculos determinísticos e dossiês fiscais versionados.",
+  publisher: { "@id": seoOrganization["@id"] },
+  offers: {
+    "@type": "Offer",
+    url: `${SEO_SITE_URL}/planos`,
+    price: (billingPlans.unico.priceCents / 100).toFixed(2),
+    priceCurrency: "BRL",
+    category: "subscription",
+    availability: "https://schema.org/InStock",
+  },
+  featureList: [
+    "Pesquisa de normas fiscais",
+    "Cálculos tributários determinísticos",
+    "Dossiês fiscais versionados",
+    "Revisão responsável e trilha de auditoria",
+  ],
+} as const;
+
+export function buildHomeStructuredData() {
+  return {
+    "@context": "https://schema.org",
+    "@graph": [seoOrganization, seoWebSite, seoSoftwareApplication],
+    version: SEO_STRUCTURED_DATA_VERSION,
+  };
+}
+
+export type BreadcrumbItem = { name: string; path: string };
+
+export function buildBreadcrumbStructuredData(items: BreadcrumbItem[]) {
+  if (items.length < 2 || items.some((item) => !item.name.trim() || !item.path.startsWith("/"))) {
+    throw new Error("invalid_seo_breadcrumb");
+  }
+  return {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: items.map((item, index) => ({
+      "@type": "ListItem",
+      position: index + 1,
+      name: item.name,
+      item: `${SEO_SITE_URL}${item.path === "/" ? "" : item.path}`,
+    })),
+  };
+}
+
+export function serializeStructuredData(value: unknown) {
+  return JSON.stringify(value).replace(/</g, "\\u003c");
+}

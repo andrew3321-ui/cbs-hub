@@ -1,23 +1,21 @@
 import Link from "next/link";
 import { platformIdentity } from "../../domain/platform-identity";
 import BrandMark from "../BrandMark";
+import type { Metadata } from "next";
+import { PublicPageBreadcrumb } from "../StructuredData";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Responsável pela plataforma | CBSHub",
   description: "Identificação pública do responsável pela plataforma CBSHub, com proteção dos documentos pessoais.",
+  alternates: { canonical: "/responsavel" },
+  openGraph: { title: "Responsável pela plataforma | CBSHub", description: "Identificação institucional e limites da declaração pública do CBSHub.", url: "/responsavel", images: ["/og-cbshub.png"], type: "website", locale: "pt_BR" },
+  twitter: { card: "summary_large_image", title: "Responsável pela plataforma | CBSHub", description: "Identificação institucional pública do CBSHub.", images: ["/og-cbshub.png"] },
 };
 
 export default function PlatformOwnerPage() {
-  const structuredData = {
-    "@context": "https://schema.org",
-    "@type": "Person",
-    name: platformIdentity.responsibleName,
-    description: `Responsável declarado pela operação da plataforma ${platformIdentity.brand}`,
-  };
-
   return (
     <main className="ownership-shell">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(structuredData) }} />
+      <PublicPageBreadcrumb current="Responsável pela plataforma" path="/responsavel" />
       <header className="ownership-nav">
         <Link className="landing-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
         <div><Link href="/metodologia">Metodologia</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div>
@@ -33,7 +31,7 @@ export default function PlatformOwnerPage() {
           <span>RESPONSÁVEL DECLARADO</span>
           <strong>{platformIdentity.responsibleName}</strong>
           <b>Pessoa física · documento não exibido publicamente</b>
-          <small>Beta gratuito sem cobrança automática ativa</small>
+          <small>Condições comerciais e de contratação publicadas nos Termos de Uso</small>
         </div>
         <div className="ownership-checks">
           <article className="valid"><span>✓</span><p><b>Responsável identificado</b><small>Nome informado publicamente para contato institucional e prestação de contas.</small></p></article>

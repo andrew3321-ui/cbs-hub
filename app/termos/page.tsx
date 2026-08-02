@@ -2,18 +2,21 @@ import Link from "next/link";
 import type { Metadata } from "next";
 import BrandMark from "../BrandMark";
 import { getPlatformOperationState, publicLegalSupplierIdentity } from "../platform-controls";
+import { PublicPageBreadcrumb } from "../StructuredData";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Termos de uso | CBSHub",
   description: "Condições do teste, da contratação e da operação comercial do CBSHub.",
   alternates: { canonical: "/termos" },
+  openGraph: { title: "Termos de uso | CBSHub", description: "Condições do teste, da contratação e da operação comercial do CBSHub.", url: "/termos", images: ["/og-cbshub.png"], type: "website", locale: "pt_BR" },
+  twitter: { card: "summary_large_image", title: "Termos de uso | CBSHub", description: "Contratação clara, capacidade previsível e limites documentados.", images: ["/og-cbshub.png"] },
 };
 
 export default async function TermsPage() {
   const operation = await getPlatformOperationState();
   const supplier = await publicLegalSupplierIdentity();
-  return <main className="legal-shell">
+  return <main className="legal-shell"><PublicPageBreadcrumb current="Termos de uso" path="/termos" />
     <header className="legal-nav"><Link className="landing-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link><div><Link href="/privacidade">Privacidade</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div></header>
     <section className="legal-hero"><span>TERMOS DE USO · V2</span><h1>Contratação clara, capacidade previsível.</h1><p>Estes termos registram o período gratuito, a renovação, os limites do produto, o cancelamento e a responsabilidade profissional.</p></section>
     <section className={`terms-mode ${operation.paymentsEnabled ? "live" : "beta"}`}><span>{operation.paymentsEnabled ? "PAGAMENTOS ATIVOS" : "PAGAMENTOS BLOQUEADOS"}</span><strong>{operation.paymentsEnabled ? "O checkout pode criar assinaturas no Mercado Pago." : "Nenhuma nova assinatura paga pode ser criada pelo servidor."}</strong></section>

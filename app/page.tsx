@@ -4,10 +4,28 @@ import BrandMark from "./BrandMark";
 import LandingHeroShowcase from "./LandingHeroShowcase";
 import { getCurrentUser } from "./auth";
 import { coverageMetrics } from "../domain/national-tax-coverage";
+import { buildHomeStructuredData } from "../domain/seo-structured-data";
+import { StructuredData } from "./StructuredData";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
+  title: "CBSHub — Inteligência tributária rastreável",
+  description: "Pesquise normas, estruture operações, execute cálculos determinísticos e entregue dossiês fiscais com fonte, memória e versão.",
   alternates: { canonical: "/" },
+  openGraph: {
+    title: "CBSHub — Da regra fiscal à decisão defendível",
+    description: "Inteligência tributária, cálculo determinístico e dossiês versionados para contadores e tributaristas.",
+    url: "/",
+    images: [{ url: "/og-cbshub.png", width: 1734, height: 907, alt: "CBSHub — da regra fiscal à decisão defendível" }],
+    locale: "pt_BR",
+    type: "website",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CBSHub — Inteligência tributária rastreável",
+    description: "Da pesquisa da norma ao dossiê fiscal versionado.",
+    images: ["/og-cbshub.png"],
+  },
 };
 
 export default async function LandingPage() {
@@ -19,6 +37,7 @@ export default async function LandingPage() {
 
   return (
     <main className="cbs-landing">
+      <StructuredData value={buildHomeStructuredData()} />
       <header className="cbs-landing-nav">
         <Link className="cbs-lockup" href="/" aria-label="CBSHub — início">
           <BrandMark />

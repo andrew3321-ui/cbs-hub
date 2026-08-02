@@ -1,4 +1,5 @@
 import type { MetadataRoute } from "next";
+import { privateIndexRoutePrefixes } from "../domain/seo-route-policy.ts";
 
 const SITE_URL = "https://cbshub.com.br";
 
@@ -7,17 +8,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: "*",
       allow: "/",
-      disallow: [
-        "/api/",
-        "/app",
-        "/cadastro",
-        "/entrar",
-        "/recuperar-senha",
-        "/sair",
-        "/dossie/",
-        "/relatorio/",
-        "/relatorio-fiscal/",
-      ],
+      disallow: [...privateIndexRoutePrefixes],
     },
     sitemap: `${SITE_URL}/sitemap.xml`,
     host: SITE_URL,

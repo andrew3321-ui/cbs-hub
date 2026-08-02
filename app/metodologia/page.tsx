@@ -3,16 +3,20 @@ import type { Metadata } from "next";
 import { TAX_DETERMINATION_ENGINE_VERSION } from "../../domain/tax-determination";
 import { CALCULATION_ENGINE_VERSION, METHODOLOGY_VERSION } from "../scenario-reliability";
 import BrandMark from "../BrandMark";
+import { PublicPageBreadcrumb } from "../StructuredData";
 
 export const metadata: Metadata = {
   title: "Metodologia e controles | CBSHub",
   description: "Versões, fórmulas, fontes e limites de uso das análises tributárias do CBSHub.",
   alternates: { canonical: "/metodologia" },
+  openGraph: { title: "Metodologia e controles | CBSHub", description: "Versões, fórmulas, fontes e limites das análises tributárias.", url: "/metodologia", images: ["/og-cbshub.png"], type: "website", locale: "pt_BR" },
+  twitter: { card: "summary_large_image", title: "Metodologia e controles | CBSHub", description: "Conheça os controles e limites técnicos do CBSHub.", images: ["/og-cbshub.png"] },
 };
 
 export default function MethodologyPage() {
   return (
     <main className="methodology-shell">
+      <PublicPageBreadcrumb current="Metodologia" path="/metodologia" />
       <header className="methodology-nav">
         <Link className="landing-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
         <div><Link href="/responsavel">Responsável</Link><Link href="/">Início</Link><Link className="methodology-cta" href="/app">Abrir plataforma →</Link></div>
