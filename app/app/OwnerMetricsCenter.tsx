@@ -12,6 +12,7 @@ type Payload = {
   trials: { started: number; active: number; expired: number; denied: number; converted: number; signupToTrialPercent: number; trialToPayerPercent: number };
   billing: { activePayers: number; mrrCents: number; grossAmountCents: number; delinquent: number; canceled: number; paymentFailures: number };
   funnel: Array<{ key: string; label: string; value: number }>;
+  signupFunnel: { stages: Array<{ key: string; label: string; attempts: number; people: number }>; failures: Array<{ eventType: string; reason: string; attempts: number; people: number }> };
   daily: Daily[];
   privacy: { rawIpStored: boolean; rawUserAgentStored: boolean; pseudonymousIdentifiers: boolean; eventRetentionDays: number; dailyRetentionDays: number };
   searchConsole: {
@@ -20,7 +21,7 @@ type Payload = {
     current: { clicks: number; impressions: number; ctrPercent: number; position: number };
     pages: Array<{ page: string; clicks: number; impressions: number; ctr: number; position: number }>;
     opportunities: Array<{ label: string; page: string; impressions: number; clicks: number; ctrPercent: number; position: number; score: number }>;
-    indexation: { snapshotDate: string | null; indexedPages: number; expectedPages: number; pages: Array<{ page: string; verdict: string; coverageState: string; indexingState: string; pageFetchState: string; lastCrawlTime: string | null }> };
+    indexation: { snapshotDate: string | null; indexedPages: number; expectedPages: number; discoveredPages: number; unknownPages: number; blockedPages: number; inspectionErrors: number; pendingPages: number; pages: Array<{ page: string; verdict: string; coverageState: string; indexingState: string; pageFetchState: string; lastCrawlTime: string | null; stage: string }> };
     alerts: Array<{ severity: "warning" | "critical"; code: string; title: string; detail: string }>;
     lastSync: { status?: string; completedAt?: string; metricRows?: number; inspectedPages?: number; errorCode?: string } | null;
   };
@@ -28,6 +29,19 @@ type Payload = {
 
 const money = new Intl.NumberFormat("pt-BR", { style: "currency", currency: "BRL" });
 const compact = new Intl.NumberFormat("pt-BR", { notation: "compact", maximumFractionDigits: 1 });
+const signupFailureLabels: Record<string, string> = {
+  weak_password: "Senha fora dos requisitos",
+  password_mismatch: "Confirmação de senha divergente",
+  before_api_response: "Falha no navegador ou na rede",
+  invalid_name: "Nome inválido ou ausente",
+  invalid_email: "E-mail inválido ou ausente",
+  invalid_password: "Senha inválida ou ausente",
+  invalid_confirm_password: "Confirmação ausente",
+  invalid_input: "Dados recusados pela validação",
+  office_name_required: "Nome do escritório ausente",
+  email_exists: "E-mail já cadastrado",
+  register_failed: "Falha interna no cadastro",
+};
 
 export default function OwnerMetricsCenter() {
   const [days, setDays] = useState(30);
@@ -108,6 +122,16 @@ export default function OwnerMetricsCenter() {
       </section>
     </div>
 
+    <section className="panel owner-signup-funnel-panel">
+      <div className="panel-heading"><div><span className="eyebrow">FUNIL DO CADASTRO · DIAGNÓSTICO</span><h3>Onde o visitante interrompe a criação da conta</h3><p className="owner-panel-copy">Eventos novos passam a ser coletados nesta versão. Valores digitados, senha e e-mail nunca entram na telemetria.</p></div><span className="editable-chip">API + NAVEGADOR</span></div>
+      <div className="owner-signup-stages">{data.signupFunnel.stages.map((stage, index) => {
+        const base = data.signupFunnel.stages[0]?.people || 0;
+        const conversion = index === 0 ? 100 : base ? Math.round(stage.people * 10_000 / base) / 100 : 0;
+        return <article key={stage.key}><span>{String(index + 1).padStart(2, "0")}</span><div><b>{stage.label}</b><small>{stage.people} visitante(s) · {stage.attempts} evento(s)</small></div><strong>{conversion.toLocaleString("pt-BR")}%</strong></article>;
+      })}</div>
+      <div className="owner-signup-failures"><header><b>Fricções e falhas classificadas</b><span>{data.signupFunnel.failures.reduce((sum, item) => sum + item.attempts, 0)} ocorrência(s)</span></header>{data.signupFunnel.failures.length ? <div>{data.signupFunnel.failures.map((failure) => <article key={`${failure.eventType}:${failure.reason}`}><span>{failure.eventType === "signup_client_error" ? "NAVEGADOR" : "SERVIDOR"}</span><b>{signupFailureLabels[failure.reason] ?? failure.reason.replaceAll("_", " ")}</b><small>{failure.people} visitante(s) · {failure.attempts} tentativa(s)</small></article>)}</div> : <p>Nenhuma fricção foi registrada desde a ativação deste funil.</p>}</div>
+    </section>
+
     <section className="panel owner-series-panel">
       <div className="panel-heading"><div><span className="eyebrow">EVOLUÇÃO DIÁRIA</span><h3>Aquisição e ativação</h3></div><div className="owner-legend"><span><i className="visitors" />Visitas únicas</span><span><i className="signups" />Cadastros</span><span><i className="trials" />Trials</span></div></div>
       <div className="owner-series" aria-label="Série diária">{data.daily.map((row) => <div className="owner-series-day" title={`${row.date}: ${row.visitors} visitas únicas, ${row.signups} cadastros, ${row.trialsStarted} trials`} key={row.date}><div><i className="visitors" style={{ height: `${Math.max(2, row.visitors / chartMax * 100)}%` }} /><i className="signups" style={{ height: `${Math.max(2, row.signups / chartMax * 100)}%` }} /><i className="trials" style={{ height: `${Math.max(2, row.trialsStarted / chartMax * 100)}%` }} /></div><span>{row.date.slice(8)}</span></div>)}</div>
@@ -122,6 +146,7 @@ export default function OwnerMetricsCenter() {
         <article><span>POSIÇÃO MÉDIA</span><strong>{data.searchConsole.current.position ? data.searchConsole.current.position.toLocaleString("pt-BR", { maximumFractionDigits: 1 }) : "—"}</strong><small>ponderada por impressões</small></article>
         <article><span>INDEXAÇÃO</span><strong>{data.searchConsole.indexation.indexedPages}/{data.searchConsole.indexation.expectedPages}</strong><small>{data.searchConsole.indexation.snapshotDate ? `inspeção ${data.searchConsole.indexation.snapshotDate}` : "aguarda primeira inspeção"}</small></article>
       </div>
+      <div className="owner-indexation-status" aria-label="Estados da indexação"><article className="indexed"><b>{data.searchConsole.indexation.indexedPages}</b><span>indexadas</span></article><article className="discovered"><b>{data.searchConsole.indexation.discoveredPages}</b><span>descobertas, aguardando</span></article><article className="unknown"><b>{data.searchConsole.indexation.unknownPages}</b><span>ainda não descobertas</span></article><article className="blocked"><b>{data.searchConsole.indexation.blockedPages + data.searchConsole.indexation.inspectionErrors}</b><span>bloqueios ou erros técnicos</span></article></div>
       <div className="owner-search-funnel" aria-label="Funil orgânico"><article><span>01</span><b>{data.acquisition.organic.visitors}</b><small>visitas orgânicas</small></article><i>→</i><article><span>02</span><b>{data.acquisition.organic.signups}</b><small>cadastros atribuídos</small></article><i>→</i><article><span>03</span><b>{data.acquisition.organic.trials}</b><small>trials atribuídos</small></article><i>→</i><article><span>04</span><b>{data.acquisition.organic.payers}</b><small>pagadores atribuídos</small></article></div>
       {!!data.searchConsole.alerts.length && <div className="owner-search-alerts">{data.searchConsole.alerts.map((alert) => <article className={alert.severity} key={alert.code}><b>{alert.title}</b><p>{alert.detail}</p></article>)}</div>}
       <div className="owner-search-columns">

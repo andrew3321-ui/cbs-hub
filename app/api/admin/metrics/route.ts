@@ -5,12 +5,14 @@ import { getPlatformAdminUser } from "../../../platform-admin";
 import { buildMetricWindow, mergePlatformDailyGroups, percentage, platformMetricDefinitions, PLATFORM_METRICS_VERSION } from "../../../../domain/platform-metrics";
 import { publicIndexableRoutes } from "../../../../domain/seo-route-policy";
 import { searchConsoleConfiguration } from "../../../search-console-service";
-import { buildSearchConsoleAlerts, buildSearchConsoleOpportunities, SEARCH_CONSOLE_RETENTION_DAYS, SEARCH_CONSOLE_VERSION } from "../../../../domain/search-console";
+import { buildSearchConsoleAlerts, buildSearchConsoleOpportunities, classifySearchIndexation, SEARCH_CONSOLE_RETENTION_DAYS, SEARCH_CONSOLE_VERSION, summarizeSearchIndexation } from "../../../../domain/search-console";
 
 type DailyRow = { date: string; pageViews?: number; visitors?: number; sessions?: number; activeUsers?: number; signups?: number; trialsStarted?: number; trialsDenied?: number; paymentsApproved?: number; grossAmountCents?: number };
 type BillingRow = { userId: number; planKey: string; companyAddonBlocks: number; pendingCompanyAddonBlocks: number; providerSubscriptionId: string | null; status: string; updatedAt: string };
 type TrialRow = { userId: number | null; status: string; startedAt: string; endsAt: string };
 type SearchSummary = { clicks?: number; impressions?: number; position?: number };
+type SignupFunnelRow = { stage: string; attempts: number; people: number };
+type SignupFailureRow = { eventType: string; reason: string; attempts: number; people: number };
 
 function number(value: unknown) {
   const parsed = Number(value);
@@ -27,7 +29,7 @@ async function ownerMetrics(request: Request) {
   const sevenDays = new Date(`${window.endDate}T00:00:00.000Z`); sevenDays.setUTCDate(sevenDays.getUTCDate() - 6);
   const thirtyDays = new Date(`${window.endDate}T00:00:00.000Z`); thirtyDays.setUTCDate(thirtyDays.getUTCDate() - 29);
 
-  const [traffic, signups, trialsDaily, paymentsDaily, periodTotals, activity, usersTotal, trialRowsResult, billingRowsResult, approvedPayersResult, sourceRows, seoCtaRows, failureRows] = await Promise.all([
+  const [traffic, signups, trialsDaily, paymentsDaily, periodTotals, activity, usersTotal, trialRowsResult, billingRowsResult, approvedPayersResult, sourceRows, seoCtaRows, failureRows, signupFunnelRows, signupFailureRows] = await Promise.all([
     db.prepare("SELECT event_date date, SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END) pageViews, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN visitor_hash END) visitors, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN session_hash END) sessions, COUNT(DISTINCT CASE WHEN event_type = 'app_active' THEN user_id END) activeUsers, SUM(CASE WHEN event_type = 'trial_denied' THEN 1 ELSE 0 END) trialsDenied FROM platform_metric_events WHERE event_date BETWEEN ? AND ? GROUP BY event_date ORDER BY event_date").bind(window.startDate, window.endDate).all<DailyRow>(),
     db.prepare("SELECT substr(created_at, 1, 10) date, COUNT(*) signups FROM users WHERE substr(created_at, 1, 10) BETWEEN ? AND ? GROUP BY substr(created_at, 1, 10)").bind(window.startDate, window.endDate).all<DailyRow>(),
     db.prepare("SELECT substr(started_at, 1, 10) date, COUNT(*) trialsStarted FROM trial_device_claims WHERE substr(started_at, 1, 10) BETWEEN ? AND ? GROUP BY substr(started_at, 1, 10)").bind(window.startDate, window.endDate).all<DailyRow>(),
@@ -41,6 +43,8 @@ async function ownerMetrics(request: Request) {
     db.prepare("SELECT source, medium, COUNT(*) pageViews, COUNT(DISTINCT event_date || ':' || visitor_hash) visitors FROM platform_metric_events WHERE event_type = 'page_view' AND event_date BETWEEN ? AND ? GROUP BY source, medium ORDER BY visitors DESC, pageViews DESC LIMIT 8").bind(window.startDate, window.endDate).all<{ source: string; medium: string; pageViews: number; visitors: number }>(),
     db.prepare("SELECT path_group pathGroup, campaign, COUNT(*) clicks, COUNT(DISTINCT event_date || ':' || visitor_hash) visitors FROM platform_metric_events WHERE event_type = 'seo_cta' AND event_date BETWEEN ? AND ? GROUP BY path_group, campaign ORDER BY clicks DESC, path_group LIMIT 20").bind(window.startDate, window.endDate).all<{ pathGroup: string; campaign: string; clicks: number; visitors: number }>(),
     db.prepare("SELECT COUNT(*) total FROM billing_transactions WHERE status IN ('rejected', 'cancelled', 'refunded', 'charged_back') AND substr(updated_at, 1, 10) BETWEEN ? AND ?").bind(window.startDate, window.endDate).first<{ total: number }>(),
+    db.prepare("SELECT CASE WHEN event_type = 'page_view' THEN 'signup_view' ELSE event_type END stage, COUNT(*) attempts, COUNT(DISTINCT COALESCE(visitor_hash, session_hash, dedupe_key)) people FROM platform_metric_events WHERE event_date BETWEEN ? AND ? AND ((event_type = 'page_view' AND path_group = 'signup') OR event_type IN ('signup_start', 'signup_submit', 'signup_request')) GROUP BY stage").bind(window.startDate, window.endDate).all<SignupFunnelRow>(),
+    db.prepare("SELECT event_type eventType, COALESCE(json_extract(metadata_json, '$.reason'), 'unclassified') reason, COUNT(*) attempts, COUNT(DISTINCT COALESCE(visitor_hash, session_hash, dedupe_key)) people FROM platform_metric_events WHERE event_date BETWEEN ? AND ? AND event_type IN ('signup_failure', 'signup_client_error') GROUP BY event_type, reason ORDER BY attempts DESC, reason LIMIT 20").bind(window.startDate, window.endDate).all<SignupFailureRow>(),
   ]);
 
   const daily = mergePlatformDailyGroups(window.days, window.endDate, [...traffic.results, ...signups.results, ...trialsDaily.results, ...paymentsDaily.results]);
@@ -61,6 +65,14 @@ async function ownerMetrics(request: Request) {
   const signupCount = daily.reduce((sum, row) => sum + row.signups, 0);
   const trialStarted = daily.reduce((sum, row) => sum + row.trialsStarted, 0);
   const grossAmountCents = daily.reduce((sum, row) => sum + row.grossAmountCents, 0);
+  const signupStages = new Map(signupFunnelRows.results.map((row) => [row.stage, { attempts: number(row.attempts), people: number(row.people) }]));
+  const signupFunnel = [
+    { key: "signup_view", label: "Abriram o cadastro", ...(signupStages.get("signup_view") ?? { attempts: 0, people: 0 }) },
+    { key: "signup_start", label: "Começaram a preencher", ...(signupStages.get("signup_start") ?? { attempts: 0, people: 0 }) },
+    { key: "signup_submit", label: "Clicaram em criar conta", ...(signupStages.get("signup_submit") ?? { attempts: 0, people: 0 }) },
+    { key: "signup_request", label: "Chegaram ao servidor", ...(signupStages.get("signup_request") ?? { attempts: 0, people: 0 }) },
+    { key: "signup", label: "Contas persistidas", attempts: signupCount, people: signupCount },
+  ];
 
   const searchLatest = await db.prepare("SELECT MAX(metric_date) latestDate FROM search_console_metrics").first<{ latestDate: string | null }>();
   const searchEndDate = searchLatest?.latestDate ?? window.endDate;
@@ -82,13 +94,14 @@ async function ownerMetrics(request: Request) {
     db.prepare("SELECT COUNT(DISTINCT bt.user_id) total FROM billing_transactions bt WHERE bt.status = 'approved' AND substr(bt.approved_at, 1, 10) BETWEEN ? AND ? AND EXISTS (SELECT 1 FROM platform_metric_events e WHERE e.event_type = 'signup' AND e.user_id = bt.user_id AND e.visitor_hash IS NOT NULL AND EXISTS (SELECT 1 FROM platform_metric_events pv WHERE pv.event_type = 'page_view' AND pv.visitor_hash = e.visitor_hash AND (pv.medium = 'organic' OR pv.source IN ('google', 'bing')) AND pv.occurred_at <= e.occurred_at AND pv.occurred_at >= datetime(e.occurred_at, '-30 days')))").bind(window.startDate, window.endDate).first<{ total: number }>(),
   ]);
   const latestIndex = latestIndexDate?.latestDate
-    ? await db.prepare("SELECT page, verdict, coverage_state coverageState, indexing_state indexingState, page_fetch_state pageFetchState, last_crawl_time lastCrawlTime, google_canonical googleCanonical, user_canonical userCanonical FROM search_console_index_snapshots WHERE snapshot_date = ? ORDER BY page").bind(latestIndexDate.latestDate).all<{ page: string; verdict: string; coverageState: string; indexingState: string; pageFetchState: string; lastCrawlTime: string | null; googleCanonical: string | null; userCanonical: string | null }>()
+    ? await db.prepare("SELECT page, verdict, coverage_state coverageState, robots_txt_state robotsTxtState, indexing_state indexingState, page_fetch_state pageFetchState, last_crawl_time lastCrawlTime, google_canonical googleCanonical, user_canonical userCanonical FROM search_console_index_snapshots WHERE snapshot_date = ? ORDER BY page").bind(latestIndexDate.latestDate).all<{ page: string; verdict: string; coverageState: string; robotsTxtState: string; indexingState: string; pageFetchState: string; lastCrawlTime: string | null; googleCanonical: string | null; userCanonical: string | null }>()
     : { results: [] };
-  const indexedPages = latestIndex.results.filter((row) => row.verdict === "PASS").length;
+  const indexationSummary = summarizeSearchIndexation(latestIndex.results, publicIndexableRoutes.length);
+  const indexedPages = indexationSummary.indexed;
   const organic = { visitors: number(organicVisitors?.total), signups: number(organicSignups?.total), trials: number(organicTrials?.total), payers: number(organicPayers?.total) };
   const searchCurrentValues = { clicks: number(searchCurrent?.clicks), impressions: number(searchCurrent?.impressions), position: number(searchCurrent?.position) };
   const searchPreviousValues = { clicks: number(searchPrevious?.clicks), impressions: number(searchPrevious?.impressions), position: number(searchPrevious?.position) };
-  const searchAlerts = buildSearchConsoleAlerts({ currentClicks: searchCurrentValues.clicks, previousClicks: searchPreviousValues.clicks, currentImpressions: searchCurrentValues.impressions, previousImpressions: searchPreviousValues.impressions, currentPosition: searchCurrentValues.position, previousPosition: searchPreviousValues.position, indexedPages, expectedPages: latestIndexDate?.latestDate ? publicIndexableRoutes.length : 0, organicVisitors: organic.visitors, organicSignups: organic.signups });
+  const searchAlerts = buildSearchConsoleAlerts({ currentClicks: searchCurrentValues.clicks, previousClicks: searchPreviousValues.clicks, currentImpressions: searchCurrentValues.impressions, previousImpressions: searchPreviousValues.impressions, currentPosition: searchCurrentValues.position, previousPosition: searchPreviousValues.position, indexedPages, expectedPages: latestIndexDate?.latestDate ? publicIndexableRoutes.length : 0, discoveredPages: indexationSummary.discovered, unknownPages: indexationSummary.unknown, blockedPages: indexationSummary.blocked, inspectionErrors: indexationSummary.inspectionErrors, organicVisitors: organic.visitors, organicSignups: organic.signups });
 
   return Response.json({
     version: PLATFORM_METRICS_VERSION,
@@ -105,8 +118,12 @@ async function ownerMetrics(request: Request) {
       { key: "trials", label: "Trials iniciados", value: trialStarted },
       { key: "payers", label: "Trials convertidos", value: convertedTrials },
     ],
+    signupFunnel: {
+      stages: signupFunnel,
+      failures: signupFailureRows.results.map((row) => ({ eventType: row.eventType, reason: row.reason, attempts: number(row.attempts), people: number(row.people) })),
+    },
     daily,
-    searchConsole: { version: SEARCH_CONSOLE_VERSION, configured: searchConfiguration.configured, siteUrl: searchConfiguration.siteUrl, retentionDays: SEARCH_CONSOLE_RETENTION_DAYS, range: { startDate: searchStartDate, endDate: searchEndDate }, current: { ...searchCurrentValues, ctrPercent: percentage(searchCurrentValues.clicks, searchCurrentValues.impressions) }, previous: searchPreviousValues, pages: pageRows.results.map((row) => ({ ...row, clicks: number(row.clicks), impressions: number(row.impressions), ctr: number(row.ctr), position: number(row.position) })), opportunities: buildSearchConsoleOpportunities(queryRows.results), indexation: { snapshotDate: latestIndexDate?.latestDate ?? null, indexedPages, expectedPages: publicIndexableRoutes.length, pages: latestIndex.results }, alerts: searchAlerts, lastSync: latestSync ?? null },
+    searchConsole: { version: SEARCH_CONSOLE_VERSION, configured: searchConfiguration.configured, siteUrl: searchConfiguration.siteUrl, retentionDays: SEARCH_CONSOLE_RETENTION_DAYS, range: { startDate: searchStartDate, endDate: searchEndDate }, current: { ...searchCurrentValues, ctrPercent: percentage(searchCurrentValues.clicks, searchCurrentValues.impressions) }, previous: searchPreviousValues, pages: pageRows.results.map((row) => ({ ...row, clicks: number(row.clicks), impressions: number(row.impressions), ctr: number(row.ctr), position: number(row.position) })), opportunities: buildSearchConsoleOpportunities(queryRows.results), indexation: { snapshotDate: latestIndexDate?.latestDate ?? null, indexedPages, expectedPages: publicIndexableRoutes.length, discoveredPages: indexationSummary.discovered, unknownPages: indexationSummary.unknown, blockedPages: indexationSummary.blocked, inspectionErrors: indexationSummary.inspectionErrors, pendingPages: indexationSummary.pending, pages: latestIndex.results.map((row) => ({ ...row, stage: classifySearchIndexation(row) })) }, alerts: searchAlerts, lastSync: latestSync ?? null },
     privacy: { rawIpStored: false, rawUserAgentStored: false, pseudonymousIdentifiers: true, eventRetentionDays: 90, dailyRetentionDays: 730 },
   }, { headers: { "Cache-Control": "no-store" } });
 }

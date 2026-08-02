@@ -7,16 +7,35 @@ import { sha256Hex } from "../../../workspace";
 import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../plan-entitlements";
 import { TRIAL_COMPANY_LIMIT, TRIAL_DURATION_DAYS, trialEndsAt } from "../../../../domain/trial";
 import { buildTrialClaimIdentity, trialDeviceCookieHeader } from "../../../trial-protection";
-import { recordPlatformMetricEvent } from "../../../platform-analytics";
+import { metricIdentityCookies, recordPlatformMetricEvent, type MetricEventType } from "../../../platform-analytics";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
+type MetricIdentity = ReturnType<typeof metricIdentityCookies>;
+
+async function recordRegistrationMetric(request: Request, identity: MetricIdentity, eventType: MetricEventType, reason: string) {
+  try {
+    await recordPlatformMetricEvent({ request, eventType, payload: { pathname: "/cadastro", reason }, visitorId: identity.visitorId, sessionId: identity.sessionId });
+  } catch (metricError) {
+    console.warn(JSON.stringify({ event: "platform_metrics.registration_record_failed", eventType, error: metricError instanceof Error ? metricError.name : "UnknownError" }));
+  }
+}
+
+async function registrationError(request: Request, identity: MetricIdentity, status: number, code: string, error: string) {
+  await recordRegistrationMetric(request, identity, "signup_failure", code.toLowerCase());
+  const headers = new Headers({ "Cache-Control": "no-store" });
+  for (const cookie of identity.headers) headers.append("Set-Cookie", cookie);
+  return Response.json({ error, code }, { status, headers });
+}
+
 export async function POST(request: Request) {
+  const metricIdentity = metricIdentityCookies(request);
   let createdUserId: number | null = null;
   let createdWorkspaceId: number | null = null;
   let acceptedInvitationId: number | null = null;
   let createdTrialClaimId: number | null = null;
   try {
+    await recordRegistrationMetric(request, metricIdentity, "signup_request", "received");
     const payload = (await request.json()) as Record<string, unknown>;
     const name = typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ").slice(0, 100) : "";
     const email = normalizeEmail(typeof payload.email === "string" ? payload.email : "");
@@ -27,16 +46,16 @@ export async function POST(request: Request) {
     const trialIdentity = inviteToken ? null : await buildTrialClaimIdentity(request, payload, email);
 
     if (name.length < 2 || !emailPattern.test(email) || !passwordIsStrong(password)) {
-      return Response.json({ error: "Informe nome, e-mail válido e uma senha com pelo menos 12 caracteres, letra e número." }, { status: 400 });
+      return registrationError(request, metricIdentity, 400, "INVALID_INPUT", "Informe nome, e-mail válido e uma senha com pelo menos 12 caracteres, letra e número.");
     }
     if (!inviteToken && requestedAccountType === "office" && requestedOfficeName.length < 2) {
-      return Response.json({ error: "Informe o nome do escritório contábil." }, { status: 400 });
+      return registrationError(request, metricIdentity, 400, "OFFICE_NAME_REQUIRED", "Informe o nome do escritório contábil.");
     }
 
     const db = getDb();
     let invitation: { id: number; workspaceId: number; email: string; role: string; workspaceName: string; ownerUserId: number; suggestedPlanKey: string } | null = null;
     if (inviteToken) {
-      if (!/^[0-9a-f]{48}$/.test(inviteToken)) return Response.json({ error: "Este convite é inválido." }, { status: 400 });
+      if (!/^[0-9a-f]{48}$/.test(inviteToken)) return registrationError(request, metricIdentity, 400, "INVITE_INVALID", "Este convite é inválido.");
       const [row] = await db.select({
         id: workspaceInvitations.id,
         workspaceId: workspaceInvitations.workspaceId,
@@ -52,14 +71,17 @@ export async function POST(request: Request) {
           eq(workspaceInvitations.status, "pending"),
           gt(workspaceInvitations.expiresAt, new Date().toISOString()),
         )).limit(1);
-      if (!row) return Response.json({ error: "Este convite expirou ou já foi utilizado." }, { status: 410 });
-      if (normalizeEmail(row.email) !== email) return Response.json({ error: `Use o e-mail convidado: ${row.email}.` }, { status: 400 });
+      if (!row) return registrationError(request, metricIdentity, 410, "INVITE_EXPIRED", "Este convite expirou ou já foi utilizado.");
+      if (normalizeEmail(row.email) !== email) return registrationError(request, metricIdentity, 400, "INVITE_EMAIL_MISMATCH", `Use o e-mail convidado: ${row.email}.`);
       const entitlements = await getWorkspaceEntitlements({ id: row.workspaceId, name: row.workspaceName, type: "office", ownerUserId: row.ownerUserId, suggestedPlanKey: "unico", role: "owner" });
-      if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
+      if (!entitlements.officeCollaborationEnabled) {
+        await recordRegistrationMetric(request, metricIdentity, "signup_failure", "office_plan_required");
+        return officePlanRequiredResponse(entitlements);
+      }
       invitation = row;
     }
     const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-    if (existing) return Response.json({ error: "Já existe uma conta com este e-mail." }, { status: 409 });
+    if (existing) return registrationError(request, metricIdentity, 409, "EMAIL_EXISTS", "Já existe uma conta com este e-mail.");
 
     const [{ total }] = await db.select({ total: count() }).from(users);
     const passwordData = await hashPassword(password);
@@ -135,14 +157,15 @@ export async function POST(request: Request) {
     if (canClaimLegacyData) await db.update(companies).set({ ownerUserId: user.id, workspaceId }).where(isNull(companies.ownerUserId));
 
     try {
-      await recordPlatformMetricEvent({ request, eventType: "signup", userId: user.id, payload: { pathname: "/cadastro" } });
-      if (!invitation) await recordPlatformMetricEvent({ request, eventType: trialGranted ? "trial_started" : "trial_denied", userId: user.id, payload: { pathname: "/cadastro", reason: trialGranted ? "granted" : trialIdentity ? "already_used" : "verification_unavailable" } });
+      await recordPlatformMetricEvent({ request, eventType: "signup", userId: user.id, payload: { pathname: "/cadastro" }, visitorId: metricIdentity.visitorId, sessionId: metricIdentity.sessionId });
+      if (!invitation) await recordPlatformMetricEvent({ request, eventType: trialGranted ? "trial_started" : "trial_denied", userId: user.id, payload: { pathname: "/cadastro", reason: trialGranted ? "granted" : trialIdentity ? "already_used" : "verification_unavailable" }, visitorId: metricIdentity.visitorId, sessionId: metricIdentity.sessionId });
     } catch (metricError) {
       console.warn(JSON.stringify({ event: "platform_metrics.signup_record_failed", error: metricError instanceof Error ? metricError.name : "UnknownError" }));
     }
 
     const session = await createSession(user.id);
     const headers = new Headers();
+    for (const cookie of metricIdentity.headers) headers.append("Set-Cookie", cookie);
     headers.append("Set-Cookie", sessionCookieHeader(session.token, request));
     if (trialIdentity) headers.append("Set-Cookie", trialDeviceCookieHeader(trialIdentity.deviceId, request));
     return Response.json({
@@ -177,7 +200,8 @@ export async function POST(request: Request) {
         // A unique e-mail response below remains safer than exposing persistence details.
       }
     }
-    if (String(error).toLowerCase().includes("unique")) return Response.json({ error: "Já existe uma conta com este e-mail." }, { status: 409 });
-    return Response.json({ error: "Não foi possível criar sua conta agora." }, { status: 500 });
+    console.error(JSON.stringify({ event: "auth.register_failed", stage: createdUserId ? "persistence_cleanup" : "before_user_insert", error: error instanceof Error ? error.name : "UnknownError" }));
+    if (String(error).toLowerCase().includes("unique")) return registrationError(request, metricIdentity, 409, "EMAIL_EXISTS", "Já existe uma conta com este e-mail.");
+    return registrationError(request, metricIdentity, 500, "REGISTER_FAILED", "Não foi possível criar sua conta agora.");
   }
 }

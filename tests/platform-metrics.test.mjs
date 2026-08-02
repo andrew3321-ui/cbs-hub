@@ -15,7 +15,7 @@ import {
 } from "../domain/platform-metrics.ts";
 
 test("dicionário define aquisição, atividade, trials, pagadores e conversão", () => {
-  assert.deepEqual(Object.keys(platformMetricDefinitions), ["pageViews", "visitors", "sessions", "signups", "activeUsers", "trials", "payers", "conversion", "organicAttribution", "searchConsole"]);
+  assert.deepEqual(Object.keys(platformMetricDefinitions), ["pageViews", "visitors", "sessions", "signups", "signupFunnel", "activeUsers", "trials", "payers", "conversion", "organicAttribution", "searchConsole"]);
   assert.match(platformMetricDefinitions.activeUsers, /DAU\/WAU\/MAU/);
   assert.match(platformMetricDefinitions.visitors, /mesmo dia contam uma vez/);
   assert.match(platformMetricDefinitions.visitors, /novo dia abre uma nova visita/);
@@ -75,6 +75,8 @@ test("API e interface preservam autorização server-side e privacidade", async 
   assert.match(route, /status: 403/);
   assert.match(route, /COUNT\(DISTINCT CASE WHEN event_type = 'page_view' THEN event_date \|\| ':' \|\| visitor_hash END\) visitors/);
   assert.match(route, /label: "Visitas únicas\/dia"/);
+  assert.match(route, /signupFunnelRows/);
+  assert.match(route, /signup_client_error/);
   assert.match(app, /isPlatformAdmin && <button title="Métricas da plataforma"/);
   assert.match(account, /platformActivity/);
   assert.match(account, /delete\(platformMetricEvents\)/);

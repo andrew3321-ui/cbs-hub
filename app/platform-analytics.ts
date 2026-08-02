@@ -6,7 +6,7 @@ const SESSION_COOKIE = "cbs_metric_session";
 const VISITOR_SECONDS = 365 * 24 * 60 * 60;
 const SESSION_SECONDS = 30 * 60;
 
-type MetricEventType = "page_view" | "app_active" | "signup" | "trial_started" | "trial_denied" | "seo_cta";
+export type MetricEventType = "page_view" | "app_active" | "signup" | "trial_started" | "trial_denied" | "seo_cta" | "signup_start" | "signup_submit" | "signup_request" | "signup_failure" | "signup_client_error";
 type MetricPayload = { pathname?: unknown; source?: unknown; medium?: unknown; campaign?: unknown; referrerHost?: unknown; reason?: unknown };
 
 function cookieValue(request: Request, name: string) {
@@ -57,7 +57,7 @@ export function metricIdentityCookies(request: Request) {
 }
 
 export async function recordPlatformMetricEvent(input: { request: Request; eventType: MetricEventType; userId?: number | null; payload?: MetricPayload; visitorId?: string; sessionId?: string; occurredAt?: string }) {
-  if (["page_view", "app_active", "seo_cta"].includes(input.eventType) && isLikelyAutomatedTraffic(input.request.headers.get("user-agent") ?? "")) return { recorded: false, reason: "automated" };
+  if (["page_view", "app_active", "seo_cta", "signup_start", "signup_submit", "signup_request", "signup_failure", "signup_client_error"].includes(input.eventType) && isLikelyAutomatedTraffic(input.request.headers.get("user-agent") ?? "")) return { recorded: false, reason: "automated" };
   const runtime = env as unknown as { DB: D1Database; SECURITY_HASH_KEY?: string };
   const secret = String(runtime.SECURITY_HASH_KEY ?? "").trim();
   if (secret.length < 32) return { recorded: false, reason: "hash_key_unavailable" };
@@ -69,10 +69,11 @@ export async function recordPlatformMetricEvent(input: { request: Request; event
   const sessionHash = sessionId ? await hmacHex(secret, "session", sessionId) : null;
   const pathGroup = normalizeMetricPath(input.payload?.pathname);
   const acquisition = normalizeMetricAcquisition(input.payload ?? {});
-  const bucket = input.eventType === "page_view" ? Math.floor(new Date(occurredAt).getTime() / 600_000) : eventDate;
+  const attemptEvent = ["signup_submit", "signup_request", "signup_failure", "signup_client_error"].includes(input.eventType);
+  const bucket = input.eventType === "page_view" || attemptEvent ? Math.floor(new Date(occurredAt).getTime() / 600_000) : eventDate;
   const subject = input.userId ? `user:${input.userId}` : sessionHash ? `session:${sessionHash}` : visitorHash ? `visitor:${visitorHash}` : "anonymous";
-  const dedupeKey = await hmacHex(secret, "dedupe", `${input.eventType}|${subject}|${pathGroup}|${bucket}`);
   const reason = typeof input.payload?.reason === "string" ? input.payload.reason.replace(/[^a-z0-9_-]/gi, "").slice(0, 40) : "";
+  const dedupeKey = await hmacHex(secret, "dedupe", `${input.eventType}|${subject}|${pathGroup}|${reason}|${bucket}`);
   const eventCutoff = new Date(new Date(occurredAt).getTime() - PLATFORM_METRIC_EVENT_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 10);
   const dailyCutoff = new Date(new Date(occurredAt).getTime() - PLATFORM_METRIC_DAILY_RETENTION_DAYS * 86_400_000).toISOString().slice(0, 10);
   const results = await runtime.DB.batch([

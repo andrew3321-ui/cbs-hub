@@ -1,4 +1,4 @@
-export const PLATFORM_METRICS_VERSION = "platform-metrics.v3";
+export const PLATFORM_METRICS_VERSION = "platform-metrics.v4";
 export const PLATFORM_METRIC_EVENT_RETENTION_DAYS = 90;
 export const PLATFORM_METRIC_DAILY_RETENTION_DAYS = 730;
 
@@ -7,6 +7,7 @@ export const platformMetricDefinitions = {
   visitors: "Visitas diárias únicas por navegador/dispositivo: vários acessos no mesmo dia contam uma vez e um novo dia abre uma nova visita; não usa IP bruto.",
   sessions: "Sessões pseudonimizadas distintas, renovadas após trinta minutos.",
   signups: "Contas persistidas com sucesso no período; convites também contam como cadastro.",
+  signupFunnel: "Etapas pseudonimizadas do cadastro: visualização, início do preenchimento, clique, chegada à API, falha classificada e conta persistida. Nenhum valor digitado é armazenado.",
   activeUsers: "Contas distintas que abriram o workspace em cada janela (DAU/WAU/MAU).",
   trials: "Claims de trial persistidos; ativo e expirado são resolvidos pela data e pelo estado atual.",
   payers: "Contas de cobrança ativas; MRR usa o preço contratado e os blocos adicionais.",

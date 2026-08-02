@@ -1,6 +1,6 @@
 "use client";
 
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import BrandMark from "../BrandMark";
 
@@ -66,6 +66,26 @@ async function trialDeviceEvidence() {
   return { trialDeviceId, trialDeviceFingerprint: await sha256Hex(fingerprintMaterial) };
 }
 
+function trackSignupEvent(eventType: "signup_start" | "signup_submit" | "signup_client_error", reason = "") {
+  const url = new URL(window.location.href);
+  let referrerHost = "";
+  try { referrerHost = document.referrer ? new URL(document.referrer).hostname : ""; } catch { referrerHost = ""; }
+  const body = JSON.stringify({
+    eventType,
+    pathname: "/cadastro",
+    reason,
+    source: url.searchParams.get("utm_source") ?? "",
+    medium: url.searchParams.get("utm_medium") ?? "",
+    campaign: url.searchParams.get("utm_campaign") ?? "",
+    referrerHost,
+  });
+  if (typeof navigator.sendBeacon === "function") {
+    navigator.sendBeacon("/api/analytics/collect", new Blob([body], { type: "application/json" }));
+    return;
+  }
+  void fetch("/api/analytics/collect", { method: "POST", headers: { "Content-Type": "application/json" }, body, keepalive: true }).catch(() => undefined);
+}
+
 export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
@@ -84,6 +104,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const [inviteToken, setInviteToken] = useState("");
   const [inviteInfo, setInviteInfo] = useState<{ workspaceName: string; email: string; role: string } | null>(null);
   const copy = content[mode];
+  const signupStarted = useRef(false);
 
   useEffect(() => {
     const timer = window.setTimeout(() => setResetComplete(mode === "login" && new URLSearchParams(window.location.search).get("senha") === "alterada"), 0);
@@ -125,16 +146,25 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError("");
+    if (mode === "register") trackSignupEvent("signup_submit", "button_click");
     if (mode !== "login" && password !== confirmPassword) {
+      if (mode === "register") trackSignupEvent("signup_client_error", "password_mismatch");
       setError("As senhas não coincidem.");
       return;
     }
+    if (mode !== "login" && (password.length < 12 || !/[a-zà-ÿ]/i.test(password) || !/\d/.test(password))) {
+      if (mode === "register") trackSignupEvent("signup_client_error", "weak_password");
+      setError("Use pelo menos 12 caracteres, incluindo letra e número.");
+      return;
+    }
     setLoading(true);
+    let apiResponded = false;
     try {
       const endpoint = mode === "login" ? "/api/auth/login" : mode === "register" ? "/api/auth/register" : "/api/auth/reset-password";
       const trialEvidence = mode === "register" && !inviteToken ? await trialDeviceEvidence() : {};
       const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, recoveryKey, accountType, officeName, inviteToken, ...trialEvidence }) });
-      const data = (await response.json()) as { error?: string; recoveryKey?: string; trial?: TrialResult };
+      apiResponded = true;
+      const data = (await response.json()) as { error?: string; code?: string; recoveryKey?: string; trial?: TrialResult };
       if (!response.ok) throw new Error(data.error || "Não foi possível concluir.");
       if (mode === "register" && data.recoveryKey) {
         setIssuedRecoveryKey(data.recoveryKey);
@@ -148,6 +178,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
       const returnTo = new URLSearchParams(window.location.search).get("returnTo");
       window.location.assign(returnTo?.startsWith("/") && !returnTo.startsWith("//") ? returnTo : "/app");
     } catch (caught) {
+      if (mode === "register" && !apiResponded) trackSignupEvent("signup_client_error", "before_api_response");
       setError(caught instanceof Error ? caught.message : "Não foi possível concluir.");
     } finally {
       setLoading(false);
@@ -216,21 +247,29 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
           <p className="auth-subtitle">{copy.subtitle}</p>
           {resetComplete && <div className="auth-success-message">Senha alterada. Entre com a nova senha.</div>}
           {error && <div className="auth-error" role="alert">{error}</div>}
-          <form onSubmit={submit}>
+          <form onSubmit={submit} onChange={() => {
+            if (mode !== "register" || signupStarted.current) return;
+            signupStarted.current = true;
+            trackSignupEvent("signup_start", "first_field_change");
+          }} onInvalid={(event) => {
+            if (mode !== "register") return;
+            const field = event.target as HTMLInputElement;
+            trackSignupEvent("signup_client_error", `invalid_${field.name || "field"}`);
+          }}>
             {mode === "register" && <>
               {inviteInfo ? <div className="auth-invite-banner"><span>CONVITE PARA EQUIPE</span><b>{inviteInfo.workspaceName}</b><small>Você entrará como {inviteInfo.role === "reviewer" ? "revisor" : inviteInfo.role === "preparer" ? "preparador" : "administrador"}.</small></div> : <fieldset className="auth-account-type"><legend>Como você trabalha?</legend><div>
                 <button type="button" className={accountType === "individual" ? "active" : ""} onClick={() => setAccountType("individual")}><span>01</span><b>Contador independente</b><small>Você prepara e assume a própria revisão.</small><em>Mesmo plano · espaço individual</em></button>
                 <button type="button" className={accountType === "office" ? "active" : ""} onClick={() => setAccountType("office")}><span>02</span><b>Escritório contábil</b><small>Equipe com preparadores e revisão segregada.</small><em>Mesmo plano · espaço colaborativo</em></button>
               </div></fieldset>}
-              <label>Seu nome completo<input autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome do profissional" /></label>
-              {accountType === "office" && <label>Nome do escritório<input required minLength={2} maxLength={120} value={officeName} onChange={(event) => setOfficeName(event.target.value)} readOnly={Boolean(inviteInfo)} placeholder="Ex.: Horizonte Contabilidade" /></label>}
+              <label>Seu nome completo<input name="name" autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome do profissional" /></label>
+              {accountType === "office" && <label>Nome do escritório<input name="office_name" required minLength={2} maxLength={120} value={officeName} onChange={(event) => setOfficeName(event.target.value)} readOnly={Boolean(inviteInfo)} placeholder="Ex.: Horizonte Contabilidade" /></label>}
             </>}
-            <label>E-mail<input type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} readOnly={Boolean(inviteInfo)} placeholder="voce@empresa.com.br" /></label>
+            <label>E-mail<input name="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} readOnly={Boolean(inviteInfo)} placeholder="voce@empresa.com.br" /></label>
             {mode === "recover" && <label>Chave de recuperação<input className="recovery-input" autoComplete="off" required value={recoveryKey} onChange={(event) => setRecoveryKey(event.target.value.toUpperCase())} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" /></label>}
-            <label>{mode === "recover" ? "Nova senha" : "Senha"}<span className="password-field"><input type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "login" ? 8 : 12} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === "login" ? "Sua senha" : "Mínimo de 12 caracteres"} /><button type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? "Ocultar" : "Mostrar"}</button></span></label>
-            {mode !== "login" && <><div className="password-strength" aria-label={`Força da senha: ${passwordScore} de 4`}>{[1,2,3,4].map((item) => <i className={passwordScore >= item ? `active score-${passwordScore}` : ""} key={item} />)}<span>{passwordScore < 2 ? "Senha fraca" : passwordScore < 4 ? "Senha adequada" : "Senha forte"}</span></div><label>Confirmar senha<input type={showPassword ? "text" : "password"} autoComplete="new-password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Digite novamente" /></label></>}
+            <label>{mode === "recover" ? "Nova senha" : "Senha"}<span className="password-field"><input name="password" type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "login" ? 8 : 12} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === "login" ? "Sua senha" : "Mínimo de 12 caracteres"} /><button type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? "Ocultar" : "Mostrar"}</button></span></label>
+            {mode !== "login" && <><div className="password-strength" aria-label={`Força da senha: ${passwordScore} de 4`}>{[1,2,3,4].map((item) => <i className={passwordScore >= item ? `active score-${passwordScore}` : ""} key={item} />)}<span>{passwordScore < 2 ? "Senha fraca" : passwordScore < 4 ? "Senha adequada" : "Senha forte"}</span></div><label>Confirmar senha<input name="confirm_password" type={showPassword ? "text" : "password"} autoComplete="new-password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Digite novamente" /></label></>}
             {mode === "login" && <div className="auth-form-options"><label><input type="checkbox" defaultChecked /> Manter conectado</label><a href="/recuperar-senha">Esqueci minha senha</a></div>}
-            <button className="auth-submit" disabled={loading || (mode !== "login" && passwordScore < 2)}>{loading ? "Protegendo seu acesso…" : mode === "login" ? "Entrar no escritório" : mode === "register" ? inviteInfo ? "Entrar na equipe" : accountType === "office" ? "Criar espaço do escritório" : "Criar conta profissional" : "Redefinir senha"}<span>→</span></button>
+            <button className="auth-submit" disabled={loading}>{loading ? "Protegendo seu acesso…" : mode === "login" ? "Entrar no escritório" : mode === "register" ? inviteInfo ? "Entrar na equipe" : accountType === "office" ? "Criar espaço do escritório" : "Criar conta profissional" : "Redefinir senha"}<span>→</span></button>
           </form>
           {mode === "register" && !inviteInfo && <p className="auth-trial-disclosure">O teste é concedido uma vez por aparelho. Para prevenir abuso, o sistema guarda somente identificadores técnicos pseudonimizados; não armazena as características brutas do dispositivo.</p>}
           <p className="auth-switch">{mode === "login" ? <>Ainda não tem acesso? <a href="/cadastro">Criar conta gratuita</a></> : mode === "register" ? <>Já tem uma conta? <a href="/entrar">Entrar</a></> : <>Lembrou sua senha? <a href="/entrar">Voltar ao login</a></>}</p>

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
-import { buildSearchConsoleAlerts, buildSearchConsoleOpportunities, SEARCH_CONSOLE_RETENTION_DAYS, SEARCH_CONSOLE_SCOPE } from "../domain/search-console.ts";
+import { buildSearchConsoleAlerts, buildSearchConsoleOpportunities, classifySearchIndexation, SEARCH_CONSOLE_RETENTION_DAYS, SEARCH_CONSOLE_SCOPE, summarizeSearchIndexation } from "../domain/search-console.ts";
 
 const read = (path) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
 
@@ -28,8 +28,16 @@ test("opportunity ranking prioritizes impressions with low CTR and attainable po
 });
 
 test("alerts cover traffic, position, indexation and conversion regressions", () => {
-  const alerts = buildSearchConsoleAlerts({ currentClicks: 40, previousClicks: 100, currentImpressions: 600, previousImpressions: 1000, currentPosition: 12, previousPosition: 8, indexedPages: 8, expectedPages: 11, organicVisitors: 30, organicSignups: 0 });
-  assert.deepEqual(new Set(alerts.map((alert) => alert.code)), new Set(["CLICKS_DROP", "IMPRESSIONS_DROP", "POSITION_DROP", "INDEXATION_GAP", "ORGANIC_CONVERSION_ZERO"]));
+  const alerts = buildSearchConsoleAlerts({ currentClicks: 40, previousClicks: 100, currentImpressions: 600, previousImpressions: 1000, currentPosition: 12, previousPosition: 8, indexedPages: 8, expectedPages: 11, discoveredPages: 1, unknownPages: 2, blockedPages: 0, inspectionErrors: 0, organicVisitors: 30, organicSignups: 0 });
+  assert.deepEqual(new Set(alerts.map((alert) => alert.code)), new Set(["CLICKS_DROP", "IMPRESSIONS_DROP", "POSITION_DROP", "INDEXATION_UNKNOWN", "INDEXATION_DISCOVERED", "ORGANIC_CONVERSION_ZERO"]));
+});
+
+test("indexation separates Google discovery delay from technical blocks", () => {
+  assert.equal(classifySearchIndexation({ verdict: "PASS" }), "indexed");
+  assert.equal(classifySearchIndexation({ verdict: "NEUTRAL", coverageState: "Detectada, mas não indexada no momento" }), "discovered");
+  assert.equal(classifySearchIndexation({ verdict: "NEUTRAL", coverageState: "O Google não reconhece o URL" }), "unknown");
+  assert.equal(classifySearchIndexation({ verdict: "NEUTRAL", robotsTxtState: "DISALLOWED" }), "blocked");
+  assert.deepEqual(summarizeSearchIndexation([{ verdict: "PASS" }, { coverageState: "O Google não reconhece o URL" }, { robotsTxtState: "DISALLOWED" }], 3), { indexed: 1, discovered: 0, unknown: 1, blocked: 1, inspectionErrors: 0, pending: 0, expected: 3 });
 });
 
 test("migration persists aggregated search and index snapshots without user identifiers", () => {

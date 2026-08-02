@@ -240,8 +240,12 @@ export default async function LandingPage() {
           <Link href="/metodologia">Metodologia</Link>
           <Link href="/cobertura">Cobertura pública</Link>
           <Link href="/planos">Planos</Link>
+          <Link href="/conteudos">Conteúdos tributários</Link>
           <Link href="/calculadora-reforma-tributaria">Reforma Tributária</Link>
+          <Link href="/cbs-ibs-contadores">CBS e IBS</Link>
           <Link href="/icms-st-contadores">ICMS-ST</Link>
+          <Link href="/inteligencia-tributaria-escritorios">Inteligência tributária</Link>
+          <Link href="/relatorios-fiscais-rastreaveis">Relatórios fiscais</Link>
         </nav>
         <small>© 2026 CBSHub</small>
       </footer>
