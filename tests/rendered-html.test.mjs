@@ -398,7 +398,7 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
     readFile(new URL("app/api/federal-pme-compliance/route.ts", root), "utf8"),
     readFile(new URL("domain/federal-pme-compliance.ts", root), "utf8"),
     readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
-    readFile(new URL("app/layout.tsx", root), "utf8"),
+    readFile(new URL("app/app/layout.tsx", root), "utf8"),
   ]);
 
   assert.match(ui, /VERSÃO 26 · COBERTURA FEDERAL PARA PMEs/);
@@ -435,7 +435,7 @@ test("versão 70 publica PMPF de bebidas destinado a São Paulo e nas rotas SP�
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("db/index.ts", root), "utf8"),
     readFile(new URL("app/page.tsx", root), "utf8"),
-    readFile(new URL("app/layout.tsx", root), "utf8"),
+    readFile(new URL("app/app/layout.tsx", root), "utf8"),
   ]);
   assert.match(ui, /VERSAO 71 · INDICADOR PUBLICO DE COBERTURA/);
   assert.match(ui, /INDICADOR PUBLICO NORMALIZADO/);
@@ -518,7 +518,7 @@ test("versão 55 cria esteira fiscal sem custo por consulta e com verificação 
     readFile(new URL("db/index.ts", root), "utf8"),
     readFile(new URL("app/api/normative-monitor/route.ts", root), "utf8"),
     readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
-    readFile(new URL("app/layout.tsx", root), "utf8"),
+    readFile(new URL("app/app/layout.tsx", root), "utf8"),
   ]);
   assert.match(ui, /VERSÃO 56 · VERIFICAÇÃO FISCAL AUTOMÁTICA/);
   assert.match(ui, /SEM IA/);

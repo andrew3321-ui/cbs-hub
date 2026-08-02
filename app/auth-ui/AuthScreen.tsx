@@ -231,7 +231,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
               <small>Fluxo completo</small>
             </div>
             <div className="auth-showcase-media">
-              <video autoPlay muted loop playsInline preload="metadata" poster="/media/cbshub-overview-completo-v2-poster.jpg">
+              <video muted loop playsInline controls preload="none" poster="/media/cbshub-overview-completo-v2-poster.jpg">
                 <source src="/media/cbshub-overview-completo-v2.webm" type="video/webm" />
               </video>
               <span>Da operação ao dossiê revisável</span>

@@ -4,12 +4,13 @@ import { buildBreadcrumbStructuredData, buildSeoIntentPageStructuredData } from 
 import BrandMark from "./BrandMark";
 import SeoTrackedCta from "./SeoTrackedCta";
 import { StructuredData } from "./StructuredData";
+import seoIntentStyles from "./seo-intent.css?url";
 
 export default function SeoIntentLanding({ page }: { page: SeoIntentPage }) {
   const path = `/${page.slug}`;
   const ctaHref = `/cadastro?utm_source=google&utm_medium=organic&utm_campaign=${page.campaign}`;
   const related = Object.values(seoIntentPages).filter((candidate) => candidate.slug !== page.slug).slice(0, 3);
-  return <main className="seo-intent-shell">
+  return <><link rel="stylesheet" href={seoIntentStyles} /><main className="seo-intent-shell">
     <StructuredData value={buildSeoIntentPageStructuredData({ path, title: page.title, description: page.description, keywords: [page.primaryKeyword, ...page.relatedKeywords] })} />
     <StructuredData value={buildBreadcrumbStructuredData([{ name: "Início", path: "/" }, { name: page.headline, path }])} />
     <header className="seo-intent-nav">
@@ -37,5 +38,5 @@ export default function SeoIntentLanding({ page }: { page: SeoIntentPage }) {
 
     <section className="seo-intent-final"><h2>Leve uma operação real para um fluxo rastreável.</h2><p>Teste todos os recursos durante cinco dias e confira se o método cabe na rotina do seu escritório.</p><SeoTrackedCta href={ctaHref} campaign={`${page.campaign}_final`} className="seo-intent-primary">Criar meu espaço profissional →</SeoTrackedCta></section>
     <footer className="seo-intent-footer"><span>CBSHub · Inteligência tributária rastreável</span><div><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><a href="mailto:supportofficial@cbshub.com.br">Suporte</a></div></footer>
-  </main>;
+  </main></>;
 }

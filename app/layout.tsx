@@ -1,20 +1,8 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import AnalyticsBeacon from "./AnalyticsBeacon";
+import WebVitalsBeacon from "./WebVitalsBeacon";
 import "./cbshub-landing.css";
-import "./homologation.css";
-import "./homologation-simulations.css";
-import "./federal-pme.css";
-import "./national-coverage.css";
-import "./national-coverage-v64.css";
-import "./fiscal-expansion.css";
-import "./deterministic-tax-lab.css";
-import "./legal-reference-center.css";
-import "./tax-reform-impact.css";
-import "./account-onboarding.css";
-import "./seo-intent.css";
-import "./tax-content.css";
-import "./public-coverage.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://cbshub.com.br"),
@@ -44,7 +32,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <html lang="pt-BR">
-      <body><AnalyticsBeacon />{children}</body>
+      <body><AnalyticsBeacon /><WebVitalsBeacon />{children}</body>
     </html>
   );
 }

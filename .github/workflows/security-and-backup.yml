@@ -30,6 +30,15 @@ jobs:
       - run: npm run lint
       - run: npm run migrations:verify
       - run: npm run test
+      - run: npm run performance:budget
+      - run: npm run performance:crawl
+        env:
+          PUBLIC_AUDIT_BASE_URL: https://cbshub.com.br
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: public-performance-${{ github.sha }}
+          path: outputs/performance
 
   backup-structure:
     if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'

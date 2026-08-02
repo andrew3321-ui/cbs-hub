@@ -7,6 +7,7 @@ async function collect(request: Request) {
   const acceptedSignupEvents = new Set(["signup_start", "signup_submit", "signup_client_error"]);
   const eventType = body.eventType === "app_active" ? "app_active"
     : body.eventType === "page_view" ? "page_view"
+      : body.eventType === "web_vital" ? "web_vital"
       : body.eventType === "seo_cta" ? "seo_cta"
         : typeof body.eventType === "string" && acceptedSignupEvents.has(body.eventType) ? body.eventType as "signup_start" | "signup_submit" | "signup_client_error"
           : null;

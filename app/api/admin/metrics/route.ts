@@ -6,6 +6,7 @@ import { buildMetricWindow, mergePlatformDailyGroups, percentage, platformMetric
 import { publicIndexableRoutes } from "../../../../domain/seo-route-policy";
 import { searchConsoleConfiguration } from "../../../search-console-service";
 import { buildSearchConsoleAlerts, buildSearchConsoleOpportunities, classifySearchIndexation, SEARCH_CONSOLE_RETENTION_DAYS, SEARCH_CONSOLE_VERSION, summarizeSearchIndexation } from "../../../../domain/search-console";
+import { classifyCoreWebVital, coreWebVitalBudgets, percentile, PUBLIC_PERFORMANCE_VERSION } from "../../../../domain/public-performance";
 
 type DailyRow = { date: string; pageViews?: number; visitors?: number; sessions?: number; activeUsers?: number; signups?: number; trialsStarted?: number; trialsDenied?: number; paymentsApproved?: number; grossAmountCents?: number };
 type BillingRow = { userId: number; planKey: string; companyAddonBlocks: number; pendingCompanyAddonBlocks: number; providerSubscriptionId: string | null; status: string; updatedAt: string };
@@ -13,6 +14,7 @@ type TrialRow = { userId: number | null; status: string; startedAt: string; ends
 type SearchSummary = { clicks?: number; impressions?: number; position?: number };
 type SignupFunnelRow = { stage: string; attempts: number; people: number };
 type SignupFailureRow = { eventType: string; reason: string; attempts: number; people: number };
+type WebVitalRow = { route: string; name: string; deviceClass: string; value: number };
 
 function number(value: unknown) {
   const parsed = Number(value);
@@ -74,6 +76,17 @@ async function ownerMetrics(request: Request) {
     { key: "signup", label: "Contas persistidas", attempts: signupCount, people: signupCount },
   ];
 
+  const webVitalRows = await db.prepare("SELECT COALESCE(json_extract(metadata_json, '$.route'), '/') route, json_extract(metadata_json, '$.name') name, json_extract(metadata_json, '$.deviceClass') deviceClass, CAST(json_extract(metadata_json, '$.value') AS REAL) value FROM platform_metric_events WHERE event_type = 'web_vital' AND event_date BETWEEN ? AND ? AND json_extract(metadata_json, '$.name') IN ('LCP', 'INP', 'CLS') ORDER BY occurred_at DESC LIMIT 10000").bind(window.startDate, window.endDate).all<WebVitalRow>();
+  const vitalGroups = new Map<string, WebVitalRow[]>();
+  for (const row of webVitalRows.results) {
+    const key = `${row.route}|${row.deviceClass}|${row.name}`;
+    vitalGroups.set(key, [...(vitalGroups.get(key) ?? []), row]);
+  }
+  const vitalP75 = [...vitalGroups.values()].map((rows) => {
+    const value = percentile(rows.map((row) => number(row.value)));
+    return { route: rows[0].route, deviceClass: rows[0].deviceClass, name: rows[0].name, value, samples: rows.length, rating: value === null ? "insufficient-data" : classifyCoreWebVital(rows[0].name, value) };
+  }).sort((left, right) => left.route.localeCompare(right.route) || left.deviceClass.localeCompare(right.deviceClass) || left.name.localeCompare(right.name));
+
   const searchLatest = await db.prepare("SELECT MAX(metric_date) latestDate FROM search_console_metrics").first<{ latestDate: string | null }>();
   const searchEndDate = searchLatest?.latestDate ?? window.endDate;
   const searchStart = new Date(`${searchEndDate}T00:00:00.000Z`); searchStart.setUTCDate(searchStart.getUTCDate() - window.days + 1);
@@ -122,6 +135,7 @@ async function ownerMetrics(request: Request) {
       stages: signupFunnel,
       failures: signupFailureRows.results.map((row) => ({ eventType: row.eventType, reason: row.reason, attempts: number(row.attempts), people: number(row.people) })),
     },
+    performance: { version: PUBLIC_PERFORMANCE_VERSION, percentile: 75, thresholds: coreWebVitalBudgets, totalSamples: webVitalRows.results.length, routes: vitalP75 },
     daily,
     searchConsole: { version: SEARCH_CONSOLE_VERSION, configured: searchConfiguration.configured, siteUrl: searchConfiguration.siteUrl, retentionDays: SEARCH_CONSOLE_RETENTION_DAYS, range: { startDate: searchStartDate, endDate: searchEndDate }, current: { ...searchCurrentValues, ctrPercent: percentage(searchCurrentValues.clicks, searchCurrentValues.impressions) }, previous: searchPreviousValues, pages: pageRows.results.map((row) => ({ ...row, clicks: number(row.clicks), impressions: number(row.impressions), ctr: number(row.ctr), position: number(row.position) })), opportunities: buildSearchConsoleOpportunities(queryRows.results), indexation: { snapshotDate: latestIndexDate?.latestDate ?? null, indexedPages, expectedPages: publicIndexableRoutes.length, discoveredPages: indexationSummary.discovered, unknownPages: indexationSummary.unknown, blockedPages: indexationSummary.blocked, inspectionErrors: indexationSummary.inspectionErrors, pendingPages: indexationSummary.pending, pages: latestIndex.results.map((row) => ({ ...row, stage: classifySearchIndexation(row) })) }, alerts: searchAlerts, lastSync: latestSync ?? null },
     privacy: { rawIpStored: false, rawUserAgentStored: false, pseudonymousIdentifiers: true, eventRetentionDays: 90, dailyRetentionDays: 730 },

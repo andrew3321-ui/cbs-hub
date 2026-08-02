@@ -156,6 +156,8 @@ function secureResponse(response: Response, request: Request) {
   headers.set("Cross-Origin-Opener-Policy", "same-origin");
   if (new URL(request.url).protocol === "https:") headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
   if (pathname.startsWith("/api/") && !pathname.startsWith("/api/public/")) headers.set("Cache-Control", "no-store");
+  if (pathname.startsWith("/assets/")) headers.set("Cache-Control", "public, max-age=31536000, immutable");
+  else if (pathname.startsWith("/media/") || /\.(?:png|jpe?g|webp|svg|ico)$/i.test(pathname)) headers.set("Cache-Control", "public, max-age=86400, stale-while-revalidate=604800");
   if (routeMustNotBeIndexed(pathname)) {
     headers.set("X-Robots-Tag", "noindex, nofollow, noarchive");
   }

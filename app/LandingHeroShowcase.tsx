@@ -31,12 +31,14 @@ export default function LandingHeroShowcase() {
   const [activeSlide, setActiveSlide] = useState<ShowcaseSlide>("product");
   const [tourPhase, setTourPhase] = useState(0);
   const [progress, setProgress] = useState(0);
+  const [videoEnabled, setVideoEnabled] = useState(false);
 
   useEffect(() => {
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (reducedMotion) return;
+    const connection = (navigator as Navigator & { connection?: { saveData?: boolean; effectiveType?: string } }).connection;
+    if (reducedMotion || connection?.saveData || /(^|-)2g$/.test(connection?.effectiveType ?? "")) return;
 
-    const timer = window.setTimeout(() => setActiveSlide("tour"), 2000);
+    const timer = window.setTimeout(() => { setVideoEnabled(true); setActiveSlide("tour"); }, 2000);
     return () => window.clearTimeout(timer);
   }, []);
 
@@ -55,6 +57,7 @@ export default function LandingHeroShowcase() {
   }, [activeSlide]);
 
   const selectSlide = (slide: ShowcaseSlide) => {
+    if (slide === "tour") setVideoEnabled(true);
     if (slide === "tour" && videoRef.current) {
       if (activeSlide !== "tour") {
         videoRef.current.currentTime = 0;
@@ -169,13 +172,13 @@ export default function LandingHeroShowcase() {
             ref={videoRef}
             muted
             playsInline
-            preload="metadata"
+            preload="none"
             poster="/media/cbshub-overview-completo-v2-poster.jpg"
             onTimeUpdate={updateTour}
             onEnded={() => selectSlide("product")}
             aria-label="Demonstração completa do fluxo do CBSHub"
           >
-            <source src="/media/cbshub-overview-completo-v2.webm" type="video/webm" />
+            {videoEnabled && <source src="/media/cbshub-overview-completo-v2.webm" type="video/webm" />}
           </video>
 
           <div className="cbs-showcase-video-shade" />

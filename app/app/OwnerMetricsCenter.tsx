@@ -13,6 +13,7 @@ type Payload = {
   billing: { activePayers: number; mrrCents: number; grossAmountCents: number; delinquent: number; canceled: number; paymentFailures: number };
   funnel: Array<{ key: string; label: string; value: number }>;
   signupFunnel: { stages: Array<{ key: string; label: string; attempts: number; people: number }>; failures: Array<{ eventType: string; reason: string; attempts: number; people: number }> };
+  performance: { version: string; percentile: number; totalSamples: number; thresholds: Record<string, { good: number; poor: number; unit: string }>; routes: Array<{ route: string; deviceClass: string; name: string; value: number | null; samples: number; rating: string }> };
   daily: Daily[];
   privacy: { rawIpStored: boolean; rawUserAgentStored: boolean; pseudonymousIdentifiers: boolean; eventRetentionDays: number; dailyRetentionDays: number };
   searchConsole: {
@@ -135,6 +136,20 @@ export default function OwnerMetricsCenter() {
     <section className="panel owner-series-panel">
       <div className="panel-heading"><div><span className="eyebrow">EVOLUÇÃO DIÁRIA</span><h3>Aquisição e ativação</h3></div><div className="owner-legend"><span><i className="visitors" />Visitas únicas</span><span><i className="signups" />Cadastros</span><span><i className="trials" />Trials</span></div></div>
       <div className="owner-series" aria-label="Série diária">{data.daily.map((row) => <div className="owner-series-day" title={`${row.date}: ${row.visitors} visitas únicas, ${row.signups} cadastros, ${row.trialsStarted} trials`} key={row.date}><div><i className="visitors" style={{ height: `${Math.max(2, row.visitors / chartMax * 100)}%` }} /><i className="signups" style={{ height: `${Math.max(2, row.signups / chartMax * 100)}%` }} /><i className="trials" style={{ height: `${Math.max(2, row.trialsStarted / chartMax * 100)}%` }} /></div><span>{row.date.slice(8)}</span></div>)}</div>
+    </section>
+
+    <section className="panel owner-performance-panel">
+      <div className="panel-heading"><div><span className="eyebrow">CORE WEB VITALS · CAMPO REAL</span><h3>Experiência pública por rota e dispositivo</h3><p className="owner-panel-copy">Percentil 75 coletado diretamente dos navegadores. LCP mede carregamento, INP resposta às interações e CLS estabilidade visual; amostras insuficientes permanecem explicitamente inconclusivas.</p></div><span className="editable-chip">{data.performance.totalSamples} AMOSTRAS</span></div>
+      <div className="owner-search-summary">
+        {(["LCP", "INP", "CLS"] as const).map((name) => {
+          const rows = data.performance.routes.filter((row) => row.name === name);
+          const worst = rows.filter((row) => row.value !== null).sort((left, right) => (right.value ?? 0) - (left.value ?? 0))[0];
+          const threshold = data.performance.thresholds[name];
+          return <article key={name}><span>{name} P75</span><strong>{worst?.value === null || !worst ? "—" : name === "CLS" ? worst.value.toFixed(3) : `${Math.round(worst.value)} ms`}</strong><small>meta ≤ {name === "CLS" ? threshold.good : `${threshold.good} ms`} · {worst ? `${worst.deviceClass} ${worst.route}` : "aguarda volume real"}</small></article>;
+        })}
+        <article><span>ROTAS MEDIDAS</span><strong>{new Set(data.performance.routes.map((row) => row.route)).size}</strong><small>segmentadas entre mobile e desktop</small></article>
+      </div>
+      <div className="owner-search-list">{data.performance.routes.map((row) => <article key={`${row.route}:${row.deviceClass}:${row.name}`}><p><b>{row.route} · {row.name}</b><small>{row.deviceClass} · {row.samples} amostra(s)</small></p><span className={`performance-rating ${row.rating}`}>{row.value === null ? "dados insuficientes" : `${row.name === "CLS" ? row.value.toFixed(3) : `${Math.round(row.value)} ms`} · ${row.rating}`}</span></article>)}{!data.performance.routes.length && <p className="owner-search-empty">A coleta começa nesta versão. O painel não substitui ausência de dados por estimativas.</p>}</div>
     </section>
 
     <section className="panel owner-search-console-panel">
