@@ -1,6 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
-import { getCurrentUser } from "../auth";
+import { getCurrentUser, userHasContactEmail } from "../auth";
 import BrandMark from "../BrandMark";
 import PrivacyActions from "./PrivacyActions";
 import { privacyContactEmail } from "../platform-controls";
@@ -30,7 +30,7 @@ export default async function PrivacyPage() {
       <article><span>05</span><h2>Retenção</h2><p>Sessões expiram em até sete dias. Marcadores pseudonimizados usados para impedir testes repetidos podem ser conservados por até 365 dias, inclusive após a exclusão da conta, sem nome, e-mail bruto ou características brutas do aparelho. Os demais dados permanecem enquanto necessários ou até exclusão, ressalvadas obrigações legais.</p></article>
       <article><span>06</span><h2>Compartilhamento</h2><p>A hospedagem processa a aplicação e o banco. O Mercado Pago só participa quando pagamentos forem ativados. A plataforma não vende dados pessoais e não envia XML fiscal bruto ao provedor de pagamento.</p></article>
     </section>
-    <section className="legal-rights"><span>SEUS DIREITOS</span><h2>Acesso, correção e exclusão sem esconder o processo.</h2><p>Você pode consultar e corrigir dados dentro da conta, baixar uma cópia estruturada e solicitar exclusão. Registros sujeitos a dever legal podem exigir conservação limitada e justificada.</p><PrivacyActions signedIn={Boolean(user)} initialName={user?.name ?? ""} initialEmail={user?.email ?? ""} /></section>
+    <section className="legal-rights"><span>SEUS DIREITOS</span><h2>Acesso, correção e exclusão sem esconder o processo.</h2><p>Você pode consultar e corrigir dados dentro da conta, baixar uma cópia estruturada e solicitar exclusão. Registros sujeitos a dever legal podem exigir conservação limitada e justificada.</p><PrivacyActions signedIn={Boolean(user)} initialName={user?.firstName ?? ""} initialEmail={user && userHasContactEmail(user.email) ? user.email : ""} /></section>
     <section className="legal-rights"><span>INVENTÁRIO DE DADOS · {PRIVACY_GOVERNANCE_VERSION}</span><h2>O tratamento é documentado por categoria.</h2><div className="legal-grid">{personalDataInventory.map((item) => <article key={item.category}><h3>{item.category}</h3><p><b>Exemplos:</b> {item.examples.join(", ")}.</p><p><b>Bases:</b> {item.legalBases.join("; ")}.</p><p><b>Retenção:</b> {item.retention}.</p><p><b>Exclusão:</b> {item.deletionBehavior}.</p></article>)}</div></section>
     <section className="legal-boundary"><b>Canal de privacidade e incidentes</b><p>{privacyEmail ? <>Solicitações de titulares e comunicações de segurança podem ser enviadas para <a href={`mailto:${privacyEmail}`}>{privacyEmail}</a>.</> : <>O canal dedicado está em configuração. Direitos autenticados continuam disponíveis dentro da conta.</>}</p></section>
     <section className="legal-boundary"><b>Limite técnico responsável</b><p>Nenhuma aplicação conectada à internet é invulnerável. Os controles reduzem risco e criam barreiras em camadas; monitoramento, atualização, resposta a incidentes e revisão profissional continuam obrigatórios.</p></section>

@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../db";
 import { billingAccounts } from "../../../db/schema";
-import { getCurrentUser } from "../../auth";
+import { billingProfileIsComplete, getCurrentUser } from "../../auth";
 import { getMercadoPagoEnvironment } from "../../billing";
 import { syncBillingAccountFromProvider } from "../../billing-reconciliation";
 import { latestPixTransaction, pixRenewalIsEligible, syncPixBillingAccount, type PixCheckout } from "../../billing-pix";
@@ -66,6 +66,7 @@ export async function GET() {
     betaEnabled: operation.betaEnabled,
     paymentsEnabled: operation.paymentsEnabled,
     canManageBilling: workspace?.role === "owner",
+    billingProfileComplete: billingProfileIsComplete(user),
     entitlements,
     billing: account ? {
       planKey: account.planKey,

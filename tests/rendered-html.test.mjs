@@ -132,7 +132,7 @@ test("fluxo remodelado trata o contador como usuário principal e exige aprovaç
   assert.doesNotMatch(`${client}\n${report}`, /Aguardando validação profissional/);
 });
 
-test("cadastro e escritório distinguem plano, papéis e revisão por segunda pessoa", async () => {
+test("cadastro mínimo permite evoluir depois para escritório e revisão por segunda pessoa", async () => {
   const [auth, client, registerApi, membersApi, approveApi, workspace, schema, report] = await Promise.all([
     readFile(new URL("app/auth-ui/AuthScreen.tsx", root), "utf8"),
     readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
@@ -144,10 +144,13 @@ test("cadastro e escritório distinguem plano, papéis e revisão por segunda pe
     readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
   ]);
 
-  assert.match(auth, /Contador independente/);
-  assert.match(auth, /Escritório contábil/);
-  assert.match(auth, /Mesmo plano · espaço colaborativo/);
-  assert.match(auth, /Mesmo plano · espaço individual/);
+  assert.match(auth, /Nome de usuário/);
+  assert.match(auth, /E-mail só se contratar/);
+  assert.doesNotMatch(auth, /Seu nome completo/);
+  assert.doesNotMatch(auth, /Como você trabalha\?/);
+  assert.match(client, /Contador independente/);
+  assert.match(client, /Escritório contábil/);
+  assert.match(client, /Ativar modo escritório/);
   assert.match(registerApi, /suggestedPlanKey/);
   assert.match(registerApi, /workspaceMembers/);
   assert.match(membersApi, /Gerar|createWorkspaceInvitationToken/);

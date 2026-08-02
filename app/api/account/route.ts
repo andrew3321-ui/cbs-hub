@@ -4,7 +4,10 @@ import {
   createSession,
   getCurrentUser,
   normalizeEmail,
+  normalizeUsername,
   sessionCookieHeader,
+  userHasContactEmail,
+  usernameIsValid,
   verifyPassword,
 } from "../../auth";
 import { ensureScenarioSchema, getDb } from "../../../db";
@@ -89,7 +92,7 @@ async function exportAccountData(request: Request) {
       canExportWorkspaceData ? db.select({ status: trialDeviceClaims.status, startedAt: trialDeviceClaims.startedAt, endsAt: trialDeviceClaims.endsAt, createdAt: trialDeviceClaims.createdAt }).from(trialDeviceClaims).where(eq(trialDeviceClaims.workspaceId, workspace.id)) : [],
       db.select({ eventType: platformMetricEvents.eventType, eventDate: platformMetricEvents.eventDate, occurredAt: platformMetricEvents.occurredAt, pathGroup: platformMetricEvents.pathGroup, source: platformMetricEvents.source, medium: platformMetricEvents.medium, campaign: platformMetricEvents.campaign }).from(platformMetricEvents).where(eq(platformMetricEvents.userId, currentUser.id)).limit(5000),
     ]);
-    const [account] = await db.select({ id: users.id, name: users.name, email: users.email, accountType: users.accountType, suggestedPlanKey: users.suggestedPlanKey, createdAt: users.createdAt }).from(users).where(eq(users.id, currentUser.id)).limit(1);
+    const [account] = await db.select({ id: users.id, name: users.name, firstName: users.firstName, username: users.username, accountCode: users.accountCode, email: users.email, accountType: users.accountType, suggestedPlanKey: users.suggestedPlanKey, createdAt: users.createdAt }).from(users).where(eq(users.id, currentUser.id)).limit(1);
     const fiscalIssuanceIds = fiscalRows.map((item) => item.id);
     const fiscalIssuanceEventRows = fiscalIssuanceIds.length
       ? await db.select().from(fiscalIssuanceEvents).where(inArray(fiscalIssuanceEvents.issuanceId, fiscalIssuanceIds))
@@ -156,26 +159,44 @@ async function correctAccount(request: Request) {
     await ensureScenarioSchema();
     const payload = (await request.json()) as Record<string, unknown>;
     const password = typeof payload.password === "string" ? payload.password : "";
-    const name = typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ").slice(0, 100) : "";
-    const email = normalizeEmail(typeof payload.email === "string" ? payload.email : "");
-    if (name.length < 2 || !emailPattern.test(email)) return Response.json({ error: "Informe nome e e-mail válidos." }, { status: 400 });
+    const suppliedFirstName = typeof payload.firstName === "string" ? payload.firstName.trim().replace(/\s+/g, " ").slice(0, 60) : typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ").slice(0, 60) : null;
+    const suppliedEmail = typeof payload.email === "string" ? normalizeEmail(payload.email) : null;
+    const suppliedUsername = typeof payload.username === "string" ? normalizeUsername(payload.username) : null;
+    if (suppliedFirstName !== null && suppliedFirstName.length > 0 && suppliedFirstName.length < 2) return Response.json({ error: "Informe um primeiro nome válido." }, { status: 400 });
+    if (suppliedEmail !== null && suppliedEmail.length > 0 && !emailPattern.test(suppliedEmail)) return Response.json({ error: "Informe um e-mail válido." }, { status: 400 });
+    if (suppliedUsername !== null && !usernameIsValid(suppliedUsername)) return Response.json({ error: "O usuário deve ter de 3 a 24 caracteres e usar apenas letras, números, ponto, hífen ou sublinhado." }, { status: 400 });
     const db = getDb();
     const [user] = await db.select().from(users).where(eq(users.id, currentUser.id)).limit(1);
     if (!user || !(await verifyPassword(password, user.passwordSalt, user.passwordHash, user.passwordIterations))) return Response.json({ error: "Senha incorreta." }, { status: 403 });
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace) return Response.json({ error: "Espaço profissional não encontrado." }, { status: 409 });
     trailWorkspaceId = workspace.id;
-    const [emailOwner] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-    if (emailOwner && emailOwner.id !== user.id) return Response.json({ error: "Este e-mail já pertence a outra conta." }, { status: 409 });
-    const nameChanged = name !== user.name;
+    const firstName = suppliedFirstName !== null && suppliedFirstName.length > 0 ? suppliedFirstName : user.firstName;
+    const email = suppliedEmail !== null && suppliedEmail.length > 0 ? suppliedEmail : user.email;
+    const username = suppliedUsername ?? user.username;
+    if (email !== user.email) {
+      const [emailOwner] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      if (emailOwner && emailOwner.id !== user.id) return Response.json({ error: "Este e-mail já pertence a outra conta." }, { status: 409 });
+    }
+    if (username !== user.username) {
+      const [usernameOwner] = await db.select({ id: users.id }).from(users).where(eq(users.username, username)).limit(1);
+      if (usernameOwner && usernameOwner.id !== user.id) return Response.json({ error: "Este nome de usuário já está em uso." }, { status: 409 });
+    }
+    const firstNameChanged = firstName !== user.firstName;
     const emailChanged = email !== user.email;
-    if (!nameChanged && !emailChanged) return Response.json({ error: "Nenhuma correção foi informada." }, { status: 400 });
-    await recordPrivacyRequest({ request, email: user.email, workspaceId: workspace.id, action: "account_correction", status: "started", details: { nameChanged, emailChanged } });
+    const usernameChanged = username !== user.username;
+    if (!firstNameChanged && !emailChanged && !usernameChanged) return Response.json({ error: "Nenhuma alteração foi informada." }, { status: 400 });
+    await recordPrivacyRequest({ request, email: user.email, workspaceId: workspace.id, action: "account_correction", status: "started", details: { firstNameChanged, emailChanged, usernameChanged } });
     trailStarted = true;
-    await db.update(users).set({ name, email }).where(eq(users.id, user.id));
+    const displayName = firstNameChanged && firstName
+      ? firstName
+      : user.firstName
+        ? user.name
+        : username;
+    await db.update(users).set({ name: displayName, firstName, username, email }).where(eq(users.id, user.id));
     const session = await createSession(user.id);
-    await recordPrivacyRequest({ request, email, workspaceId: workspace.id, action: "account_correction", status: "completed", details: { nameChanged, emailChanged, sessionsRotated: true } });
-    return Response.json({ corrected: true, user: { id: user.id, name, email } }, { headers: { "Set-Cookie": sessionCookieHeader(session.token, request), "Cache-Control": "no-store" } });
+    await recordPrivacyRequest({ request, email, workspaceId: workspace.id, action: "account_correction", status: "completed", details: { firstNameChanged, emailChanged, usernameChanged, sessionsRotated: true } });
+    return Response.json({ corrected: true, user: { id: user.id, name: displayName, firstName, username, accountCode: user.accountCode, email, hasContactEmail: userHasContactEmail(email) } }, { headers: { "Set-Cookie": sessionCookieHeader(session.token, request), "Cache-Control": "no-store" } });
   } catch {
     if (trailStarted) {
       try { await recordPrivacyRequest({ request, email: currentUser.email, workspaceId: trailWorkspaceId, action: "account_correction", status: "failed" }); }

@@ -5,12 +5,11 @@ import Link from "next/link";
 import BrandMark from "../BrandMark";
 
 type AuthMode = "login" | "register" | "recover";
-type AccountType = "individual" | "office";
 
 const content = {
   login: { eyebrow: "BEM-VINDO DE VOLTA", title: "Entre no seu escritório", subtitle: "Continue o trabalho técnico e acompanhe cada cliente da carteira." },
-  register: { eyebrow: "5 DIAS DE ACESSO COMPLETO", title: "Crie seu espaço profissional", subtitle: "Teste todos os recursos com até 10 empresas. O período começa assim que o cadastro é concluído." },
-  recover: { eyebrow: "RECUPERAÇÃO SEGURA", title: "Defina uma nova senha", subtitle: "Use a chave de segurança entregue quando sua conta foi criada." },
+  register: { eyebrow: "DOIS CAMPOS · ACESSO IMEDIATO", title: "Comece pelo seu primeiro caso real", subtitle: "Escolha seu usuário e sua senha. Você entra com 5 dias de acesso completo, sem cartão e sem informar e-mail agora." },
+  recover: { eyebrow: "RECUPERAÇÃO SEGURA", title: "Defina uma nova senha", subtitle: "Use seu usuário e a chave de segurança entregue quando sua conta foi criada." },
 };
 
 type TrialResult = {
@@ -98,6 +97,7 @@ function trackSignupEvent(eventType: "signup_start" | "signup_submit" | "signup_
 
 export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const [name, setName] = useState("");
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -109,8 +109,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const [error, setError] = useState("");
   const [copied, setCopied] = useState(false);
   const [resetComplete, setResetComplete] = useState(false);
-  const [accountType, setAccountType] = useState<AccountType>("individual");
-  const [officeName, setOfficeName] = useState("");
+  const [issuedIdentity, setIssuedIdentity] = useState<{ username: string; accountCode: string } | null>(null);
   const [returnTo, setReturnTo] = useState("/app");
   const [inviteToken, setInviteToken] = useState("");
   const [inviteInfo, setInviteInfo] = useState<{ workspaceName: string; email: string; role: string } | null>(null);
@@ -132,7 +131,12 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   useEffect(() => {
     if (mode !== "register") return;
     const token = new URLSearchParams(window.location.search).get("convite")?.toLowerCase() ?? "";
-    if (!/^[0-9a-f]{48}$/.test(token)) return;
+    if (!/^[0-9a-f]{48}$/.test(token)) {
+      const suffix = bytesToHex(crypto.getRandomValues(new Uint8Array(2)));
+      const defaultUsername = `profissional-${suffix}`;
+      const timer = window.setTimeout(() => setUsername((current) => current || defaultUsername), 0);
+      return () => window.clearTimeout(timer);
+    }
     const timer = window.setTimeout(() => {
       setInviteToken(token);
       fetch(`/api/office/invitations/${token}`)
@@ -143,9 +147,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
         })
         .then((invitation) => {
           setInviteInfo(invitation);
-          setAccountType("office");
           setEmail(invitation.email);
-          setOfficeName(invitation.workspaceName);
         })
         .catch((caught) => setError(caught instanceof Error ? caught.message : "Não foi possível validar o convite."));
     }, 0);
@@ -165,7 +167,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
     event.preventDefault();
     setError("");
     if (mode === "register") trackSignupEvent("signup_submit", "button_click");
-    if (mode !== "login" && password !== confirmPassword) {
+    if (mode === "recover" && password !== confirmPassword) {
       if (mode === "register") trackSignupEvent("signup_client_error", "password_mismatch");
       setError("As senhas não coincidem.");
       return;
@@ -180,13 +182,14 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
     try {
       const endpoint = mode === "login" ? "/api/auth/login" : mode === "register" ? "/api/auth/register" : "/api/auth/reset-password";
       const trialEvidence = mode === "register" && !inviteToken ? await trialDeviceEvidence() : {};
-      const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, password, recoveryKey, accountType, officeName, inviteToken, ...trialEvidence }) });
+      const response = await fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name, email, username, login: email, password, recoveryKey, inviteToken, ...trialEvidence }) });
       apiResponded = true;
-      const data = (await response.json()) as { error?: string; code?: string; recoveryKey?: string; trial?: TrialResult };
+      const data = (await response.json()) as { error?: string; code?: string; recoveryKey?: string; trial?: TrialResult; user?: { username: string; accountCode: string } };
       if (!response.ok) throw new Error(data.error || "Não foi possível concluir.");
       if (mode === "register" && data.recoveryKey) {
         setIssuedRecoveryKey(data.recoveryKey);
         setIssuedTrial(data.trial ?? null);
+        setIssuedIdentity(data.user ?? null);
         return;
       }
       if (mode === "recover") {
@@ -215,8 +218,9 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
         <section className="auth-success-card">
           <span className="auth-success-icon">✓</span>
           <p className="auth-eyebrow">CONTA CRIADA COM SUCESSO</p>
-          <h1>Guarde sua chave de recuperação</h1>
-          <p>Esta chave substitui o envio por e-mail nesta fase gratuita. Ela será exibida apenas agora e permite redefinir sua senha.</p>
+          <h1>Seu acesso está liberado</h1>
+          <p>Guarde sua chave de recuperação. Como não pedimos e-mail no cadastro, ela permite redefinir sua senha com segurança.</p>
+          {issuedIdentity && <div className="auth-issued-identity"><span>SEU ACESSO</span><b>@{issuedIdentity.username}</b><small>Identificador da conta: {issuedIdentity.accountCode}</small></div>}
           <div className="recovery-key-box"><span>{issuedRecoveryKey}</span><button type="button" onClick={copyRecoveryKey}>{copied ? "Copiada ✓" : "Copiar chave"}</button></div>
           <div className="recovery-warning"><b>Importante</b><span>Salve em um gerenciador de senhas ou local seguro. Não compartilhe esta chave.</span></div>
           <div className="auth-plan-suggestion">
@@ -228,7 +232,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
                 ? "Seu acesso acompanha as regras e o período do escritório para o qual você foi convidado."
                 : "Este aparelho já utilizou o período de teste ou não pôde ser validado. Nenhuma cobrança foi iniciada."}</small>
           </div>
-          <a className="auth-primary-link" href={returnTo}>Guardei a chave · concluir minha análise <span>→</span></a>
+          <a className="auth-primary-link" href={returnTo}>Entrar e analisar meu primeiro caso <span>→</span></a>
         </section>
       </main>
     );
@@ -239,9 +243,9 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
       <Link className="auth-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
       <section className="auth-layout">
         <div className={`auth-story ${mode === "register" ? "auth-story-showcase-mode" : ""}`}>
-          <span className="auth-story-label">DECISÕES FISCAIS. MARGENS PROTEGIDAS.</span>
-          <h2>Seu escritório com método, versão e responsabilidade.</h2>
-          <p>Organize as empresas atendidas, preserve o trabalho técnico e entregue relatórios com revisão explícita.</p>
+          <span className="auth-story-label">COMECE SEM PREPARAR A CONTA</span>
+          <h2>Troque o retrabalho pelo primeiro fluxo rastreável.</h2>
+          <p>Entre direto, use um caso real e veja pesquisa, cálculo, fontes, memória e relatório trabalhando juntos.</p>
           {mode === "register" && <div className="auth-showcase" aria-label="Prévia real da plataforma CBSHub">
             <div className="auth-showcase-heading">
               <span><i /> VISÃO REAL DA PLATAFORMA</span>
@@ -254,7 +258,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
               <span>Da operação ao dossiê revisável</span>
             </div>
           </div>}
-          <div className="auth-story-points"><span><i>✓</i> Carteira privada por contador</span><span><i>✓</i> Versões assinadas e auditáveis</span><span><i>✓</i> Aprovação responsável antes da entrega</span></div>
+          <div className="auth-story-points"><span><i>✓</i> 5 dias com todos os recursos</span><span><i>✓</i> Até 10 empresas para testar o fluxo</span><span><i>✓</i> Sem cartão e sem cobrança automática</span></div>
           {mode !== "register" && <div className="auth-mini-panel"><span>EXPOSIÇÃO ESTIMADA</span><strong>+ R$ 13.665</strong><small>Reajuste recomendado <b>5,6%</b></small><i><em style={{height:"34%"}} /><em style={{height:"48%"}} /><em style={{height:"42%"}} /><em style={{height:"68%"}} /><em style={{height:"88%"}} /></i></div>}
         </div>
 
@@ -273,21 +277,22 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
             const field = event.target as HTMLInputElement;
             trackSignupEvent("signup_client_error", `invalid_${field.name || "field"}`);
           }}>
-            {mode === "register" && <>
-              {inviteInfo ? <div className="auth-invite-banner"><span>CONVITE PARA EQUIPE</span><b>{inviteInfo.workspaceName}</b><small>Você entrará como {inviteInfo.role === "reviewer" ? "revisor" : inviteInfo.role === "preparer" ? "preparador" : "administrador"}.</small></div> : <fieldset className="auth-account-type"><legend>Como você trabalha?</legend><div>
-                <button type="button" className={accountType === "individual" ? "active" : ""} onClick={() => setAccountType("individual")}><span>01</span><b>Contador independente</b><small>Você prepara e assume a própria revisão.</small><em>Mesmo plano · espaço individual</em></button>
-                <button type="button" className={accountType === "office" ? "active" : ""} onClick={() => setAccountType("office")}><span>02</span><b>Escritório contábil</b><small>Equipe com preparadores e revisão segregada.</small><em>Mesmo plano · espaço colaborativo</em></button>
-              </div></fieldset>}
-              <label>Seu nome completo<input name="name" autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome do profissional" /></label>
-              {accountType === "office" && <label>Nome do escritório<input name="office_name" required minLength={2} maxLength={120} value={officeName} onChange={(event) => setOfficeName(event.target.value)} readOnly={Boolean(inviteInfo)} placeholder="Ex.: Horizonte Contabilidade" /></label>}
-            </>}
-            <label>E-mail<input name="email" type="email" autoComplete="email" required value={email} onChange={(event) => setEmail(event.target.value)} readOnly={Boolean(inviteInfo)} placeholder="voce@empresa.com.br" /></label>
+            {mode === "register" && (inviteInfo ? <>
+              <div className="auth-invite-banner"><span>CONVITE PARA EQUIPE</span><b>{inviteInfo.workspaceName}</b><small>Você entrará como {inviteInfo.role === "reviewer" ? "revisor" : inviteInfo.role === "preparer" ? "preparador" : "administrador"}.</small></div>
+              <label>Seu nome<input name="name" autoComplete="name" required minLength={2} maxLength={100} value={name} onChange={(event) => setName(event.target.value)} placeholder="Nome do profissional" /></label>
+            </> : <>
+              <div className="auth-username-note"><i>✓</i><span><b>Já reservamos uma sugestão para você.</b><small>Pode mudar o usuário agora ou depois em Minha conta.</small></span></div>
+              <label>Nome de usuário<input name="username" autoComplete="username" required minLength={3} maxLength={24} pattern="[a-zA-Z0-9._-]{3,24}" value={username} onChange={(event) => setUsername(event.target.value.toLowerCase().replace(/[^a-z0-9._-]/g, ""))} /></label>
+            </>)}
+            {(mode !== "register" || inviteInfo) && <label>{mode === "register" ? "E-mail convidado" : "Usuário ou e-mail"}<input name="email" type={mode === "register" ? "email" : "text"} autoComplete="username" required value={email} onChange={(event) => setEmail(event.target.value)} readOnly={Boolean(inviteInfo)} placeholder={mode === "register" ? "voce@empresa.com.br" : "seu.usuario"} /></label>}
             {mode === "recover" && <label>Chave de recuperação<input className="recovery-input" autoComplete="off" required value={recoveryKey} onChange={(event) => setRecoveryKey(event.target.value.toUpperCase())} placeholder="XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX-XXXX" /></label>}
             <label>{mode === "recover" ? "Nova senha" : "Senha"}<span className="password-field"><input name="password" type={showPassword ? "text" : "password"} autoComplete={mode === "login" ? "current-password" : "new-password"} required minLength={mode === "login" ? 8 : 12} maxLength={128} value={password} onChange={(event) => setPassword(event.target.value)} placeholder={mode === "login" ? "Sua senha" : "Mínimo de 12 caracteres"} /><button type="button" onClick={() => setShowPassword((current) => !current)}>{showPassword ? "Ocultar" : "Mostrar"}</button></span></label>
-            {mode !== "login" && <><div className="password-strength" aria-label={`Força da senha: ${passwordScore} de 4`}>{[1,2,3,4].map((item) => <i className={passwordScore >= item ? `active score-${passwordScore}` : ""} key={item} />)}<span>{passwordScore < 2 ? "Senha fraca" : passwordScore < 4 ? "Senha adequada" : "Senha forte"}</span></div><label>Confirmar senha<input name="confirm_password" type={showPassword ? "text" : "password"} autoComplete="new-password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Digite novamente" /></label></>}
+            {mode !== "login" && <div className="password-strength" aria-label={`Força da senha: ${passwordScore} de 4`}>{[1,2,3,4].map((item) => <i className={passwordScore >= item ? `active score-${passwordScore}` : ""} key={item} />)}<span>{passwordScore < 2 ? "Use 12 caracteres com letra e número" : passwordScore < 4 ? "Senha adequada" : "Senha forte"}</span></div>}
+            {mode === "recover" && <label>Confirmar senha<input name="confirm_password" type={showPassword ? "text" : "password"} autoComplete="new-password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Digite novamente" /></label>}
             {mode === "login" && <div className="auth-form-options"><label><input type="checkbox" defaultChecked /> Manter conectado</label><a href="/recuperar-senha">Esqueci minha senha</a></div>}
-            <button className="auth-submit" disabled={loading}>{loading ? "Protegendo seu acesso…" : mode === "login" ? "Entrar no escritório" : mode === "register" ? inviteInfo ? "Entrar na equipe" : accountType === "office" ? "Criar espaço do escritório" : "Criar conta profissional" : "Redefinir senha"}<span>→</span></button>
+            <button className="auth-submit" disabled={loading}>{loading ? "Liberando seu acesso…" : mode === "login" ? "Entrar no escritório" : mode === "register" ? inviteInfo ? "Entrar na equipe" : "Começar meus 5 dias" : "Redefinir senha"}<span>→</span></button>
           </form>
+          {mode === "register" && !inviteInfo && <div className="auth-fast-proof"><span>Sem cartão</span><span>E-mail só se contratar</span><span>Acesso imediato</span></div>}
           {mode === "register" && !inviteInfo && <p className="auth-trial-disclosure">O teste é concedido uma vez por aparelho. Para prevenir abuso, o sistema guarda somente identificadores técnicos pseudonimizados; não armazena as características brutas do dispositivo.</p>}
           <p className="auth-switch">{mode === "login" ? <>Ainda não tem acesso? <a href="/cadastro">Criar conta gratuita</a></> : mode === "register" ? <>Já tem uma conta? <a href="/entrar">Entrar</a></> : <>Lembrou sua senha? <a href="/entrar">Voltar ao login</a></>}</p>
           <p className="auth-legal">Ao continuar, você concorda com o uso seguro dos dados exclusivamente para operar sua conta.</p>

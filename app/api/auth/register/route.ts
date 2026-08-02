@@ -1,6 +1,6 @@
 import { and, count, eq, gt, inArray, isNull, or } from "drizzle-orm";
 import { env } from "cloudflare:workers";
-import { createRecoveryKey, createSession, hashPassword, hashRecoveryKey, normalizeEmail, passwordIsStrong, sessionCookieHeader } from "../../../auth";
+import { createAccountCode, createRecoveryKey, createSession, hashPassword, hashRecoveryKey, internalAccountEmail, normalizeEmail, normalizeUsername, passwordIsStrong, sessionCookieHeader, usernameIsValid } from "../../../auth";
 import { getDb } from "../../../../db";
 import { accountingWorkspaces, companies, trialDeviceClaims, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
 import { sha256Hex } from "../../../workspace";
@@ -37,22 +37,30 @@ export async function POST(request: Request) {
   try {
     await recordRegistrationMetric(request, metricIdentity, "signup_request", "received");
     const payload = (await request.json()) as Record<string, unknown>;
-    const name = typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ").slice(0, 100) : "";
-    const email = normalizeEmail(typeof payload.email === "string" ? payload.email : "");
+    const suppliedName = typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ").slice(0, 100) : "";
+    const suppliedEmail = normalizeEmail(typeof payload.email === "string" ? payload.email : "");
+    const suppliedUsername = normalizeUsername(typeof payload.username === "string" ? payload.username : "");
     const password = typeof payload.password === "string" ? payload.password : "";
-    const requestedAccountType = payload.accountType === "office" ? "office" : "individual";
-    const requestedOfficeName = typeof payload.officeName === "string" ? payload.officeName.trim().replace(/\s+/g, " ").slice(0, 120) : "";
     const inviteToken = typeof payload.inviteToken === "string" ? payload.inviteToken.trim().toLowerCase() : "";
-    const trialIdentity = inviteToken ? null : await buildTrialClaimIdentity(request, payload, email);
-
-    if (name.length < 2 || !emailPattern.test(email) || !passwordIsStrong(password)) {
-      return registrationError(request, metricIdentity, 400, "INVALID_INPUT", "Informe nome, e-mail válido e uma senha com pelo menos 12 caracteres, letra e número.");
-    }
-    if (!inviteToken && requestedAccountType === "office" && requestedOfficeName.length < 2) {
-      return registrationError(request, metricIdentity, 400, "OFFICE_NAME_REQUIRED", "Informe o nome do escritório contábil.");
-    }
 
     const db = getDb();
+    let accountCode = createAccountCode();
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const [collision] = await db.select({ id: users.id }).from(users).where(eq(users.accountCode, accountCode)).limit(1);
+      if (!collision) break;
+      accountCode = createAccountCode();
+    }
+    const username = inviteToken ? `membro-${accountCode.slice(4).toLowerCase()}` : suppliedUsername;
+    const name = inviteToken ? suppliedName : username;
+    const email = inviteToken ? suppliedEmail : internalAccountEmail(accountCode);
+    const trialIdentity = inviteToken ? null : await buildTrialClaimIdentity(request, payload, email);
+
+    if (inviteToken ? name.length < 2 || !emailPattern.test(email) || !passwordIsStrong(password) : !usernameIsValid(username) || !passwordIsStrong(password)) {
+      return registrationError(request, metricIdentity, 400, "INVALID_INPUT", inviteToken
+        ? "Informe seu nome, o e-mail convidado e uma senha com pelo menos 12 caracteres, letra e número."
+        : "Escolha um usuário de 3 a 24 caracteres e uma senha com pelo menos 12 caracteres, letra e número.");
+    }
+
     let invitation: { id: number; workspaceId: number; email: string; role: string; workspaceName: string; ownerUserId: number; suggestedPlanKey: string } | null = null;
     if (inviteToken) {
       if (!/^[0-9a-f]{48}$/.test(inviteToken)) return registrationError(request, metricIdentity, 400, "INVITE_INVALID", "Este convite é inválido.");
@@ -80,16 +88,20 @@ export async function POST(request: Request) {
       }
       invitation = row;
     }
-    const [existing] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
-    if (existing) return registrationError(request, metricIdentity, 409, "EMAIL_EXISTS", "Já existe uma conta com este e-mail.");
+    const [existingUsername] = await db.select({ id: users.id }).from(users).where(eq(users.username, username)).limit(1);
+    if (existingUsername) return registrationError(request, metricIdentity, 409, "USERNAME_EXISTS", "Este nome de usuário já está em uso. Escolha outro.");
+    if (inviteToken) {
+      const [existingEmail] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+      if (existingEmail) return registrationError(request, metricIdentity, 409, "EMAIL_EXISTS", "Já existe uma conta com este e-mail.");
+    }
 
     const [{ total }] = await db.select({ total: count() }).from(users);
     const passwordData = await hashPassword(password);
     const recoveryKey = createRecoveryKey();
     const recoveryKeyHash = await hashRecoveryKey(recoveryKey);
-    const accountType = invitation ? "office" : requestedAccountType;
+    const accountType = invitation ? "office" : "individual";
     const suggestedPlanKey = "unico";
-    const [user] = await db.insert(users).values({ name, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, passwordIterations: passwordData.iterations, recoveryKeyHash, accountType, suggestedPlanKey }).returning({ id: users.id, name: users.name, email: users.email });
+    const [user] = await db.insert(users).values({ name, firstName: invitation ? name.split(/\s+/)[0] : null, username, accountCode, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, passwordIterations: passwordData.iterations, recoveryKeyHash, accountType, suggestedPlanKey }).returning({ id: users.id, name: users.name, firstName: users.firstName, username: users.username, accountCode: users.accountCode, email: users.email });
     createdUserId = user.id;
 
     let workspaceId: number;
@@ -116,7 +128,7 @@ export async function POST(request: Request) {
       ]);
       if (acceptance[0].meta.changes !== 1 || acceptance[1].meta.changes !== 1) throw new Error("invitation_no_longer_valid");
     } else {
-      workspaceName = accountType === "office" ? requestedOfficeName : `Espaço profissional de ${name}`;
+      workspaceName = `Espaço profissional de ${username}`;
       const [workspace] = await db.insert(accountingWorkspaces).values({ name: workspaceName, workspaceType: accountType, ownerUserId: user.id, suggestedPlanKey }).returning({ id: accountingWorkspaces.id });
       if (!workspace) throw new Error("workspace_insert_failed");
       workspaceId = workspace.id;
@@ -201,7 +213,7 @@ export async function POST(request: Request) {
       }
     }
     console.error(JSON.stringify({ event: "auth.register_failed", stage: createdUserId ? "persistence_cleanup" : "before_user_insert", error: error instanceof Error ? error.name : "UnknownError" }));
-    if (String(error).toLowerCase().includes("unique")) return registrationError(request, metricIdentity, 409, "EMAIL_EXISTS", "Já existe uma conta com este e-mail.");
+    if (String(error).toLowerCase().includes("unique")) return registrationError(request, metricIdentity, 409, "IDENTITY_EXISTS", "Este usuário não está mais disponível. Escolha outro e tente novamente.");
     return registrationError(request, metricIdentity, 500, "REGISTER_FAILED", "Não foi possível criar sua conta agora.");
   }
 }

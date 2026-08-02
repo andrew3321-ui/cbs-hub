@@ -26,6 +26,7 @@ type BillingState = {
   betaEnabled: boolean;
   paymentsEnabled: boolean;
   canManageBilling: boolean;
+  billingProfileComplete: boolean;
   entitlements: WorkspaceEntitlements | null;
   billing: {
     planKey: string;
@@ -124,7 +125,11 @@ export default function PricingClient({ signedIn }: { signedIn: boolean }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ planKey: "unico", addonBlocks: selectedAddonBlocks }),
       });
-      const data = await response.json() as { checkoutUrl?: string; pix?: PixCheckout | null; message?: string; error?: string; mode?: string; status?: string; supportCode?: string };
+      const data = await response.json() as { checkoutUrl?: string; pix?: PixCheckout | null; message?: string; error?: string; mode?: string; status?: string; supportCode?: string; code?: string; profileUrl?: string };
+      if (data.code === "BILLING_PROFILE_REQUIRED" && data.profileUrl) {
+        window.location.assign(data.profileUrl);
+        return;
+      }
       if (!response.ok && response.status !== 202) throw new Error(`${data.error || "checkout_failed"}${data.supportCode ? ` · Código ${data.supportCode}` : ""}`);
       if (data.checkoutUrl) {
         window.location.assign(data.checkoutUrl);

@@ -15,8 +15,14 @@ const LEGACY_PASSWORD_ITERATIONS = 100_000;
 export type AppUser = {
   id: number;
   name: string;
+  firstName: string | null;
+  username: string;
+  accountCode: string;
   email: string;
 };
+
+const INTERNAL_ACCOUNT_EMAIL_DOMAIN = "account.cbshub.invalid";
+const usernamePattern = /^[a-z0-9](?:[a-z0-9._-]{1,22}[a-z0-9])?$/;
 
 function bytesToHex(bytes: Uint8Array) {
   return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join("");
@@ -40,6 +46,31 @@ async function sha256(value: string) {
 
 export function normalizeEmail(value: string) {
   return value.trim().toLowerCase();
+}
+
+export function normalizeUsername(value: string) {
+  return value.trim().toLowerCase().replace(/^@+/, "");
+}
+
+export function usernameIsValid(value: string) {
+  return usernamePattern.test(normalizeUsername(value));
+}
+
+export function createAccountCode() {
+  return `CBS-${randomHex(5).toUpperCase()}`;
+}
+
+export function internalAccountEmail(accountCode: string) {
+  return `${accountCode.toLowerCase()}@${INTERNAL_ACCOUNT_EMAIL_DOMAIN}`;
+}
+
+export function userHasContactEmail(email: string) {
+  const normalized = normalizeEmail(email);
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) && !normalized.endsWith(`@${INTERNAL_ACCOUNT_EMAIL_DOMAIN}`);
+}
+
+export function billingProfileIsComplete(user: Pick<AppUser, "firstName" | "email">) {
+  return Boolean(user.firstName && user.firstName.trim().length >= 2 && userHasContactEmail(user.email));
 }
 
 export function passwordIsStrong(value: string) {
@@ -98,7 +129,7 @@ export async function getCurrentUser(): Promise<AppUser | null> {
   if (!token) return null;
   const sessionId = await sha256(token);
   const [row] = await getDb()
-    .select({ id: users.id, name: users.name, email: users.email })
+    .select({ id: users.id, name: users.name, firstName: users.firstName, username: users.username, accountCode: users.accountCode, email: users.email })
     .from(sessions)
     .innerJoin(users, eq(sessions.userId, users.id))
     .where(and(eq(sessions.id, sessionId), gt(sessions.expiresAt, new Date().toISOString()), gt(sessions.createdAt, new Date(Date.now() - SESSION_SECONDS * 1000).toISOString())))

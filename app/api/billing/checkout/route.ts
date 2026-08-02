@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { ensureScenarioSchema, getDb } from "../../../../db";
 import { billingAccounts, billingTransactions } from "../../../../db/schema";
-import { getCurrentUser } from "../../../auth";
+import { billingProfileIsComplete, getCurrentUser } from "../../../auth";
 import { billingAmountCents, billingIdempotencyKey, billingPlans, isPurchasablePlanKey, mercadoPagoApiErrorDetails, mercadoPagoRequest, MercadoPagoSubscription, mercadoPagoTransportErrorCode, normalizeBillingStatus, normalizeCompanyAddonBlocks, randomBillingReference } from "../../../billing";
 import { cancelPixTransactionAtProvider, latestPixTransaction } from "../../../billing-pix";
 import { getPlatformOperationState } from "../../../platform-controls";
@@ -17,6 +17,7 @@ export async function POST(request: Request) {
     await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
     if (!workspace || workspace.role !== "owner") return Response.json({ error: "Somente o proprietário do espaço pode contratar ou alterar a assinatura." }, { status: 403 });
+    if (!billingProfileIsComplete(user)) return Response.json({ error: "Antes de contratar, informe seu primeiro nome e e-mail em Minha conta.", code: "BILLING_PROFILE_REQUIRED", profileUrl: "/app?view=profile&billing=required" }, { status: 428 });
     checkoutStage = "INPUT";
     const payload = await request.json() as Record<string, unknown>;
     if (!isPurchasablePlanKey(payload.planKey)) return Response.json({ error: "Plano indisponível para novas contratações." }, { status: 400 });

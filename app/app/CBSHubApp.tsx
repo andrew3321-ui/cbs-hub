@@ -17,13 +17,14 @@ import TaxReformImpact from "./TaxReformImpact";
 import AccountOnboarding from "./AccountOnboarding";
 import ActionSafetyDialog from "./ActionSafetyDialog";
 import SupportCenter from "./SupportCenter";
+import AccountProfileCenter from "./AccountProfileCenter";
 import BrandMark from "../BrandMark";
 import { onboardingActionWarnings } from "../../domain/account-onboarding";
 import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
 import type { PlanFeatureKey, WorkspaceEntitlements } from "../../domain/plan-entitlements";
 import type { SupportModule } from "../../domain/support-tickets";
 
-type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "metrics" | "billing" | "academy" | "support";
+type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "metrics" | "billing" | "academy" | "support" | "profile";
 
 const sectionPlanFeatures: Partial<Record<Section, PlanFeatureKey>> = {
   reviews: "officeCollaborationEnabled",
@@ -400,7 +401,7 @@ function formatCnpj(value: string | null) {
 }
 
 type CBSHubAppProps = {
-  user: { id: number; displayName: string; email: string };
+  user: { id: number; displayName: string; firstName: string | null; username: string; accountCode: string; email: string; contactEmail: string };
   workspace: { id: number; name: string; type: "individual" | "office"; ownerUserId: number; suggestedPlanKey: "unico"; role: "owner" | "admin" | "preparer" | "reviewer" };
   initialEntitlements: WorkspaceEntitlements;
   signOutPath: string;
@@ -491,7 +492,9 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
   const canPrepare = workspace.role !== "reviewer";
   const canAddCompany = canPrepare && entitlements.canCreateCompany;
   const openSupport = () => {
-    if (section !== "support") setSupportContextModule(section as SupportModule);
+    if (section !== "support") {
+      setSupportContextModule(section === "profile" ? "overview" : section as SupportModule);
+    }
     setSection("support");
   };
   const filteredReviews = useMemo(() => reviewQueue.filter((review) => {
@@ -535,6 +538,8 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
     const requestedView = new URLSearchParams(window.location.search).get("view");
     const target = requestedView === "academy"
       ? "academy"
+      : requestedView === "profile"
+        ? "profile"
       : requestedView === "intelligence" && entitlements.fiscalIntelligenceEnabled
         ? "intelligence"
         : null;
@@ -1291,6 +1296,9 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
           <button title="Suporte e feedback" className={section === "support" ? "active" : ""} onClick={openSupport}>
             <span className="nav-icon">?</span>Suporte
           </button>
+          <button title="Minha conta" className={section === "profile" ? "active" : ""} onClick={() => setSection("profile")}>
+            <span className="nav-icon">◉</span>Minha conta
+          </button>
         </nav>
 
         <div className="sidebar-insight">
@@ -1319,7 +1327,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
             <span className="year-chip"><i /> Ano {targetYear} · {rateSource === "accountant" ? "fonte: contador" : "premissa informada"}</span>
             <button className="notification" aria-label="Notificações" onClick={() => workspace.type === "office" && setSection("reviews")}>{workspace.type === "office" && reviewMetrics.mine ? reviewMetrics.mine : "•"}</button>
             <div className="account-summary">
-              <div className="avatar" aria-label={`Perfil de ${user.displayName}`}>{userInitials}</div>
+              <button className="avatar" aria-label={`Abrir perfil de ${user.displayName}`} onClick={() => setSection("profile")}>{userInitials}</button>
               <span><b>{user.displayName.split(" ")[0]}</b><small>{accountRoleLabel} · <a href="/planos" title={entitlements.companyLimit === null ? "Carteira sem limite" : `${entitlements.companyCount} de ${entitlements.companyLimit} empresas`}>Plano {entitlements.name}</a> · <a href={signOutPath}>Sair</a></small></span>
             </div>
           </div>
@@ -1916,6 +1924,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
 
         {section === "metrics" && isPlatformAdmin && <OwnerMetricsCenter />}
         {section === "billing" && isPlatformAdmin && <BillingCenter />}
+        {section === "profile" && <AccountProfileCenter user={user} />}
 
         {section === "support" && <SupportCenter companies={companies} activeCompanyId={activeCompanyId} initialModule={supportContextModule} isPlatformAdmin={isPlatformAdmin} />}
 
