@@ -3,24 +3,10 @@ import { defineConfig } from "vite";
 
 const SITE_CREATOR_PLACEHOLDER_DATABASE_ID =
   "00000000-0000-4000-8000-000000000000";
-const CBSHUB_PRODUCTION_DATABASE_ID =
-  "ce069e8f-9efb-4142-8a76-0721bfb04a1c";
-
 // macOS Seatbelt blocks FSEvents, so Codex previews need polling for HMR.
 const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
-// Cloudflare injects WORKERS_CI=1 only in Workers Builds. Keep the OpenAI
-// preview binding isolated while using the real external D1 during CI deploys.
-const isCloudflareWorkersBuild = process.env.WORKERS_CI === "1";
 
 const localBindingConfig = {
-  ...(isCloudflareWorkersBuild
-    ? {
-        name: "cbs-hub",
-        compatibility_date: "2026-07-25",
-        workers_dev: false,
-        preview_urls: false,
-      }
-    : {}),
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
   version_metadata: {
@@ -29,13 +15,8 @@ const localBindingConfig = {
   d1_databases: [
     {
       binding: "DB",
-      database_name: isCloudflareWorkersBuild
-        ? "margem-clara-production"
-        : "cbshub-local",
-      database_id: isCloudflareWorkersBuild
-        ? CBSHUB_PRODUCTION_DATABASE_ID
-        : SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
-      ...(isCloudflareWorkersBuild ? { migrations_dir: "./drizzle" } : {}),
+      database_name: "cbshub-local",
+      database_id: SITE_CREATOR_PLACEHOLDER_DATABASE_ID,
     },
   ],
   triggers: {

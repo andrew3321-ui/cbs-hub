@@ -47,10 +47,11 @@ test("showcase, cache, gate e painel do proprietário permanecem conectados", as
 });
 
 test("HTML publico e exportado no edge sem consumir CPU do Worker", async () => {
-  const [packageSource, exporter, finalizer, headers] = await Promise.all([
+  const [packageSource, exporter, finalizer, vite, headers] = await Promise.all([
     readFile(new URL("../package.json", import.meta.url), "utf8"),
     readFile(new URL("../scripts/export-public-static.mjs", import.meta.url), "utf8"),
     readFile(new URL("../scripts/finalize-workers-config.mjs", import.meta.url), "utf8"),
+    readFile(new URL("../vite.config.ts", import.meta.url), "utf8"),
     readFile(new URL("../public/_headers", import.meta.url), "utf8"),
   ]);
   const packageJson = JSON.parse(packageSource);
@@ -62,6 +63,8 @@ test("HTML publico e exportado no edge sem consumir CPU do Worker", async () => 
   assert.match(finalizer, /wrangler\.migrations\.jsonc/);
   assert.match(finalizer, /generated\.d1_databases/);
   assert.match(finalizer, /workers_dev = false/);
+  assert.doesNotMatch(vite, /isCloudflareWorkersBuild/);
+  assert.match(vite, /cbshub-local/);
   assert.match(headers, /\/cadastro[\s\S]*X-Robots-Tag: noindex/);
   assert.match(headers, /Content-Security-Policy:/);
 });
