@@ -96,6 +96,59 @@ export function buildSeoIntentPageStructuredData(input: { path: string; title: s
   };
 }
 
+export function buildTaxContentArticleStructuredData(input: {
+  path: string;
+  title: string;
+  description: string;
+  tax: string;
+  reviewedAt: string;
+  version: string;
+  sourceUrls: string[];
+}) {
+  if (!input.path.startsWith("/conteudos/") || !input.title.trim() || !input.description.trim() || input.sourceUrls.length < 2) throw new Error("invalid_tax_content_article");
+  return {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "@id": `${SEO_SITE_URL}${input.path}#article`,
+    mainEntityOfPage: `${SEO_SITE_URL}${input.path}`,
+    url: `${SEO_SITE_URL}${input.path}`,
+    headline: input.title,
+    description: input.description,
+    about: input.tax,
+    inLanguage: "pt-BR",
+    datePublished: "2026-08-01",
+    dateModified: input.reviewedAt,
+    version: input.version,
+    author: { "@type": "Organization", name: "CBSHub — Engenharia de regras fiscais", url: SEO_SITE_URL },
+    publisher: { "@id": seoOrganization["@id"] },
+    citation: input.sourceUrls,
+    isPartOf: { "@id": `${SEO_SITE_URL}/conteudos#collection` },
+  };
+}
+
+export function buildTaxContentCollectionStructuredData(items: Array<{ path: string; title: string }>) {
+  if (items.length < 1 || items.some((item) => !item.path.startsWith("/conteudos/") || !item.title.trim())) throw new Error("invalid_tax_content_collection");
+  return {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    "@id": `${SEO_SITE_URL}/conteudos#collection`,
+    url: `${SEO_SITE_URL}/conteudos`,
+    name: "Central de conteúdo tributário CBSHub",
+    description: "Guias técnicos versionados com fontes oficiais, vigência, fatos mínimos e limites operacionais.",
+    inLanguage: "pt-BR",
+    isPartOf: { "@id": seoWebSite["@id"] },
+    mainEntity: {
+      "@type": "ItemList",
+      itemListElement: items.map((item, index) => ({
+        "@type": "ListItem",
+        position: index + 1,
+        name: item.title,
+        url: `${SEO_SITE_URL}${item.path}`,
+      })),
+    },
+  };
+}
+
 export function serializeStructuredData(value: unknown) {
   return JSON.stringify(value).replace(/</g, "\\u003c");
 }

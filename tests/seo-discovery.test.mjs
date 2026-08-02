@@ -6,6 +6,7 @@ import robots from "../app/robots.ts";
 import sitemap from "../app/sitemap.ts";
 import { buildBreadcrumbStructuredData, buildHomeStructuredData, seoEligibilityPolicy, serializeStructuredData } from "../domain/seo-structured-data.ts";
 import { privateIndexRoutePrefixes, publicIndexableRoutes, routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
+import { taxContentTopics } from "../domain/tax-content.ts";
 
 test("robots libera conteúdo público, protege superfícies privadas e anuncia o sitemap", () => {
   const result = robots();
@@ -30,6 +31,8 @@ test("sitemap contém somente páginas públicas canônicas", () => {
     "https://cbshub.com.br/icms-st-contadores",
     "https://cbshub.com.br/inteligencia-tributaria-escritorios",
     "https://cbshub.com.br/relatorios-fiscais-rastreaveis",
+    "https://cbshub.com.br/conteudos",
+    ...Object.values(taxContentTopics).map((topic) => `https://cbshub.com.br/conteudos/${topic.slug}`),
   ]);
   assert.equal(new Set(entries.map((entry) => entry.url)).size, entries.length);
   assert.ok(entries.every((entry) => entry.url.startsWith("https://cbshub.com.br")));
@@ -48,11 +51,17 @@ test("todas as URLs do sitemap declaram canonical correspondente", () => {
     ["https://cbshub.com.br/icms-st-contadores", "../app/icms-st-contadores/page.tsx"],
     ["https://cbshub.com.br/inteligencia-tributaria-escritorios", "../app/inteligencia-tributaria-escritorios/page.tsx"],
     ["https://cbshub.com.br/relatorios-fiscais-rastreaveis", "../app/relatorios-fiscais-rastreaveis/page.tsx"],
+    ["https://cbshub.com.br/conteudos", "../app/conteudos/page.tsx"],
   ]);
   for (const entry of sitemap()) {
     const pathname = new URL(entry.url).pathname;
+    if (pathname.startsWith("/conteudos/")) {
+      const source = fs.readFileSync(new URL("../app/conteudos/[slug]/page.tsx", import.meta.url), "utf8");
+      assert.match(source, /taxContentMetadata\(topic\)/);
+      continue;
+    }
     const source = fs.readFileSync(new URL(files.get(entry.url), import.meta.url), "utf8");
-    if (pathname.split("/").filter(Boolean).length === 1 && pathname !== "/planos" && pathname !== "/metodologia" && pathname !== "/privacidade" && pathname !== "/termos" && pathname !== "/responsavel") {
+    if (pathname.split("/").filter(Boolean).length === 1 && pathname !== "/planos" && pathname !== "/metodologia" && pathname !== "/privacidade" && pathname !== "/termos" && pathname !== "/responsavel" && pathname !== "/conteudos") {
       assert.match(source, /seoIntentMetadata\(page\)/);
     } else {
       assert.match(source, new RegExp(`canonical:\\s*["']${pathname.replace("/", "\\/")}["']`));

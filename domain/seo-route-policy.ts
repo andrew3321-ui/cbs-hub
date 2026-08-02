@@ -1,4 +1,11 @@
-export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v1.0.0";
+import { taxContentTopics } from "./tax-content.ts";
+
+export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v1.1.0";
+
+const taxContentRoutes = [
+  { path: "/conteudos", changeFrequency: "weekly" as const, priority: 0.9 },
+  ...Object.values(taxContentTopics).map((topic) => ({ path: `/conteudos/${topic.slug}`, changeFrequency: "weekly" as const, priority: 0.85 })),
+];
 
 export const publicIndexableRoutes = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
@@ -12,6 +19,7 @@ export const publicIndexableRoutes = [
   { path: "/icms-st-contadores", changeFrequency: "weekly", priority: 0.9 },
   { path: "/inteligencia-tributaria-escritorios", changeFrequency: "weekly", priority: 0.9 },
   { path: "/relatorios-fiscais-rastreaveis", changeFrequency: "weekly", priority: 0.9 },
+  ...taxContentRoutes,
 ] as const;
 
 export const privateIndexRoutePrefixes = [
