@@ -1,11 +1,13 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { TAX_DETERMINATION_ENGINE_VERSION } from "../../domain/tax-determination";
 import { CALCULATION_ENGINE_VERSION, METHODOLOGY_VERSION } from "../scenario-reliability";
 import BrandMark from "../BrandMark";
 
-export const metadata = {
+export const metadata: Metadata = {
   title: "Metodologia e controles | CBSHub",
   description: "Versões, fórmulas, fontes e limites de uso das análises tributárias do CBSHub.",
+  alternates: { canonical: "/metodologia" },
 };
 
 export default function MethodologyPage() {

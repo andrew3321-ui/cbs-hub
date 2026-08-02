@@ -1,10 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import BrandMark from "./BrandMark";
 import LandingHeroShowcase from "./LandingHeroShowcase";
 import { getCurrentUser } from "./auth";
 import { coverageMetrics } from "../domain/national-tax-coverage";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 export default async function LandingPage() {
   const user = await getCurrentUser();

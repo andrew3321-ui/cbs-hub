@@ -1,9 +1,14 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import BrandMark from "../BrandMark";
 import { getPlatformOperationState, publicLegalSupplierIdentity } from "../platform-controls";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Termos de uso | CBSHub", description: "Condições do teste, da contratação e da operação comercial do CBSHub." };
+export const metadata: Metadata = {
+  title: "Termos de uso | CBSHub",
+  description: "Condições do teste, da contratação e da operação comercial do CBSHub.",
+  alternates: { canonical: "/termos" },
+};
 
 export default async function TermsPage() {
   const operation = await getPlatformOperationState();

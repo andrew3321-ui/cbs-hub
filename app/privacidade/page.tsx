@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { getCurrentUser } from "../auth";
 import BrandMark from "../BrandMark";
 import PrivacyActions from "./PrivacyActions";
@@ -6,7 +7,11 @@ import { privacyContactEmail } from "../platform-controls";
 import { personalDataInventory, PRIVACY_GOVERNANCE_VERSION } from "../../domain/privacy-governance";
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Privacidade e proteção de dados | CBSHub", description: "Como o CBSHub minimiza, protege e permite o controle de dados pessoais." };
+export const metadata: Metadata = {
+  title: "Privacidade e proteção de dados | CBSHub",
+  description: "Como o CBSHub minimiza, protege e permite o controle de dados pessoais.",
+  alternates: { canonical: "/privacidade" },
+};
 
 export default async function PrivacyPage() {
   const user = await getCurrentUser();

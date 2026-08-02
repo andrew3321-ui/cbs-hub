@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { platformIdentity } from "../../domain/platform-identity";
 import { getCurrentUser } from "../auth";
 import PricingClient from "./PricingClient";
@@ -6,6 +7,11 @@ import { getPlatformOperationState } from "../platform-controls";
 import BrandMark from "../BrandMark";
 
 export const dynamic = "force-dynamic";
+export const metadata: Metadata = {
+  title: "Planos | CBSHub",
+  description: "Plano CBSHub para centralizar inteligência fiscal, cálculos, documentos, revisão e rastreabilidade.",
+  alternates: { canonical: "/planos" },
+};
 
 export default async function PricingPage() {
   const user = await getCurrentUser();
