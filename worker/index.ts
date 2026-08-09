@@ -105,6 +105,7 @@ function rateLimitRule(pathname: string, method: string): RateLimitRule | null {
   if (pathname === "/api/account") return { scope: "account-rights", limit: 6, windowSeconds: 60 * 60 };
   if (pathname === "/api/billing/checkout" || pathname === "/api/billing/pix") return { scope: "billing-checkout", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/public/fiscal-preview") return { scope: "public-fiscal-preview", limit: 30, windowSeconds: 10 * 60 };
+  if (pathname === "/api/public/fiscal-intelligence") return { scope: "public-fiscal-intelligence", limit: 18, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/admin/")) return { scope: "platform-admin", limit: 30, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/")) return { scope: "api-write", limit: 120, windowSeconds: 60 };
   return null;

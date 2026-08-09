@@ -3,8 +3,8 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import BrandMark from "../BrandMark";
-import LandingFiscalPreview from "../LandingFiscalPreview";
 import { fiscalShowcaseSummary } from "../fiscal-showcase.generated";
+import FiscalIntelligence from "./FiscalIntelligence";
 
 type GuestSection = "overview" | "intelligence" | "laboratory" | "coverage" | "reports" | "guide";
 type Props = { registerHref: string; loginHref: string };
@@ -34,10 +34,17 @@ function track(eventType: string, reason: string) {
 }
 
 export default function GuestCBSHubApp({ registerHref, loginHref }: Props) {
-  const [section, setSection] = useState<GuestSection>("overview");
+  const [section, setSection] = useState<GuestSection>("intelligence");
   const [question, setQuestion] = useState(analysisExamples[0].question);
-  const [showGuide, setShowGuide] = useState(true);
+  const [showGuide, setShowGuide] = useState(false);
   const [gateReason, setGateReason] = useState("");
+  const [company, setCompany] = useState({
+    name: "Empresa demonstrativa",
+    issuerTaxRegime: "",
+    cnae: "",
+    state: "",
+    monthlyRevenue: "",
+  });
 
   useEffect(() => { track("experiment_view", "guest_app"); }, []);
 
@@ -53,6 +60,10 @@ export default function GuestCBSHubApp({ registerHref, loginHref }: Props) {
   function requireAccount(reason: string) {
     setGateReason(reason);
     track("experiment_gate", reason);
+  }
+
+  function updateCompany(field: keyof typeof company, value: string) {
+    setCompany((current) => ({ ...current, [field]: value }));
   }
 
   return <main className="app-shell guest-app-shell">
@@ -71,9 +82,9 @@ export default function GuestCBSHubApp({ registerHref, loginHref }: Props) {
 
     <section className="workspace guest-workspace">
       <header className="topbar guest-topbar">
-        <div className="guest-topbar-mode"><span>AMBIENTE DE TESTE</span><small>sem cadastro</small></div>
+        <div className="guest-topbar-mode"><span>MODO VISITANTE</span><small>análise sem cadastro</small></div>
         <Link className="guest-topbar-brand" href="/" aria-label="CBSHub — página inicial"><BrandMark /><b><strong>CBS</strong>Hub</b></Link>
-        <nav aria-label="Entrar ou criar conta"><Link href={loginHref}>Já tenho conta</Link><Link className="guest-create-account" href={registerHref} onClick={() => track("experiment_signup_click", "topbar")}>Criar acesso <span>→</span></Link></nav>
+        <nav aria-label="Entrar ou criar conta"><Link href={loginHref}>Entrar</Link><Link className="guest-create-account" href={registerHref} onClick={() => track("experiment_signup_click", "topbar")}>Criar conta <span>→</span></Link></nav>
       </header>
 
       {section === "overview" && <div className="page-content guest-overview-page">
@@ -89,10 +100,18 @@ export default function GuestCBSHubApp({ registerHref, loginHref }: Props) {
         <section className="guest-proof-strip"><span><b>{fiscalShowcaseSummary.moduleCount}</b> módulos controlados</span><span><b>{fiscalShowcaseSummary.calculatedMemories.toLocaleString("pt-BR")}</b> memórias reproduzíveis</span><span><b>5 dias</b> de acesso completo</span><span><b>Sem cartão</b> para começar</span></section>
       </div>}
 
-      {section === "intelligence" && <div className="page-content guest-intelligence-page">
-        <div className="page-heading"><div><p className="kicker">INTELIGÊNCIA FISCAL · EXPERIÊNCIA REAL</p><h1>Descreva a operação em linguagem comum.</h1><p>A pergunta passa pelo mesmo motor público determinístico usado na demonstração da plataforma.</p></div><span className="guest-live-badge"><i /> MOTOR ATIVO</span></div>
-        <LandingFiscalPreview key={question} authenticated={false} surface="workspace" operationLimit={3} initialQuestion={question} />
-        <section className="guest-after-preview"><div><span>AO CRIAR SUA CONTA</span><b>Confirme os fatos e avance até a memória completa.</b></div><button onClick={() => requireAccount("save_analysis")}>Salvar esta análise →</button></section>
+      {section === "intelligence" && <div className="guest-intelligence-page">
+        <section className="guest-company-builder">
+          <header><div><span>01 · CONTEXTO DA EMPRESA</span><h2>Comece pela empresa que você precisa analisar</h2><p>Use dados reais ou demonstrativos. A ficha fica apenas no navegador enquanto você estiver deslogado.</p></div><i>Não armazenado</i></header>
+          <div>
+            <label>Nome ou apelido da empresa<input value={company.name} maxLength={80} onChange={(event) => updateCompany("name", event.target.value)} placeholder="Ex.: Auto Peças Horizonte" /></label>
+            <label>Regime tributário<select value={company.issuerTaxRegime} onChange={(event) => updateCompany("issuerTaxRegime", event.target.value)}><option value="">A confirmar</option><option value="simples">Simples Nacional</option><option value="normal">Regime normal</option></select></label>
+            <label>CNAE principal<input value={company.cnae} maxLength={16} onChange={(event) => updateCompany("cnae", event.target.value)} placeholder="Ex.: 4530-7/03" /></label>
+            <label>UF da empresa<select value={company.state} onChange={(event) => updateCompany("state", event.target.value)}><option value="">Selecione</option>{["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"].map((state) => <option key={state}>{state}</option>)}</select></label>
+            <label>Receita mensal aproximada<input value={company.monthlyRevenue} maxLength={24} inputMode="decimal" onChange={(event) => updateCompany("monthlyRevenue", event.target.value)} placeholder="Ex.: R$ 120.000" /></label>
+          </div>
+        </section>
+        <FiscalIntelligence key={question} guestMode operationLimit={3} companyContext={company} onAccountRequired={requireAccount} />
       </div>}
 
       {section === "laboratory" && <div className="page-content guest-lab-page">

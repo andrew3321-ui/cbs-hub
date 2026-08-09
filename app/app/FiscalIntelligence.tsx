@@ -3,6 +3,7 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import FiscalDossierWorkbench from "./FiscalDossierWorkbench";
 import FiscalHomologationCenter from "./FiscalHomologationCenter";
+import GuestFiscalMemory from "./GuestFiscalMemory";
 
 type KnowledgeSource = {
   code: string;
@@ -155,6 +156,20 @@ const defaultQuestion = "Qual a alíquota de ICMS para autopeças de SP para MG?
 
 const sourceLabels = { question: "extraído da pergunta", manual: "confirmado manualmente", default: "definido pelo sistema", unknown: "pendente" } as const;
 const stateOptions = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
+const PUBLIC_INTELLIGENCE_STORAGE_KEY = "cbshub_public_full_analyses";
+
+type FiscalIntelligenceProps = {
+  guestMode?: boolean;
+  operationLimit?: number;
+  onAccountRequired?: (reason: string) => void;
+  companyContext?: {
+    name: string;
+    issuerTaxRegime: string;
+    cnae: string;
+    state: string;
+    monthlyRevenue: string;
+  };
+};
 
 function dateLabel(value: string) {
   return new Date(`${value}T12:00:00`).toLocaleDateString("pt-BR");
@@ -164,7 +179,7 @@ function buildFacts(form: FactForm) {
   return Object.fromEntries(Object.entries(form).filter(([, value]) => value.trim().length > 0));
 }
 
-export default function FiscalIntelligence() {
+export default function FiscalIntelligence({ guestMode = false, operationLimit = 3, onAccountRequired, companyContext }: FiscalIntelligenceProps = {}) {
   const [question, setQuestion] = useState(defaultQuestion);
   const [form, setForm] = useState<FactForm>(emptyFacts);
   const [knowledge, setKnowledge] = useState<KnowledgeMeta | null>(null);
@@ -177,13 +192,16 @@ export default function FiscalIntelligence() {
   const [catalogLoading, setCatalogLoading] = useState(true);
   const [error, setError] = useState("");
   const [catalogRetry, setCatalogRetry] = useState(0);
+  const [operationsUsed, setOperationsUsed] = useState(0);
+  const [limitReached, setLimitReached] = useState(false);
   const searchSequence = useRef(0);
   const searchController = useRef<AbortController | null>(null);
   const deepLinkLoaded = useRef(false);
+  const endpoint = guestMode ? "/api/public/fiscal-intelligence" : "/api/fiscal-intelligence";
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/fiscal-intelligence")
+    fetch(endpoint)
       .then(async (response) => {
         const data = await response.json() as { error?: string; knowledge?: KnowledgeMeta; sources?: KnowledgeSource[]; examples?: string[]; topics?: TopicMeta[]; observability?: FiscalObservability | null };
         if (!response.ok || !data.knowledge) throw new Error(data.error ?? "Base indisponível");
@@ -200,7 +218,31 @@ export default function FiscalIntelligence() {
       .catch((cause: Error) => !cancelled && setError(cause.message))
       .finally(() => !cancelled && setCatalogLoading(false));
     return () => { cancelled = true; };
-  }, [catalogRetry]);
+  }, [catalogRetry, endpoint]);
+
+  useEffect(() => {
+    if (!guestMode) return;
+    const frame = window.requestAnimationFrame(() => {
+      const stored = Number(window.sessionStorage.getItem(PUBLIC_INTELLIGENCE_STORAGE_KEY) ?? "0");
+      if (!Number.isFinite(stored) || stored <= 0) return;
+      const restored = Math.min(stored, operationLimit);
+      setOperationsUsed(restored);
+      setLimitReached(restored >= operationLimit);
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [guestMode, operationLimit]);
+
+  useEffect(() => {
+    if (!guestMode || !companyContext) return;
+    const frame = window.requestAnimationFrame(() => {
+      setForm((current) => ({
+        ...current,
+        issuerTaxRegime: companyContext.issuerTaxRegime || current.issuerTaxRegime,
+        cnae: companyContext.cnae || current.cnae,
+      }));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [companyContext, guestMode]);
 
   useEffect(() => () => searchController.current?.abort(), []);
 
@@ -225,6 +267,11 @@ export default function FiscalIntelligence() {
   async function search(nextQuestion = question, nextForm = form) {
     const normalizedQuestion = nextQuestion.trim();
     if (normalizedQuestion.length < 5) return;
+    if (guestMode && operationsUsed >= operationLimit) {
+      setLimitReached(true);
+      onAccountRequired?.("analysis_limit");
+      return;
+    }
     const sequence = searchSequence.current + 1;
     searchSequence.current = sequence;
     searchController.current?.abort();
@@ -234,7 +281,7 @@ export default function FiscalIntelligence() {
     setError("");
     setResult(null);
     try {
-      const response = await fetch("/api/fiscal-intelligence", {
+      const response = await fetch(endpoint, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ question: normalizedQuestion, facts: buildFacts(nextForm) }),
@@ -246,6 +293,14 @@ export default function FiscalIntelligence() {
       if (sequence !== searchSequence.current) return;
       setResult(data.result);
       setKnowledge((current) => current && data.knowledge ? { ...current, ...data.knowledge } : current);
+      if (guestMode) {
+        setOperationsUsed((current) => {
+          const next = Math.min(current + 1, operationLimit);
+          window.sessionStorage.setItem(PUBLIC_INTELLIGENCE_STORAGE_KEY, String(next));
+          if (next >= operationLimit) setLimitReached(true);
+          return next;
+        });
+      }
     } catch (cause) {
       if (controller.signal.aborted || sequence !== searchSequence.current) return;
       setError(cause instanceof Error ? cause.message : "Não foi possível concluir a pesquisa.");
@@ -306,15 +361,24 @@ export default function FiscalIntelligence() {
   const isSpecializedAutoParts = result?.topicCode === "ICMS-SP-MG-AUTO-PARTS";
 
   return (
-    <div className="page-content fiscal-intelligence-page">
+    <div className={`page-content fiscal-intelligence-page ${guestMode ? "guest-full-intelligence" : ""}`}>
       <div className="page-heading intelligence-heading">
         <div>
-          <p className="kicker">V84 · INTELIGÊNCIA FISCAL DETERMINÍSTICA</p>
-          <h1>Pergunte em linguagem comum. Confira a trilha jurídica.</h1>
-          <p>Sem IA generativa: a resposta nasce de fatos estruturados, regras manuais e fontes oficiais versionadas.</p>
+          <p className="kicker">{guestMode ? "ANÁLISE EMPRESARIAL · SEM CADASTRO" : "V84 · INTELIGÊNCIA FISCAL DETERMINÍSTICA"}</p>
+          <h1>{guestMode ? "Analise uma operação real antes de criar sua conta." : "Pergunte em linguagem comum. Confira a trilha jurídica."}</h1>
+          <p>{guestMode ? "Informe a empresa e os fatos da operação. O motor estrutura a resposta, expõe fontes, bloqueios e, quando suportado, executa a memória de cálculo." : "Sem IA generativa: a resposta nasce de fatos estruturados, regras manuais e fontes oficiais versionadas."}</p>
         </div>
-        <span className="manual-engine-badge"><i /> MOTOR MANUAL · 8 MÓDULOS</span>
+        <span className="manual-engine-badge"><i /> {guestMode ? `${Math.max(0, operationLimit - operationsUsed)} ANÁLISES LIVRES` : "MOTOR MANUAL · 8 MÓDULOS"}</span>
       </div>
+
+      {guestMode && companyContext && <section className="guest-company-context" aria-label="Empresa em análise">
+        <div><span>EMPRESA EM ANÁLISE</span><strong>{companyContext.name || "Empresa demonstrativa"}</strong></div>
+        <div><span>REGIME</span><strong>{companyContext.issuerTaxRegime === "simples" ? "Simples Nacional" : companyContext.issuerTaxRegime === "normal" ? "Regime normal" : "A confirmar"}</strong></div>
+        <div><span>CNAE</span><strong>{companyContext.cnae || "A confirmar"}</strong></div>
+        <div><span>UF</span><strong>{companyContext.state || "A confirmar"}</strong></div>
+        <div><span>RECEITA MENSAL</span><strong>{companyContext.monthlyRevenue || "Não informada"}</strong></div>
+        <small>Nenhum dado desta ficha é persistido enquanto você estiver deslogado.</small>
+      </section>}
 
       <section className="intelligence-scope-strip" aria-label="Cobertura atual da inteligência fiscal">
         <div><span>COBERTURA ATUAL</span><strong>Brasil · {knowledge?.topicCount ?? 8} módulos + especialização SP → MG</strong></div>
@@ -323,7 +387,7 @@ export default function FiscalIntelligence() {
         <div><span>GARANTIA</span><strong>Condicional · revisão humana</strong></div>
       </section>
 
-      {observability && <section className="intelligence-observability" aria-label="Métricas técnicas da pesquisa fiscal nos últimos 30 dias">
+      {!guestMode && observability && <section className="intelligence-observability" aria-label="Métricas técnicas da pesquisa fiscal nos últimos 30 dias">
         <div><span>CONSULTAS MEDIDAS</span><strong>{observability.measuredQueries}</strong><small>últimos {observability.windowDays} dias</small></div>
         <div><span>TEMPO MÉDIO</span><strong>{observability.averageDurationMs} ms</strong><small>máximo {observability.maximumDurationMs} ms</small></div>
         <div><span>SEM COBERTURA</span><strong>{observability.withoutCoverage}</strong><small>não suportadas</small></div>
@@ -342,7 +406,7 @@ export default function FiscalIntelligence() {
         <label htmlFor="fiscal-question">Descreva a operação e a sua dúvida</label>
         <div className="intelligence-search-row">
           <textarea id="fiscal-question" maxLength={500} rows={2} value={question} onChange={(event) => changeQuestion(event.target.value)} placeholder="Ex.: qual a alíquota de ICMS para autopeças de SP para MG?" />
-          <button className="primary-button" disabled={loading || catalogLoading || question.trim().length < 5}>{loading ? "Analisando…" : "Pesquisar regras"}<span>→</span></button>
+          <button className="primary-button" disabled={loading || catalogLoading || limitReached || question.trim().length < 5}>{loading ? "Analisando…" : limitReached ? "Crie a conta para continuar" : "Analisar empresa"}<span>→</span></button>
         </div>
         <div className="intelligence-examples"><span>TESTAR PERGUNTA:</span>{examples.map((example) => <button type="button" onClick={() => runExample(example)} key={example}>{example}</button>)}<button className="complete-case-button" type="button" onClick={runCompleteReferenceCase}>Preencher caso demonstrativo · 100% dos fatos</button></div>
       </form>
@@ -365,7 +429,7 @@ export default function FiscalIntelligence() {
             <div className="result-progress"><i style={{ width: `${result.completeness.percentage}%` }} /></div>
           </section>
 
-          {isSpecializedAutoParts ? <FiscalDossierWorkbench question={question} facts={buildFacts(form)} completeness={result.completeness.percentage} /> : <section className="v24-broad-safety-note"><b>Este módulo organiza a revisão; não fecha a apuração.</b><span>As faixas, alíquotas nominais e eventos exibidos precisam ser reconciliados com cadastro, documento fiscal, período e legislação local antes de qualquer entrega ao cliente.</span></section>}
+          {isSpecializedAutoParts ? guestMode ? <GuestFiscalMemory question={question} facts={buildFacts(form)} onAccountRequired={(reason) => onAccountRequired?.(reason)} /> : <FiscalDossierWorkbench question={question} facts={buildFacts(form)} completeness={result.completeness.percentage} /> : <section className="v24-broad-safety-note"><b>Este módulo organiza a revisão; não fecha a apuração.</b><span>As faixas, alíquotas nominais e eventos exibidos precisam ser reconciliados com cadastro, documento fiscal, período e legislação local antes de qualquer entrega ao cliente.</span></section>}
 
           {result.scenarioBranches.length > 0 && <section className="panel intelligence-scenarios"><div className="panel-heading"><div><span className="eyebrow">MAPA COMPLETO DA PERGUNTA</span><h3>Qual número pode aparecer — e em qual condição</h3><p>A pergunta isolada não define uma única carga. Estes cenários são referências normativas; somente os achados abaixo foram aplicados aos fatos confirmados.</p></div><span>{result.scenarioBranches.length} cenários</span></div><div className="scenario-grid">{result.scenarioBranches.map((scenario) => <article className={scenario.status} key={scenario.code}><small>{scenario.label}</small><strong>{scenario.value}</strong><b>Quando</b><p>{scenario.condition}</p><b>Efeito</b><p>{scenario.consequence}</p><code>{scenario.code}</code></article>)}</div></section>}
 
@@ -438,7 +502,12 @@ export default function FiscalIntelligence() {
         </>
       )}
 
-      {!catalogLoading && <FiscalHomologationCenter candidate={result ? { question, facts: buildFacts(form), result } : null} />}
+      {!catalogLoading && !guestMode && <FiscalHomologationCenter candidate={result ? { question, facts: buildFacts(form), result } : null} />}
+
+      {guestMode && limitReached && <section className="guest-full-analysis-gate">
+        <div><span>VOCÊ CONCLUIU A EXPERIÊNCIA PÚBLICA</span><h2>Preserve esta empresa e continue sem refazer o trabalho.</h2><p>Crie sua conta para salvar o contexto, versionar a memória, importar documentos e emitir o relatório rastreável.</p></div>
+        <button type="button" onClick={() => onAccountRequired?.("analysis_limit")}>Criar conta e continuar <b>→</b></button>
+      </section>}
 
       {!catalogLoading && catalogSources.length > 0 && <section className="knowledge-catalog-note"><span>BASE CONTROLADA</span><p>{knowledge?.topicCount ?? 0} módulos · {knowledge?.ruleCount ?? 0} regras manuais · {knowledge?.classificationCount ?? 0} combinações NCM/CEST · {catalogSources.length} fontes oficiais. Cada resposta preserva base, versão, trilha e bloqueios.</p></section>}
     </div>
