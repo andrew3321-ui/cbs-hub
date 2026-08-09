@@ -81,7 +81,7 @@ export async function POST(request: Request) {
         )).limit(1);
       if (!row) return registrationError(request, metricIdentity, 410, "INVITE_EXPIRED", "Este convite expirou ou já foi utilizado.");
       if (normalizeEmail(row.email) !== email) return registrationError(request, metricIdentity, 400, "INVITE_EMAIL_MISMATCH", `Use o e-mail convidado: ${row.email}.`);
-      const entitlements = await getWorkspaceEntitlements({ id: row.workspaceId, name: row.workspaceName, type: "office", ownerUserId: row.ownerUserId, suggestedPlanKey: "unico", role: "owner" });
+      const entitlements = await getWorkspaceEntitlements({ id: row.workspaceId, name: row.workspaceName, type: "office", ownerUserId: row.ownerUserId, suggestedPlanKey: "escritorio", role: "owner" });
       if (!entitlements.officeCollaborationEnabled) {
         await recordRegistrationMetric(request, metricIdentity, "signup_failure", "office_plan_required");
         return officePlanRequiredResponse(entitlements);
@@ -100,7 +100,7 @@ export async function POST(request: Request) {
     const recoveryKey = createRecoveryKey();
     const recoveryKeyHash = await hashRecoveryKey(recoveryKey);
     const accountType = invitation ? "office" : "individual";
-    const suggestedPlanKey = "unico";
+    const suggestedPlanKey = invitation ? "escritorio" : "pro";
     const [user] = await db.insert(users).values({ name, firstName: invitation ? name.split(/\s+/)[0] : null, username, accountCode, email, passwordHash: passwordData.hash, passwordSalt: passwordData.salt, passwordIterations: passwordData.iterations, recoveryKeyHash, accountType, suggestedPlanKey }).returning({ id: users.id, name: users.name, firstName: users.firstName, username: users.username, accountCode: users.accountCode, email: users.email });
     createdUserId = user.id;
 

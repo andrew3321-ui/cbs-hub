@@ -5,12 +5,12 @@ import { withApiTelemetry } from "../../../api-infrastructure";
 async function collect(request: Request) {
   const body = await request.json().catch(() => ({})) as Record<string, unknown>;
   const acceptedSignupEvents = new Set(["signup_start", "signup_submit", "signup_client_error"]);
-  const acceptedExperimentEvents = new Set(["experiment_start", "experiment_result", "experiment_gate", "experiment_signup_click"]);
+  const acceptedExperimentEvents = new Set(["experiment_view", "experiment_start", "experiment_result", "experiment_gate", "experiment_signup_click"]);
   const eventType = body.eventType === "app_active" ? "app_active"
     : body.eventType === "page_view" ? "page_view"
       : body.eventType === "web_vital" ? "web_vital"
       : body.eventType === "seo_cta" ? "seo_cta"
-        : typeof body.eventType === "string" && acceptedExperimentEvents.has(body.eventType) ? body.eventType as "experiment_start" | "experiment_result" | "experiment_gate" | "experiment_signup_click"
+        : typeof body.eventType === "string" && acceptedExperimentEvents.has(body.eventType) ? body.eventType as "experiment_view" | "experiment_start" | "experiment_result" | "experiment_gate" | "experiment_signup_click"
         : typeof body.eventType === "string" && acceptedSignupEvents.has(body.eventType) ? body.eventType as "signup_start" | "signup_submit" | "signup_client_error"
           : null;
   if (!eventType) return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });

@@ -40,8 +40,10 @@ export async function POST(request: Request) {
     const payload = await request.json() as Record<string, unknown>;
     if (!isPurchasablePlanKey(payload.planKey)) return Response.json({ error: "Plano indisponível para novas contratações." }, { status: 400 });
     const plan = billingPlans[payload.planKey];
-    const addonBlocks = normalizeCompanyAddonBlocks(payload.addonBlocks);
-    if (addonBlocks === null) return Response.json({ error: "Capacidade adicional inválida." }, { status: 400 });
+    if (workspace.type === "office" && plan.key !== "escritorio") return Response.json({ error: "O workspace de escritório exige o plano Escritório para preservar equipe, papéis e revisões." }, { status: 409 });
+    const requestedAddonBlocks = normalizeCompanyAddonBlocks(payload.addonBlocks);
+    if (requestedAddonBlocks === null) return Response.json({ error: "Capacidade adicional inválida." }, { status: 400 });
+    const addonBlocks = plan.capacityAddonsEnabled ? requestedAddonBlocks : 0;
     const amountCents = billingAmountCents(plan.key, addonBlocks);
     const db = getDb();
     stage = "ACCOUNT_LOOKUP";

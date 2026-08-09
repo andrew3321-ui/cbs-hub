@@ -402,7 +402,7 @@ function formatCnpj(value: string | null) {
 
 type CBSHubAppProps = {
   user: { id: number; displayName: string; firstName: string | null; username: string; accountCode: string; email: string; contactEmail: string };
-  workspace: { id: number; name: string; type: "individual" | "office"; ownerUserId: number; suggestedPlanKey: "unico"; role: "owner" | "admin" | "preparer" | "reviewer" };
+  workspace: { id: number; name: string; type: "individual" | "office"; ownerUserId: number; suggestedPlanKey: "pro" | "escritorio" | "unico"; role: "owner" | "admin" | "preparer" | "reviewer" };
   initialEntitlements: WorkspaceEntitlements;
   signOutPath: string;
   isPlatformAdmin: boolean;
@@ -1728,7 +1728,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
             {message && <div className="toast" role="status">{message}</div>}
             <section className="mode-comparison-grid">
               <article className="current"><span>MODO ATUAL</span><h2>Contador independente</h2><p>Uma conta concentra preparação e revisão responsável. O relatório não chama isso de revisão independente.</p><ul><li>Carteira e versões privadas</li><li>Assinatura do responsável</li><li>Plano CBSHub sugerido</li></ul></article>
-              <article><span>EVOLUIR PARA</span><h2>Escritório contábil</h2><p>Ative equipe, convide profissionais e passe a exigir outra pessoa na aprovação.</p>{entitlements.officeCollaborationEnabled ? <form onSubmit={(event) => { event.preventDefault(); void upgradeToOffice(); }}><label>Nome do escritório<input required minLength={2} maxLength={120} value={officeUpgradeName} onChange={(event) => setOfficeUpgradeName(event.target.value)} placeholder="Ex.: Horizonte Contabilidade" /></label><button className="primary-button" disabled={upgradingWorkspace || officeUpgradeName.trim().length < 2}>{upgradingWorkspace ? "Ativando…" : "Ativar modo escritório"}</button></form> : <a className="plan-upgrade-link" href="/planos">Assinar plano completo →</a>}<small>A carteira e o histórico atuais serão preservados. O modo colaborativo é incluído no plano CBSHub.</small></article>
+              <article><span>EVOLUIR PARA</span><h2>Escritório contábil</h2><p>Ative equipe, convide profissionais sem limite de pessoas e passe a exigir outra pessoa na aprovação.</p>{entitlements.officeCollaborationEnabled ? <form onSubmit={(event) => { event.preventDefault(); void upgradeToOffice(); }}><label>Nome do escritório<input required minLength={2} maxLength={120} value={officeUpgradeName} onChange={(event) => setOfficeUpgradeName(event.target.value)} placeholder="Ex.: Horizonte Contabilidade" /></label><button className="primary-button" disabled={upgradingWorkspace || officeUpgradeName.trim().length < 2}>{upgradingWorkspace ? "Ativando…" : "Ativar modo escritório"}</button></form> : <a className="plan-upgrade-link" href="/planos">Conhecer o plano Escritório →</a>}<small>A carteira e o histórico atuais serão preservados. Pessoas, papéis e convites são ilimitados no plano Escritório.</small></article>
             </section>
           </div>
         )}
@@ -1756,7 +1756,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
 
             <div className="team-layout">
               <section className="panel team-members-panel">
-                <div className="panel-heading"><div><span className="eyebrow">PESSOAS E PAPÉIS</span><h3>Membros do escritório</h3></div><span>{teamLoading ? "Atualizando…" : `${teamMembers.length} ativos`}</span></div>
+                <div className="panel-heading"><div><span className="eyebrow">PESSOAS E PAPÉIS · SEM LIMITE POR USUÁRIO</span><h3>Membros do escritório</h3></div><span>{teamLoading ? "Atualizando…" : `${teamMembers.length} ativos · ilimitado`}</span></div>
                 <div className="team-member-list">
                   {teamMembers.map((member) => <article key={member.id}><span className="team-avatar">{member.name.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase()}</span><p><b>{member.name}{member.userId === user.id ? " · você" : ""}</b><small>{member.email}</small></p>{canManageTeam && member.role !== "owner" && member.userId !== user.id ? <div className="team-member-actions"><select aria-label={`Papel de ${member.name}`} value={member.role} onChange={(event) => void changeTeamMemberRole(member, event.target.value as TeamInvitation["role"])}><option value="reviewer">Revisor</option><option value="preparer">Preparador</option><option value="admin">Administrador</option></select><button type="button" onClick={() => void removeTeamMember(member)}>Remover</button></div> : <em className={`role-${member.role}`}>{member.role === "owner" ? "Proprietário" : member.role === "admin" ? "Administrador" : member.role === "reviewer" ? "Revisor" : "Preparador"}</em>}</article>)}
                   {!teamMembers.length && !teamLoading && <div className="empty-state"><span>◎</span><b>Carregando estrutura da equipe</b><p>Atualize a página se os membros não aparecerem.</p></div>}

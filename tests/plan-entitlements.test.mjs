@@ -5,7 +5,7 @@ import { applyPlanUsage, planDefinitions, resolveEffectivePlan, resolveWorkspace
 
 const now = Date.parse("2026-07-18T12:00:00.000Z");
 
-test("the free entry and single paid plan expose enforceable benefits", () => {
+test("the free entry and both paid modes expose enforceable benefits", () => {
   assert.equal(planDefinitions.beta.companyLimit, 1);
   assert.equal(planDefinitions.beta.fiscalIntelligenceEnabled, false);
   assert.equal(planDefinitions.beta.taxDeterminationEnabled, false);
@@ -14,6 +14,12 @@ test("the free entry and single paid plan expose enforceable benefits", () => {
   assert.equal(planDefinitions.unico.fiscalIntelligenceEnabled, true);
   assert.equal(planDefinitions.unico.taxDeterminationEnabled, true);
   assert.equal(planDefinitions.unico.officeCollaborationEnabled, true);
+  assert.equal(planDefinitions.pro.companyLimit, 10);
+  assert.equal(planDefinitions.pro.officeCollaborationEnabled, false);
+  assert.equal(planDefinitions.pro.workspaceMemberLimit, 1);
+  assert.equal(planDefinitions.escritorio.companyLimit, 50);
+  assert.equal(planDefinitions.escritorio.officeCollaborationEnabled, true);
+  assert.equal(planDefinitions.escritorio.workspaceMemberLimit, null);
   assert.equal(planDefinitions.trial.companyLimit, 10);
   assert.equal(planDefinitions.trial.fiscalIntelligenceEnabled, true);
   assert.equal(planDefinitions.trial.officeCollaborationEnabled, true);
@@ -105,6 +111,7 @@ test("the application displays the active plan, usage and limit state", () => {
   assert.match(app, /sectionPlanFeatures/);
   assert.match(pricing, /Até 10 empresas durante o teste/);
   assert.match(pricing, /Inteligência e laboratório fiscal/);
-  assert.match(pricing, /30 empresas incluídas/);
-  assert.match(pricing, /Cada bloco adiciona/);
+  assert.match(pricing, /Até 10 empresas/);
+  assert.match(pricing, /Até 50 empresas/);
+  assert.match(pricing, /Pessoas e convites ilimitados/);
 });

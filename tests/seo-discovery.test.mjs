@@ -86,8 +86,8 @@ test("grafo inicial declara entidades verificáveis sem inventar avaliação", (
   assert.equal(result["@context"], "https://schema.org");
   assert.deepEqual(result["@graph"].map((entry) => entry["@type"]), ["Organization", "WebSite", ["SoftwareApplication", "WebApplication"]]);
   const application = result["@graph"][2];
-  assert.equal(application.offers.price, "450.00");
-  assert.equal(application.offers.priceCurrency, "BRL");
+  assert.deepEqual(application.offers.map((offer) => offer.price), ["59.00", "149.00"]);
+  assert.ok(application.offers.every((offer) => offer.priceCurrency === "BRL"));
   assert.ok(!("aggregateRating" in application));
   assert.ok(!("review" in application));
   assert.doesNotMatch(JSON.stringify(result), /CPF|CNPJ|responsibleName/);

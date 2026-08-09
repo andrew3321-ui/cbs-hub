@@ -33,20 +33,19 @@ test("credenciais de cobrança permanecem somente no servidor", async () => {
   assert.doesNotMatch(deployment, /MERCADO_PAGO|ACCESS_TOKEN|WEBHOOK_SECRET/);
 });
 
-test("plano único e capacidade adicional usam uma fonte comercial central", async () => {
+test("modos independente e escritório usam uma fonte comercial central", async () => {
   const [plans, pricing, center] = await Promise.all([
     readFile(new URL("domain/billing-plans.ts", root), "utf8"),
     readFile(new URL("app/planos/PricingClient.tsx", root), "utf8"),
     readFile(new URL("app/app/BillingCenter.tsx", root), "utf8"),
   ]);
-  assert.match(plans, /billingPricingMode = "single_plan_capacity"/);
-  assert.match(plans, /priceCents: 45_000/);
-  assert.match(plans, /BILLING_BASE_COMPANY_LIMIT = 30/);
-  assert.match(plans, /BILLING_ADDON_COMPANY_BLOCK_PRICE_CENTS = 10_000/);
-  assert.equal((plans.match(/priceCents: 100/g) ?? []).length, 2);
-  assert.match(pricing, /PLANO ÚNICO COM CAPACIDADE AJUSTÁVEL/);
-  assert.match(pricing, /30 empresas incluídas/);
-  assert.match(pricing, /Total mensal/);
+  assert.match(plans, /billingPricingMode = "individual_office"/);
+  assert.match(plans, /priceCents: 5_900/);
+  assert.match(plans, /priceCents: 14_900/);
+  assert.match(plans, /PurchasablePaidPlanKey = "pro" \| "escritorio"/);
+  assert.match(pricing, /DOIS MODOS · A MESMA BASE FISCAL COMPLETA/);
+  assert.match(pricing, /Pessoas e convites ilimitados/);
+  assert.doesNotMatch(pricing, /Total mensal/);
   assert.match(center, /CONCILIAÇÃO DE ASSINATURAS/);
   assert.doesNotMatch(center, /Chave interna de assinatura ausente/);
 });

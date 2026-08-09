@@ -228,6 +228,15 @@ const worker = {
     if (Math.random() < 0.01) ctx.waitUntil(runSecurityRetentionCleanup(env).catch(() => undefined));
 
     try {
+      if (request.method === "GET" && url.pathname === "/experimentar") {
+        const destination = new URL("/app", url);
+        destination.searchParams.set("guest", "1");
+        for (const key of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]) {
+          const value = url.searchParams.get(key)?.trim();
+          if (value) destination.searchParams.set(key, value.slice(0, 200));
+        }
+        return finalize(Response.redirect(destination.toString(), 307));
+      }
       if (url.pathname === "/_vinext/image") {
         const allowedWidths = [...DEFAULT_DEVICE_SIZES, ...DEFAULT_IMAGE_SIZES];
         const response = await handleImageOptimization(request, {

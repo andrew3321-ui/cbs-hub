@@ -13,7 +13,6 @@ const persistenceDirectory = path.join(root, "work", `static-export-${process.pi
 const staticRoutes = [
   ...publicIndexableRoutes.map((route) => route.path),
   "/cadastro",
-  "/experimentar",
   "/entrar",
   "/recuperar-senha",
 ];

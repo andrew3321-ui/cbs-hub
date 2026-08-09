@@ -38,14 +38,15 @@ export const seoSoftwareApplication = {
   inLanguage: "pt-BR",
   description: "Plataforma tributária que conecta pesquisa de normas, fatos da operação, cálculos determinísticos, revisão e dossiês fiscais versionados em um só fluxo.",
   publisher: { "@id": seoOrganization["@id"] },
-  offers: {
+  offers: [billingPlans.pro, billingPlans.escritorio].map((plan) => ({
     "@type": "Offer",
+    name: plan.name,
     url: `${SEO_SITE_URL}/planos`,
-    price: (billingPlans.unico.priceCents / 100).toFixed(2),
+    price: (plan.priceCents / 100).toFixed(2),
     priceCurrency: "BRL",
     category: "subscription",
     availability: "https://schema.org/InStock",
-  },
+  })),
   featureList: [
     "Pesquisa de normas fiscais",
     "Estruturação dos fatos da operação",

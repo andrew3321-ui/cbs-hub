@@ -50,6 +50,7 @@ export type PlanDefinition = {
   taxDeterminationEnabled: boolean;
   professionalGovernanceEnabled: boolean;
   officeCollaborationEnabled: boolean;
+  workspaceMemberLimit: number | null;
   prioritySupport: boolean;
 };
 
@@ -99,6 +100,7 @@ export const planDefinitions: Record<EffectivePlanKey, PlanDefinition> = {
     ...coreFeatures,
     ...advancedFiscalFeatures,
     officeCollaborationEnabled: true,
+    workspaceMemberLimit: null,
     prioritySupport: true,
   },
   global_beta: {
@@ -109,6 +111,7 @@ export const planDefinitions: Record<EffectivePlanKey, PlanDefinition> = {
     ...coreFeatures,
     ...advancedFiscalFeatures,
     officeCollaborationEnabled: true,
+    workspaceMemberLimit: null,
     prioritySupport: true,
   },
   trial: {
@@ -119,6 +122,7 @@ export const planDefinitions: Record<EffectivePlanKey, PlanDefinition> = {
     ...coreFeatures,
     ...advancedFiscalFeatures,
     officeCollaborationEnabled: true,
+    workspaceMemberLimit: null,
     prioritySupport: false,
   },
   beta: {
@@ -136,6 +140,7 @@ export const planDefinitions: Record<EffectivePlanKey, PlanDefinition> = {
     taxDeterminationEnabled: false,
     professionalGovernanceEnabled: false,
     officeCollaborationEnabled: false,
+    workspaceMemberLimit: 1,
     prioritySupport: false,
   },
   unico: {
@@ -146,6 +151,7 @@ export const planDefinitions: Record<EffectivePlanKey, PlanDefinition> = {
     ...coreFeatures,
     ...advancedFiscalFeatures,
     officeCollaborationEnabled: true,
+    workspaceMemberLimit: null,
     prioritySupport: true,
   },
   pro: {
@@ -156,6 +162,7 @@ export const planDefinitions: Record<EffectivePlanKey, PlanDefinition> = {
     ...coreFeatures,
     ...advancedFiscalFeatures,
     officeCollaborationEnabled: false,
+    workspaceMemberLimit: 1,
     prioritySupport: true,
   },
   escritorio: {
@@ -166,6 +173,7 @@ export const planDefinitions: Record<EffectivePlanKey, PlanDefinition> = {
     ...coreFeatures,
     ...advancedFiscalFeatures,
     officeCollaborationEnabled: true,
+    workspaceMemberLimit: null,
     prioritySupport: true,
   },
 };

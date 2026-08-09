@@ -8,8 +8,9 @@ import laboratory from "../deterministic-tax-lab.css?url";
 import legal from "../legal-reference-center.css?url";
 import reform from "../tax-reform-impact.css?url";
 import onboarding from "../account-onboarding.css?url";
+import guest from "../guest-app.css?url";
 
-const workspaceStyles = [homologation, simulations, federal, national, nationalV64, expansion, laboratory, legal, reform, onboarding];
+const workspaceStyles = [homologation, simulations, federal, national, nationalV64, expansion, laboratory, legal, reform, onboarding, guest];
 
 export default function WorkspaceLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return <>{workspaceStyles.map((href) => <link key={href} rel="stylesheet" href={href} />)}{children}</>;

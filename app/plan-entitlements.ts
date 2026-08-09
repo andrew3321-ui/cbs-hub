@@ -45,8 +45,8 @@ export function companyLimitResponse(entitlements: WorkspaceEntitlements) {
       : entitlements.companyLimitExceeded
         ? `Sua carteira possui ${entitlements.companyCount} empresas, acima do limite de ${limit} do plano ${entitlements.name}. Nenhum dado foi removido, mas novos cadastros estão bloqueados.`
         : entitlements.trialActive
-          ? `O teste profissional permite até ${limit} empresas durante 5 dias. Para ampliar a carteira, contrate o plano CBSHub.`
-          : `O plano ${entitlements.name} permite até ${limit} ${limit === 1 ? "empresa" : "empresas"}. Contrate mais um bloco de ${entitlements.companyAddonBlockSize} empresas para ampliar a carteira.`,
+          ? `O teste profissional permite até ${limit} empresas durante 5 dias. Para continuar, escolha o modo independente ou escritório.`
+          : `O plano ${entitlements.name} permite até ${limit} ${limit === 1 ? "empresa" : "empresas"}. Consulte os planos para escolher o modo compatível com sua carteira.`,
     code: "PLAN_COMPANY_LIMIT",
     entitlements,
   }, { status: 409 });
@@ -56,10 +56,10 @@ export function featureRequiredResponse(entitlements: WorkspaceEntitlements, fea
   const officeOnly = feature === "officeCollaborationEnabled";
   return Response.json({
     error: officeOnly
-      ? "Convites, papéis e revisão por outra pessoa exigem o plano CBSHub ativo."
-      : "Este recurso exige o plano CBSHub ativo.",
+      ? "Convites, papéis e revisão por outra pessoa exigem o plano Escritório ativo."
+      : "Este recurso exige um plano profissional ativo.",
     code: officeOnly ? "PLAN_OFFICE_REQUIRED" : "PLAN_FEATURE_REQUIRED",
-    requiredPlan: "unico",
+    requiredPlan: officeOnly ? "escritorio" : "pro",
     feature,
     entitlements,
   }, { status: 403 });

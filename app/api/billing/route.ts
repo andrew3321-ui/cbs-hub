@@ -66,6 +66,7 @@ export async function GET() {
     betaEnabled: operation.betaEnabled,
     paymentsEnabled: operation.paymentsEnabled,
     canManageBilling: workspace?.role === "owner",
+    workspaceType: workspace?.type ?? "individual",
     billingProfileComplete: billingProfileIsComplete(user),
     entitlements,
     billing: account ? {

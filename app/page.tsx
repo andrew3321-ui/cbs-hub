@@ -47,9 +47,9 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
     const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
     if (value?.trim()) campaignParams.set(key, value.trim().slice(0, 120));
   }
-  if (!user && campaignParams.size > 0) redirect(`/experimentar?${campaignParams.toString()}`);
+  if (!user && campaignParams.size > 0) redirect(`/app?guest=1&${campaignParams.toString()}`);
   const coverage = coverageMetrics();
-  const primaryPath = user ? "/app" : "/experimentar";
+  const primaryPath = user ? "/app" : "/app?guest=1";
   const loginPath = user ? "/app" : "/entrar";
   const demoPath = user ? "/app?view=academy" : "#fluxo";
 

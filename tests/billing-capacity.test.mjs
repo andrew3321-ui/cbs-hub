@@ -13,12 +13,12 @@ import {
 
 const read = (path) => fs.readFileSync(new URL(path, import.meta.url), "utf8");
 
-test("single plan prices capacity deterministically on the server", () => {
+test("legacy capacity contract remains deterministic and cannot be sold again", () => {
   assert.equal(BILLING_BASE_COMPANY_LIMIT, 30);
   assert.equal(BILLING_ADDON_COMPANY_BLOCK_SIZE, 10);
   assert.equal(BILLING_ADDON_COMPANY_BLOCK_PRICE_CENTS, 10_000);
   assert.equal(billingPlans.unico.priceCents, 45_000);
-  assert.equal(billingPlans.unico.purchasable, true);
+  assert.equal(billingPlans.unico.purchasable, false);
   assert.equal(billingCompanyLimit("unico", 0), 30);
   assert.equal(billingCompanyLimit("unico", 1), 40);
   assert.equal(billingCompanyLimit("unico", 7), 100);
@@ -29,12 +29,13 @@ test("single plan prices capacity deterministically on the server", () => {
   assert.equal(normalizeCompanyAddonBlocks(1.5), null);
 });
 
-test("legacy test subscriptions remain reconcilable but cannot be newly purchased", () => {
-  assert.equal(billingPlans.pro.priceCents, 100);
-  assert.equal(billingPlans.escritorio.priceCents, 100);
-  assert.equal(billingPlans.pro.purchasable, false);
-  assert.equal(billingPlans.escritorio.purchasable, false);
-  assert.equal(billingAmountCents("pro", 9), 100);
+test("individual and office plans are the only new offers", () => {
+  assert.equal(billingPlans.pro.priceCents, 5_900);
+  assert.equal(billingPlans.escritorio.priceCents, 14_900);
+  assert.equal(billingPlans.pro.purchasable, true);
+  assert.equal(billingPlans.escritorio.purchasable, true);
+  assert.equal(billingAmountCents("pro", 9), 5_900);
+  assert.equal(billingCompanyLimit("pro", 9), 10);
   assert.equal(billingCompanyLimit("escritorio", 9), 50);
 });
 
@@ -44,9 +45,11 @@ test("checkout and Pix derive amount and capacity from validated add-on blocks",
   for (const source of [checkout, pix]) {
     assert.match(source, /workspace\.role !== "owner"/);
     assert.match(source, /isPurchasablePlanKey/);
-    assert.match(source, /normalizeCompanyAddonBlocks\(payload\.addonBlocks\)/);
+    assert.match(source, /requestedAddonBlocks = normalizeCompanyAddonBlocks\(payload\.addonBlocks\)/);
+    assert.match(source, /plan\.capacityAddonsEnabled \? requestedAddonBlocks : 0/);
     assert.match(source, /billingAmountCents\(plan\.key, addonBlocks\)/);
     assert.match(source, /pendingCompanyAddonBlocks/);
+    assert.match(source, /workspace\.type === "office" && plan\.key !== "escritorio"/);
   }
 });
 

@@ -29,7 +29,7 @@ export const users = sqliteTable("users", {
   failedLoginAttempts: integer("failed_login_attempts").notNull().default(0),
   lockedUntil: text("locked_until"),
   accountType: text("account_type").notNull().default("individual"),
-  suggestedPlanKey: text("suggested_plan_key").notNull().default("unico"),
+  suggestedPlanKey: text("suggested_plan_key").notNull().default("pro"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
@@ -73,7 +73,7 @@ export const accountingWorkspaces = sqliteTable("accounting_workspaces", {
   name: text("name").notNull(),
   workspaceType: text("workspace_type").notNull().default("individual"),
   ownerUserId: integer("owner_user_id").notNull(),
-  suggestedPlanKey: text("suggested_plan_key").notNull().default("unico"),
+  suggestedPlanKey: text("suggested_plan_key").notNull().default("pro"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 }, (table) => [
   uniqueIndex("accounting_workspaces_owner_idx").on(table.ownerUserId),

@@ -65,12 +65,13 @@ type LandingFiscalPreviewProps = {
   onEngagement?: () => void;
   surface?: "landing" | "workspace";
   operationLimit?: number;
+  initialQuestion?: string;
 };
 
 const PUBLIC_OPERATION_STORAGE_KEY = "cbshub_public_workspace_operations";
 
-export default function LandingFiscalPreview({ authenticated, onEngagement, surface = "landing", operationLimit = Number.POSITIVE_INFINITY }: LandingFiscalPreviewProps) {
-  const [question, setQuestion] = useState("");
+export default function LandingFiscalPreview({ authenticated, onEngagement, surface = "landing", operationLimit = Number.POSITIVE_INFINITY, initialQuestion = "" }: LandingFiscalPreviewProps) {
+  const [question, setQuestion] = useState(initialQuestion.slice(0, 500));
   const [submittedQuestion, setSubmittedQuestion] = useState("");
   const [preview, setPreview] = useState<FiscalPreview | null>(null);
   const [continueHref, setContinueHref] = useState(authenticated ? "/app?view=intelligence" : "/cadastro");

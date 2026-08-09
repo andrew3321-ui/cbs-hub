@@ -152,7 +152,7 @@ export const seoIntentPages = {
     facts: ["Modo individual e escritório", "Revisão segregada", "Fontes oficiais vinculadas", "Histórico por empresa"],
     faqs: [
       { question: "O CBSHub usa inteligência artificial para decidir o tributo?", answer: "Não. A plataforma usa regras determinísticas, fatos estruturados e fontes versionadas. O contador continua responsável pela revisão profissional." },
-      { question: "Posso trabalhar sozinho?", answer: "Sim. O mesmo plano atende o profissional independente e o escritório; o modo colaborativo adiciona preparadores, revisores e administradores." },
+      { question: "Posso trabalhar sozinho?", answer: "Sim. O plano Contador Independente atende um profissional e até 10 empresas. O plano Escritório adiciona preparadores, revisores e administradores sem limite de pessoas no workspace." },
       { question: "As empresas da carteira ficam misturadas?", answer: "Não. Dados, documentos, análises e permissões são separados por workspace e empresa." },
     ],
     sources: [

@@ -302,6 +302,13 @@
       "when": 1785687940759,
       "tag": "0042_minimal_signup_identity",
       "breakpoints": true
+    },
+    {
+      "idx": 43,
+      "version": "6",
+      "when": 1786295463961,
+      "tag": "0043_restore_individual_office_plans",
+      "breakpoints": true
     }
   ]
 }
