@@ -24,12 +24,12 @@ const examples = [
   "ISS de consultoria entre Campinas e Belo Horizonte",
 ];
 
-function trackedPayload(campaign: string) {
+function trackedPayload(campaign: string, eventType = "seo_cta") {
   const url = new URL(window.location.href);
   let referrerHost = "";
   try { referrerHost = document.referrer ? new URL(document.referrer).hostname : ""; } catch { referrerHost = ""; }
   return JSON.stringify({
-    eventType: "seo_cta",
+    eventType,
     pathname: url.pathname,
     source: url.searchParams.get("utm_source") ?? "",
     medium: url.searchParams.get("utm_medium") ?? "",
@@ -39,8 +39,8 @@ function trackedPayload(campaign: string) {
   });
 }
 
-function track(campaign: string) {
-  const payload = trackedPayload(campaign);
+function track(campaign: string, eventType = "seo_cta") {
+  const payload = trackedPayload(campaign, eventType);
   if (typeof navigator.sendBeacon === "function") {
     navigator.sendBeacon("/api/analytics/collect", new Blob([payload], { type: "application/json" }));
     return;
@@ -60,21 +60,55 @@ function continuationHref(question: string, authenticated: boolean) {
   return `/cadastro?${params.toString()}`;
 }
 
-export default function LandingFiscalPreview({ authenticated, onEngagement }: { authenticated: boolean; onEngagement?: () => void }) {
+type LandingFiscalPreviewProps = {
+  authenticated: boolean;
+  onEngagement?: () => void;
+  surface?: "landing" | "workspace";
+  operationLimit?: number;
+};
+
+const PUBLIC_OPERATION_STORAGE_KEY = "cbshub_public_workspace_operations";
+
+export default function LandingFiscalPreview({ authenticated, onEngagement, surface = "landing", operationLimit = Number.POSITIVE_INFINITY }: LandingFiscalPreviewProps) {
   const [question, setQuestion] = useState("");
   const [submittedQuestion, setSubmittedQuestion] = useState("");
   const [preview, setPreview] = useState<FiscalPreview | null>(null);
   const [continueHref, setContinueHref] = useState(authenticated ? "/app?view=intelligence" : "/cadastro");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [operationsUsed, setOperationsUsed] = useState(0);
+  const [limitReached, setLimitReached] = useState(false);
   const requestSequence = useRef(0);
   const requestController = useRef<AbortController | null>(null);
 
-  useEffect(() => () => requestController.current?.abort(), []);
+  useEffect(() => {
+    let restoreFrame = 0;
+    if (surface === "workspace") {
+      restoreFrame = window.requestAnimationFrame(() => {
+        const stored = Number(window.sessionStorage.getItem(PUBLIC_OPERATION_STORAGE_KEY) ?? "0");
+        if (Number.isFinite(stored) && stored > 0) {
+          const restored = Math.min(stored, operationLimit);
+          setOperationsUsed(restored);
+          setLimitReached(restored >= operationLimit);
+        }
+        const requestedQuestion = new URLSearchParams(window.location.search).get("question")?.trim();
+        if (requestedQuestion) setQuestion(requestedQuestion.slice(0, 500));
+      });
+    }
+    return () => {
+      if (restoreFrame) window.cancelAnimationFrame(restoreFrame);
+      requestController.current?.abort();
+    };
+  }, [operationLimit, surface]);
 
   async function analyze(nextQuestion = question) {
     const normalized = nextQuestion.trim();
     if (normalized.length < 5 || loading) return;
+    if (surface === "workspace" && operationsUsed >= operationLimit) {
+      setLimitReached(true);
+      track("experiment_gate", "experiment_gate");
+      return;
+    }
     onEngagement?.();
     const sequence = requestSequence.current + 1;
     requestSequence.current = sequence;
@@ -84,7 +118,7 @@ export default function LandingFiscalPreview({ authenticated, onEngagement }: { 
     setLoading(true);
     setError("");
     setPreview(null);
-    track("home_public_preview_submit");
+    track(surface === "workspace" ? "experiment_start" : "home_public_preview_submit", surface === "workspace" ? "experiment_start" : "seo_cta");
     try {
       const response = await fetch("/api/public/fiscal-preview", {
         method: "POST",
@@ -99,7 +133,17 @@ export default function LandingFiscalPreview({ authenticated, onEngagement }: { 
       setSubmittedQuestion(normalized);
       setContinueHref(continuationHref(normalized, authenticated));
       setPreview(data.preview);
-      track(`home_public_preview_${data.preview.status.code}`);
+      if (surface === "workspace") {
+        setOperationsUsed((current) => {
+          const next = Math.min(current + 1, operationLimit);
+          window.sessionStorage.setItem(PUBLIC_OPERATION_STORAGE_KEY, String(next));
+          if (next >= operationLimit) setLimitReached(true);
+          return next;
+        });
+        track("experiment_result", "experiment_result");
+      } else {
+        track(`home_public_preview_${data.preview.status.code}`);
+      }
     } catch (cause) {
       if (controller.signal.aborted || sequence !== requestSequence.current) return;
       setError(cause instanceof Error ? cause.message : "Não foi possível gerar a prévia agora.");
@@ -124,11 +168,11 @@ export default function LandingFiscalPreview({ authenticated, onEngagement }: { 
   }
 
   return (
-    <section className={`cbs-live-preview ${preview ? "has-result" : ""}`} aria-label="Experimente a inteligência fiscal" onFocusCapture={onEngagement}>
+    <section className={`cbs-live-preview ${surface === "workspace" ? "cbs-live-preview-workspace" : ""} ${preview ? "has-result" : ""}`} aria-label="Experimente a inteligência fiscal" onFocusCapture={onEngagement}>
       <form onSubmit={submit}>
         <div className="cbs-live-preview-label">
-          <span><i /> TESTE SEM CADASTRO</span>
-          <small>nenhuma pergunta é armazenada</small>
+          <span><i /> {surface === "workspace" ? "AMBIENTE PÚBLICO · SEM CADASTRO" : "TESTE SEM CADASTRO"}</span>
+          <small>{surface === "workspace" ? `${Math.max(0, operationLimit - operationsUsed)} de ${operationLimit} análises disponíveis` : "nenhuma pergunta é armazenada"}</small>
         </div>
         <label htmlFor="landing-fiscal-question">Qual caso você precisa resolver?</label>
         <div className="cbs-live-preview-input">
@@ -138,6 +182,7 @@ export default function LandingFiscalPreview({ authenticated, onEngagement }: { 
             minLength={5}
             maxLength={500}
             value={question}
+            disabled={limitReached}
             onChange={(event) => {
               requestSequence.current += 1;
               requestController.current?.abort();
@@ -148,12 +193,12 @@ export default function LandingFiscalPreview({ authenticated, onEngagement }: { 
             }}
             placeholder="Ex.: qual o tratamento de ICMS-ST para autopeças de SP para MG?"
           />
-          <button type="submit" disabled={loading || question.trim().length < 5}>
+          <button type="submit" disabled={limitReached || loading || question.trim().length < 5}>
             {loading ? "Estruturando…" : "Analisar agora"}<span>→</span>
           </button>
         </div>
         <div className="cbs-live-preview-examples" aria-label="Casos de exemplo">
-          {examples.map((example) => <button type="button" onClick={() => chooseExample(example)} key={example}>{example}</button>)}
+          {examples.map((example) => <button type="button" disabled={limitReached} onClick={() => chooseExample(example)} key={example}>{example}</button>)}
         </div>
       </form>
 
@@ -187,10 +232,17 @@ export default function LandingFiscalPreview({ authenticated, onEngagement }: { 
           <div className="cbs-live-result-action">
             <p><b>Sua pergunta continuará preenchida.</b><span>{preview.limitation}</span></p>
             <LandingTrackedCta className="cbs-button" href={continueHref} campaign="home_public_preview_continue">
-              {authenticated ? "Concluir no meu workspace" : "Criar conta e concluir"}<span>→</span>
+              {authenticated ? "Concluir no meu workspace" : surface === "workspace" ? "Salvar e continuar no teste" : "Criar conta e concluir"}<span>→</span>
             </LandingTrackedCta>
           </div>
           <small className="cbs-live-result-version">Base {preview.knowledge.version} · #{preview.knowledge.fingerprint} · caso: “{submittedQuestion}”</small>
+        </div>}
+        {surface === "workspace" && limitReached && <div className="cbs-experiment-gate">
+          <span>VOCÊ JÁ VIU O CBSHUB EM AÇÃO</span>
+          <h2>Continue com o contexto que acabou de testar.</h2>
+          <p>Crie seu acesso para confirmar os fatos, executar o cálculo completo, preservar a memória e gerar o relatório. São 5 dias com todos os recursos e até 10 empresas.</p>
+          <LandingTrackedCta className="cbs-button" href={continueHref} campaign="experiment_signup_click" eventType="experiment_signup_click">Criar acesso e continuar <b>→</b></LandingTrackedCta>
+          <small>Dois campos · sem cartão · a pergunta continua preenchida</small>
         </div>}
       </div>
     </section>

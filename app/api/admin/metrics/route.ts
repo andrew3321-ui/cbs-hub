@@ -31,7 +31,7 @@ async function ownerMetrics(request: Request) {
   const sevenDays = new Date(`${window.endDate}T00:00:00.000Z`); sevenDays.setUTCDate(sevenDays.getUTCDate() - 6);
   const thirtyDays = new Date(`${window.endDate}T00:00:00.000Z`); thirtyDays.setUTCDate(thirtyDays.getUTCDate() - 29);
 
-  const [traffic, signups, trialsDaily, paymentsDaily, periodTotals, activity, usersTotal, trialRowsResult, billingRowsResult, approvedPayersResult, sourceRows, seoCtaRows, failureRows, signupFunnelRows, signupFailureRows] = await Promise.all([
+  const [traffic, signups, trialsDaily, paymentsDaily, periodTotals, activity, usersTotal, trialRowsResult, billingRowsResult, approvedPayersResult, sourceRows, seoCtaRows, failureRows, signupFunnelRows, signupFailureRows, experimentFunnelRows] = await Promise.all([
     db.prepare("SELECT event_date date, SUM(CASE WHEN event_type = 'page_view' THEN 1 ELSE 0 END) pageViews, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN visitor_hash END) visitors, COUNT(DISTINCT CASE WHEN event_type = 'page_view' THEN session_hash END) sessions, COUNT(DISTINCT CASE WHEN event_type = 'app_active' AND EXISTS (SELECT 1 FROM users current_users WHERE current_users.id = platform_metric_events.user_id) THEN user_id END) activeUsers, SUM(CASE WHEN event_type = 'trial_denied' THEN 1 ELSE 0 END) trialsDenied FROM platform_metric_events WHERE event_date BETWEEN ? AND ? GROUP BY event_date ORDER BY event_date").bind(window.startDate, window.endDate).all<DailyRow>(),
     db.prepare("SELECT substr(created_at, 1, 10) date, COUNT(*) signups FROM users WHERE substr(created_at, 1, 10) BETWEEN ? AND ? GROUP BY substr(created_at, 1, 10)").bind(window.startDate, window.endDate).all<DailyRow>(),
     db.prepare("SELECT substr(t.started_at, 1, 10) date, COUNT(*) trialsStarted FROM trial_device_claims t INNER JOIN users trial_users ON trial_users.id = t.user_id WHERE substr(t.started_at, 1, 10) BETWEEN ? AND ? GROUP BY substr(t.started_at, 1, 10)").bind(window.startDate, window.endDate).all<DailyRow>(),
@@ -47,6 +47,7 @@ async function ownerMetrics(request: Request) {
     db.prepare("SELECT COUNT(*) total FROM billing_transactions WHERE status IN ('rejected', 'cancelled', 'refunded', 'charged_back') AND substr(updated_at, 1, 10) BETWEEN ? AND ?").bind(window.startDate, window.endDate).first<{ total: number }>(),
     db.prepare("SELECT CASE WHEN event_type = 'page_view' THEN 'signup_view' ELSE event_type END stage, COUNT(*) attempts, COUNT(DISTINCT COALESCE(visitor_hash, session_hash, dedupe_key)) people FROM platform_metric_events WHERE event_date BETWEEN ? AND ? AND ((event_type = 'page_view' AND path_group = 'signup') OR event_type IN ('signup_start', 'signup_submit', 'signup_request')) GROUP BY stage").bind(window.startDate, window.endDate).all<SignupFunnelRow>(),
     db.prepare("SELECT event_type eventType, COALESCE(json_extract(metadata_json, '$.reason'), 'unclassified') reason, COUNT(*) attempts, COUNT(DISTINCT COALESCE(visitor_hash, session_hash, dedupe_key)) people FROM platform_metric_events WHERE event_date BETWEEN ? AND ? AND event_type IN ('signup_failure', 'signup_client_error') GROUP BY event_type, reason ORDER BY attempts DESC, reason LIMIT 20").bind(window.startDate, window.endDate).all<SignupFailureRow>(),
+    db.prepare("SELECT CASE WHEN event_type = 'page_view' THEN 'experiment_view' ELSE event_type END stage, COUNT(*) attempts, COUNT(DISTINCT COALESCE(visitor_hash, session_hash, dedupe_key)) people FROM platform_metric_events WHERE event_date BETWEEN ? AND ? AND ((event_type = 'page_view' AND path_group = 'experiment') OR event_type IN ('experiment_start', 'experiment_result', 'experiment_gate', 'experiment_signup_click')) GROUP BY stage").bind(window.startDate, window.endDate).all<SignupFunnelRow>(),
   ]);
 
   const daily = mergePlatformDailyGroups(window.days, window.endDate, [...traffic.results, ...signups.results, ...trialsDaily.results, ...paymentsDaily.results]);
@@ -74,6 +75,14 @@ async function ownerMetrics(request: Request) {
     { key: "signup_submit", label: "Clicaram em criar conta", ...(signupStages.get("signup_submit") ?? { attempts: 0, people: 0 }) },
     { key: "signup_request", label: "Chegaram ao servidor", ...(signupStages.get("signup_request") ?? { attempts: 0, people: 0 }) },
     { key: "signup", label: "Contas persistidas", attempts: signupCount, people: signupCount },
+  ];
+  const experimentStages = new Map(experimentFunnelRows.results.map((row) => [row.stage, { attempts: number(row.attempts), people: number(row.people) }]));
+  const experimentFunnel = [
+    { key: "experiment_view", label: "Abriram a experiência", ...(experimentStages.get("experiment_view") ?? { attempts: 0, people: 0 }) },
+    { key: "experiment_start", label: "Enviaram uma operação", ...(experimentStages.get("experiment_start") ?? { attempts: 0, people: 0 }) },
+    { key: "experiment_result", label: "Receberam um resultado", ...(experimentStages.get("experiment_result") ?? { attempts: 0, people: 0 }) },
+    { key: "experiment_gate", label: "Viram o convite para continuar", ...(experimentStages.get("experiment_gate") ?? { attempts: 0, people: 0 }) },
+    { key: "experiment_signup_click", label: "Seguiram para o cadastro", ...(experimentStages.get("experiment_signup_click") ?? { attempts: 0, people: 0 }) },
   ];
 
   const webVitalRows = await db.prepare("SELECT COALESCE(json_extract(metadata_json, '$.route'), '/') route, json_extract(metadata_json, '$.name') name, json_extract(metadata_json, '$.deviceClass') deviceClass, CAST(json_extract(metadata_json, '$.value') AS REAL) value FROM platform_metric_events WHERE event_type = 'web_vital' AND event_date BETWEEN ? AND ? AND json_extract(metadata_json, '$.name') IN ('LCP', 'INP', 'CLS') ORDER BY occurred_at DESC LIMIT 10000").bind(window.startDate, window.endDate).all<WebVitalRow>();
@@ -135,6 +144,7 @@ async function ownerMetrics(request: Request) {
       stages: signupFunnel,
       failures: signupFailureRows.results.map((row) => ({ eventType: row.eventType, reason: row.reason, attempts: number(row.attempts), people: number(row.people) })),
     },
+    experimentFunnel: { stages: experimentFunnel },
     performance: { version: PUBLIC_PERFORMANCE_VERSION, percentile: 75, thresholds: coreWebVitalBudgets, totalSamples: webVitalRows.results.length, routes: vitalP75 },
     daily,
     searchConsole: { version: SEARCH_CONSOLE_VERSION, configured: searchConfiguration.configured, siteUrl: searchConfiguration.siteUrl, retentionDays: SEARCH_CONSOLE_RETENTION_DAYS, range: { startDate: searchStartDate, endDate: searchEndDate }, current: { ...searchCurrentValues, ctrPercent: percentage(searchCurrentValues.clicks, searchCurrentValues.impressions) }, previous: searchPreviousValues, pages: pageRows.results.map((row) => ({ ...row, clicks: number(row.clicks), impressions: number(row.impressions), ctr: number(row.ctr), position: number(row.position) })), opportunities: buildSearchConsoleOpportunities(queryRows.results), indexation: { snapshotDate: latestIndexDate?.latestDate ?? null, indexedPages, expectedPages: publicIndexableRoutes.length, discoveredPages: indexationSummary.discovered, unknownPages: indexationSummary.unknown, blockedPages: indexationSummary.blocked, inspectionErrors: indexationSummary.inspectionErrors, pendingPages: indexationSummary.pending, pages: latestIndex.results.map((row) => ({ ...row, stage: classifySearchIndexation(row) })) }, alerts: searchAlerts, lastSync: latestSync ?? null },

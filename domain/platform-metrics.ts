@@ -1,4 +1,4 @@
-export const PLATFORM_METRICS_VERSION = "platform-metrics.v5";
+export const PLATFORM_METRICS_VERSION = "platform-metrics.v6";
 export const PLATFORM_METRIC_EVENT_RETENTION_DAYS = 90;
 export const PLATFORM_METRIC_DAILY_RETENTION_DAYS = 730;
 
@@ -8,6 +8,7 @@ export const platformMetricDefinitions = {
   sessions: "Sessões pseudonimizadas distintas, renovadas após trinta minutos.",
   signups: "Contas persistidas com sucesso no período; convites também contam como cadastro.",
   signupFunnel: "Etapas pseudonimizadas do cadastro: visualização, início do preenchimento, clique, chegada à API, falha classificada e conta persistida. Nenhum valor digitado é armazenado.",
+  experimentFunnel: "Etapas pseudonimizadas da experiência pública: início da análise, resultado, limite apresentado e clique para criar acesso. A pergunta fiscal não entra na telemetria.",
   activeUsers: "Contas existentes distintas que abriram o workspace em cada janela (DAU/WAU/MAU); contas apagadas não inflam o estado atual.",
   trials: "Claims vinculados a contas existentes; ativo e expirado são resolvidos pela data e pelo estado atual, enquanto claims antifraude anonimizados ficam fora do painel.",
   payers: "Contas de cobrança ativas; MRR usa o preço contratado e os blocos adicionais.",
@@ -28,6 +29,7 @@ export function normalizeMetricPath(value: unknown) {
   const path = typeof value === "string" ? value.split(/[?#]/)[0].trim().toLowerCase() : "";
   if (path === "/") return "landing";
   if (path === "/cadastro") return "signup";
+  if (path === "/experimentar") return "experiment";
   if (path === "/entrar") return "login";
   if (path === "/planos") return "pricing";
   if (["/calculadora-reforma-tributaria", "/cbs-ibs-contadores", "/icms-st-contadores", "/inteligencia-tributaria-escritorios", "/relatorios-fiscais-rastreaveis"].includes(path)) return `seo:${path.slice(1)}`;

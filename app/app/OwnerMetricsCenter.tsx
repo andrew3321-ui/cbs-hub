@@ -13,6 +13,7 @@ type Payload = {
   billing: { activePayers: number; mrrCents: number; grossAmountCents: number; delinquent: number; canceled: number; paymentFailures: number };
   funnel: Array<{ key: string; label: string; value: number }>;
   signupFunnel: { stages: Array<{ key: string; label: string; attempts: number; people: number }>; failures: Array<{ eventType: string; reason: string; attempts: number; people: number }> };
+  experimentFunnel: { stages: Array<{ key: string; label: string; attempts: number; people: number }> };
   performance: { version: string; percentile: number; totalSamples: number; thresholds: Record<string, { good: number; poor: number; unit: string }>; routes: Array<{ route: string; deviceClass: string; name: string; value: number | null; samples: number; rating: string }> };
   daily: Daily[];
   privacy: { rawIpStored: boolean; rawUserAgentStored: boolean; pseudonymousIdentifiers: boolean; eventRetentionDays: number; dailyRetentionDays: number };
@@ -122,6 +123,15 @@ export default function OwnerMetricsCenter() {
         <div className="owner-health-list"><article><span>Receita confirmada</span><b>{money.format(data.billing.grossAmountCents / 100)}</b></article><article><span>Inadimplentes</span><b>{data.billing.delinquent}</b></article><article><span>Falhas de pagamento</span><b>{data.billing.paymentFailures}</b></article><article><span>Cancelamentos no período</span><b>{data.billing.canceled}</b></article></div>
       </section>
     </div>
+
+    <section className="panel owner-signup-funnel-panel">
+      <div className="panel-heading"><div><span className="eyebrow">FUNIL DA EXPERIÊNCIA · TRÁFEGO</span><h3>Da entrada pública ao cadastro</h3><p className="owner-panel-copy">Acompanhe se o anúncio trouxe curiosidade, uso real e intenção de continuar. A pergunta fiscal digitada nunca entra na telemetria.</p></div><span className="editable-chip">UTM + NAVEGADOR</span></div>
+      <div className="owner-signup-stages">{data.experimentFunnel.stages.map((stage, index) => {
+        const base = data.experimentFunnel.stages[0]?.people || 0;
+        const conversion = index === 0 ? 100 : base ? Math.round(stage.people * 10_000 / base) / 100 : 0;
+        return <article key={stage.key}><span>{String(index + 1).padStart(2, "0")}</span><div><b>{stage.label}</b><small>{stage.people} visitante(s) · {stage.attempts} evento(s)</small></div><strong>{conversion.toLocaleString("pt-BR")}%</strong></article>;
+      })}</div>
+    </section>
 
     <section className="panel owner-signup-funnel-panel">
       <div className="panel-heading"><div><span className="eyebrow">FUNIL DO CADASTRO · DIAGNÓSTICO</span><h3>Onde o visitante interrompe a criação da conta</h3><p className="owner-panel-copy">Eventos novos passam a ser coletados nesta versão. Valores digitados, senha e e-mail nunca entram na telemetria.</p></div><span className="editable-chip">API + NAVEGADOR</span></div>

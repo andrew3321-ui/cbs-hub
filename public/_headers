@@ -10,6 +10,9 @@
 /cadastro
   X-Robots-Tag: noindex, nofollow, noarchive
 
+/experimentar
+  X-Robots-Tag: noindex, nofollow, noarchive
+
 /entrar
   X-Robots-Tag: noindex, nofollow, noarchive
 

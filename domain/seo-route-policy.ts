@@ -26,6 +26,7 @@ export const publicIndexableRoutes = [
 export const privateIndexRoutePrefixes = [
   "/api/",
   "/app",
+  "/experimentar",
   "/cadastro",
   "/entrar",
   "/recuperar-senha",

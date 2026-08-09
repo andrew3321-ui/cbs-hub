@@ -5,11 +5,13 @@ import Link from "next/link";
 export default function LandingTrackedCta({
   href,
   campaign,
+  eventType = "seo_cta",
   className,
   children,
 }: {
   href: string;
   campaign: string;
+  eventType?: "seo_cta" | "experiment_signup_click";
   className?: string;
   children: React.ReactNode;
 }) {
@@ -18,7 +20,7 @@ export default function LandingTrackedCta({
     let referrerHost = "";
     try { referrerHost = document.referrer ? new URL(document.referrer).hostname : ""; } catch { referrerHost = ""; }
     const payload = JSON.stringify({
-      eventType: "seo_cta",
+      eventType,
       pathname: url.pathname,
       source: url.searchParams.get("utm_source") ?? "",
       medium: url.searchParams.get("utm_medium") ?? "",

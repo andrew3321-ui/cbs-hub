@@ -1,5 +1,6 @@
 import Link from "next/link";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import BrandMark from "./BrandMark";
 import LandingHeroShowcase from "./LandingHeroShowcase";
 import LandingVideoShowcase from "./LandingVideoShowcase";
@@ -31,10 +32,24 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function LandingPage() {
+type LandingPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const campaignKeys = ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"] as const;
+
+export default async function LandingPage({ searchParams }: LandingPageProps) {
   const user = await getCurrentUser();
+  const incomingParams = await searchParams;
+  const campaignParams = new URLSearchParams();
+  for (const key of campaignKeys) {
+    const rawValue = incomingParams[key];
+    const value = Array.isArray(rawValue) ? rawValue[0] : rawValue;
+    if (value?.trim()) campaignParams.set(key, value.trim().slice(0, 120));
+  }
+  if (!user && campaignParams.size > 0) redirect(`/experimentar?${campaignParams.toString()}`);
   const coverage = coverageMetrics();
-  const primaryPath = user ? "/app" : "/cadastro";
+  const primaryPath = user ? "/app" : "/experimentar";
   const loginPath = user ? "/app" : "/entrar";
   const demoPath = user ? "/app?view=academy" : "#fluxo";
 
@@ -59,7 +74,7 @@ export default async function LandingPage() {
         <div className="cbs-nav-actions">
           <Link className="cbs-text-link" href={loginPath}>{user ? "Abrir painel" : "Entrar"}</Link>
           <LandingTrackedCta className="cbs-button cbs-button-small" href={primaryPath} campaign="home_nav_trial">
-            {user ? "Continuar" : "Teste por 5 dias"} <span>→</span>
+            {user ? "Continuar" : "Experimentar agora"} <span>→</span>
           </LandingTrackedCta>
         </div>
       </header>
@@ -89,7 +104,7 @@ export default async function LandingPage() {
           <div className="cbs-trial-proof" aria-label="Condições do teste">
             <span><b>5 dias</b><small>acesso completo</small></span>
             <span><b>10 empresas</b><small>para validar o fluxo</small></span>
-            <span><b>Sem cartão</b><small>cadastro direto</small></span>
+            <span><b>Sem cadastro</b><small>Sem cartão ao continuar</small></span>
           </div>
         </div>
 

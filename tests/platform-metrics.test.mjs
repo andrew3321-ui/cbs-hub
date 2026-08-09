@@ -15,7 +15,7 @@ import {
 } from "../domain/platform-metrics.ts";
 
 test("dicionário define aquisição, atividade, trials, pagadores e conversão", () => {
-  assert.deepEqual(Object.keys(platformMetricDefinitions), ["pageViews", "visitors", "sessions", "signups", "signupFunnel", "activeUsers", "trials", "payers", "conversion", "organicAttribution", "searchConsole"]);
+  assert.deepEqual(Object.keys(platformMetricDefinitions), ["pageViews", "visitors", "sessions", "signups", "signupFunnel", "experimentFunnel", "activeUsers", "trials", "payers", "conversion", "organicAttribution", "searchConsole"]);
   assert.match(platformMetricDefinitions.activeUsers, /DAU\/WAU\/MAU/);
   assert.match(platformMetricDefinitions.visitors, /mesmo dia contam uma vez/);
   assert.match(platformMetricDefinitions.visitors, /novo dia abre uma nova visita/);
@@ -27,6 +27,7 @@ test("dicionário define aquisição, atividade, trials, pagadores e conversão"
 test("caminho é minimizado e nunca preserva query ou identificador", () => {
   assert.equal(normalizeMetricPath("/app?email=pessoa@example.com"), "workspace");
   assert.equal(normalizeMetricPath("/cadastro?cpf=123"), "signup");
+  assert.equal(normalizeMetricPath("/experimentar?utm_source=meta"), "experiment");
   assert.equal(normalizeMetricPath("/clientes/42"), "other");
 });
 
