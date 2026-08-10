@@ -156,7 +156,7 @@ const defaultQuestion = "Qual a alíquota de ICMS para autopeças de SP para MG?
 
 const sourceLabels = { question: "extraído da pergunta", manual: "confirmado manualmente", default: "definido pelo sistema", unknown: "pendente" } as const;
 const stateOptions = ["AC", "AL", "AP", "AM", "BA", "CE", "DF", "ES", "GO", "MA", "MT", "MS", "MG", "PA", "PB", "PR", "PE", "PI", "RJ", "RN", "RS", "RO", "RR", "SC", "SP", "SE", "TO"];
-const PUBLIC_INTELLIGENCE_STORAGE_KEY = "cbshub_public_full_analyses";
+const PUBLIC_INTELLIGENCE_STORAGE_KEY = "cbshub_public_full_analyses_v2";
 
 type FiscalIntelligenceProps = {
   guestMode?: boolean;
@@ -179,7 +179,7 @@ function buildFacts(form: FactForm) {
   return Object.fromEntries(Object.entries(form).filter(([, value]) => value.trim().length > 0));
 }
 
-export default function FiscalIntelligence({ guestMode = false, operationLimit = 3, onAccountRequired, companyContext }: FiscalIntelligenceProps = {}) {
+export default function FiscalIntelligence({ guestMode = false, operationLimit = 2, onAccountRequired, companyContext }: FiscalIntelligenceProps = {}) {
   const [question, setQuestion] = useState(defaultQuestion);
   const [form, setForm] = useState<FactForm>(emptyFacts);
   const [knowledge, setKnowledge] = useState<KnowledgeMeta | null>(null);
@@ -227,7 +227,6 @@ export default function FiscalIntelligence({ guestMode = false, operationLimit =
       if (!Number.isFinite(stored) || stored <= 0) return;
       const restored = Math.min(stored, operationLimit);
       setOperationsUsed(restored);
-      setLimitReached(restored >= operationLimit);
     });
     return () => window.cancelAnimationFrame(frame);
   }, [guestMode, operationLimit]);
@@ -297,7 +296,6 @@ export default function FiscalIntelligence({ guestMode = false, operationLimit =
         setOperationsUsed((current) => {
           const next = Math.min(current + 1, operationLimit);
           window.sessionStorage.setItem(PUBLIC_INTELLIGENCE_STORAGE_KEY, String(next));
-          if (next >= operationLimit) setLimitReached(true);
           return next;
         });
       }
@@ -368,7 +366,7 @@ export default function FiscalIntelligence({ guestMode = false, operationLimit =
           <h1>{guestMode ? "Analise uma operação real antes de criar sua conta." : "Pergunte em linguagem comum. Confira a trilha jurídica."}</h1>
           <p>{guestMode ? "Informe a empresa e os fatos da operação. O motor estrutura a resposta, expõe fontes, bloqueios e, quando suportado, executa a memória de cálculo." : "Sem IA generativa: a resposta nasce de fatos estruturados, regras manuais e fontes oficiais versionadas."}</p>
         </div>
-        <span className="manual-engine-badge"><i /> {guestMode ? `${Math.max(0, operationLimit - operationsUsed)} ANÁLISES LIVRES` : "MOTOR MANUAL · 8 MÓDULOS"}</span>
+        <span className="manual-engine-badge"><i /> MOTOR MANUAL · 8 MÓDULOS</span>
       </div>
 
       {guestMode && companyContext && <section className="guest-company-context" aria-label="Empresa em análise">
@@ -406,7 +404,7 @@ export default function FiscalIntelligence({ guestMode = false, operationLimit =
         <label htmlFor="fiscal-question">Descreva a operação e a sua dúvida</label>
         <div className="intelligence-search-row">
           <textarea id="fiscal-question" maxLength={500} rows={2} value={question} onChange={(event) => changeQuestion(event.target.value)} placeholder="Ex.: qual a alíquota de ICMS para autopeças de SP para MG?" />
-          <button className="primary-button" disabled={loading || catalogLoading || limitReached || question.trim().length < 5}>{loading ? "Analisando…" : limitReached ? "Crie a conta para continuar" : "Analisar empresa"}<span>→</span></button>
+          <button className="primary-button" disabled={loading || catalogLoading || question.trim().length < 5}>{loading ? "Analisando…" : limitReached ? "Criar conta para continuar" : "Analisar empresa"}<span>→</span></button>
         </div>
         <div className="intelligence-examples"><span>TESTAR PERGUNTA:</span>{examples.map((example) => <button type="button" onClick={() => runExample(example)} key={example}>{example}</button>)}<button className="complete-case-button" type="button" onClick={runCompleteReferenceCase}>Preencher caso demonstrativo · 100% dos fatos</button></div>
       </form>
