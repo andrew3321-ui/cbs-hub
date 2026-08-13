@@ -120,6 +120,21 @@ type Monitor = {
   rules: Array<{ id: number; code: string; version: string; name: string; approvalStatus: string; effectiveFrom: string; effectiveTo: string; sourceCount: number; fingerprint: string; health: "current" | "future" | "expiring" | "expired" | "missing_source" }>;
   runs: Array<{ id: string; runDate: string; status: string; sourceCount: number; checked: number; unavailable: number; changes: number; attempts: number; startedAt: string; lastAttemptAt: string; finishedAt: string | null; errorCode: string | null }>;
   releases: Array<Record<string, string | number | null>>;
+  freshness: {
+    version: string;
+    generatedAt: string;
+    sla: Record<"critical" | "high" | "standard", { hours: number; warningHours: number; label: string }>;
+    metrics: { total: number; current: number; partial: number; notSupported: number; dueSoon: number; overdue: number; unavailable: number; notChecked: number; pendingChanges: number; openIncidents: number; level: "current" | "attention" | "degraded" | "insufficient_evidence" };
+    sources: Array<{ code: string; title: string; publisher: string; jurisdiction: string; sourceUrl: string; sourceVersion: string; contentFingerprint: string | null; checkedAt: string | null; captureStatus: string; criticality: "critical" | "high" | "standard"; impactedRuleCodes: string[]; pendingChange: boolean; openIncident: boolean; fingerprint: string; status: "current" | "due_soon" | "overdue" | "unavailable" | "not_checked"; reason: string; slaHours: number; warningHours: number; ageMinutes: number | null; deadlineAt: string | null; coverageEffect: Status }>;
+    impactedRules: Array<{ code: string; effect: Status; sources: string[]; reasons: string[] }>;
+    timing: Record<"detect" | "block" | "correct" | "recertify", { samples: number; averageMinutes: number | null; p95Minutes: number | null; maximumMinutes: number | null }>;
+    policy: string;
+    observations: Array<Record<string, string | number | null>>;
+    alerts: Array<Record<string, string | number | null>>;
+    summaries: Array<Record<string, unknown>>;
+    incidents: Array<Record<string, string | number | null>>;
+    releases: Array<Record<string, string | number | null>>;
+  };
   canReviewNormativeChanges: boolean;
   policy: string;
   error?: string;
@@ -183,6 +198,22 @@ function normativeChangeLabel(kind: string, status: string) {
   if (kind === "recovered") return "RECUPERADA";
   if (kind === "content_changed") return "CONTEÚDO ALTERADO";
   return status === "pending_review" ? "REVISAR" : "NOVA VERSÃO";
+}
+
+function freshnessLabel(status: Monitor["freshness"]["sources"][number]["status"]) {
+  if (status === "current") return "DENTRO DO SLA";
+  if (status === "due_soon") return "REVISÃO PRÓXIMA";
+  if (status === "overdue") return "SLA VENCIDO";
+  if (status === "unavailable") return "FONTE INDISPONÍVEL";
+  return "SEM CAPTURA-BASE";
+}
+
+function elapsedLabel(minutes: number | null) {
+  if (minutes === null) return "sem amostra";
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  const remainder = minutes % 60;
+  return remainder ? `${hours}h ${remainder}min` : `${hours}h`;
 }
 
 function BeverageDossierPanel({
@@ -255,6 +286,7 @@ export default function NationalCoverageCenter() {
   const [governance, setGovernance] = useState<Governance | null>(null);
   const [monitor, setMonitor] = useState<Monitor | null>(null);
   const [tab, setTab] = useState<Tab>("panorama");
+  const [freshnessFilter, setFreshnessFilter] = useState<"all" | "attention" | "degraded">("all");
   const [cityQuery, setCityQuery] = useState("");
   const [origin, setOrigin] = useState("SP");
   const [destination, setDestination] = useState("MG");
@@ -955,6 +987,22 @@ export default function NationalCoverageCenter() {
           <b>{!monitor.connectorHealth.contract.passed ? "! Contratos dos conectores inválidos" : monitor.connectorHealth.openIncidents > 0 ? "Contratos válidos · operação com pendências" : `${monitor.connectorHealth.contract.connectors} conectores oficiais operacionais`}</b>
           <span>{monitor.connectorHealth.contract.connectors} conectores contratados · NF-e · RTC · CONFAZ · RFB · DOU · {monitor.connectorHealth.parsed} capturas interpretadas · {monitor.connectorHealth.blocked} bloqueadas · {monitor.connectorHealth.openIncidents} incidentes abertos</span>
         </div>
+        <section className={`fiscal-freshness-panel ${monitor.freshness.metrics.level}`}>
+          <header><div><span>FRESCOR FISCAL · {monitor.freshness.version}</span><h3>Prova temporal por fonte, versão e SLA</h3><p>{monitor.freshness.policy}</p></div><b>{monitor.freshness.metrics.level === "current" ? "ATUAL" : monitor.freshness.metrics.level === "attention" ? "ATENÇÃO" : monitor.freshness.metrics.level === "degraded" ? "REBAIXADA" : "SEM EVIDÊNCIA"}</b></header>
+          <div className="fiscal-freshness-kpis">
+            <span><b>{monitor.freshness.metrics.current}</b>dentro do SLA</span>
+            <span className={monitor.freshness.metrics.partial ? "attention" : ""}><b>{monitor.freshness.metrics.partial}</b>rebaixadas para parcial</span>
+            <span className={monitor.freshness.metrics.notSupported ? "blocked" : ""}><b>{monitor.freshness.metrics.notSupported}</b>não suportadas por frescor</span>
+            <span className={monitor.freshness.metrics.overdue ? "blocked" : ""}><b>{monitor.freshness.metrics.overdue}</b>SLAs vencidos</span>
+            <span className={monitor.freshness.metrics.unavailable ? "blocked" : ""}><b>{monitor.freshness.metrics.unavailable}</b>indisponíveis</span>
+            <span className={monitor.freshness.metrics.pendingChanges ? "attention" : ""}><b>{monitor.freshness.metrics.pendingChanges}</b>mudanças pendentes</span>
+          </div>
+          <div className="fiscal-freshness-sla"><b>SLA por criticidade</b>{(["critical", "high", "standard"] as const).map((level) => <span key={level}><strong>{monitor.freshness.sla[level].label}</strong> {monitor.freshness.sla[level].hours}h · alerta em {monitor.freshness.sla[level].warningHours}h</span>)}</div>
+          <div className="fiscal-freshness-filter" aria-label="Filtrar fontes por estado de frescor"><button type="button" className={freshnessFilter === "all" ? "active" : ""} onClick={() => setFreshnessFilter("all")}>Todas ({monitor.freshness.sources.length})</button><button type="button" className={freshnessFilter === "attention" ? "active" : ""} onClick={() => setFreshnessFilter("attention")}>Atenção ({monitor.freshness.metrics.partial})</button><button type="button" className={freshnessFilter === "degraded" ? "active" : ""} onClick={() => setFreshnessFilter("degraded")}>Rebaixadas ({monitor.freshness.metrics.notSupported})</button></div>
+          <div className="fiscal-freshness-sources">{monitor.freshness.sources.filter((source) => freshnessFilter === "all" || freshnessFilter === "attention" ? source.coverageEffect === "partial" : source.coverageEffect === "not_supported").slice(0, 100).map((source) => <article className={`${source.status} ${source.coverageEffect}`} key={source.code}><div><span>{freshnessLabel(source.status)}</span><b>{source.code} · {source.criticality}</b><p>{source.title}</p></div><div><small>Conferida: {source.checkedAt ? new Date(source.checkedAt).toLocaleString("pt-BR") : "sem captura"} · versão {source.sourceVersion} · #{source.contentFingerprint ?? "sem hash"}</small><small>SLA: {source.slaHours}h · idade {elapsedLabel(source.ageMinutes)} · impacto: {statusLabel[source.coverageEffect]}</small><p>{source.reason}</p><em>Regras: {source.impactedRuleCodes.join(" · ") || "não vinculadas"}</em></div><a href={source.sourceUrl} target="_blank" rel="noreferrer">Fonte ↗</a></article>)}</div>
+          <div className="fiscal-freshness-timing"><b>Tempos de resposta (histórico auditável)</b>{(["detect", "block", "correct", "recertify"] as const).map((metric) => <span key={metric}><strong>{metric === "detect" ? "Detectar" : metric === "block" ? "Bloquear" : metric === "correct" ? "Corrigir" : "Recertificar"}</strong><em>{elapsedLabel(monitor.freshness.timing[metric].averageMinutes)} médio · p95 {elapsedLabel(monitor.freshness.timing[metric].p95Minutes)} · {monitor.freshness.timing[metric].samples} amostra(s)</em></span>)}</div>
+          {monitor.canReviewNormativeChanges && <details className="fiscal-freshness-history"><summary>Entregas de alerta, resumos e incidentes</summary><div><p><b>Resumo diário:</b> {monitor.freshness.summaries[0] ? `${String(monitor.freshness.summaries[0].day_key)} · ${String(monitor.freshness.summaries[0].status)} · e-mail ${String(monitor.freshness.summaries[0].email_status)}` : "ainda não gerado"}</p><p><b>Alertas recentes:</b> {monitor.freshness.alerts.slice(0, 5).map((alert) => `${String(alert.source_code ?? "resumo")}: ${String(alert.status)}`).join(" · ") || "nenhum"}</p><p><b>Incidentes normativos:</b> {monitor.freshness.incidents.length} registrado(s) · {monitor.freshness.metrics.openIncidents} aberto(s). Detalhes sensíveis permanecem internos.</p></div></details>}
+        </section>
         <section className="governance-subsection">
           <header><div><span>FILA DE ANÁLISE</span><h3>Mudanças detectadas</h3></div><b>{monitor.metrics.pendingReview} aguardam revisão · {monitor.metrics.awaitingNewVersion} aguardam versão</b></header>
           {monitor.queue.length === 0 ? <p className="governance-empty">Nenhum item pendente de triagem. A ausência de sinal não substitui a conferência do caso concreto.</p> : <div className="governance-queue">{monitor.queue.map((item) => <article key={item.id}>

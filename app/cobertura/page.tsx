@@ -4,6 +4,7 @@ import { buildPublicCoverageSummary } from "../../domain/public-coverage-summary
 import { buildBreadcrumbStructuredData, buildPublicCoverageStructuredData } from "../../domain/seo-structured-data";
 import { StructuredData } from "../StructuredData";
 import { TaxContentNavigation } from "../TaxContentNavigation";
+import { PublicFiscalFreshnessIndicator } from "../PublicFiscalFreshnessIndicator";
 
 export const metadata: Metadata = {
   title: "Cobertura tributária pública e versionada | CBSHub",
@@ -59,6 +60,7 @@ export default async function PublicCoveragePage() {
         <article className="blocked"><b>Não suportado</b><p>O tema é reconhecido, porém o motor bloqueia cálculo, dossiê e relatório até existir regra específica suficiente.</p></article>
       </div>
     </section>
+    <PublicFiscalFreshnessIndicator />
 
     <section className="public-coverage-tax-section" aria-labelledby="coverage-tax-title">
       <header><span>MATRIZ POR TRIBUTO</span><h2 id="coverage-tax-title">A cobertura real, com a pendência ao lado.</h2><p>Os números abaixo são recalculados diretamente da mesma base usada pelos motores. Não são metas comerciais nem contagens digitadas na página.</p></header>

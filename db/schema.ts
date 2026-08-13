@@ -1719,3 +1719,58 @@ export const rtcCalculatorEvents = sqliteTable("rtc_calculator_events", {
 }, (table) => [
   index("rtc_calculator_events_version_created_idx").on(table.versionId, table.createdAt, table.id),
 ]);
+
+export const fiscalFreshnessObservations = sqliteTable("fiscal_freshness_observations", {
+  id: text("id").primaryKey(),
+  dayKey: text("day_key").notNull(),
+  sourceCode: text("source_code").notNull(),
+  criticality: text("criticality").notNull(),
+  freshnessStatus: text("freshness_status").notNull(),
+  coverageEffect: text("coverage_effect").notNull(),
+  slaHours: integer("sla_hours").notNull(),
+  ageMinutes: integer("age_minutes"),
+  deadlineAt: text("deadline_at"),
+  captureStatus: text("capture_status").notNull(),
+  sourceVersion: text("source_version").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  reason: text("reason").notNull(),
+  impactedRuleCodesJson: text("impacted_rule_codes_json").notNull().default("[]"),
+  fingerprint: text("fingerprint").notNull(),
+  observedAt: text("observed_at").notNull(),
+}, (table) => [
+  uniqueIndex("fiscal_freshness_observations_day_source_idx").on(table.dayKey, table.sourceCode),
+  index("fiscal_freshness_observations_status_observed_idx").on(table.freshnessStatus, table.observedAt, table.sourceCode),
+]);
+
+export const fiscalAlertDeliveries = sqliteTable("fiscal_alert_deliveries", {
+  id: text("id").primaryKey(),
+  alertKey: text("alert_key").notNull(),
+  sourceCode: text("source_code"),
+  severity: text("severity").notNull(),
+  channel: text("channel").notNull().default("email"),
+  recipient: text("recipient").notNull(),
+  subject: text("subject").notNull(),
+  status: text("status").notNull().default("queued"),
+  payloadHash: text("payload_hash").notNull(),
+  attemptCount: integer("attempt_count").notNull().default(0),
+  providerRef: text("provider_ref"),
+  errorCode: text("error_code"),
+  firstQueuedAt: text("first_queued_at").notNull(),
+  lastAttemptAt: text("last_attempt_at"),
+  sentAt: text("sent_at"),
+}, (table) => [
+  uniqueIndex("fiscal_alert_deliveries_alert_key_idx").on(table.alertKey),
+  index("fiscal_alert_deliveries_status_queued_idx").on(table.status, table.firstQueuedAt, table.id),
+]);
+
+export const fiscalDailySummaries = sqliteTable("fiscal_daily_summaries", {
+  id: text("id").primaryKey(),
+  dayKey: text("day_key").notNull(),
+  status: text("status").notNull(),
+  metricsJson: text("metrics_json").notNull().default("{}"),
+  sourceVersionsHash: text("source_versions_hash").notNull(),
+  generatedAt: text("generated_at").notNull(),
+  emailStatus: text("email_status").notNull().default("pending"),
+}, (table) => [
+  uniqueIndex("fiscal_daily_summaries_day_idx").on(table.dayKey),
+]);

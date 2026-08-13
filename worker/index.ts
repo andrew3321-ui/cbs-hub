@@ -8,6 +8,7 @@ import { runSearchConsoleSync } from "../app/search-console-service";
 import { NORMATIVE_MONITOR_SHARD_COUNT, normativeMonitorShardForScheduledTime } from "../domain/normative-governance";
 import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
 import { refreshCoverageBacklog } from "../app/coverage-demand-service";
+import { refreshFiscalFreshness } from "../app/fiscal-freshness-service";
 
 interface Env {
   ASSETS: Fetcher;
@@ -18,6 +19,9 @@ interface Env {
   GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL?: string;
   GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY?: string;
   GOOGLE_SEARCH_CONSOLE_SITE_URL?: string;
+  RESEND_API_KEY?: string;
+  FISCAL_ALERT_EMAIL_TO?: string;
+  FISCAL_ALERT_EMAIL_FROM?: string;
   CF_VERSION_METADATA?: {
     id: string;
     tag?: string;
@@ -291,10 +295,19 @@ const worker = {
         console.error(JSON.stringify({ event: "coverage_demand.backlog_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
+      ctx.waitUntil(refreshFiscalFreshness(env, new Date(controller.scheduledTime)).then((result) => {
+        console.info(JSON.stringify({ event: "fiscal_freshness.daily_summary", date, ...result }));
+      }).catch((error: unknown) => {
+        console.error(JSON.stringify({ event: "fiscal_freshness.daily_summary_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
     }
     const normativeShard = normativeMonitorShardForScheduledTime(controller.cron, controller.scheduledTime);
     if (normativeShard !== null) {
-      ctx.waitUntil(runNormativeMonitor({ DB: env.DB }, date, normativeShard, NORMATIVE_MONITOR_SHARD_COUNT).catch((error) => {
+      ctx.waitUntil(runNormativeMonitor({ DB: env.DB }, date, normativeShard, NORMATIVE_MONITOR_SHARD_COUNT).then(async () => {
+        const result = await refreshFiscalFreshness(env, new Date(controller.scheduledTime));
+        console.info(JSON.stringify({ event: "fiscal_freshness.after_monitor", date, shard: normativeShard, ...result }));
+      }).catch((error) => {
         console.error(JSON.stringify({
           event: "normative_monitor.failed",
           date,
