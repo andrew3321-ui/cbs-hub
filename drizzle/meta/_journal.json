@@ -316,6 +316,13 @@
       "when": 1786621200000,
       "tag": "0044_organic_authority_governance",
       "breakpoints": true
+    },
+    {
+      "idx": 45,
+      "version": "6",
+      "when": 1786626000000,
+      "tag": "0045_report_central",
+      "breakpoints": true
     }
   ]
 }

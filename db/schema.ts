@@ -1218,6 +1218,79 @@ export const fiscalIssuances = sqliteTable("fiscal_issuances", {
   index("fiscal_issuances_user_created_idx").on(table.userId, table.createdAt, table.id),
 ]);
 
+export const reportWorkItems = sqliteTable("report_work_items", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  periodKey: text("period_key").notNull(),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  assignedUserId: integer("assigned_user_id"),
+  reviewerUserId: integer("reviewer_user_id"),
+  status: text("status").notNull().default("draft"),
+  revision: integer("revision").notNull().default(1),
+  executiveSummary: text("executive_summary").notNull().default(""),
+  conclusion: text("conclusion").notNull().default(""),
+  indicatorsJson: text("indicators_json").notNull().default("{}"),
+  pendingItemsJson: text("pending_items_json").notNull().default("[]"),
+  snapshotHash: text("snapshot_hash"),
+  dueAt: text("due_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("report_work_items_workspace_company_period_idx").on(table.workspaceId, table.companyId, table.periodKey),
+  index("report_work_items_workspace_status_period_idx").on(table.workspaceId, table.status, table.periodKey, table.id),
+  index("report_work_items_workspace_assignee_idx").on(table.workspaceId, table.assignedUserId, table.status, table.id),
+  index("report_work_items_workspace_reviewer_idx").on(table.workspaceId, table.reviewerUserId, table.status, table.id),
+]);
+
+export const reportWorkItemLinks = sqliteTable("report_work_item_links", {
+  id: text("id").primaryKey(),
+  reportId: text("report_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  artifactType: text("artifact_type").notNull(),
+  artifactId: text("artifact_id").notNull(),
+  artifactLabel: text("artifact_label").notNull(),
+  artifactHash: text("artifact_hash").notNull(),
+  artifactVersion: text("artifact_version"),
+  artifactStatus: text("artifact_status").notNull(),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("report_work_item_links_report_artifact_idx").on(table.reportId, table.artifactType, table.artifactId),
+  index("report_work_item_links_workspace_report_idx").on(table.workspaceId, table.reportId, table.createdAt, table.id),
+]);
+
+export const reportWorkItemRevisions = sqliteTable("report_work_item_revisions", {
+  id: text("id").primaryKey(),
+  reportId: text("report_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  periodKey: text("period_key").notNull(),
+  revision: integer("revision").notNull(),
+  snapshotJson: text("snapshot_json").notNull(),
+  snapshotHash: text("snapshot_hash").notNull(),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("report_work_item_revisions_report_revision_idx").on(table.reportId, table.revision),
+  index("report_work_item_revisions_workspace_report_idx").on(table.workspaceId, table.reportId, table.revision),
+]);
+
+export const reportWorkItemEvents = sqliteTable("report_work_item_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  reportId: text("report_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  actorUserId: integer("actor_user_id").notNull(),
+  eventType: text("event_type").notNull(),
+  note: text("note").notNull().default(""),
+  eventData: text("event_data").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("report_work_item_events_report_created_idx").on(table.reportId, table.createdAt, table.id),
+  index("report_work_item_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+]);
+
 export const fiscalIssuanceEvents = sqliteTable("fiscal_issuance_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   issuanceId: integer("issuance_id").notNull(),

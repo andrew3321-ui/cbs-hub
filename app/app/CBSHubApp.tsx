@@ -18,13 +18,14 @@ import AccountOnboarding from "./AccountOnboarding";
 import ActionSafetyDialog from "./ActionSafetyDialog";
 import SupportCenter from "./SupportCenter";
 import AccountProfileCenter from "./AccountProfileCenter";
+import ReportCenter from "./ReportCenter";
 import BrandMark from "../BrandMark";
 import { onboardingActionWarnings } from "../../domain/account-onboarding";
 import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
 import type { PlanFeatureKey, WorkspaceEntitlements } from "../../domain/plan-entitlements";
 import type { SupportModule } from "../../domain/support-tickets";
 
-type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "metrics" | "billing" | "academy" | "support" | "profile";
+type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "reports" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "metrics" | "billing" | "academy" | "support" | "profile";
 
 const sectionPlanFeatures: Partial<Record<Section, PlanFeatureKey>> = {
   reviews: "officeCollaborationEnabled",
@@ -1263,6 +1264,9 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
           <button title="Documentos" className={section === "documents" ? "active" : ""} onClick={() => setSection("documents")}>
             <span className="nav-icon">▤</span>Documentos
           </button>
+          <button title="Central de relatórios" className={section === "reports" ? "active" : ""} onClick={() => setSection("reports")}>
+            <span className="nav-icon">▥</span>Relatórios
+          </button>
           <button title={workspace.type === "office" ? "Equipe" : "Modo de trabalho"} className={section === "team" ? "active" : ""} onClick={() => setSection("team")}>
             <span className="nav-icon">◎</span>{workspace.type === "office" ? "Equipe" : "Modo de trabalho"}
           </button>
@@ -1925,6 +1929,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
         {section === "metrics" && isPlatformAdmin && <OwnerMetricsCenter />}
         {section === "billing" && isPlatformAdmin && <BillingCenter />}
         {section === "profile" && <AccountProfileCenter user={user} />}
+        {section === "reports" && <ReportCenter companies={companies} activeCompanyId={activeCompanyId} userId={user.id} workspaceRole={workspace.role} />}
 
         {section === "support" && <SupportCenter companies={companies} activeCompanyId={activeCompanyId} initialModule={supportContextModule} isPlatformAdmin={isPlatformAdmin} />}
 
