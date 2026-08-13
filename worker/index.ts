@@ -7,6 +7,7 @@ import { runScheduledRtcCalculatorSync } from "../app/rtc-official-calculator-se
 import { runSearchConsoleSync } from "../app/search-console-service";
 import { NORMATIVE_MONITOR_SHARD_COUNT, normativeMonitorShardForScheduledTime } from "../domain/normative-governance";
 import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
+import { refreshCoverageBacklog } from "../app/coverage-demand-service";
 
 interface Env {
   ASSETS: Fetcher;
@@ -282,6 +283,12 @@ const worker = {
         console.info(JSON.stringify({ event: "search_console.sync_completed", date, status: result.status, metricRows: result.metricRows, inspectedPages: result.inspectedPages, configured: result.configured }));
       }).catch((error) => {
         console.error(JSON.stringify({ event: "search_console.sync_failed", date, error: error instanceof Error ? error.message : "SYNC_FAILED" }));
+        throw error;
+      }));
+      ctx.waitUntil(refreshCoverageBacklog(env.DB, new Date(controller.scheduledTime)).then((result) => {
+        console.info(JSON.stringify({ event: "coverage_demand.backlog_refreshed", date, ...result }));
+      }).catch((error: unknown) => {
+        console.error(JSON.stringify({ event: "coverage_demand.backlog_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
     }

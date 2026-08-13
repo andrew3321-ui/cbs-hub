@@ -34,6 +34,13 @@ type ExpansionPayload = {
   stageLabels: Record<Stage, string>;
   permissions: { role: string; canPrepare: boolean };
   policy: { automaticVerification: true; statement: string };
+  demand: {
+    visible: boolean;
+    privacy: string;
+    scoring: string;
+    goals: Array<{ taxScope: string; targetGainBps: number; startingCoverageBps: number; projectedGainBps: number; verifiedGainBps: number; backlogCount: number; fingerprint: string; refreshedAt: string }>;
+    backlog: Array<{ itemCode: string; dimensionType: string; dimensionKey: string; taxScope: string; priorityScore: number; frequency: number; workspaceCount: number; revenueCents: number; blockedCount: number; partialCount: number; supportedCount: number; riskScore: number; sourceHealthBps: number; currentCoverageBps: number; projectedGainBps: number; verifiedGainBps: number; expectedCaseCount: number; sourceCodes: string[]; ruleCodes: string[]; testCodes: string[]; implementationRef: string; justification: string[]; fingerprint: string; status: string; refreshedAt: string; eligibleForGain: boolean }>;
+  };
 };
 
 const scopes: Array<Scope | "all"> = ["all", "icms", "iss", "st", "federal", "sources"];
@@ -119,6 +126,12 @@ export default function FiscalExpansionCenter() {
         return <article key={key}><span>{label}</span><p><strong>{actual}</strong><small>/ {target}</small></p><div><i style={{ width: `${percent}%` }} /></div><em>{data.metrics.gaps[key] ? `faltam ${data.metrics.gaps[key]} · ${detail}` : `meta atingida · ${detail}`}</em></article>;
       })}</div>
     </section>
+
+    {data.demand.visible && <section className="expansion-demand">
+      <header><div><span>USO REAL · DADOS MINIMIZADOS</span><h2>Backlog mensal reproduzível</h2><p>{data.demand.scoring}</p></div><small>{data.demand.privacy}</small></header>
+      <div className="expansion-goal-grid">{data.demand.goals.map((goal) => <article key={goal.taxScope}><span>{goal.taxScope.replace("_", "/")}</span><strong>{(goal.startingCoverageBps / 100).toFixed(0)}%</strong><p>+ {(goal.projectedGainBps / 100).toFixed(1)} p.p. projetado</p><b>+ {(goal.verifiedGainBps / 100).toFixed(1)} p.p. comprovado</b><i><em style={{ width: `${Math.min(100, goal.verifiedGainBps / Math.max(1, goal.targetGainBps) * 100)}%` }} /></i><small>{goal.backlogCount} item(ns) · meta +{(goal.targetGainBps / 100).toFixed(0)} p.p.</small></article>)}</div>
+      <div className="expansion-demand-table"><header><span>Prioridade</span><span>Lacuna estruturada</span><span>Demanda</span><span>Ganho</span><span>Vínculos obrigatórios</span></header>{data.demand.backlog.slice(0, 20).map((item, index) => <article key={item.itemCode}><b>{String(index + 1).padStart(2, "0")} · {item.priorityScore}</b><p><strong>{item.dimensionType}: {item.dimensionKey}</strong><small>{item.taxScope} · cobertura {(item.currentCoverageBps / 100).toFixed(0)}% · fonte {(item.sourceHealthBps / 100).toFixed(0)}%</small></p><span>{item.frequency} uso(s)<small>{item.workspaceCount} espaço(s) · {(item.revenueCents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" })}</small></span><span className={item.eligibleForGain ? "eligible" : "blocked"}>{item.eligibleForGain ? `+ ${(item.projectedGainBps / 100).toFixed(1)} p.p.` : "não contabilizado"}<small>comprovado +{(item.verifiedGainBps / 100).toFixed(1)} p.p.</small></span><details><summary>{item.sourceCodes.length} fontes · {item.ruleCodes.length} regras · {item.testCodes.length} testes</summary>{item.justification.map((reason) => <small key={reason}>• {reason}</small>)}<a href={item.implementationRef} target="_blank" rel="noreferrer">Tarefa vinculada ↗</a><code>#{item.fingerprint.slice(0, 12)}</code></details></article>)}</div>
+    </section>}
 
     <section className="expansion-funnel">
       {stageOrder.map((stage, index) => <div key={stage}><span>{String(index + 1).padStart(2, "0")}</span><p><b>{data.stageLabels[stage]}</b><small>{data.metrics.counts[stage]} itens</small></p>{index < stageOrder.length - 1 && <i>→</i>}</div>)}

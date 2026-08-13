@@ -344,6 +344,13 @@
       "when": 1786636800000,
       "tag": "0048_monthly_closing",
       "breakpoints": true
+    },
+    {
+      "idx": 49,
+      "version": "6",
+      "when": 1786638600000,
+      "tag": "0049_coverage_demand_queue",
+      "breakpoints": true
     }
   ]
 }

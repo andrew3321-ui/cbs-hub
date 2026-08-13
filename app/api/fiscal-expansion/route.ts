@@ -15,11 +15,15 @@ import { listExpansionEvents, listExpansionProgress, saveExpansionTransition } f
 import { canPrepareScenarios, getWorkspaceContext, sha256Hex } from "../../workspace";
 import { withWorkspaceFeature } from "../../plan-entitlements";
 import { FISCAL_SIMULATION_SUITE_VERSION, runFiscalSimulationSuite } from "../../../domain/fiscal-homologation-simulations";
+import { ensureCoverageBacklogFresh, listCoverageBacklog, listCoverageGoals } from "../../coverage-demand-service";
+import { isPlatformAdminEmail } from "../../platform-admin";
 
 async function payload(user: NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>) {
   const workspace = await getWorkspaceContext(user.id);
   if (!workspace) throw new Error("workspace_not_found");
-  const [progress, events] = await Promise.all([listExpansionProgress(workspace.id), listExpansionEvents(workspace.id)]);
+  const canViewDemand = isPlatformAdminEmail(user.email);
+  if (canViewDemand) await ensureCoverageBacklogFresh();
+  const [progress, events, demandBacklog, demandGoals] = await Promise.all([listExpansionProgress(workspace.id), listExpansionEvents(workspace.id), canViewDemand ? listCoverageBacklog() : Promise.resolve([]), canViewDemand ? listCoverageGoals() : Promise.resolve([])]);
   const items = applyExpansionProgress(fiscalExpansionBacklog, progress);
   return {
     version: FISCAL_EXPANSION_VERSION,
@@ -28,6 +32,13 @@ async function payload(user: NonNullable<Awaited<ReturnType<typeof getCurrentUse
     queue: expansionQueue(items),
     items,
     events,
+    demand: {
+      backlog: demandBacklog,
+      goals: demandGoals,
+      visible: canViewDemand,
+      privacy: "Somente dimensões fiscais estruturadas e agregadas. Perguntas, textos livres, documentos, nomes e identificadores reais de clientes não entram na priorização.",
+      scoring: "25% frequência · 20% receita atendida · 20% lacuna observada · 15% escritórios · 15% risco · 5% saúde da fonte",
+    },
     stageLabels: expansionStageLabels,
     permissions: {
       role: workspace.role,

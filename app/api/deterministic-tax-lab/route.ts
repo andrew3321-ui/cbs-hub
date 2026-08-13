@@ -4,6 +4,7 @@ import { withApiTelemetry } from "../../api-infrastructure";
 import { getCurrentUser } from "../../auth";
 import { getWorkspaceContext, sha256Hex } from "../../workspace";
 import { withWorkspaceFeature } from "../../plan-entitlements";
+import { recordLabCoverageDemand } from "../../coverage-demand-service";
 
 async function calculate(request: Request) {
   const user = await getCurrentUser();
@@ -14,6 +15,9 @@ async function calculate(request: Request) {
   try {
     const input = await request.json() as LabInput;
     const calculated = calculateTaxLab(input);
+    await recordLabCoverageDemand({ workspaceId: workspace.id, module: input.module, outcome: calculated.status }).catch((error) => {
+      console.warn(JSON.stringify({ event: "coverage_demand.signal_failed", surface: "tax_lab", error: error instanceof Error ? error.name : "UnknownError" }));
+    });
     const inputHash = await sha256Hex(JSON.stringify({ engineVersion: DETERMINISTIC_TAX_LAB_VERSION, input }));
     let governanceVerified = false;
     let governanceFingerprint: string | null = null;

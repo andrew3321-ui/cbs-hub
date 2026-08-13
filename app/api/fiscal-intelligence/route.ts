@@ -13,6 +13,7 @@ import {
 } from "../../fiscal-intelligence-service";
 import { withWorkspaceFeature } from "../../plan-entitlements";
 import { getWorkspaceContext } from "../../workspace";
+import { recordIntelligenceCoverageDemand } from "../../coverage-demand-service";
 
 function questionLengthBucket(length: number): FiscalIntelligenceMetricInput["questionLengthBucket"] {
   if (!length) return "unknown";
@@ -150,6 +151,9 @@ async function searchFiscalIntelligence(request: Request) {
       factCount: Object.keys(overrides).length,
       sourceCount: result.sources.length,
       clarificationCount: result.clarifications.length,
+    });
+    await recordIntelligenceCoverageDemand({ workspaceId: workspace.id, topicCode: result.topicCode, facts: overrides, outcome: coverageStatus }).catch((error) => {
+      console.warn(JSON.stringify({ event: "coverage_demand.signal_failed", surface: "fiscal_intelligence", error: error instanceof Error ? error.name : "UnknownError" }));
     });
     return Response.json({
       result,

@@ -773,6 +773,86 @@ export const fiscalExpansionEvents = sqliteTable("fiscal_expansion_events", {
   uniqueIndex("fiscal_expansion_events_workspace_item_hash_idx").on(table.workspaceId, table.itemCode, table.evidenceHash),
 ]);
 
+export const coverageDemandSignals = sqliteTable("coverage_demand_signals", {
+  id: text("id").primaryKey(),
+  monthKey: text("month_key").notNull(),
+  dimensionType: text("dimension_type").notNull(),
+  dimensionKey: text("dimension_key").notNull(),
+  taxScope: text("tax_scope").notNull(),
+  occurrenceCount: integer("occurrence_count").notNull().default(0),
+  supportedCount: integer("supported_count").notNull().default(0),
+  partialCount: integer("partial_count").notNull().default(0),
+  blockedCount: integer("blocked_count").notNull().default(0),
+  firstSeenAt: text("first_seen_at").notNull(),
+  lastSeenAt: text("last_seen_at").notNull(),
+}, (table) => [
+  uniqueIndex("coverage_demand_signals_month_dimension_idx").on(table.monthKey, table.dimensionType, table.dimensionKey, table.taxScope),
+  index("coverage_demand_signals_month_scope_idx").on(table.monthKey, table.taxScope, table.occurrenceCount),
+]);
+
+export const coverageDemandClaims = sqliteTable("coverage_demand_claims", {
+  id: text("id").primaryKey(),
+  signalId: text("signal_id").notNull(),
+  monthKey: text("month_key").notNull(),
+  workspaceHash: text("workspace_hash").notNull(),
+  revenueCents: integer("revenue_cents").notNull().default(0),
+  hitCount: integer("hit_count").notNull().default(1),
+  firstSeenAt: text("first_seen_at").notNull(),
+  lastSeenAt: text("last_seen_at").notNull(),
+}, (table) => [
+  uniqueIndex("coverage_demand_claims_signal_workspace_idx").on(table.signalId, table.workspaceHash),
+  index("coverage_demand_claims_month_signal_idx").on(table.monthKey, table.signalId),
+]);
+
+export const coverageMonthlyBacklog = sqliteTable("coverage_monthly_backlog", {
+  id: text("id").primaryKey(),
+  monthKey: text("month_key").notNull(),
+  itemCode: text("item_code").notNull(),
+  dimensionType: text("dimension_type").notNull(),
+  dimensionKey: text("dimension_key").notNull(),
+  taxScope: text("tax_scope").notNull(),
+  priorityScore: integer("priority_score").notNull(),
+  frequencyCount: integer("frequency_count").notNull().default(0),
+  workspaceCount: integer("workspace_count").notNull().default(0),
+  revenueCents: integer("revenue_cents").notNull().default(0),
+  blockedCount: integer("blocked_count").notNull().default(0),
+  partialCount: integer("partial_count").notNull().default(0),
+  supportedCount: integer("supported_count").notNull().default(0),
+  riskScore: integer("risk_score").notNull(),
+  sourceHealthBps: integer("source_health_bps").notNull(),
+  currentCoverageBps: integer("current_coverage_bps").notNull(),
+  projectedGainBps: integer("projected_gain_bps").notNull().default(0),
+  verifiedGainBps: integer("verified_gain_bps").notNull().default(0),
+  expectedCaseCount: integer("expected_case_count").notNull().default(0),
+  sourceCodesJson: text("source_codes_json").notNull().default("[]"),
+  ruleCodesJson: text("rule_codes_json").notNull().default("[]"),
+  testCodesJson: text("test_codes_json").notNull().default("[]"),
+  implementationRef: text("implementation_ref").notNull().default(""),
+  justificationJson: text("justification_json").notNull().default("[]"),
+  fingerprint: text("fingerprint").notNull(),
+  status: text("status").notNull().default("planned"),
+  refreshedAt: text("refreshed_at").notNull(),
+  verifiedAt: text("verified_at"),
+}, (table) => [
+  uniqueIndex("coverage_monthly_backlog_month_item_idx").on(table.monthKey, table.itemCode),
+  index("coverage_monthly_backlog_month_priority_idx").on(table.monthKey, table.priorityScore, table.itemCode),
+]);
+
+export const coverageExpansionGoals = sqliteTable("coverage_expansion_goals", {
+  id: text("id").primaryKey(),
+  monthKey: text("month_key").notNull(),
+  taxScope: text("tax_scope").notNull(),
+  targetGainBps: integer("target_gain_bps").notNull(),
+  startingCoverageBps: integer("starting_coverage_bps").notNull(),
+  projectedGainBps: integer("projected_gain_bps").notNull().default(0),
+  verifiedGainBps: integer("verified_gain_bps").notNull().default(0),
+  backlogCount: integer("backlog_count").notNull().default(0),
+  fingerprint: text("fingerprint").notNull(),
+  refreshedAt: text("refreshed_at").notNull(),
+}, (table) => [
+  uniqueIndex("coverage_expansion_goals_month_scope_idx").on(table.monthKey, table.taxScope),
+]);
+
 export const fiscalReferenceCases = sqliteTable("fiscal_reference_cases", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   ruleSetId: integer("rule_set_id").notNull(),
