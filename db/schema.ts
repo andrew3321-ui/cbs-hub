@@ -1353,6 +1353,30 @@ export const reportExports = sqliteTable("report_exports", {
   index("report_exports_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
 ]);
 
+export const monthlyClosingConfigs = sqliteTable("monthly_closing_configs", {
+  id: text("id").primaryKey(), workspaceId: integer("workspace_id").notNull(), companyId: integer("company_id").notNull(), active: integer("active", { mode: "boolean" }).notNull().default(true),
+  dueDay: integer("due_day").notNull().default(10), preparationSlaHours: integer("preparation_sla_hours").notNull().default(72), reviewSlaHours: integer("review_sla_hours").notNull().default(48),
+  preparerUserId: integer("preparer_user_id"), reviewerUserId: integer("reviewer_user_id"), requiredDocumentCount: integer("required_document_count").notNull().default(1),
+  requireSnapshot: integer("require_snapshot", { mode: "boolean" }).notNull().default(true), requireConclusion: integer("require_conclusion", { mode: "boolean" }).notNull().default(true),
+  createdByUserId: integer("created_by_user_id").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("monthly_closing_configs_workspace_company_idx").on(table.workspaceId, table.companyId), index("monthly_closing_configs_workspace_active_idx").on(table.workspaceId, table.active, table.companyId)]);
+
+export const monthlyClosingCycles = sqliteTable("monthly_closing_cycles", {
+  id: text("id").primaryKey(), workspaceId: integer("workspace_id").notNull(), companyId: integer("company_id").notNull(), periodKey: text("period_key").notNull(), reportId: text("report_id").notNull(), configId: text("config_id").notNull(), stage: text("stage").notNull().default("preparation"), dueAt: text("due_at").notNull(), preparationDueAt: text("preparation_due_at").notNull(), reviewDueAt: text("review_due_at"), deliveredAt: text("delivered_at"), decidedAt: text("decided_at"), clientDecision: text("client_decision"), clientNote: text("client_note").notNull().default(""), acceptedReportRevision: integer("accepted_report_revision"), acceptedSnapshotHash: text("accepted_snapshot_hash"), reopenedFromRevision: integer("reopened_from_revision"), reopenedAt: text("reopened_at"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`), updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("monthly_closing_cycles_workspace_company_period_idx").on(table.workspaceId, table.companyId, table.periodKey), index("monthly_closing_cycles_workspace_stage_due_idx").on(table.workspaceId, table.stage, table.dueAt, table.id), index("monthly_closing_cycles_report_idx").on(table.reportId, table.periodKey)]);
+
+export const monthlyClosingEvents = sqliteTable("monthly_closing_events", {
+  id: text("id").primaryKey(), cycleId: text("cycle_id").notNull(), workspaceId: integer("workspace_id").notNull(), actorType: text("actor_type").notNull(), actorUserId: integer("actor_user_id"), eventType: text("event_type").notNull(), eventDataJson: text("event_data_json").notNull().default("{}"), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [index("monthly_closing_events_cycle_created_idx").on(table.cycleId, table.createdAt, table.id), index("monthly_closing_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id)]);
+
+export const monthlyClosingReminders = sqliteTable("monthly_closing_reminders", {
+  id: text("id").primaryKey(), cycleId: text("cycle_id").notNull(), workspaceId: integer("workspace_id").notNull(), reminderKind: text("reminder_kind").notNull(), dedupeKey: text("dedupe_key").notNull(), recipientUserId: integer("recipient_user_id"), status: text("status").notNull().default("queued"), createdByUserId: integer("created_by_user_id").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("monthly_closing_reminders_dedupe_idx").on(table.workspaceId, table.dedupeKey), index("monthly_closing_reminders_cycle_created_idx").on(table.cycleId, table.createdAt, table.id)]);
+
+export const monthlyClosingShares = sqliteTable("monthly_closing_shares", {
+  id: text("id").primaryKey(), cycleId: text("cycle_id").notNull(), workspaceId: integer("workspace_id").notNull(), reportId: text("report_id").notNull(), reportRevision: integer("report_revision").notNull(), snapshotHash: text("snapshot_hash").notNull(), tokenHash: text("token_hash").notNull(), expiresAt: text("expires_at").notNull(), revokedAt: text("revoked_at"), viewedAt: text("viewed_at"), viewCount: integer("view_count").notNull().default(0), decision: text("decision"), decisionNote: text("decision_note").notNull().default(""), decidedAt: text("decided_at"), createdByUserId: integer("created_by_user_id").notNull(), createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [uniqueIndex("monthly_closing_shares_token_hash_idx").on(table.tokenHash), index("monthly_closing_shares_cycle_created_idx").on(table.cycleId, table.createdAt, table.id)]);
+
 export const spreadsheetImportProfiles = sqliteTable("spreadsheet_import_profiles", {
   id: text("id").primaryKey(),
   workspaceId: integer("workspace_id").notNull(),

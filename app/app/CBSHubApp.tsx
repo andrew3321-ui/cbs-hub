@@ -19,6 +19,7 @@ import ActionSafetyDialog from "./ActionSafetyDialog";
 import SupportCenter from "./SupportCenter";
 import AccountProfileCenter from "./AccountProfileCenter";
 import ReportCenter from "./ReportCenter";
+import MonthlyClosingCenter from "./MonthlyClosingCenter";
 import SpreadsheetMigrationWizard from "./SpreadsheetMigrationWizard";
 import BrandMark from "../BrandMark";
 import { onboardingActionWarnings } from "../../domain/account-onboarding";
@@ -26,7 +27,7 @@ import { workspaceAccountRoleLabel } from "../../domain/workspace-role-labels";
 import type { PlanFeatureKey, WorkspaceEntitlements } from "../../domain/plan-entitlements";
 import type { SupportModule } from "../../domain/support-tickets";
 
-type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "reports" | "spreadsheet" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "metrics" | "billing" | "academy" | "support" | "profile";
+type Section = "overview" | "companies" | "simulator" | "reviews" | "documents" | "reports" | "closing" | "spreadsheet" | "team" | "intelligence" | "taxlab" | "coverage" | "expansion" | "rules" | "determination" | "metrics" | "billing" | "academy" | "support" | "profile";
 
 const sectionPlanFeatures: Partial<Record<Section, PlanFeatureKey>> = {
   reviews: "officeCollaborationEnabled",
@@ -1268,6 +1269,9 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
           <button title="Central de relatórios" className={section === "reports" ? "active" : ""} onClick={() => setSection("reports")}>
             <span className="nav-icon">▥</span>Relatórios
           </button>
+          <button title="Fechamento mensal" className={section === "closing" ? "active" : ""} onClick={() => setSection("closing")}>
+            <span className="nav-icon">✦</span>Fechamento mensal
+          </button>
           <button title="Migrar planilhas" className={section === "spreadsheet" ? "active" : ""} onClick={() => setSection("spreadsheet")}>
             <span className="nav-icon">⇥</span>Migrar planilhas
           </button>
@@ -1934,6 +1938,7 @@ export default function CBSHubApp({ user, workspace, initialEntitlements, signOu
         {section === "billing" && isPlatformAdmin && <BillingCenter />}
         {section === "profile" && <AccountProfileCenter user={user} />}
         {section === "reports" && <ReportCenter companies={companies} activeCompanyId={activeCompanyId} userId={user.id} workspaceRole={workspace.role} />}
+        {section === "closing" && <MonthlyClosingCenter onOpenReports={() => setSection("reports")} />}
         {section === "spreadsheet" && <SpreadsheetMigrationWizard companies={companies} activeCompanyId={activeCompanyId} />}
 
         {section === "support" && <SupportCenter companies={companies} activeCompanyId={activeCompanyId} initialModule={supportContextModule} isPlatformAdmin={isPlatformAdmin} />}
