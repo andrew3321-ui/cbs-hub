@@ -15,6 +15,7 @@ export const publicIndexableRoutes = [
   { path: "/privacidade", changeFrequency: "monthly", priority: 0.4 },
   { path: "/termos", changeFrequency: "monthly", priority: 0.4 },
   { path: "/responsavel", changeFrequency: "monthly", priority: 0.3 },
+  { path: "/imprensa", changeFrequency: "monthly", priority: 0.7 },
   { path: "/calculadora-reforma-tributaria", changeFrequency: "weekly", priority: 0.9 },
   { path: "/cbs-ibs-contadores", changeFrequency: "weekly", priority: 0.9 },
   { path: "/icms-st-contadores", changeFrequency: "weekly", priority: 0.9 },

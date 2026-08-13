@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import OrganicAuthorityCenter from "./OrganicAuthorityCenter";
 
 type Daily = { date: string; pageViews: number; visitors: number; sessions: number; signups: number; activeUsers: number; trialsStarted: number; trialsDenied: number; paymentsApproved: number; grossAmountCents: number };
 type Payload = {
@@ -180,6 +181,8 @@ export default function OwnerMetricsCenter() {
       </div>
       <p className="owner-search-footnote">Última sincronização: {data.searchConsole.lastSync?.completedAt ? new Date(data.searchConsole.lastSync.completedAt).toLocaleString("pt-BR") : "não executada"} · retenção agregada: {data.searchConsole.retentionDays} dias · rotina recomendada: revisar alertas, oportunidades, páginas e conversões toda semana.</p>
     </section>
+
+    <OrganicAuthorityCenter />
 
     <div className="owner-metrics-layout owner-bottom-layout">
       <section className="panel owner-sources-panel"><div className="panel-heading"><div><span className="eyebrow">ORIGEM E INTENÇÃO</span><h3>Fontes e CTAs orgânicos</h3></div></div><div className="owner-source-list">{data.acquisition.sources.map((source) => <article key={`${source.source}:${source.medium}`}><p><b>{source.source}</b><small>{source.medium}</small></p><strong>{source.visitors}</strong><span>visitas únicas/dia · {source.pageViews} views</span></article>)}{data.acquisition.seoCtas.map((cta) => <article key={`${cta.pathGroup}:${cta.campaign}`}><p><b>{cta.campaign}</b><small>{cta.pathGroup}</small></p><strong>{cta.clicks}</strong><span>cliques · {cta.visitors} visitantes/dia</span></article>)}{!data.acquisition.sources.length && !data.acquisition.seoCtas.length && <div className="billing-empty"><b>A coleta começa nesta versão</b><p>As fontes e CTAs aparecerão após as primeiras visitas qualificadas.</p></div>}</div></section>

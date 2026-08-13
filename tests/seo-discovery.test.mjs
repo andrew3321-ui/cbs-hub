@@ -27,6 +27,7 @@ test("sitemap contém somente páginas públicas canônicas", () => {
     "https://cbshub.com.br/privacidade",
     "https://cbshub.com.br/termos",
     "https://cbshub.com.br/responsavel",
+    "https://cbshub.com.br/imprensa",
     "https://cbshub.com.br/calculadora-reforma-tributaria",
     "https://cbshub.com.br/cbs-ibs-contadores",
     "https://cbshub.com.br/icms-st-contadores",
@@ -48,6 +49,7 @@ test("todas as URLs do sitemap declaram canonical correspondente", () => {
     ["https://cbshub.com.br/privacidade", "../app/privacidade/page.tsx"],
     ["https://cbshub.com.br/termos", "../app/termos/page.tsx"],
     ["https://cbshub.com.br/responsavel", "../app/responsavel/page.tsx"],
+    ["https://cbshub.com.br/imprensa", "../app/imprensa/page.tsx"],
     ["https://cbshub.com.br/calculadora-reforma-tributaria", "../app/calculadora-reforma-tributaria/page.tsx"],
     ["https://cbshub.com.br/cbs-ibs-contadores", "../app/cbs-ibs-contadores/page.tsx"],
     ["https://cbshub.com.br/icms-st-contadores", "../app/icms-st-contadores/page.tsx"],
@@ -63,7 +65,7 @@ test("todas as URLs do sitemap declaram canonical correspondente", () => {
       continue;
     }
     const source = fs.readFileSync(new URL(files.get(entry.url), import.meta.url), "utf8");
-    if (pathname.split("/").filter(Boolean).length === 1 && pathname !== "/planos" && pathname !== "/metodologia" && pathname !== "/cobertura" && pathname !== "/privacidade" && pathname !== "/termos" && pathname !== "/responsavel" && pathname !== "/conteudos") {
+    if (pathname.split("/").filter(Boolean).length === 1 && pathname !== "/planos" && pathname !== "/metodologia" && pathname !== "/cobertura" && pathname !== "/privacidade" && pathname !== "/termos" && pathname !== "/responsavel" && pathname !== "/imprensa" && pathname !== "/conteudos") {
       assert.match(source, /seoIntentMetadata\(page\)/);
     } else {
       assert.match(source, new RegExp(`canonical:\\s*["']${pathname.replace("/", "\\/")}["']`));
@@ -105,7 +107,7 @@ test("breadcrumbs têm posições, URLs absolutas e serialização segura", () =
 });
 
 test("páginas públicas internas recebem breadcrumb e metadados sociais próprios", () => {
-  for (const slug of ["planos", "metodologia", "privacidade", "termos", "responsavel"]) {
+  for (const slug of ["planos", "metodologia", "privacidade", "termos", "responsavel", "imprensa"]) {
     const source = fs.readFileSync(new URL(`../app/${slug}/page.tsx`, import.meta.url), "utf8");
     assert.match(source, /PublicPageBreadcrumb/);
     assert.match(source, /openGraph:/);

@@ -224,6 +224,42 @@ export const searchConsoleSyncRuns = sqliteTable("search_console_sync_runs", {
   index("search_console_sync_runs_status_started_idx").on(table.status, table.startedAt),
 ]);
 
+export const organicAuthorityLinks = sqliteTable("organic_authority_links", {
+  id: text("id").primaryKey(),
+  sourceUrl: text("source_url").notNull(),
+  sourceDomain: text("source_domain").notNull(),
+  targetPath: text("target_path").notNull(),
+  context: text("context").notNull(),
+  acquisitionMethod: text("acquisition_method").notNull(),
+  status: text("status").notNull().default("verified"),
+  firstSeenAt: text("first_seen_at").notNull(),
+  lastVerifiedAt: text("last_verified_at").notNull(),
+  resultNote: text("result_note").notNull().default(""),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("organic_authority_links_source_idx").on(table.sourceUrl),
+  index("organic_authority_links_status_verified_idx").on(table.status, table.lastVerifiedAt),
+  index("organic_authority_links_domain_idx").on(table.sourceDomain, table.status),
+]);
+
+export const organicOutreachCycles = sqliteTable("organic_outreach_cycles", {
+  id: text("id").primaryKey(),
+  cycleMonth: text("cycle_month").notNull(),
+  status: text("status").notNull().default("open"),
+  outreachCount: integer("outreach_count").notNull().default(0),
+  mentionsFound: integer("mentions_found").notNull().default(0),
+  verifiedLinks: integer("verified_links").notNull().default(0),
+  notes: text("notes").notNull().default(""),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("organic_outreach_cycles_month_idx").on(table.cycleMonth),
+  index("organic_outreach_cycles_status_month_idx").on(table.status, table.cycleMonth),
+]);
+
 export const scenarios = sqliteTable("scenarios", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   name: text("name").notNull(),

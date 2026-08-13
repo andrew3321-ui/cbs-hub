@@ -309,6 +309,13 @@
       "when": 1786295463961,
       "tag": "0043_restore_individual_office_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 44,
+      "version": "6",
+      "when": 1786621200000,
+      "tag": "0044_organic_authority_governance",
+      "breakpoints": true
     }
   ]
 }
