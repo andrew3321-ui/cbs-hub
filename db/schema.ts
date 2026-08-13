@@ -1232,6 +1232,11 @@ export const reportWorkItems = sqliteTable("report_work_items", {
   conclusion: text("conclusion").notNull().default(""),
   indicatorsJson: text("indicators_json").notNull().default("{}"),
   pendingItemsJson: text("pending_items_json").notNull().default("[]"),
+  templateKey: text("template_key").notNull().default("monthly-pme"),
+  templateVersion: integer("template_version").notNull().default(1),
+  blocksJson: text("blocks_json").notNull().default("[]"),
+  commercialNotes: text("commercial_notes").notNull().default(""),
+  recommendationsJson: text("recommendations_json").notNull().default("[]"),
   snapshotHash: text("snapshot_hash"),
   dueAt: text("due_at"),
   createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
@@ -1289,6 +1294,63 @@ export const reportWorkItemEvents = sqliteTable("report_work_item_events", {
 }, (table) => [
   index("report_work_item_events_report_created_idx").on(table.reportId, table.createdAt, table.id),
   index("report_work_item_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+]);
+
+export const reportTemplates = sqliteTable("report_templates", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  name: text("name").notNull(),
+  serviceType: text("service_type").notNull(),
+  clientType: text("client_type").notNull(),
+  blocksJson: text("blocks_json").notNull(),
+  version: integer("version").notNull().default(1),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("report_templates_workspace_name_idx").on(table.workspaceId, table.name),
+  index("report_templates_workspace_service_idx").on(table.workspaceId, table.serviceType, table.clientType, table.updatedAt),
+]);
+
+export const reportWorkspaceBranding = sqliteTable("report_workspace_branding", {
+  workspaceId: integer("workspace_id").primaryKey(),
+  brandingJson: text("branding_json").notNull(),
+  version: integer("version").notNull().default(1),
+  updatedByUserId: integer("updated_by_user_id").notNull(),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+});
+
+export const reportApprovals = sqliteTable("report_approvals", {
+  id: text("id").primaryKey(),
+  reportId: text("report_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  revision: integer("revision").notNull(),
+  snapshotHash: text("snapshot_hash").notNull(),
+  reviewerUserId: integer("reviewer_user_id").notNull(),
+  reviewerName: text("reviewer_name").notNull(),
+  professionalRegistration: text("professional_registration").notNull(),
+  signatureVersion: text("signature_version").notNull(),
+  approvalSignature: text("approval_signature").notNull(),
+  decidedAt: text("decided_at").notNull(),
+}, (table) => [
+  uniqueIndex("report_approvals_report_revision_idx").on(table.reportId, table.revision),
+  index("report_approvals_workspace_decided_idx").on(table.workspaceId, table.decidedAt, table.id),
+]);
+
+export const reportExports = sqliteTable("report_exports", {
+  id: text("id").primaryKey(),
+  reportId: text("report_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  revision: integer("revision").notNull(),
+  snapshotHash: text("snapshot_hash").notNull(),
+  templateKey: text("template_key").notNull(),
+  templateVersion: integer("template_version").notNull(),
+  pdfSha256: text("pdf_sha256").notNull(),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("report_exports_report_revision_idx").on(table.reportId, table.revision, table.createdAt, table.id),
+  index("report_exports_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
 ]);
 
 export const spreadsheetImportProfiles = sqliteTable("spreadsheet_import_profiles", {

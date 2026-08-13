@@ -330,6 +330,13 @@
       "when": 1786630800000,
       "tag": "0046_spreadsheet_migration",
       "breakpoints": true
+    },
+    {
+      "idx": 47,
+      "version": "6",
+      "when": 1786633200000,
+      "tag": "0047_report_builder",
+      "breakpoints": true
     }
   ]
 }

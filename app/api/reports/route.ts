@@ -3,11 +3,13 @@ import { getCurrentUser } from "../../auth";
 import { withApiTelemetry } from "../../api-infrastructure";
 import { getWorkspaceContext, sha256Hex } from "../../workspace";
 import { canonicalReportSnapshot, isReportArtifactType, isReportPeriod, normalizeIndicators, normalizePendingItems, reportPermissions, reportReviewReadiness, type ReportArtifactType } from "../../../domain/report-central";
+import { defaultReportBlocks, normalizeReportBlocks, normalizeReportRecommendations } from "../../../domain/report-builder";
 
 type ReportRow = {
   id: string; workspace_id: number; company_id: number; period_key: string; created_by_user_id: number;
   assigned_user_id: number | null; reviewer_user_id: number | null; status: string; revision: number;
   executive_summary: string; conclusion: string; indicators_json: string; pending_items_json: string;
+  template_key: string; template_version: number; blocks_json: string; commercial_notes: string; recommendations_json: string;
   snapshot_hash: string | null; due_at: string | null; created_at: string; updated_at: string;
   company_name: string; assigned_name: string | null; reviewer_name: string | null; creator_name: string;
 };
@@ -19,6 +21,10 @@ type LinkRow = {
 
 function jsonParse<T>(value: string, fallback: T): T {
   try { return JSON.parse(value) as T; } catch { return fallback; }
+}
+function storedReportBlocks(value: string) {
+  const parsed = jsonParse<unknown[]>(value, []);
+  return normalizeReportBlocks(parsed.length ? parsed : defaultReportBlocks());
 }
 
 async function reportById(reportId: string, workspaceId: number) {
@@ -40,6 +46,9 @@ function publicReport(row: ReportRow) {
     reviewerName: row.reviewer_name, status: row.status, revision: row.revision,
     executiveSummary: row.executive_summary, conclusion: row.conclusion,
     indicators: jsonParse(row.indicators_json, {}), pendingItems: jsonParse(row.pending_items_json, []),
+    templateKey: row.template_key, templateVersion: row.template_version,
+    blocks: storedReportBlocks(row.blocks_json), commercialNotes: row.commercial_notes,
+    recommendations: normalizeReportRecommendations(jsonParse(row.recommendations_json, [])),
     snapshotHash: row.snapshot_hash, dueAt: row.due_at, createdAt: row.created_at, updatedAt: row.updated_at,
   };
 }
@@ -171,13 +180,18 @@ async function mutateReport(request: Request) {
       const conclusion = typeof body.conclusion === "string" ? body.conclusion.trim().slice(0, 5000) : "";
       const indicators = normalizeIndicators(body.indicators);
       const pendingItems = normalizePendingItems(body.pendingItems);
+      const templateKey = typeof body.templateKey === "string" ? body.templateKey.trim().slice(0, 100) || "monthly-pme" : "monthly-pme";
+      const templateVersion = Number.isInteger(Number(body.templateVersion)) && Number(body.templateVersion) > 0 ? Math.min(Number(body.templateVersion), 1_000_000) : 1;
+      const blocks = normalizeReportBlocks(body.blocks);
+      const commercialNotes = typeof body.commercialNotes === "string" ? body.commercialNotes.trim().slice(0, 5000) : "";
+      const recommendations = normalizeReportRecommendations(body.recommendations);
       const links = await getLinks(report.id, workspace.id);
       const revision = report.revision + 1;
-      const snapshotJson = canonicalReportSnapshot({ schemaVersion: "report-central-1", reportId: report.id, workspaceId: workspace.id, company: { id: report.company_id, name: report.company_name }, periodKey: report.period_key, revision, executiveSummary, conclusion, indicators, pendingItems, artifacts: links.map((link: LinkRow) => ({ type: link.artifact_type, id: link.artifact_id, label: link.artifact_label, hash: link.artifact_hash, version: link.artifact_version, status: link.artifact_status })) });
+      const snapshotJson = canonicalReportSnapshot({ schemaVersion: "report-builder-1", reportId: report.id, workspaceId: workspace.id, company: { id: report.company_id, name: report.company_name }, periodKey: report.period_key, revision, template: { key: templateKey, version: templateVersion }, blocks, executiveSummary, conclusion, commercialNotes, recommendations, indicators, pendingItems, artifacts: links.map((link: LinkRow) => ({ type: link.artifact_type, id: link.artifact_id, label: link.artifact_label, hash: link.artifact_hash, version: link.artifact_version, status: link.artifact_status })) });
       const snapshotHash = await sha256Hex(snapshotJson);
       const now = new Date().toISOString();
       const result = await env.DB.batch([
-        env.DB.prepare("UPDATE report_work_items SET executive_summary = ?, conclusion = ?, indicators_json = ?, pending_items_json = ?, snapshot_hash = ?, revision = ?, status = 'draft', updated_at = ? WHERE id = ? AND workspace_id = ? AND revision = ? AND status IN ('draft','changes_requested')").bind(executiveSummary, conclusion, JSON.stringify(indicators), JSON.stringify(pendingItems), snapshotHash, revision, now, report.id, workspace.id, expectedRevision),
+        env.DB.prepare("UPDATE report_work_items SET executive_summary = ?, conclusion = ?, indicators_json = ?, pending_items_json = ?, template_key = ?, template_version = ?, blocks_json = ?, commercial_notes = ?, recommendations_json = ?, snapshot_hash = ?, revision = ?, status = 'draft', updated_at = ? WHERE id = ? AND workspace_id = ? AND revision = ? AND status IN ('draft','changes_requested')").bind(executiveSummary, conclusion, JSON.stringify(indicators), JSON.stringify(pendingItems), templateKey, templateVersion, JSON.stringify(blocks), commercialNotes, JSON.stringify(recommendations), snapshotHash, revision, now, report.id, workspace.id, expectedRevision),
         env.DB.prepare("INSERT INTO report_work_item_revisions (id, report_id, workspace_id, company_id, period_key, revision, snapshot_json, snapshot_hash, created_by_user_id, created_at) SELECT ?, id, workspace_id, company_id, period_key, ?, ?, ?, ?, ? FROM report_work_items WHERE id = ? AND workspace_id = ? AND revision = ? AND snapshot_hash = ?").bind(crypto.randomUUID(), revision, snapshotJson, snapshotHash, user.id, now, report.id, workspace.id, revision, snapshotHash),
         env.DB.prepare("INSERT INTO report_work_item_events (report_id, workspace_id, actor_user_id, event_type, note, event_data, created_at) SELECT id, workspace_id, ?, 'report.autosaved', 'Revisão imutável registrada.', ?, ? FROM report_work_items WHERE id = ? AND workspace_id = ? AND revision = ? AND snapshot_hash = ?").bind(user.id, JSON.stringify({ revision, snapshotHash }), now, report.id, workspace.id, revision, snapshotHash),
       ]);
