@@ -1291,6 +1291,79 @@ export const reportWorkItemEvents = sqliteTable("report_work_item_events", {
   index("report_work_item_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
 ]);
 
+export const spreadsheetImportProfiles = sqliteTable("spreadsheet_import_profiles", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  name: text("name").notNull(),
+  model: text("model").notNull(),
+  columnMappingJson: text("column_mapping_json").notNull(),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("spreadsheet_import_profiles_workspace_name_idx").on(table.workspaceId, table.name),
+  index("spreadsheet_import_profiles_workspace_model_idx").on(table.workspaceId, table.model, table.updatedAt, table.id),
+]);
+
+export const spreadsheetImportBatches = sqliteTable("spreadsheet_import_batches", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  periodKey: text("period_key").notNull(),
+  profileId: text("profile_id"),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  filename: text("filename").notNull(),
+  format: text("format").notNull(),
+  sourceHash: text("source_hash").notNull(),
+  model: text("model").notNull(),
+  status: text("status").notNull().default("committed"),
+  totalRows: integer("total_rows").notNull(),
+  acceptedRows: integer("accepted_rows").notNull(),
+  invalidRows: integer("invalid_rows").notNull(),
+  duplicateRows: integer("duplicate_rows").notNull(),
+  divergentRows: integer("divergent_rows").notNull(),
+  formulaCellsDiscarded: integer("formula_cells_discarded").notNull(),
+  rawFilePersisted: integer("raw_file_persisted", { mode: "boolean" }).notNull().default(false),
+  reportJson: text("report_json").notNull(),
+  rolledBackAt: text("rolled_back_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("spreadsheet_import_batches_workspace_source_idx").on(table.workspaceId, table.companyId, table.periodKey, table.sourceHash, table.status),
+  index("spreadsheet_import_batches_workspace_company_period_idx").on(table.workspaceId, table.companyId, table.periodKey, table.createdAt, table.id),
+]);
+
+export const spreadsheetImportRows = sqliteTable("spreadsheet_import_rows", {
+  id: text("id").primaryKey(),
+  batchId: text("batch_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  companyId: integer("company_id").notNull(),
+  periodKey: text("period_key").notNull(),
+  rowNumber: integer("row_number").notNull(),
+  documentKey: text("document_key").notNull(),
+  recordType: text("record_type").notNull(),
+  normalizedJson: text("normalized_json").notNull(),
+  evidenceHash: text("evidence_hash").notNull(),
+  status: text("status").notNull(),
+  issuesJson: text("issues_json").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("spreadsheet_import_rows_batch_row_idx").on(table.batchId, table.rowNumber),
+  index("spreadsheet_import_rows_reconcile_idx").on(table.workspaceId, table.companyId, table.periodKey, table.documentKey, table.recordType),
+]);
+
+export const spreadsheetImportEvents = sqliteTable("spreadsheet_import_events", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  batchId: text("batch_id").notNull(),
+  workspaceId: integer("workspace_id").notNull(),
+  actorUserId: integer("actor_user_id").notNull(),
+  eventType: text("event_type").notNull(),
+  eventData: text("event_data").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("spreadsheet_import_events_batch_created_idx").on(table.batchId, table.createdAt, table.id),
+  index("spreadsheet_import_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+]);
+
 export const fiscalIssuanceEvents = sqliteTable("fiscal_issuance_events", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   issuanceId: integer("issuance_id").notNull(),
