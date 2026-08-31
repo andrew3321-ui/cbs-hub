@@ -26,7 +26,7 @@ test("public ownership record contains no CPF, CNPJ or private contact data", ()
 });
 
 test("institutional pages publish support while preserving the responsible-person record", () => {
-  const landing = fs.readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const landing = fs.readFileSync(new URL("../app/CybersecurityLanding.tsx", import.meta.url), "utf8");
   const ownerPage = fs.readFileSync(new URL("../app/responsavel/page.tsx", import.meta.url), "utf8");
   const pricing = fs.readFileSync(new URL("../app/planos/page.tsx", import.meta.url), "utf8");
   assert.match(landing, /Suporte:/);

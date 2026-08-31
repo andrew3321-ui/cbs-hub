@@ -54,12 +54,15 @@ test("public scanner remains passive, bounded and rate limited", () => {
   assert.match(worker, /cybersecurity-preview"\) return 4 \* 1024/);
 });
 
-test("cybersecurity page is public, indexable and linked during the transition", () => {
+test("cybersecurity is the canonical home and its legacy path is a noindex alias", () => {
   const policy = fs.readFileSync(new URL("../domain/seo-route-policy.ts", import.meta.url), "utf8");
   const home = fs.readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
+  const landing = fs.readFileSync(new URL("../app/CybersecurityLanding.tsx", import.meta.url), "utf8");
   const page = fs.readFileSync(new URL("../app/cyberseguranca/page.tsx", import.meta.url), "utf8");
-  assert.match(policy, /path: "\/cyberseguranca"/);
-  assert.match(home, /href="\/cyberseguranca"/);
-  assert.match(page, /canonical: "\/cyberseguranca"/);
-  assert.match(page, /não executa testes invasivos/i);
+  assert.doesNotMatch(policy, /path: "\/cyberseguranca"/);
+  assert.match(home, /canonical: "\/"/);
+  assert.match(home, /CybersecurityLanding/);
+  assert.match(page, /robots: \{ index: false, follow: true \}/);
+  assert.match(page, /canonical: "\/"/);
+  assert.match(landing, /não executa testes invasivos/i);
 });

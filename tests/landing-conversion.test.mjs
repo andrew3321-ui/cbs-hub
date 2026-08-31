@@ -2,99 +2,59 @@ import assert from "node:assert/strict";
 import { readFile } from "node:fs/promises";
 import test from "node:test";
 
-test("landing liga dor, economia de tempo, funcionalidades reais e teste sem cartão", async () => {
-  const page = await readFile(new URL("../app/page.tsx", import.meta.url), "utf8");
-
-  assert.match(page, /Pare de refazer a análise fiscal/);
-  assert.match(page, /O trabalho não é só calcular/);
-  assert.match(page, /Menos tempo remontando/);
-  assert.match(page, /Auditar NF-e em lote/);
-  assert.match(page, /Projetar IBS e CBS/);
-  assert.match(page, /Mapear obrigações federais/);
-  assert.match(page, /Acompanhar mudanças normativas/);
-  assert.match(page, /5 dias/);
-  assert.match(page, /Sem cartão/);
-});
-
-test("CTAs da landing registram posição sem sobrescrever a origem de aquisição", async () => {
-  const [page, trackedCta] = await Promise.all([
+test("landing principal assume a proposta de cybersecurity com dor e ação imediata", async () => {
+  const [page, landing] = await Promise.all([
     readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/LandingTrackedCta.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/CybersecurityLanding.tsx", import.meta.url), "utf8"),
   ]);
-
-  for (const campaign of ["home_nav_trial", "home_hero_real_case", "home_time_saving_case", "home_final_real_case"]) {
-    assert.match(page, new RegExp(campaign));
-  }
-  assert.match(trackedCta, /utm_source/);
-  assert.match(trackedCta, /utm_medium/);
-  assert.match(trackedCta, /referrerHost/);
-  assert.match(trackedCta, /navigator\.sendBeacon/);
-  assert.match(trackedCta, /campaign,/);
-  assert.doesNotMatch(trackedCta, /source:\s*"google"/);
+  assert.match(page, /CBSHub Cybersecurity/);
+  assert.match(page, /canonical: "\/"/);
+  assert.match(page, /CybersecurityLanding/);
+  assert.match(landing, /Encontre sua exposição/);
+  assert.match(landing, /antes do atacante/);
+  assert.match(landing, /Iniciar diagnóstico gratuito/);
+  assert.match(landing, /100% passiva/);
+  assert.match(landing, /Zero cadastro/);
 });
 
-test("visitante experimenta uma triagem antes do cadastro e continua com a mesma pergunta", async () => {
-  const [page, hero, preview, endpoint, auth, shell, intelligence, worker, css] = await Promise.all([
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/LandingHeroShowcase.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/LandingFiscalPreview.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/public/fiscal-preview/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/auth-ui/AuthScreen.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/app/CBSHubApp.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/app/FiscalIntelligence.tsx", import.meta.url), "utf8"),
+test("experiência pública conecta diagnóstico, controles e CTA de interesse", async () => {
+  const [landing, preview, endpoint, worker] = await Promise.all([
+    readFile(new URL("../app/CybersecurityLanding.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/CybersecurityPreview.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/api/public/cybersecurity-preview/route.ts", import.meta.url), "utf8"),
     readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/cbshub-landing.css", import.meta.url), "utf8"),
   ]);
-
-  assert.match(page, /LandingHeroShowcase authenticated=/);
-  assert.match(hero, /LandingFiscalPreview/);
-  assert.match(hero, /Cenários ilustrativos de uso — não são depoimentos de clientes/);
-  assert.match(hero, /activeSlide === "scenarios" \? 5000/);
-  assert.match(preview, /TESTE SEM CADASTRO/);
-  assert.match(preview, /api\/public\/fiscal-preview/);
-  assert.match(preview, /returnTo/);
-  assert.match(preview, /view=intelligence&question=/);
-  assert.match(preview, /Criar conta e concluir/);
-  assert.match(preview, /home_public_preview_continue/);
-  assert.match(endpoint, /evaluateExpandedFiscalQuestion/);
-  assert.match(endpoint, /identifiedFacts/);
-  assert.match(endpoint, /pendingFacts/);
-  assert.match(endpoint, /sources\.find/);
-  assert.doesNotMatch(endpoint, /question[,)]\s*\}\s*\)\s*;/);
-  assert.match(auth, /href=\{returnTo\}/);
-  assert.match(shell, /requestedView === "intelligence"/);
-  assert.match(intelligence, /requestedQuestion/);
-  assert.match(worker, /public-fiscal-preview/);
-  assert.match(css, /\.cbs-live-preview/);
-  assert.match(css, /@media \(max-width: 720px\)[\s\S]*\.cbs-live-preview-input\s*\{\s*grid-template-columns:\s*1fr;/);
+  assert.match(landing, /CybersecurityPreview/);
+  assert.match(landing, /Domínio e DNS/);
+  assert.match(landing, /Proteção do e-mail/);
+  assert.match(landing, /Segurança do site/);
+  assert.match(preview, /cyber_preview_start/);
+  assert.match(preview, /cyber_preview_result_/);
+  assert.match(preview, /cyber_preview_signup/);
+  assert.match(preview, /interest: "cybersecurity"/);
+  assert.match(endpoint, /calculateCyberPosture/);
+  assert.match(endpoint, /redirect: "manual"/);
+  assert.match(worker, /public-cyber-preview/);
 });
 
-test("vídeo completo fica abaixo do carrossel de produto, cenários e experimentação", async () => {
-  const [page, hero, video] = await Promise.all([
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+test("paleta visual usa base escura, ciano elétrico, violeta e verde-neon", async () => {
+  const theme = await readFile(new URL("../app/cyberseguranca/cybersecurity-theme.css", import.meta.url), "utf8");
+  assert.match(theme, /--cyber-paper: #070b18/);
+  assert.match(theme, /--cyber-teal: #18d8ff/);
+  assert.match(theme, /--cyber-violet: #7b61ff/);
+  assert.match(theme, /--cyber-lime: #b8ff3d/);
+  assert.match(theme, /@media \(max-width: 600px\)/);
+  assert.match(theme, /@media \(prefers-reduced-motion: reduce\)/);
+});
+
+test("ativos fiscais anteriores permanecem no repositório durante a transição", async () => {
+  const [showcase, video, generated] = await Promise.all([
     readFile(new URL("../app/LandingHeroShowcase.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/LandingVideoShowcase.tsx", import.meta.url), "utf8"),
-  ]);
-  assert.match(page, /<LandingVideoShowcase \/>/);
-  assert.doesNotMatch(hero, /cbshub-overview-completo-v2\.webm/);
-  assert.match(video, /cbshub-overview-completo-v2\.webm/);
-  assert.match(video, /IntersectionObserver/);
-});
-
-test("showcase apresenta a regressão e os módulos fiscais atuais sem números legados", async () => {
-  const [showcase, page, generated] = await Promise.all([
-    readFile(new URL("../app/LandingHeroShowcase.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
     import("../app/fiscal-showcase.generated.ts"),
   ]);
-
   assert.match(showcase, /fiscalShowcaseSummary\.deterministicCases/);
-  assert.match(showcase, /Importações/);
-  assert.match(showcase, /Monitor/);
-  assert.match(showcase, /Reforma/);
-  assert.match(showcase, /PIS\/Cofins/);
-  assert.match(showcase, /NF-e\/XML/);
+  assert.match(video, /cbshub-overview-completo-v2\.webm/);
   assert.ok(generated.fiscalShowcaseSummary.deterministicCases > 914);
   assert.ok(generated.fiscalShowcaseSummary.moduleCount >= 28);
-  assert.doesNotMatch(`${showcase}\n${page}`, /914/);
 });

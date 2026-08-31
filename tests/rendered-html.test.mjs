@@ -4,20 +4,19 @@ import test from "node:test";
 
 const root = new URL("../", import.meta.url);
 
-test("a experiência publicada contém identidade e rotas comerciais", async () => {
-  const [landing, layout, pricing] = await Promise.all([
+test("a experiência publicada contém identidade de cybersecurity e acesso ao produto", async () => {
+  const [page, landing, layout] = await Promise.all([
     readFile(new URL("app/page.tsx", root), "utf8"),
+    readFile(new URL("app/CybersecurityLanding.tsx", root), "utf8"),
     readFile(new URL("app/layout.tsx", root), "utf8"),
-    readFile(new URL("app/planos/page.tsx", root), "utf8"),
   ]);
 
-  assert.match(landing, /CBSHub/);
-  assert.match(landing, /href="\/planos"/);
-  assert.match(layout, /Inteligência tributária/);
+  assert.match(page, /CBSHub Cybersecurity/);
+  assert.match(landing, /href="\/entrar"/);
+  assert.match(landing, /href="\/app\?guest=1"/);
+  assert.match(layout, /CBSHub/);
   assert.match(layout, /og-cbshub\.png/);
-  assert.match(pricing, /OPERAÇÃO FISCAL PROFISSIONAL/);
-  assert.match(pricing, /PricingClient/);
-  assert.doesNotMatch(`${landing}\n${layout}`, /codex-preview|_sites-preview|Your site is taking shape/i);
+  assert.doesNotMatch(`${page}\n${landing}\n${layout}`, /codex-preview|_sites-preview|Your site is taking shape/i);
 });
 
 test("credenciais de cobrança permanecem somente no servidor", async () => {
@@ -99,9 +98,8 @@ test("análises publicadas expõem versionamento e não afirmam homologação", 
   assert.match(report, /integrityBlocked/);
 });
 
-test("fluxo remodelado trata o contador como usuário principal e exige aprovação antes da entrega", async () => {
-  const [landing, client, approveApi, shareApi, approvalCore, registration, schema, report] = await Promise.all([
-    readFile(new URL("app/page.tsx", root), "utf8"),
+test("fluxo fiscal preservado trata o contador como usuário principal e exige aprovação antes da entrega", async () => {
+  const [client, approveApi, shareApi, approvalCore, registration, schema, report] = await Promise.all([
     readFile(new URL("app/app/CBSHubApp.tsx", root), "utf8"),
     readFile(new URL("app/api/scenarios/approve/route.ts", root), "utf8"),
     readFile(new URL("app/api/report-shares/route.ts", root), "utf8"),
@@ -111,8 +109,6 @@ test("fluxo remodelado trata o contador como usuário principal e exige aprovaç
     readFile(new URL("app/relatorio/[token]/page.tsx", root), "utf8"),
   ]);
 
-  assert.match(landing, /Menos abas, planilhas e retrabalho/);
-  assert.match(landing, /LandingTrackedCta/);
   assert.match(client, /CLIENTE ATIVO DO ESCRITÓRIO/);
   assert.match(client, /Aprovar como responsável/);
   assert.match(client, /não será apresentado como revisão independente/);
@@ -420,7 +416,7 @@ test("versão 26 cobre regras federais essenciais de PMEs por perfil e sem herda
 });
 
 test("versão 70 publica PMPF de bebidas destinado a São Paulo e nas rotas SP→MG/RJ", async () => {
-  const [ui, domain, publicApi, calculatorApi, beverageApi, beverageSpApi, beverageSpOriginApi, beverageDomain, beverageSpDomain, beverageSpOriginDomain, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, landing, layout] = await Promise.all([
+  const [ui, domain, publicApi, calculatorApi, beverageApi, beverageSpApi, beverageSpOriginApi, beverageDomain, beverageSpDomain, beverageSpOriginDomain, batchApi, monitorApi, governanceApi, approvalService, schema, runtimeDb, layout] = await Promise.all([
     readFile(new URL("app/app/NationalCoverageCenter.tsx", root), "utf8"),
     readFile(new URL("domain/national-tax-coverage.ts", root), "utf8"),
     readFile(new URL("app/api/public/coverage/route.ts", root), "utf8"),
@@ -437,7 +433,6 @@ test("versão 70 publica PMPF de bebidas destinado a São Paulo e nas rotas SP�
     readFile(new URL("app/fiscal-rule-approval.ts", root), "utf8"),
     readFile(new URL("db/schema.ts", root), "utf8"),
     readFile(new URL("db/index.ts", root), "utf8"),
-    readFile(new URL("app/page.tsx", root), "utf8"),
     readFile(new URL("app/app/layout.tsx", root), "utf8"),
   ]);
   assert.match(ui, /VERSAO 71 · INDICADOR PUBLICO DE COBERTURA/);
@@ -506,7 +501,6 @@ test("versão 70 publica PMPF de bebidas destinado a São Paulo e nas rotas SP�
   assert.match(schema, /fiscalRuleApprovals/);
   assert.doesNotMatch(runtimeDb, /CREATE TABLE IF NOT EXISTS fiscal_rule_approvals/);
   assert.match(approvalService, /ensureFiscalRuleApprovalSchema/);
-  assert.match(landing, /cbs-coverage-section/);
   assert.match(layout, /national-coverage\.css/);
   assert.match(layout, /national-coverage-v64\.css/);
 });

@@ -9,7 +9,7 @@ test("visitante usa o próprio app antes do cadastro sem alcançar dados privado
     readFile(new URL("../app/app/FiscalIntelligence.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/app/GuestFiscalMemory.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/public/fiscal-intelligence/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
+    readFile(new URL("../app/CybersecurityLanding.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/experimentar/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/guest-app.css", import.meta.url), "utf8"),
     readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
@@ -46,8 +46,8 @@ test("visitante usa o próprio app antes do cadastro sem alcançar dados privado
   assert.match(publicApi, /parseFiscalOverrides/);
   assert.match(publicApi, /calculateFiscalMemory/);
   assert.match(publicApi, /X-Robots-Tag/);
-  assert.match(landing, /user \? "\/app" : "\/app\?guest=1"/);
-  assert.match(landing, /redirect\(`\/app\?guest=1&\$\{campaignParams\.toString\(\)\}`\)/);
+  assert.match(landing, /href="\/app\?guest=1"/);
+  assert.match(landing, />Produto fiscal</);
   assert.match(legacy, /redirect\(guestHref\(attribution\)\)/);
   assert.match(css, /\.guest-topbar \.guest-create-account[\s\S]*color: #fff !important/);
   assert.match(worker, /public-fiscal-preview[\s\S]*limit: 30/);

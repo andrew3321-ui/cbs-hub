@@ -34,11 +34,10 @@ test("resumo público não transporta dados de cliente ou identificadores operac
 });
 
 test("página pública contém prova, vigência, fontes, pendências e CTA contextual", async () => {
-  const [page, css, navigation, landing] = await Promise.all([
+  const [page, css, navigation] = await Promise.all([
     readFile(new URL("../app/cobertura/page.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/public-coverage.css", import.meta.url), "utf8"),
     readFile(new URL("../app/TaxContentNavigation.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/page.tsx", import.meta.url), "utf8"),
   ]);
   assert.match(page, /canonical: "\/cobertura"/);
   assert.match(page, /Suportado/);
@@ -53,7 +52,6 @@ test("página pública contém prova, vigência, fontes, pendências e CTA conte
   assert.match(page, /não expõe perguntas, documentos, empresas/);
   assert.match(css, /@media\(max-width:560px\)/);
   assert.match(navigation, /href="\/cobertura"/);
-  assert.match(landing, /Abrir a matriz pública completa/);
 });
 
 test("dados estruturados descrevem a matriz como Dataset sem avaliações fabricadas", () => {

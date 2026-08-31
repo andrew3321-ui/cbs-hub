@@ -1,6 +1,6 @@
 import { taxContentTopics } from "./tax-content.ts";
 
-export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v1.2.0";
+export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v1.3.0";
 
 const taxContentRoutes = [
   { path: "/conteudos", changeFrequency: "weekly" as const, priority: 0.9 },
@@ -9,7 +9,6 @@ const taxContentRoutes = [
 
 export const publicIndexableRoutes = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
-  { path: "/cyberseguranca", changeFrequency: "weekly", priority: 0.95 },
   { path: "/planos", changeFrequency: "monthly", priority: 0.8 },
   { path: "/metodologia", changeFrequency: "monthly", priority: 0.8 },
   { path: "/cobertura", changeFrequency: "daily", priority: 0.9 },

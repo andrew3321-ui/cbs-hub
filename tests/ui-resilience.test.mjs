@@ -17,13 +17,14 @@ test("the app shell and dense fiscal surfaces expose responsive layout contracts
   assert.match(reportCss, /@media print/);
 });
 
-test("the landing showcase stays inside mobile viewports and hides the public indicator shortcut", () => {
-  const landingCss = read("../app/cbshub-landing.css");
-  const landing = read("../app/page.tsx");
-  assert.match(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-showcase-video-shell\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;/);
-  assert.match(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-showcase-video-shell video\s*\{\s*object-fit:\s*contain;/);
-  assert.match(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-preview-window\s*\{[\s\S]*?width:\s*100%;[\s\S]*?max-width:\s*100%;[\s\S]*?transform:\s*none;/);
-  assert.doesNotMatch(landingCss, /@media \(max-width: 720px\)[\s\S]*\.cbs-preview-window\s*\{[^}]*width:\s*760px;/);
+test("the cybersecurity landing stays inside mobile viewports and respects reduced motion", () => {
+  const baseCss = read("../app/cyberseguranca/cybersecurity.css");
+  const themeCss = read("../app/cyberseguranca/cybersecurity-theme.css");
+  const landing = read("../app/CybersecurityLanding.tsx");
+  assert.match(baseCss, /@media\(max-width:600px\)/);
+  assert.match(themeCss, /@media \(max-width: 600px\)/);
+  assert.match(themeCss, /@media \(prefers-reduced-motion: reduce\)/);
+  assert.match(themeCss, /\.cyber-threat-strip \{ width: calc\(100% - 28px\)/);
   assert.doesNotMatch(landing, /Consultar indicador público|href="\/api\/public\/coverage"/);
 });
 
