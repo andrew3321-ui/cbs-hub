@@ -18,10 +18,11 @@ test("landing principal assume a proposta de cybersecurity com dor e ação imed
 });
 
 test("experiência pública conecta diagnóstico, controles e CTA de interesse", async () => {
-  const [landing, preview, endpoint, worker] = await Promise.all([
+  const [landing, preview, endpoint, scanner, worker] = await Promise.all([
     readFile(new URL("../app/CybersecurityLanding.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/CybersecurityPreview.tsx", import.meta.url), "utf8"),
     readFile(new URL("../app/api/public/cybersecurity-preview/route.ts", import.meta.url), "utf8"),
+    readFile(new URL("../app/cybersecurity-scan-service.ts", import.meta.url), "utf8"),
     readFile(new URL("../worker/index.ts", import.meta.url), "utf8"),
   ]);
   assert.match(landing, /CybersecurityPreview/);
@@ -32,8 +33,9 @@ test("experiência pública conecta diagnóstico, controles e CTA de interesse",
   assert.match(preview, /cyber_preview_result_/);
   assert.match(preview, /cyber_preview_signup/);
   assert.match(preview, /interest: "cybersecurity"/);
-  assert.match(endpoint, /calculateCyberPosture/);
-  assert.match(endpoint, /redirect: "manual"/);
+  assert.match(endpoint, /runPassiveSecurityScan/);
+  assert.match(scanner, /calculateCyberPosture/);
+  assert.match(scanner, /redirect: "manual"/);
   assert.match(worker, /public-cyber-preview/);
 });
 

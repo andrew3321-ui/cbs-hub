@@ -35,6 +35,8 @@ Variáveis de runtime ficam em **Worker > Settings > Variables and Secrets**. Se
 | `SCENARIO_SIGNING_KEY_V1` | runtime | sim | assinatura de cenários e decisões |
 | `MERCADO_PAGO_ACCESS_TOKEN` | runtime | sim | conciliação e cobrança |
 | `MERCADO_PAGO_WEBHOOK_SECRET` | runtime | sim | autenticação HMAC do webhook |
+| `OPENAI_API_KEY` | runtime | sim | análise estruturada do agente defensivo; somente no Worker |
+| `OPENAI_SECURITY_MODEL` | runtime | não | modelo do agente; padrão `gpt-5.4-mini`, com `gpt-5.6-cyber` condicionado a acesso aprovado |
 | `FISCAL_ISSUER_ADAPTER` | runtime | não | `manual` até a seleção de um emissor oficial/provedor |
 | `FISCAL_ISSUER_MUNICIPALITY_CODE` | runtime | não | código do município do prestador |
 | `FISCAL_ISSUER_MUNICIPAL_REGISTRATION` | runtime | sim | inscrição municipal do prestador; exibida somente mascarada |
@@ -46,6 +48,16 @@ Variáveis de runtime ficam em **Worker > Settings > Variables and Secrets**. Se
 | `SMOKE_STRICT` | build | não | usar `1` para exigir todos os fluxos autenticados |
 
 Nenhum valor secreto deve ser salvo no Git, D1, logs ou documentação.
+
+### Ativação do agente de segurança
+
+Crie uma chave de projeto dedicada na OpenAI, defina limite de gasto no projeto e grave o valor diretamente como segredo do Worker `cbs-hub`. Não cole a chave em conversa, arquivo `.env` versionado ou variável pública:
+
+```text
+npx wrangler secret put OPENAI_API_KEY --config wrangler.migrations.jsonc
+```
+
+Cadastre `OPENAI_SECURITY_MODEL` como variável de runtime. Sem `OPENAI_API_KEY`, o produto continua emitindo a priorização determinística e identifica na interface que a análise da OpenAI não está ativa. A chave nunca é devolvida por API nem persistida no D1.
 
 ## Observabilidade
 

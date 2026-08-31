@@ -1774,3 +1774,55 @@ export const fiscalDailySummaries = sqliteTable("fiscal_daily_summaries", {
 }, (table) => [
   uniqueIndex("fiscal_daily_summaries_day_idx").on(table.dayKey),
 ]);
+
+export const securityAgentScopes = sqliteTable("security_agent_scopes", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  domain: text("domain").notNull(),
+  status: text("status").notNull().default("pending"),
+  verificationToken: text("verification_token").notNull(),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  verifiedAt: text("verified_at"),
+  monitoringEnabled: integer("monitoring_enabled", { mode: "boolean" }).notNull().default(false),
+  nextScanAt: text("next_scan_at"),
+  lastScanAt: text("last_scan_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("security_agent_scopes_active_domain_idx").on(table.workspaceId, table.domain).where(sql`${table.status} <> 'revoked'`),
+  index("security_agent_scopes_monitoring_due_idx").on(table.monitoringEnabled, table.status, table.nextScanAt, table.id),
+]);
+
+export const securityAgentJobs = sqliteTable("security_agent_jobs", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  scopeId: text("scope_id").notNull(),
+  triggerKind: text("trigger_kind").notNull(),
+  scanMode: text("scan_mode").notNull().default("passive"),
+  status: text("status").notNull().default("queued"),
+  evidenceJson: text("evidence_json").notNull().default("{}"),
+  assessmentJson: text("assessment_json").notNull().default("{}"),
+  provider: text("provider"),
+  model: text("model"),
+  providerResponseId: text("provider_response_id"),
+  errorCode: text("error_code"),
+  startedAt: text("started_at").notNull(),
+  completedAt: text("completed_at"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("security_agent_jobs_workspace_started_idx").on(table.workspaceId, table.startedAt, table.id),
+  index("security_agent_jobs_scope_started_idx").on(table.scopeId, table.startedAt, table.id),
+]);
+
+export const securityAgentEvents = sqliteTable("security_agent_events", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  scopeId: text("scope_id").notNull(),
+  actorUserId: integer("actor_user_id"),
+  eventType: text("event_type").notNull(),
+  detailsJson: text("details_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("security_agent_events_scope_created_idx").on(table.scopeId, table.createdAt, table.id),
+  index("security_agent_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
+]);

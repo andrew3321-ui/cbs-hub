@@ -14,7 +14,7 @@ export default function CybersecurityLanding({ homePath = "/" }: { homePath?: st
         <nav aria-label="Navegação de cybersecurity">
           <a href="#diagnostico">Diagnóstico</a><a href="#protege">Superfície de ataque</a><a href="#metodo">Como funciona</a>
         </nav>
-        <div className="cyber-nav-actions"><Link className="cyber-login" href="/entrar">Entrar</Link><a className="cyber-button cyber-button-small" href="#diagnostico">Escanear domínio <span>→</span></a></div>
+        <div className="cyber-nav-actions"><Link className="cyber-login" href="/entrar?returnTo=%2Fapp%2Fsecurity-agent">Entrar</Link><Link className="cyber-button cyber-button-small" href="/app/security-agent">Abrir agente <span>→</span></Link></div>
       </header>
 
       <section className="cyber-hero">
@@ -57,7 +57,7 @@ export default function CybersecurityLanding({ homePath = "/" }: { homePath?: st
         <ol><li><b>01</b><span><strong>Descoberta passiva</strong>Leitura dos controles públicos, sem acesso à rede interna.</span></li><li><b>02</b><span><strong>Priorização por risco</strong>Separação objetiva entre proteção adequada, atenção e exposição.</span></li><li><b>03</b><span><strong>Plano de proteção</strong>Monitoramento e evidências conectados em um único workspace.</span></li></ol>
       </section>
 
-      <section className="cyber-final-cta"><div><span>START WITH VISIBILITY</span><h2>Sua primeira decisão de segurança pode levar menos de um minuto.</h2></div><a className="cyber-button cyber-button-light" href="#diagnostico">Analisar meu domínio <span>↑</span></a></section>
+      <section className="cyber-final-cta"><div><span>START WITH VISIBILITY</span><h2>Sua primeira decisão de segurança pode levar menos de um minuto.</h2></div><Link className="cyber-button cyber-button-light" href="/app/security-agent">Autorizar meu domínio <span>→</span></Link></section>
 
       <footer className="cyber-footer"><div className="cyber-lockup"><BrandMark /><span><strong>CBS</strong>Hub <small>Cybersecurity</small></span></div><p>Diagnóstico informativo. Não substitui pentest, auditoria ou resposta a incidentes.<br />Suporte: <a href="mailto:supportofficial@cbshub.com.br">supportofficial@cbshub.com.br</a></p><div><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/app?guest=1">Produto fiscal</Link></div></footer>
     </main>

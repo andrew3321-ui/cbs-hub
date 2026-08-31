@@ -9,6 +9,7 @@ import { NORMATIVE_MONITOR_SHARD_COUNT, normativeMonitorShardForScheduledTime } 
 import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
 import { refreshCoverageBacklog } from "../app/coverage-demand-service";
 import { refreshFiscalFreshness } from "../app/fiscal-freshness-service";
+import { runScheduledSecurityAgent } from "../app/security-agent-service";
 
 interface Env {
   ASSETS: Fetcher;
@@ -22,6 +23,8 @@ interface Env {
   RESEND_API_KEY?: string;
   FISCAL_ALERT_EMAIL_TO?: string;
   FISCAL_ALERT_EMAIL_FROM?: string;
+  OPENAI_API_KEY?: string;
+  OPENAI_SECURITY_MODEL?: string;
   CF_VERSION_METADATA?: {
     id: string;
     tag?: string;
@@ -98,6 +101,7 @@ function maximumBodyBytes(pathname: string) {
   if (pathname.startsWith("/api/auth/")) return 16 * 1024;
   if (pathname === "/api/public/fiscal-preview") return 8 * 1024;
   if (pathname === "/api/public/cybersecurity-preview") return 4 * 1024;
+  if (pathname === "/api/security-agent") return 16 * 1024;
   if (pathname === "/api/billing/webhook") return 64 * 1024;
   return 1024 * 1024;
 }
@@ -112,6 +116,7 @@ function rateLimitRule(pathname: string, method: string): RateLimitRule | null {
   if (pathname === "/api/billing/checkout" || pathname === "/api/billing/pix") return { scope: "billing-checkout", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/public/fiscal-preview") return { scope: "public-fiscal-preview", limit: 30, windowSeconds: 10 * 60 };
   if (pathname === "/api/public/cybersecurity-preview") return { scope: "public-cyber-preview", limit: 12, windowSeconds: 10 * 60 };
+  if (pathname === "/api/security-agent") return { scope: "security-agent", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/public/fiscal-intelligence") return { scope: "public-fiscal-intelligence", limit: 18, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/admin/")) return { scope: "platform-admin", limit: 30, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/")) return { scope: "api-write", limit: 120, windowSeconds: 60 };
@@ -187,6 +192,8 @@ function runSecurityRetentionCleanup(env: Env) {
     env.DB.prepare("DELETE FROM privacy_request_events WHERE retain_until < datetime('now')"),
     env.DB.prepare("DELETE FROM security_incident_events WHERE incident_id IN (SELECT id FROM security_incidents WHERE retain_until < datetime('now'))"),
     env.DB.prepare("DELETE FROM security_incidents WHERE retain_until < datetime('now')"),
+    env.DB.prepare("DELETE FROM security_agent_events WHERE created_at < datetime('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM security_agent_jobs WHERE created_at < datetime('now', '-365 days')"),
   ]);
 }
 
@@ -301,6 +308,14 @@ const worker = {
         console.info(JSON.stringify({ event: "fiscal_freshness.daily_summary", date, ...result }));
       }).catch((error: unknown) => {
         console.error(JSON.stringify({ event: "fiscal_freshness.daily_summary_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
+    }
+    if (controller.cron === "45 12 * * *") {
+      ctx.waitUntil(runScheduledSecurityAgent(env).then((result) => {
+        console.info(JSON.stringify({ event: "security_agent.scheduled_completed", date, ...result }));
+      }).catch((error: unknown) => {
+        console.error(JSON.stringify({ event: "security_agent.scheduled_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
     }

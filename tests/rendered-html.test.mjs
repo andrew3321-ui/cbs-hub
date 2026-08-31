@@ -12,7 +12,7 @@ test("a experiência publicada contém identidade de cybersecurity e acesso ao p
   ]);
 
   assert.match(page, /CBSHub Cybersecurity/);
-  assert.match(landing, /href="\/entrar"/);
+  assert.match(landing, /href="\/entrar(?:\?|\")/);
   assert.match(landing, /href="\/app\?guest=1"/);
   assert.match(layout, /CBSHub/);
   assert.match(layout, /og-cbshub\.png/);

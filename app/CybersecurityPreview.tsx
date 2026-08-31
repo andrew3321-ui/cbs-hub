@@ -48,7 +48,7 @@ export default function CybersecurityPreview() {
   const [loading, setLoading] = useState(false);
 
   const signupPath = useMemo(() => {
-    const query = new URLSearchParams({ interest: "cybersecurity" });
+    const query = new URLSearchParams({ interest: "cybersecurity", returnTo: "/app/security-agent" });
     if (result?.domain) query.set("domain", result.domain);
     return `/cadastro?${query.toString()}`;
   }, [result]);

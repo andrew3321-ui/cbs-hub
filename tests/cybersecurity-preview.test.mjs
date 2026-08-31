@@ -45,10 +45,11 @@ test("posture score rewards protection and exposes missing high-weight controls"
 
 test("public scanner remains passive, bounded and rate limited", () => {
   const route = fs.readFileSync(new URL("../app/api/public/cybersecurity-preview/route.ts", import.meta.url), "utf8");
+  const scanner = fs.readFileSync(new URL("../app/cybersecurity-scan-service.ts", import.meta.url), "utf8");
   const worker = fs.readFileSync(new URL("../worker/index.ts", import.meta.url), "utf8");
-  assert.match(route, /redirect: "manual"/);
-  assert.match(route, /publicAddresses\(next\.hostname\)/);
-  assert.match(route, /AbortSignal\.timeout/);
+  assert.match(scanner, /redirect: "manual"/);
+  assert.match(scanner, /publicAddresses\(next\.hostname\)/);
+  assert.match(scanner, /AbortSignal\.timeout/);
   assert.doesNotMatch(route, /env\.DB|INSERT INTO|db\.insert/);
   assert.match(worker, /public-cyber-preview/);
   assert.match(worker, /cybersecurity-preview"\) return 4 \* 1024/);

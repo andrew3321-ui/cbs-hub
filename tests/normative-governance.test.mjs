@@ -173,7 +173,10 @@ test("governança persiste fila, classificação, revisão, bloqueio, histórico
   assert.match(publicReport, /normativeReviewBlocked/);
   assert.match(worker, /async scheduled/);
   assert.match(worker, /runNormativeMonitor/);
-  assert.match(config, /crons: \["\*\/30 \* \* \* \*", "15 8 \* \* \*"\]/);
+  assert.match(
+    config,
+    /crons: \["\*\/30 \* \* \* \*", "15 8 \* \* \*", "45 12 \* \* \*"\]/,
+  );
   assert.match(worker, /normativeMonitorShardForScheduledTime/);
   assert.match(panel, /FILA DE ANÁLISE/);
   assert.match(panel, /SAÚDE DAS REGRAS/);
