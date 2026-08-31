@@ -79,6 +79,12 @@ export default async function LandingPage({ searchParams }: LandingPageProps) {
         </div>
       </header>
 
+      <Link className="cbs-cyber-transition-banner" href="/cyberseguranca">
+        <span><i /> A CBSHub está abrindo uma nova frente</span>
+        <strong>Conheça o diagnóstico inicial de cybersecurity</strong>
+        <b>Ver novidade →</b>
+      </Link>
+
       <section className="cbs-hero">
         <div className="cbs-hero-copy">
           <span className="cbs-kicker"><i /> Menos abas, planilhas e retrabalho</span>

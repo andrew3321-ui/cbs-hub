@@ -97,6 +97,7 @@ function maximumBodyBytes(pathname: string) {
   if (pathname === "/api/fiscal-documents") return 6 * 1024 * 1024;
   if (pathname.startsWith("/api/auth/")) return 16 * 1024;
   if (pathname === "/api/public/fiscal-preview") return 8 * 1024;
+  if (pathname === "/api/public/cybersecurity-preview") return 4 * 1024;
   if (pathname === "/api/billing/webhook") return 64 * 1024;
   return 1024 * 1024;
 }
@@ -110,6 +111,7 @@ function rateLimitRule(pathname: string, method: string): RateLimitRule | null {
   if (pathname === "/api/account") return { scope: "account-rights", limit: 6, windowSeconds: 60 * 60 };
   if (pathname === "/api/billing/checkout" || pathname === "/api/billing/pix") return { scope: "billing-checkout", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/public/fiscal-preview") return { scope: "public-fiscal-preview", limit: 30, windowSeconds: 10 * 60 };
+  if (pathname === "/api/public/cybersecurity-preview") return { scope: "public-cyber-preview", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/public/fiscal-intelligence") return { scope: "public-fiscal-intelligence", limit: 18, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/admin/")) return { scope: "platform-admin", limit: 30, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/")) return { scope: "api-write", limit: 120, windowSeconds: 60 };
