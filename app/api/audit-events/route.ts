@@ -1,6 +1,4 @@
-import { and, desc, eq, lt } from "drizzle-orm";
-import { ensureScenarioSchema, getDb } from "../../../db";
-import { auditEvents, companies } from "../../../db/schema";
+import { env } from "cloudflare:workers";
 import { getCurrentUser } from "../../auth";
 import { getWorkspaceContext } from "../../workspace";
 import { withApiTelemetry } from "../../api-infrastructure";
@@ -9,26 +7,15 @@ async function getAuditEvents(request: Request) {
   const user = await getCurrentUser();
   if (!user) return Response.json({ error: "Faça login para acessar a trilha de auditoria." }, { status: 401 });
   try {
-    await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
-    if (!workspace) return Response.json({ error: "Espaço profissional não encontrado." }, { status: 403 });
+    if (!workspace) return Response.json({ error: "Workspace não encontrado." }, { status: 403 });
     const url = new URL(request.url);
-    const companyId = Number(url.searchParams.get("companyId"));
-    const cursor = Number(url.searchParams.get("cursor"));
-    const requestedLimit = Number(url.searchParams.get("limit"));
-    const pageSize = Number.isInteger(requestedLimit) ? Math.min(100, Math.max(10, requestedLimit)) : 50;
-    if (!Number.isInteger(companyId) || companyId <= 0) return Response.json({ error: "Empresa inválida." }, { status: 400 });
-    const db = getDb();
-    const [company] = await db.select({ id: companies.id }).from(companies).where(and(eq(companies.id, companyId), eq(companies.workspaceId, workspace.id))).limit(1);
-    if (!company) return Response.json({ error: "Empresa não encontrada." }, { status: 404 });
-
-    const rows = await db.select().from(auditEvents).where(and(eq(auditEvents.ownerUserId, workspace.ownerUserId), eq(auditEvents.companyId, companyId), Number.isInteger(cursor) && cursor > 0 ? lt(auditEvents.id, cursor) : undefined)).orderBy(desc(auditEvents.createdAt), desc(auditEvents.id)).limit(pageSize + 1);
-    const hasMore = rows.length > pageSize;
-    const page = rows.slice(0, pageSize);
-    return Response.json({ events: page.map((event) => {
-      try { return { ...event, eventData: JSON.parse(event.eventData) as Record<string, unknown> }; }
-      catch { return { ...event, eventData: {} }; }
-    }), nextCursor: hasMore ? page.at(-1)?.id ?? null : null });
+    const scopeId = url.searchParams.get("scopeId");
+    if (!scopeId || scopeId.length > 100) return Response.json({ error: "Ativo inválido." }, { status: 400 });
+    const scope = await env.DB.prepare("SELECT id FROM security_agent_scopes WHERE id = ? AND workspace_id = ?").bind(scopeId, workspace.id).first();
+    if (!scope) return Response.json({ error: "Ativo não encontrado." }, { status: 404 });
+    const rows = await env.DB.prepare("SELECT id, scope_id, actor_user_id, event_type, details_json, created_at FROM security_agent_events WHERE workspace_id = ? AND scope_id = ? ORDER BY created_at DESC, id DESC LIMIT 100").bind(workspace.id, scopeId).all();
+    return Response.json({ events: rows.results }, { headers: { "Cache-Control": "no-store" } });
   } catch {
     return Response.json({ error: "Não foi possível carregar a trilha de auditoria." }, { status: 500 });
   }

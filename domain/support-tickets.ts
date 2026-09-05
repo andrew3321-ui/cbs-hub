@@ -3,27 +3,22 @@ export const SUPPORT_RESPONSE_BUSINESS_DAYS = 2;
 
 export const supportCategories = [
   "question",
-  "missing_rule",
-  "calculation_divergence",
+  "authorization_scope",
+  "scan_result",
   "technical_problem",
   "suggestion",
 ] as const;
 
 export const supportModules = [
-  "overview",
-  "companies",
-  "simulator",
-  "reviews",
-  "documents",
+  "landing",
+  "authentication",
+  "workspace",
+  "domain_verification",
+  "security_agent",
+  "monitoring",
   "team",
-  "intelligence",
-  "taxlab",
-  "coverage",
-  "expansion",
-  "rules",
-  "determination",
   "billing",
-  "academy",
+  "privacy",
 ] as const;
 
 export const supportStatuses = ["open", "in_analysis", "waiting_user", "resolved", "closed"] as const;
@@ -34,27 +29,22 @@ export type SupportStatus = (typeof supportStatuses)[number];
 
 export const supportCategoryLabels: Record<SupportCategory, string> = {
   question: "Dúvida de uso",
-  missing_rule: "Regra ausente",
-  calculation_divergence: "Divergência de cálculo",
+  authorization_scope: "Autorização de escopo",
+  scan_result: "Dúvida sobre diagnóstico",
   technical_problem: "Problema técnico",
   suggestion: "Sugestão",
 };
 
 export const supportModuleLabels: Record<SupportModule, string> = {
-  overview: "Visão geral",
-  companies: "Empresas",
-  simulator: "Análises",
-  reviews: "Central de revisão",
-  documents: "Documentos",
-  team: "Equipe e modo de trabalho",
-  intelligence: "Inteligência fiscal",
-  taxlab: "Laboratório fiscal",
-  coverage: "Cobertura nacional",
-  expansion: "Expansão fiscal",
-  rules: "Regras fiscais",
-  determination: "Apuração fiscal",
+  landing: "Site público",
+  authentication: "Cadastro e acesso",
+  workspace: "Security Workspace",
+  domain_verification: "Verificação de domínio",
+  security_agent: "Agente de segurança",
+  monitoring: "Monitoramento",
+  team: "Equipe",
   billing: "Faturamento",
-  academy: "Demonstrações",
+  privacy: "Privacidade e dados",
 };
 
 export const supportStatusLabels: Record<SupportStatus, string> = {

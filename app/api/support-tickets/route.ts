@@ -1,7 +1,7 @@
 import { and, desc, eq } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { ensureScenarioSchema, getDb } from "../../../db";
-import { companies, supportTickets } from "../../../db/schema";
+import { supportTickets } from "../../../db/schema";
 import {
   SUPPORT_CONSENT_VERSION,
   canTransitionSupportStatus,
@@ -59,15 +59,14 @@ async function listSupportTickets() {
     ? undefined
     : and(eq(supportTickets.workspaceId, workspace.id), eq(supportTickets.reporterUserId, user.id));
   const rows = await db
-    .select({ ticket: supportTickets, companyName: companies.name })
+    .select()
     .from(supportTickets)
-    .leftJoin(companies, eq(supportTickets.companyId, companies.id))
     .where(visibility)
     .orderBy(desc(supportTickets.createdAt), desc(supportTickets.id))
     .limit(isPlatformAdminEmail(user.email) ? 200 : 60);
 
   return noStore({
-    tickets: rows.map(({ ticket, companyName }) => ({ ...ticket, companyName: companyName ?? null })),
+    tickets: rows,
     permissions: { canManage: isPlatformAdminEmail(user.email) },
   });
 }
@@ -90,9 +89,6 @@ async function createSupportTicket(request: Request) {
   const subject = normalizeSupportText(payload.subject, 120);
   const description = normalizeSupportText(payload.description, 2_000);
   const traceCode = normalizeSupportText(payload.traceCode, 80).toUpperCase();
-  const companyId = payload.companyId === null || payload.companyId === "" || payload.companyId === undefined
-    ? null
-    : Number(payload.companyId);
 
   if (!isSupportCategory(category) || !isSupportModule(moduleCode)) {
     return noStore({ error: "Escolha uma categoria e um módulo válidos." }, { status: 400 });
@@ -109,19 +105,6 @@ async function createSupportTicket(request: Request) {
   if (!validSupportTraceCode(traceCode)) {
     return noStore({ error: "O código de rastreio deve conter somente letras, números e hífens." }, { status: 400 });
   }
-  if (companyId !== null && (!Number.isInteger(companyId) || companyId <= 0)) {
-    return noStore({ error: "Empresa inválida." }, { status: 400 });
-  }
-
-  if (companyId !== null) {
-    const [company] = await getDb()
-      .select({ id: companies.id })
-      .from(companies)
-      .where(and(eq(companies.id, companyId), eq(companies.workspaceId, workspace.id)))
-      .limit(1);
-    if (!company) return noStore({ error: "A empresa não pertence ao seu espaço profissional." }, { status: 404 });
-  }
-
   const now = new Date();
   const id = crypto.randomUUID();
   const protocol = createSupportProtocol(now);
@@ -137,7 +120,7 @@ async function createSupportTicket(request: Request) {
         status, response_due_at, created_at, updated_at
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)
     `).bind(
-      id, protocol, workspace.id, user.id, companyId, category, moduleCode,
+      id, protocol, workspace.id, user.id, null, category, moduleCode,
       release.releaseId, release.releaseTag, traceCode || null, subject, description,
       SUPPORT_CONSENT_VERSION, responseDueAt, nowIso, nowIso,
     ),
@@ -157,8 +140,6 @@ async function createSupportTicket(request: Request) {
       protocol,
       workspaceId: workspace.id,
       reporterUserId: user.id,
-      companyId,
-      companyName: null,
       category,
       moduleCode,
       ...release,

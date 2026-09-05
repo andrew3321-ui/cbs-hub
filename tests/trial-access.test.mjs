@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import fs from "node:fs";
 import test from "node:test";
-import { applyPlanUsage, planDefinitions, resolveWorkspacePlan } from "../domain/plan-entitlements.ts";
+import { applyPlanUsage, resolveWorkspacePlan } from "../domain/plan-entitlements.ts";
 import {
-  TRIAL_COMPANY_LIMIT,
+  TRIAL_SCOPE_LIMIT,
   TRIAL_DURATION_DAYS,
   trialAccessIsActive,
   trialDaysRemaining,
@@ -19,7 +19,7 @@ const noBilling = { planKey: "beta", status: "beta", providerSubscriptionId: nul
 
 test("trial lasts exactly five days and expires at the boundary", () => {
   assert.equal(TRIAL_DURATION_DAYS, 5);
-  assert.equal(TRIAL_COMPANY_LIMIT, 10);
+  assert.equal(TRIAL_SCOPE_LIMIT, 3);
   assert.equal(trialEndsAt(startedAt), endsAt);
   assert.equal(trialAccessIsActive(trial, Date.parse(startedAt)), true);
   assert.equal(trialAccessIsActive(trial, Date.parse(endsAt) - 1), true);
@@ -29,32 +29,28 @@ test("trial lasts exactly five days and expires at the boundary", () => {
   assert.equal(trialDaysRemaining(trial, Date.parse(endsAt)), 0);
 });
 
-test("active trial grants every feature and enforces ten companies", () => {
+test("active trial grants defensive features and enforces three domains", () => {
   const now = Date.parse("2026-07-27T12:00:00.000Z");
   const plan = resolveWorkspacePlan({ platformOwner: false, betaEnabled: false, billing: noBilling, trial }, now);
   assert.equal(plan.key, "trial");
   for (const feature of [
-    "batchImportEnabled",
-    "fiscalIntelligenceEnabled",
-    "taxLabEnabled",
-    "nationalCoverageEnabled",
-    "fiscalExpansionEnabled",
-    "fiscalRulesEnabled",
-    "taxDeterminationEnabled",
-    "professionalGovernanceEnabled",
+    "securityAgentEnabled",
+    "scheduledMonitoringEnabled",
+    "aiAssessmentEnabled",
+    "evidenceHistoryEnabled",
     "officeCollaborationEnabled",
   ]) assert.equal(plan[feature], true, feature);
 
-  const nine = applyPlanUsage(plan, noBilling, 9, trial, now);
-  assert.equal(nine.companyLimit, 10);
-  assert.equal(nine.companyRemaining, 1);
-  assert.equal(nine.canCreateCompany, true);
-  assert.equal(nine.trialActive, true);
-  assert.equal(nine.trialDaysRemaining, 3);
+  const two = applyPlanUsage(plan, noBilling, 2, trial, now);
+  assert.equal(two.scopeLimit, 3);
+  assert.equal(two.scopeRemaining, 1);
+  assert.equal(two.canCreateScope, true);
+  assert.equal(two.trialActive, true);
+  assert.equal(two.trialDaysRemaining, 3);
 
-  const ten = applyPlanUsage(plan, noBilling, 10, trial, now);
-  assert.equal(ten.companyLimitReached, true);
-  assert.equal(ten.canCreateCompany, false);
+  const three = applyPlanUsage(plan, noBilling, 3, trial, now);
+  assert.equal(three.scopeLimitReached, true);
+  assert.equal(three.canCreateScope, false);
 });
 
 test("paid access overrides trial and an expired trial cannot fall into unlimited beta", () => {

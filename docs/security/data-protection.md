@@ -11,7 +11,7 @@ Revisão obrigatória:
 - depois de incidente, mudança legal ou alteração material de finalidade;
 - com registro de versão no pull request.
 
-Dados novos não entram em produção sem finalidade, base legal, prazo e regra de exclusão. XML fiscal bruto permanece proibido no banco. Exceções de retenção precisam indicar obrigação legal concreta; “pode ser útil” não é justificativa.
+Dados novos não entram em produção sem finalidade, base legal, prazo e regra de exclusão. Segredos, credenciais e conteúdo privado dos ativos permanecem proibidos no banco. Exceções de retenção precisam indicar obrigação legal concreta; “pode ser útil” não é justificativa.
 
-Os pedidos de acesso, correção e exclusão geram eventos pseudonimizados com request ID e retenção de 24 meses. Membros de escritório recebem somente os próprios dados pessoais; o conteúdo fiscal e empresarial pertence ao espaço e só entra no export do responsável.
+Os pedidos de acesso, correção e exclusão geram eventos pseudonimizados com request ID e retenção de 24 meses. Membros recebem somente os próprios dados pessoais; escopos, jobs e eventos do workspace entram no export do proprietário, sem tokens de verificação ou segredos.
 

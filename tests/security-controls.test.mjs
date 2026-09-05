@@ -15,9 +15,6 @@ test("beta and paid checkout remain mutually exclusive while existing renewals a
   assert.match(checkout, /if \(!operation\.paymentsEnabled\)/);
   assert.match(admin, /ATIVAR PAGAMENTOS/);
   assert.match(admin, /setBetaMode\(admin, body\.betaEnabled\)/);
-  const center = read("../app/app/BillingCenter.tsx");
-  assert.match(center, /A ativação do beta não cancela contratos existentes/);
-  assert.doesNotMatch(center, /activeSubscriptions > 0\)\} onClick/);
 });
 
 test("payment activation requires production, reconciliation, legal, privacy and antifraud gates", () => {

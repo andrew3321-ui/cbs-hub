@@ -8,7 +8,7 @@ export const BILLING_MAX_ADDON_BLOCKS = 47;
 export const billingPlans = {
   unico: {
     key: "unico",
-    name: "CBSHub 30 legado",
+    name: "Contrato legado CBSHub",
     priceCents: 45_000,
     regularPriceCents: 45_000,
     reason: "CBSHub — assinatura mensal",
@@ -20,23 +20,23 @@ export const billingPlans = {
   // cancels them. New purchases use the individual or office offers below.
   pro: {
     key: "pro",
-    name: "Contador independente",
+    name: "Contrato individual legado",
     priceCents: 5_900,
     regularPriceCents: 5_900,
-    reason: "CBSHub Contador Independente — assinatura mensal",
+    reason: "CBSHub — assinatura individual legada",
     companyLimit: 10,
     capacityAddonsEnabled: false,
-    purchasable: true,
+    purchasable: false,
   },
   escritorio: {
     key: "escritorio",
-    name: "Escritório contábil",
+    name: "Contrato de equipe legado",
     priceCents: 14_900,
     regularPriceCents: 14_900,
-    reason: "CBSHub Escritório Contábil — assinatura mensal",
+    reason: "CBSHub — assinatura de equipe legada",
     companyLimit: 50,
     capacityAddonsEnabled: false,
-    purchasable: true,
+    purchasable: false,
   },
 } as const;
 

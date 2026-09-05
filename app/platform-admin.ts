@@ -3,12 +3,11 @@ import { getCurrentUser, normalizeEmail, type AppUser } from "./auth";
 
 type PlatformAdminEnvironment = {
   PLATFORM_ADMIN_EMAILS?: string;
-  LEGACY_OWNER_EMAIL?: string;
 };
 
 function configuredAdminEmails() {
   const runtime = env as unknown as PlatformAdminEnvironment;
-  return `${runtime.PLATFORM_ADMIN_EMAILS ?? ""},${runtime.LEGACY_OWNER_EMAIL ?? ""}`
+  return `${runtime.PLATFORM_ADMIN_EMAILS ?? ""}`
     .split(",")
     .map(normalizeEmail)
     .filter(Boolean);

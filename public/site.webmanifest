@@ -1,11 +1,11 @@
 {
-  "name": "CBSHub — Inteligência tributária rastreável",
+  "name": "CBSHub Cybersecurity",
   "short_name": "CBSHub",
-  "description": "Inteligência tributária rastreável para contadores e tributaristas.",
+  "description": "Monitoramento defensivo de domínios, e-mail e aplicações web.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#061f2c",
-  "theme_color": "#061f2c",
+  "background_color": "#060914",
+  "theme_color": "#060914",
   "icons": [
     {
       "src": "/cbshub-icon-1024.png",

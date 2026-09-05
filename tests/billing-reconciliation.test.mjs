@@ -82,10 +82,8 @@ test("the Worker schedules official reconciliation without making the webhook ma
 
 test("terms disclose renewal, cancellation and mandatory legal exceptions", () => {
   const terms = fs.readFileSync(new URL("../app/termos/page.tsx", import.meta.url), "utf8");
-  const pricing = fs.readFileSync(new URL("../app/planos/PricingClient.tsx", import.meta.url), "utf8");
   assert.match(terms, /Não oferecemos reembolso comercial voluntário/);
   assert.match(terms, /direitos legais indisponíveis/);
   assert.match(terms, /artigo 49 do Código de Defesa do Consumidor/);
   assert.match(terms, /O teste gratuito não elimina direitos previstos em lei/);
-  assert.match(pricing, /Renovação automática; cancele antes desta data/);
 });

@@ -1,5 +1,4 @@
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
 import test from "node:test";
 import {
   buildMetricWindow,
@@ -15,7 +14,7 @@ import {
 } from "../domain/platform-metrics.ts";
 
 test("dicionário define aquisição, atividade, trials, pagadores e conversão", () => {
-  assert.deepEqual(Object.keys(platformMetricDefinitions), ["pageViews", "visitors", "sessions", "signups", "signupFunnel", "experimentFunnel", "activeUsers", "trials", "payers", "conversion", "organicAttribution", "searchConsole"]);
+  assert.deepEqual(Object.keys(platformMetricDefinitions), ["pageViews", "visitors", "sessions", "signups", "signupFunnel", "activeUsers", "trials", "payers", "conversion", "organicAttribution", "searchConsole"]);
   assert.match(platformMetricDefinitions.activeUsers, /DAU\/WAU\/MAU/);
   assert.match(platformMetricDefinitions.visitors, /mesmo dia contam uma vez/);
   assert.match(platformMetricDefinitions.visitors, /novo dia abre uma nova visita/);
@@ -27,7 +26,7 @@ test("dicionário define aquisição, atividade, trials, pagadores e conversão"
 test("caminho é minimizado e nunca preserva query ou identificador", () => {
   assert.equal(normalizeMetricPath("/app?email=pessoa@example.com"), "workspace");
   assert.equal(normalizeMetricPath("/cadastro?cpf=123"), "signup");
-  assert.equal(normalizeMetricPath("/experimentar?utm_source=meta"), "experiment");
+  assert.equal(normalizeMetricPath("/experimentar?utm_source=meta"), "retired_experiment_redirect");
   assert.equal(normalizeMetricPath("/clientes/42"), "other");
 });
 
@@ -62,31 +61,4 @@ test("agregados diários conciliam tráfego e dados operacionais sem perder dias
   assert.equal(rows[1].signups, 3);
   assert.equal(rows[1].trialsStarted, 2);
   assert.equal(rows[2].grossAmountCents, 45_000);
-});
-
-test("API e interface preservam autorização server-side e privacidade", async () => {
-  const [route, collector, app, account, migration] = await Promise.all([
-    readFile(new URL("../app/api/admin/metrics/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/platform-analytics.ts", import.meta.url), "utf8"),
-    readFile(new URL("../app/app/CBSHubApp.tsx", import.meta.url), "utf8"),
-    readFile(new URL("../app/api/account/route.ts", import.meta.url), "utf8"),
-    readFile(new URL("../drizzle/0033_brief_amphibian.sql", import.meta.url), "utf8"),
-  ]);
-  assert.match(route, /getPlatformAdminUser/);
-  assert.match(route, /status: 403/);
-  assert.match(route, /COUNT\(DISTINCT CASE WHEN event_type = 'page_view' THEN event_date \|\| ':' \|\| visitor_hash END\) visitors/);
-  assert.match(route, /EXISTS \(SELECT 1 FROM users current_users WHERE current_users.id = platform_metric_events.user_id\)/);
-  assert.match(route, /INNER JOIN users trial_users ON trial_users.id = t.user_id/);
-  assert.match(route, /label: "Visitas únicas\/dia"/);
-  assert.match(route, /signupFunnelRows/);
-  assert.match(route, /signup_client_error/);
-  assert.match(app, /isPlatformAdmin && <button title="Métricas da plataforma"/);
-  assert.match(account, /platformActivity/);
-  assert.match(account, /delete\(platformMetricEvents\)/);
-  assert.match(account, /status: "retained_antifraud"/);
-  assert.doesNotMatch(collector, /cf-connecting-ip|x-forwarded-for/);
-  assert.match(collector, /visitorHash/);
-  assert.match(migration, /platform_metric_events/);
-  assert.match(migration, /platform_metric_daily/);
-  assert.match(migration, /UNIQUE INDEX `platform_metric_events_dedupe_idx`/);
 });

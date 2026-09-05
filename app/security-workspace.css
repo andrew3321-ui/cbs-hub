@@ -1,0 +1,296 @@
+.security-workspace-shell {
+  --workspace-night: #050814;
+  --workspace-panel: #0a1122;
+  --workspace-panel-raised: #0e1830;
+  --workspace-cyan: #35defe;
+  --workspace-lime: #b8ff3d;
+  --workspace-violet: #7b61ff;
+  --workspace-line: rgba(95, 219, 255, 0.16);
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 248px minmax(0, 1fr);
+  overflow: clip;
+  background: var(--workspace-night);
+  color: #eaf8ff;
+  animation: workspace-enter 360ms cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.security-workspace-sidebar {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  height: 100vh;
+  padding: 25px 18px 22px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--workspace-line);
+  background:
+    radial-gradient(circle at 18% 8%, rgba(53, 222, 254, .1), transparent 18rem),
+    linear-gradient(180deg, #071020, #050814 74%);
+}
+
+.security-workspace-sidebar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  opacity: .18;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(93, 211, 255, .08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(93, 211, 255, .08) 1px, transparent 1px);
+  background-size: 42px 42px;
+  mask-image: linear-gradient(to bottom, black, transparent 72%);
+}
+
+.security-workspace-sidebar .security-agent-brand {
+  padding: 0 7px 24px;
+}
+
+.security-workspace-product {
+  margin: 2px 5px 24px;
+  padding: 15px;
+  display: grid;
+  grid-template-columns: 8px 1fr;
+  gap: 5px 9px;
+  border: 1px solid rgba(53, 222, 254, .16);
+  border-radius: 12px;
+  background: rgba(12, 26, 50, .7);
+}
+
+.security-workspace-product i {
+  grid-row: 1 / 3;
+  width: 7px;
+  height: 7px;
+  margin-top: 2px;
+  border-radius: 50%;
+  background: var(--workspace-lime);
+  box-shadow: 0 0 14px rgba(184, 255, 61, .8);
+}
+
+.security-workspace-product span {
+  color: #60849a;
+  font: 700 8px/1.2 monospace;
+  letter-spacing: 1px;
+}
+
+.security-workspace-product b {
+  color: #dff7ff;
+  font-size: 12px;
+}
+
+.security-workspace-sidebar nav {
+  display: grid;
+  gap: 6px;
+}
+
+.security-workspace-sidebar nav a {
+  min-height: 48px;
+  padding: 0 12px;
+  display: grid;
+  grid-template-columns: 29px 1fr;
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 10px;
+  color: #7892a4;
+  text-decoration: none;
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease, transform 180ms ease;
+}
+
+.security-workspace-sidebar nav a span {
+  color: #476b7f;
+  font: 700 9px/1 monospace;
+}
+
+.security-workspace-sidebar nav a b {
+  font-size: 12px;
+}
+
+.security-workspace-sidebar nav a:hover,
+.security-workspace-sidebar nav a:focus-visible {
+  border-color: rgba(53, 222, 254, .2);
+  background: rgba(53, 222, 254, .06);
+  color: #eaf8ff;
+  transform: translateX(2px);
+}
+
+.security-workspace-sidebar nav a.active {
+  border-color: rgba(53, 222, 254, .25);
+  background: linear-gradient(90deg, rgba(53, 222, 254, .13), rgba(123, 97, 255, .06));
+  color: white;
+  box-shadow: inset 2px 0 var(--workspace-cyan), 0 10px 30px rgba(0, 0, 0, .14);
+}
+
+.security-workspace-sidebar nav a.active span { color: var(--workspace-lime); }
+
+.security-workspace-sidebar-foot {
+  margin-top: auto;
+  padding: 18px 12px 4px;
+  border-top: 1px solid rgba(95, 219, 255, .11);
+}
+
+.security-workspace-sidebar-foot span {
+  color: var(--workspace-lime);
+  font: 700 8px/1 monospace;
+  letter-spacing: 1.1px;
+}
+
+.security-workspace-sidebar-foot p {
+  margin: 9px 0 15px;
+  color: #60798a;
+  font-size: 10px;
+  line-height: 1.55;
+}
+
+.security-workspace-sidebar-foot a {
+  color: #8aa6b8;
+  font-size: 10px;
+  font-weight: 800;
+  text-decoration: none;
+}
+
+.security-workspace-main { min-width: 0; }
+
+.security-workspace-main .security-agent-topbar {
+  width: 100%;
+  height: 74px;
+  padding: 0 clamp(22px, 4vw, 54px);
+  animation: workspace-topbar-enter 420ms 80ms cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.security-agent-topbar > div:first-child {
+  display: grid;
+  gap: 4px;
+}
+
+.security-agent-topbar > div:first-child span {
+  color: #55758a;
+  font: 700 8px/1 monospace;
+  letter-spacing: 1.3px;
+}
+
+.security-agent-topbar > div:first-child b {
+  color: #dff6ff;
+  font-size: 13px;
+}
+
+.security-workspace-main .security-agent-page {
+  min-height: calc(100vh - 74px);
+  padding-bottom: 90px;
+  background:
+    radial-gradient(circle at 86% -5%, rgba(123, 97, 255, .18), transparent 32rem),
+    radial-gradient(circle at 16% 30%, rgba(53, 222, 254, .055), transparent 28rem),
+    var(--workspace-night);
+}
+
+.security-workspace-main .security-agent-hero,
+.security-workspace-main .security-agent-grid,
+.security-workspace-main .security-agent-assets,
+.security-workspace-main > .security-agent-page > .security-agent-alert {
+  width: min(1180px, calc(100% - clamp(36px, 7vw, 92px)));
+}
+
+.security-workspace-main .security-agent-hero {
+  padding-top: 68px;
+  animation: workspace-content-enter 480ms 110ms cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.security-workspace-main .security-agent-grid {
+  animation: workspace-content-enter 500ms 170ms cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.security-workspace-main .security-agent-assets {
+  animation: workspace-content-enter 520ms 230ms cubic-bezier(.2, .75, .25, 1) both;
+}
+
+.security-workspace-main .security-agent-panel,
+.security-workspace-main .security-agent-asset {
+  transition: border-color 220ms ease, box-shadow 220ms ease, transform 220ms ease;
+}
+
+.security-workspace-main .security-agent-panel:hover,
+.security-workspace-main .security-agent-asset:hover {
+  border-color: rgba(95, 219, 255, .29);
+  box-shadow: 0 30px 74px rgba(0, 0, 0, .24), 0 0 0 1px rgba(53, 222, 254, .025) inset;
+  transform: translateY(-2px);
+}
+
+.security-workspace-main button,
+.security-workspace-main a {
+  transition: color 180ms ease, border-color 180ms ease, background 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+}
+
+.security-workspace-main button:not(:disabled):hover { transform: translateY(-1px); }
+
+.security-workspace-main :target { scroll-margin-top: 92px; }
+
+@keyframes workspace-enter {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes workspace-topbar-enter {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes workspace-content-enter {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 960px) {
+  .security-workspace-shell { grid-template-columns: 82px minmax(0, 1fr); }
+  .security-workspace-sidebar { padding-inline: 12px; }
+  .security-workspace-sidebar .security-agent-brand { justify-content: center; padding-inline: 0; }
+  .security-workspace-sidebar .security-agent-brand > span,
+  .security-workspace-product,
+  .security-workspace-sidebar nav a b,
+  .security-workspace-sidebar-foot { display: none; }
+  .security-workspace-sidebar nav a { min-height: 50px; grid-template-columns: 1fr; place-items: center; padding: 0; }
+  .security-workspace-sidebar nav a span { font-size: 10px; }
+  .security-workspace-sidebar nav a:hover,
+  .security-workspace-sidebar nav a:focus-visible { transform: translateY(-1px); }
+}
+
+@media (max-width: 680px) {
+  .security-workspace-shell { display: block; padding-bottom: 72px; }
+  .security-workspace-sidebar {
+    position: fixed;
+    inset: auto 0 0;
+    z-index: 50;
+    width: 100%;
+    height: 70px;
+    padding: 8px max(8px, env(safe-area-inset-right)) max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
+    border-top: 1px solid rgba(95, 219, 255, .2);
+    border-right: 0;
+    background: rgba(5, 8, 20, .94);
+    backdrop-filter: blur(18px);
+  }
+  .security-workspace-sidebar .security-agent-brand { display: none; }
+  .security-workspace-sidebar nav { height: 100%; grid-template-columns: repeat(4, 1fr); gap: 4px; }
+  .security-workspace-sidebar nav a { min-height: 0; }
+  .security-workspace-sidebar nav a span { font-size: 9px; }
+  .security-workspace-main .security-agent-topbar { height: 62px; padding-inline: 15px; }
+  .security-agent-topbar > div:first-child { display: none; }
+  .security-workspace-main .security-agent-topbar > div { width: 100%; justify-content: space-between; gap: 8px; }
+  .security-workspace-main .security-agent-provider { max-width: 64vw; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .security-workspace-main .security-agent-page { min-height: calc(100vh - 62px); }
+  .security-workspace-main .security-agent-hero,
+  .security-workspace-main .security-agent-grid,
+  .security-workspace-main .security-agent-assets,
+  .security-workspace-main > .security-agent-page > .security-agent-alert { width: calc(100% - 28px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .security-workspace-shell,
+  .security-workspace-main .security-agent-topbar,
+  .security-workspace-main .security-agent-hero,
+  .security-workspace-main .security-agent-grid,
+  .security-workspace-main .security-agent-assets { animation: none; }
+  .security-workspace-sidebar nav a,
+  .security-workspace-main .security-agent-panel,
+  .security-workspace-main .security-agent-asset,
+  .security-workspace-main button,
+  .security-workspace-main a { transition: none; }
+}

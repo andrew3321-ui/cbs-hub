@@ -1,11 +1,11 @@
-import { and, count, eq, gt, inArray, isNull, or } from "drizzle-orm";
+import { and, eq, gt, inArray, or } from "drizzle-orm";
 import { env } from "cloudflare:workers";
 import { createAccountCode, createRecoveryKey, createSession, hashPassword, hashRecoveryKey, internalAccountEmail, normalizeEmail, normalizeUsername, passwordIsStrong, sessionCookieHeader, usernameIsValid } from "../../../auth";
 import { getDb } from "../../../../db";
-import { accountingWorkspaces, companies, trialDeviceClaims, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
+import { accountingWorkspaces, trialDeviceClaims, users, workspaceInvitations, workspaceMembers } from "../../../../db/schema";
 import { sha256Hex } from "../../../workspace";
 import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../plan-entitlements";
-import { TRIAL_COMPANY_LIMIT, TRIAL_DURATION_DAYS, trialEndsAt } from "../../../../domain/trial";
+import { TRIAL_DURATION_DAYS, TRIAL_SCOPE_LIMIT, trialEndsAt } from "../../../../domain/trial";
 import { buildTrialClaimIdentity, trialDeviceCookieHeader } from "../../../trial-protection";
 import { metricIdentityCookies, recordPlatformMetricEvent, type MetricEventType } from "../../../platform-analytics";
 
@@ -95,7 +95,6 @@ export async function POST(request: Request) {
       if (existingEmail) return registrationError(request, metricIdentity, 409, "EMAIL_EXISTS", "Já existe uma conta com este e-mail.");
     }
 
-    const [{ total }] = await db.select({ total: count() }).from(users);
     const passwordData = await hashPassword(password);
     const recoveryKey = createRecoveryKey();
     const recoveryKeyHash = await hashRecoveryKey(recoveryKey);
@@ -128,7 +127,7 @@ export async function POST(request: Request) {
       ]);
       if (acceptance[0].meta.changes !== 1 || acceptance[1].meta.changes !== 1) throw new Error("invitation_no_longer_valid");
     } else {
-      workspaceName = `Espaço profissional de ${username}`;
+      workspaceName = `Security Workspace de ${username}`;
       const [workspace] = await db.insert(accountingWorkspaces).values({ name: workspaceName, workspaceType: accountType, ownerUserId: user.id, suggestedPlanKey }).returning({ id: accountingWorkspaces.id });
       if (!workspace) throw new Error("workspace_insert_failed");
       workspaceId = workspace.id;
@@ -164,10 +163,6 @@ export async function POST(request: Request) {
       }
     }
 
-    const configuredLegacyOwner = normalizeEmail(String((env as unknown as { LEGACY_OWNER_EMAIL?: string }).LEGACY_OWNER_EMAIL ?? ""));
-    const canClaimLegacyData = configuredLegacyOwner ? configuredLegacyOwner === email : Number(total) === 0;
-    if (canClaimLegacyData) await db.update(companies).set({ ownerUserId: user.id, workspaceId }).where(isNull(companies.ownerUserId));
-
     try {
       await recordPlatformMetricEvent({ request, eventType: "signup", userId: user.id, payload: { pathname: "/cadastro" }, visitorId: metricIdentity.visitorId, sessionId: metricIdentity.sessionId });
       if (!invitation) await recordPlatformMetricEvent({ request, eventType: trialGranted ? "trial_started" : "trial_denied", userId: user.id, payload: { pathname: "/cadastro", reason: trialGranted ? "granted" : trialIdentity ? "already_used" : "verification_unavailable" }, visitorId: metricIdentity.visitorId, sessionId: metricIdentity.sessionId });
@@ -187,7 +182,7 @@ export async function POST(request: Request) {
       trial: {
         granted: trialGranted,
         days: TRIAL_DURATION_DAYS,
-        companyLimit: TRIAL_COMPANY_LIMIT,
+        scopeLimit: TRIAL_SCOPE_LIMIT,
         startedAt: trialStartedAt,
         endsAt: trialEndsAtValue,
         reason: invitation

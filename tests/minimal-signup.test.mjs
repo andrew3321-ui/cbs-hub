@@ -10,7 +10,7 @@ test("cadastro público pede somente usuário e uma senha", async () => {
   assert.match(auth, /profissional-\$\{suffix\}/);
   assert.match(auth, /Já reservamos uma sugestão para você/);
   assert.match(auth, /Nome de usuário/);
-  assert.match(auth, /Começar meus 5 dias/);
+  assert.match(auth, /Criar workspace/);
   assert.match(auth, /E-mail só se contratar/);
   assert.match(auth, /mode === "recover" && <label>Confirmar senha/);
   assert.doesNotMatch(auth, /mode !== "login" && <><div className="password-strength"/);
@@ -39,22 +39,14 @@ test("servidor cria identidade pseudônima e login aceita usuário ou e-mail", a
 });
 
 test("perfil pode ser completado depois e pagamento exige contato real", async () => {
-  const [profile, shell, account, checkout, pix, pricing] = await Promise.all([
-    read("../app/app/AccountProfileCenter.tsx"),
-    read("../app/app/CBSHubApp.tsx"),
+  const [account, checkout, pix] = await Promise.all([
     read("../app/api/account/route.ts"),
     read("../app/api/billing/checkout/route.ts"),
     read("../app/api/billing/pix/route.ts"),
-    read("../app/planos/PricingClient.tsx"),
   ]);
 
-  assert.match(profile, /Primeiro nome/);
-  assert.match(profile, /E-mail de contato/);
-  assert.match(profile, /IDENTIFICADOR CBSHUB/);
-  assert.match(shell, /Minha conta/);
   assert.match(account, /firstNameChanged/);
   assert.match(account, /usernameChanged/);
   assert.match(checkout, /BILLING_PROFILE_REQUIRED/);
   assert.match(pix, /BILLING_PROFILE_REQUIRED/);
-  assert.match(pricing, /window\.location\.assign\(data\.profileUrl\)/);
 });

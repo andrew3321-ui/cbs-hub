@@ -24,9 +24,9 @@ test("support SLA counts business days instead of elapsed days", () => {
 });
 
 test("support taxonomy and status transitions are closed allowlists", () => {
-  assert.equal(isSupportCategory("calculation_divergence"), true);
-  assert.equal(isSupportCategory("change_tax_rule"), false);
-  assert.equal(isSupportModule("intelligence"), true);
+  assert.equal(isSupportCategory("scan_result"), true);
+  assert.equal(isSupportCategory("change_rule"), false);
+  assert.equal(isSupportModule("security_agent"), true);
   assert.equal(isSupportModule("../../admin"), false);
   assert.equal(canTransitionSupportStatus("open", "in_analysis"), true);
   assert.equal(canTransitionSupportStatus("closed", "resolved"), false);
@@ -38,29 +38,19 @@ test("support input blocks common personal identifiers and secrets", () => {
   assert.equal(supportTextHasSensitiveData("CNPJ 64.297.777/0001-42"), true);
   assert.equal(supportTextHasSensitiveData("Contato pessoa@empresa.com.br"), true);
   assert.equal(supportTextHasSensitiveData("token APP_USR-12345678901234567890"), true);
-  assert.equal(supportTextHasSensitiveData("A memória de cálculo diverge na linha de ICMS"), false);
+  assert.equal(supportTextHasSensitiveData("O relatório indica um cabeçalho ausente"), false);
   assert.equal(validSupportTraceCode("MC-CHECKOUT-UNAVAILABLE"), true);
   assert.equal(validSupportTraceCode("token secreto"), false);
 });
 
-test("support API attaches server context and never mutates fiscal rules", () => {
+test("support API attaches server context and isolates the workspace", () => {
   const source = readFileSync(new URL("../app/api/support-tickets/route.ts", import.meta.url), "utf8");
   assert.match(source, /CF_VERSION_METADATA/);
-  assert.match(source, /eq\(companies\.workspaceId, workspace\.id\)/);
+  assert.match(source, /eq\(supportTickets\.workspaceId, workspace\.id\)/);
   assert.match(source, /dataMinimizationAccepted !== true/);
   assert.match(source, /isPlatformAdminEmail/);
   assert.match(source, /support_ticket_events/);
-  assert.doesNotMatch(source, /UPDATE\s+(?:fiscal_rule|normative_)/i);
-});
-
-test("support UI exposes SLA, protocol, minimization and governance boundary", () => {
-  const source = readFileSync(new URL("../app/app/SupportCenter.tsx", import.meta.url), "utf8");
-  assert.match(source, /Primeira resposta em até 2 dias úteis/);
-  assert.match(source, /Gerar protocolo/);
-  assert.match(source, /sem dados pessoais, documentos fiscais completos ou credenciais/);
-  assert.match(source, /Feedback não altera regras automaticamente/);
-  assert.match(source, /releaseTag/);
-  assert.match(source, /traceCode/);
+  assert.doesNotMatch(source, /verification_token|OPENAI_API_KEY/);
 });
 
 test("LGPD access and deletion flows include support records", () => {

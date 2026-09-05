@@ -2,7 +2,6 @@ const baseUrl = new URL(process.env.SMOKE_BASE_URL ?? "https://cbshub.com.br").o
 const strict = process.env.SMOKE_STRICT === "1";
 const email = process.env.SMOKE_TEST_EMAIL ?? "";
 const password = process.env.SMOKE_TEST_PASSWORD ?? "";
-const reportToken = process.env.SMOKE_REPORT_TOKEN ?? "";
 const timeoutMs = Number(process.env.SMOKE_TIMEOUT_MS ?? 15_000);
 const previousReleaseId = process.env.SMOKE_PREVIOUS_RELEASE_ID ?? "";
 
@@ -66,7 +65,7 @@ async function waitForPublishedRelease() {
 
 const healthBody = await waitForPublishedRelease();
 
-for (const [label, pathname] of [["landing-page", "/"], ["login-page", "/entrar"], ["plans-page", "/planos"]]) {
+for (const [label, pathname] of [["landing-page", "/"], ["login-page", "/entrar"], ["signup-page", "/cadastro"]]) {
   await requestUntilStatus(label, pathname, {}, [200]);
 }
 
@@ -89,32 +88,14 @@ if (email && password) {
   }, [401, 429]);
 }
 
-const calculation = await request("/api/deterministic-tax-lab", {
-  method: "POST",
-  headers: { "Content-Type": "application/json", Origin: baseUrl, ...(cookie ? { Cookie: cookie } : {}) },
-  body: JSON.stringify({
-    module: "simples_annex_i",
-    rbt12Cents: 12_000_000,
-    monthlySegregatedRevenueCents: 1_000_000,
-    annexConfirmed: true,
-    revenueSegregated: true,
-    periodClosed: true,
-    noSpecialTreatment: true,
-  }),
-});
-requireStatus("calculation", calculation, cookie ? [200] : [401]);
+const agent = await request("/api/security-agent", { headers: cookie ? { Cookie: cookie } : {} });
+requireStatus("security-agent", agent, cookie ? [200] : [401]);
 
 const billing = await request("/api/billing", { headers: cookie ? { Cookie: cookie } : {} });
 requireStatus("payment-readiness", billing, cookie ? [200] : [401]);
 
-if (reportToken) {
-  const report = await request(`/relatorio/${encodeURIComponent(reportToken)}`);
-  requireStatus("report", report, [200]);
-} else {
-  if (strict) throw new Error("SMOKE_STRICT exige SMOKE_REPORT_TOKEN.");
-  const reportBoundary = await request("/relatorio/smoke-token-inexistente");
-  requireStatus("report-boundary", reportBoundary, [200, 404]);
-}
+const retired = await request("/api/deterministic-tax-lab");
+requireStatus("retired-fiscal-api", retired, [404, 410]);
 
 console.log(JSON.stringify({
   event: "post_deploy_smoke.passed",

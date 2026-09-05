@@ -1,4 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
+import { env } from "cloudflare:workers";
 import {
   clearSessionCookieHeader,
   createSession,
@@ -117,9 +118,15 @@ async function exportAccountData(request: Request) {
       workspaceQuery(db.select().from(taxReconciliationSnapshots).where(eq(taxReconciliationSnapshots.ownerUserId, workspace.ownerUserId))),
       workspaceQuery(db.select().from(taxPeriodClosures).where(eq(taxPeriodClosures.ownerUserId, workspace.ownerUserId))),
     ]);
+    const securityData = canExportWorkspaceData ? {
+      scopes: (await env.DB.prepare("SELECT id, domain, status, verified_at, authorization_basis, authorization_attested_at, authorization_expires_at, monitoring_enabled, created_at FROM security_agent_scopes WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      jobs: (await env.DB.prepare("SELECT id, scope_id, status, evidence_json, assessment_json, provider, model, started_at, completed_at FROM security_agent_jobs WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      events: (await env.DB.prepare("SELECT id, scope_id, actor_user_id, event_type, details_json, created_at FROM security_agent_events WHERE workspace_id = ?").bind(workspace.id).all()).results,
+    } : null;
     const exportData = {
       generatedAt: new Date().toISOString(),
-      formatVersion: "lgpd-access-v2",
+      formatVersion: "lgpd-access-v3",
+      security: securityData,
       privacyGovernanceVersion: PRIVACY_GOVERNANCE_VERSION,
       scope: canExportWorkspaceData ? "account_and_owned_workspace" : "individual_account_only",
       account,
@@ -208,6 +215,11 @@ async function correctAccount(request: Request) {
 
 async function anonymizeIncidentActor(userId: number) {
   const db = getDb();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE security_agent_events SET actor_user_id = NULL WHERE actor_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_agent_jobs SET requested_by_user_id = NULL WHERE requested_by_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_agent_scopes SET created_by_user_id = 0 WHERE created_by_user_id = ?").bind(userId),
+  ]);
   await db.update(securityIncidents).set({ reportedByUserId: null }).where(eq(securityIncidents.reportedByUserId, userId));
   await db.update(securityIncidentEvents).set({ actorUserId: null }).where(eq(securityIncidentEvents.actorUserId, userId));
 }
@@ -235,7 +247,7 @@ async function deleteAccount(request: Request) {
     if (!workspace) return Response.json({ error: "Espaço profissional não encontrado." }, { status: 409 });
     trailWorkspaceId = workspace.id;
     const members = await db.select({ userId: workspaceMembers.userId }).from(workspaceMembers).where(eq(workspaceMembers.workspaceId, workspace.id));
-    if (workspace.role === "owner" && workspace.type === "office" && members.length > 1) return Response.json({ error: "Remova os demais membros ou transfira a responsabilidade do escritório antes de excluir a conta." }, { status: 409 });
+    if (workspace.role === "owner" && members.length > 1) return Response.json({ error: "Remova os demais membros ou transfira a responsabilidade do workspace antes de excluir a conta." }, { status: 409 });
 
     if (workspace.role !== "owner") {
       const [assignedReview] = await db.select({ id: scenarioReviewRounds.id }).from(scenarioReviewRounds).where(and(eq(scenarioReviewRounds.workspaceId, workspace.id), eq(scenarioReviewRounds.assignedReviewerUserId, user.id), eq(scenarioReviewRounds.status, "pending"))).limit(1);
@@ -261,6 +273,11 @@ async function deleteAccount(request: Request) {
     await recordPrivacyRequest({ request, email: user.email, workspaceId: workspace.id, action: "account_deletion", status: "started", details: { scope: "owned_workspace" } });
     trailStarted = true;
     const ownedCompanies = await db.select({ id: companies.id }).from(companies).where(eq(companies.workspaceId, workspace.id));
+    await env.DB.batch([
+      env.DB.prepare("DELETE FROM security_agent_events WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_agent_jobs WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_agent_scopes WHERE workspace_id = ?").bind(workspace.id),
+    ]);
     const companyIds = ownedCompanies.map((company) => company.id);
     await anonymizeIncidentActor(user.id);
     await deleteSupportTickets(eq(supportTickets.workspaceId, workspace.id));

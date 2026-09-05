@@ -8,8 +8,8 @@ export const metadata: Metadata = {
   title: "Responsável pela plataforma | CBSHub",
   description: "Identificação pública do responsável pela plataforma CBSHub, com proteção dos documentos pessoais.",
   alternates: { canonical: "/responsavel" },
-  openGraph: { title: "Responsável pela plataforma | CBSHub", description: "Identificação institucional e limites da declaração pública do CBSHub.", url: "/responsavel", images: ["/og-cbshub.png"], type: "website", locale: "pt_BR" },
-  twitter: { card: "summary_large_image", title: "Responsável pela plataforma | CBSHub", description: "Identificação institucional pública do CBSHub.", images: ["/og-cbshub.png"] },
+  openGraph: { title: "Responsável pela plataforma | CBSHub", description: "Identificação institucional e limites da declaração pública do CBSHub.", url: "/responsavel", type: "website", locale: "pt_BR" },
+  twitter: { card: "summary_large_image", title: "Responsável pela plataforma | CBSHub", description: "Identificação institucional pública do CBSHub." },
 };
 
 export default function PlatformOwnerPage() {
@@ -18,7 +18,7 @@ export default function PlatformOwnerPage() {
       <PublicPageBreadcrumb current="Responsável pela plataforma" path="/responsavel" />
       <header className="ownership-nav">
         <Link className="landing-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
-        <div><Link href="/metodologia">Metodologia</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div>
+        <div><Link href="/#como-funciona">Como funciona</Link><Link className="ownership-app-link" href="/app">Abrir plataforma →</Link></div>
       </header>
 
       <section className="ownership-card">
@@ -41,7 +41,7 @@ export default function PlatformOwnerPage() {
           <b>Escopo desta declaração</b>
           <p>Esta identificação registra quem declara conduzir a operação da plataforma. Ela não equivale ao registro da marca ou do domínio e não comprova isoladamente a titularidade do código-fonte. Antes de qualquer contratação paga, a identificação fiscal obrigatória do fornecedor deverá constar nos termos e no fluxo comercial.</p>
         </div>
-        <div className="ownership-actions"><a href="/api/public/ownership" target="_blank" rel="noreferrer">Ver registro público estruturado <span>↗</span></a><Link href="/metodologia">Conhecer os controles da plataforma <span>→</span></Link></div>
+        <div className="ownership-actions"><a href="/api/public/ownership" target="_blank" rel="noreferrer">Ver registro público estruturado <span>↗</span></a><Link href="/#como-funciona">Conhecer os controles da plataforma <span>→</span></Link></div>
       </section>
 
       <footer className="ownership-footer"><span>CBSHub · Responsável: {platformIdentity.responsibleName}</span><div><Link href="/privacidade">Privacidade</Link> · <Link href="/termos">Termos</Link> · <Link href="/">Voltar ao início</Link></div></footer>

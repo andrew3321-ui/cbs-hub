@@ -2,14 +2,9 @@
 import { handleImageOptimization, DEFAULT_DEVICE_SIZES, DEFAULT_IMAGE_SIZES } from "vinext/server/image-optimization";
 import handler from "vinext/server/app-router-entry";
 import { runScheduledBillingReconciliation } from "../app/billing-scheduled-reconciliation";
-import { runNormativeMonitor } from "../app/normative-governance-service";
-import { runScheduledRtcCalculatorSync } from "../app/rtc-official-calculator-service";
 import { runSearchConsoleSync } from "../app/search-console-service";
-import { NORMATIVE_MONITOR_SHARD_COUNT, normativeMonitorShardForScheduledTime } from "../domain/normative-governance";
 import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
-import { refreshCoverageBacklog } from "../app/coverage-demand-service";
-import { refreshFiscalFreshness } from "../app/fiscal-freshness-service";
-import { runScheduledSecurityAgent } from "../app/security-agent-service";
+import { processSecurityAgentQueueMessage, runScheduledSecurityAgent, type SecurityAgentQueueMessage } from "../app/security-agent-service";
 
 interface Env {
   ASSETS: Fetcher;
@@ -20,11 +15,12 @@ interface Env {
   GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL?: string;
   GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY?: string;
   GOOGLE_SEARCH_CONSOLE_SITE_URL?: string;
-  RESEND_API_KEY?: string;
-  FISCAL_ALERT_EMAIL_TO?: string;
-  FISCAL_ALERT_EMAIL_FROM?: string;
   OPENAI_API_KEY?: string;
-  OPENAI_SECURITY_MODEL?: string;
+  OPENAI_SECURITY_PRIMARY_MODEL?: string;
+  OPENAI_SECURITY_REVIEW_MODEL?: string;
+  SECURITY_SCAN_QUEUE?: {
+    send(message: SecurityAgentQueueMessage): Promise<void>;
+  };
   CF_VERSION_METADATA?: {
     id: string;
     tag?: string;
@@ -46,6 +42,12 @@ interface ExecutionContext {
 
 type RateLimitRule = { scope: string; limit: number; windowSeconds: number };
 type ScheduledController = { scheduledTime: number; cron: string };
+type SecurityQueueMessage = {
+  body: SecurityAgentQueueMessage;
+  ack(): void;
+  retry(options?: { delaySeconds?: number }): void;
+};
+type SecurityQueueBatch = { messages: SecurityQueueMessage[]; queue: string };
 
 const stateChangingMethods = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 const defaultSlowRequestMs = 2_500;
@@ -97,9 +99,7 @@ function sameOriginRequest(request: Request) {
 }
 
 function maximumBodyBytes(pathname: string) {
-  if (pathname === "/api/fiscal-documents") return 6 * 1024 * 1024;
   if (pathname.startsWith("/api/auth/")) return 16 * 1024;
-  if (pathname === "/api/public/fiscal-preview") return 8 * 1024;
   if (pathname === "/api/public/cybersecurity-preview") return 4 * 1024;
   if (pathname === "/api/security-agent") return 16 * 1024;
   if (pathname === "/api/billing/webhook") return 64 * 1024;
@@ -114,10 +114,8 @@ function rateLimitRule(pathname: string, method: string): RateLimitRule | null {
   if (pathname === "/api/auth/reset-password") return { scope: "auth-reset", limit: 6, windowSeconds: 60 * 60 };
   if (pathname === "/api/account") return { scope: "account-rights", limit: 6, windowSeconds: 60 * 60 };
   if (pathname === "/api/billing/checkout" || pathname === "/api/billing/pix") return { scope: "billing-checkout", limit: 12, windowSeconds: 10 * 60 };
-  if (pathname === "/api/public/fiscal-preview") return { scope: "public-fiscal-preview", limit: 30, windowSeconds: 10 * 60 };
   if (pathname === "/api/public/cybersecurity-preview") return { scope: "public-cyber-preview", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/security-agent") return { scope: "security-agent", limit: 12, windowSeconds: 10 * 60 };
-  if (pathname === "/api/public/fiscal-intelligence") return { scope: "public-fiscal-intelligence", limit: 18, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/admin/")) return { scope: "platform-admin", limit: 30, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/")) return { scope: "api-write", limit: 120, windowSeconds: 60 };
   return null;
@@ -182,6 +180,7 @@ function secureResponse(response: Response, request: Request) {
 
 function runSecurityRetentionCleanup(env: Env) {
   return env.DB.batch([
+    env.DB.prepare("UPDATE security_agent_jobs SET status = 'failed', error_code = 'RUNNER_LEASE_EXPIRED', completed_at = datetime('now') WHERE status = 'running' AND lease_expires_at < datetime('now', '-10 minutes')"),
     env.DB.prepare("DELETE FROM security_rate_limits WHERE updated_at < datetime('now', '-2 days')"),
     env.DB.prepare("DELETE FROM sessions WHERE expires_at < datetime('now')"),
     env.DB.prepare("UPDATE trial_device_claims SET status = 'expired' WHERE status = 'active' AND ends_at <= datetime('now')"),
@@ -244,8 +243,7 @@ const worker = {
 
     try {
       if (request.method === "GET" && url.pathname === "/experimentar") {
-        const destination = new URL("/app", url);
-        destination.searchParams.set("guest", "1");
+        const destination = new URL("/#diagnostico", url);
         for (const key of ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"]) {
           const value = url.searchParams.get(key)?.trim();
           if (value) destination.searchParams.set(key, value.slice(0, 200));
@@ -286,28 +284,10 @@ const worker = {
         console.error(JSON.stringify({ event: "security.retention_cleanup_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
-      ctx.waitUntil(runScheduledRtcCalculatorSync(env.DB).then((result) => {
-        console.info(JSON.stringify({ event: "rtc.official_sync_completed", date, versionId: result.versionId, status: result.status, differenceCount: result.report.differences.length }));
-      }).catch((error) => {
-        console.error(JSON.stringify({ event: "rtc.official_sync_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
-        throw error;
-      }));
       ctx.waitUntil(runSearchConsoleSync(env).then((result) => {
         console.info(JSON.stringify({ event: "search_console.sync_completed", date, status: result.status, metricRows: result.metricRows, inspectedPages: result.inspectedPages, configured: result.configured }));
       }).catch((error) => {
         console.error(JSON.stringify({ event: "search_console.sync_failed", date, error: error instanceof Error ? error.message : "SYNC_FAILED" }));
-        throw error;
-      }));
-      ctx.waitUntil(refreshCoverageBacklog(env.DB, new Date(controller.scheduledTime)).then((result) => {
-        console.info(JSON.stringify({ event: "coverage_demand.backlog_refreshed", date, ...result }));
-      }).catch((error: unknown) => {
-        console.error(JSON.stringify({ event: "coverage_demand.backlog_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
-        throw error;
-      }));
-      ctx.waitUntil(refreshFiscalFreshness(env, new Date(controller.scheduledTime)).then((result) => {
-        console.info(JSON.stringify({ event: "fiscal_freshness.daily_summary", date, ...result }));
-      }).catch((error: unknown) => {
-        console.error(JSON.stringify({ event: "fiscal_freshness.daily_summary_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
     }
@@ -319,19 +299,20 @@ const worker = {
         throw error;
       }));
     }
-    const normativeShard = normativeMonitorShardForScheduledTime(controller.cron, controller.scheduledTime);
-    if (normativeShard !== null) {
-      ctx.waitUntil(runNormativeMonitor({ DB: env.DB }, date, normativeShard, NORMATIVE_MONITOR_SHARD_COUNT).then(async () => {
-        const result = await refreshFiscalFreshness(env, new Date(controller.scheduledTime));
-        console.info(JSON.stringify({ event: "fiscal_freshness.after_monitor", date, shard: normativeShard, ...result }));
-      }).catch((error) => {
-        console.error(JSON.stringify({
-          event: "normative_monitor.failed",
-          date,
-          error: error instanceof Error ? error.name : "UnknownError",
-        }));
-        throw error;
-      }));
+  },
+  async queue(batch: SecurityQueueBatch, env: Env) {
+    for (const message of batch.messages) {
+      try {
+        const result = await processSecurityAgentQueueMessage(env, message.body);
+        console.info(JSON.stringify({ event: "security_agent.queue_processed", queue: batch.queue, jobId: message.body.jobId, status: result.status }));
+        if (result.status === "leased") message.retry({ delaySeconds: 120 });
+        else message.ack();
+      } catch (error) {
+        const code = error instanceof Error ? error.message : "SECURITY_QUEUE_FAILED";
+        console.error(JSON.stringify({ event: "security_agent.queue_failed", queue: batch.queue, jobId: message.body.jobId, error: code }));
+        if (code === "SECURITY_JOB_RETRY") message.retry({ delaySeconds: 30 });
+        else message.ack();
+      }
     }
   },
 };

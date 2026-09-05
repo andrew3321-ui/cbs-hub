@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import type { Metric } from "web-vitals";
 
-const publicRoute = /^(?:\/$|\/planos$|\/metodologia$|\/cobertura$|\/privacidade$|\/termos$|\/responsavel$|\/calculadora-reforma-tributaria$|\/cbs-ibs-contadores$|\/icms-st-contadores$|\/inteligencia-tributaria-escritorios$|\/relatorios-fiscais-rastreaveis$|\/conteudos(?:\/[^/]+)?$)/;
+const publicRoute = /^(?:\/$|\/privacidade$|\/termos$|\/responsavel$)/;
 
 export default function WebVitalsBeacon() {
   useEffect(() => {

@@ -1,6 +1,6 @@
 export const TRIAL_DURATION_DAYS = 5;
 export const TRIAL_DURATION_MS = TRIAL_DURATION_DAYS * 24 * 60 * 60 * 1000;
-export const TRIAL_COMPANY_LIMIT = 10;
+export const TRIAL_SCOPE_LIMIT = 3;
 export const TRIAL_DEVICE_RETENTION_DAYS = 365;
 
 export type TrialAccessSnapshot = {

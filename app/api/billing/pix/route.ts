@@ -5,7 +5,6 @@ import { billingProfileIsComplete, getCurrentUser } from "../../../auth";
 import {
   billingIdempotencyKey,
   billingAmountCents,
-  BILLING_ADDON_COMPANY_BLOCK_SIZE,
   billingPlans,
   isPurchasablePlanKey,
   mercadoPagoApiErrorDetails,
@@ -159,7 +158,7 @@ export async function POST(request: Request) {
         total_amount: amount,
         external_reference: reference,
         processing_mode: "automatic",
-        description: `${plan.reason} · até ${plan.companyLimit + addonBlocks * BILLING_ADDON_COMPANY_BLOCK_SIZE} empresas`,
+        description: plan.reason,
         transactions: {
           payments: [{
             amount,

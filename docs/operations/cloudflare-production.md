@@ -36,7 +36,8 @@ Variáveis de runtime ficam em **Worker > Settings > Variables and Secrets**. Se
 | `MERCADO_PAGO_ACCESS_TOKEN` | runtime | sim | conciliação e cobrança |
 | `MERCADO_PAGO_WEBHOOK_SECRET` | runtime | sim | autenticação HMAC do webhook |
 | `OPENAI_API_KEY` | runtime | sim | análise estruturada do agente defensivo; somente no Worker |
-| `OPENAI_SECURITY_MODEL` | runtime | não | modelo do agente; padrão `gpt-5.4-mini`, com `gpt-5.6-cyber` condicionado a acesso aprovado |
+| `OPENAI_SECURITY_PRIMARY_MODEL` | runtime | não | análise padrão; default `gpt-5.6-terra` com raciocínio médio |
+| `OPENAI_SECURITY_REVIEW_MODEL` | runtime | não | revisão escalonada; default `gpt-5.6-sol` com raciocínio alto |
 | `FISCAL_ISSUER_ADAPTER` | runtime | não | `manual` até a seleção de um emissor oficial/provedor |
 | `FISCAL_ISSUER_MUNICIPALITY_CODE` | runtime | não | código do município do prestador |
 | `FISCAL_ISSUER_MUNICIPAL_REGISTRATION` | runtime | sim | inscrição municipal do prestador; exibida somente mascarada |
@@ -57,7 +58,9 @@ Crie uma chave de projeto dedicada na OpenAI, defina limite de gasto no projeto 
 npx wrangler secret put OPENAI_API_KEY --config wrangler.migrations.jsonc
 ```
 
-Cadastre `OPENAI_SECURITY_MODEL` como variável de runtime. Sem `OPENAI_API_KEY`, o produto continua emitindo a priorização determinística e identifica na interface que a análise da OpenAI não está ativa. A chave nunca é devolvida por API nem persistida no D1.
+As variáveis de modelo são opcionais: os defaults são `gpt-5.6-terra` e `gpt-5.6-sol`. O Terra produz a análise normal; o Sol só é acionado quando uma regra determinística identifica criticidade, alta densidade de riscos, conflito entre evidência e conclusão ou baixa confiança. A variável antiga `OPENAI_SECURITY_MODEL` não é mais usada e pode ser removida depois do rollout.
+
+Sem `OPENAI_API_KEY`, o produto continua emitindo a priorização determinística e identifica na interface que a análise da OpenAI não está ativa. Se a revisão com Sol falhar, a avaliação válida do Terra é preservada; se a chamada primária falhar, o motor determinístico assume. A chave nunca é devolvida por API nem persistida no D1. O D1 guarda somente modelos usados, motivo do escalonamento e contagens agregadas de tokens — nunca o prompt ou raciocínio interno.
 
 ## Observabilidade
 

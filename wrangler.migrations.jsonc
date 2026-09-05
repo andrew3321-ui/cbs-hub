@@ -12,5 +12,22 @@
       "database_id": "ce069e8f-9efb-4142-8a76-0721bfb04a1c",
       "migrations_dir": "./drizzle"
     }
-  ]
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "SECURITY_SCAN_QUEUE",
+        "queue": "cbs-hub-security-scans"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "cbs-hub-security-scans",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 2,
+        "dead_letter_queue": "cbs-hub-security-scans-dlq"
+      }
+    ]
+  }
 }

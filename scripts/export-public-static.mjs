@@ -88,7 +88,7 @@ try {
     new Promise((resolve) => local.once("exit", resolve)),
     new Promise((resolve) => setTimeout(resolve, 2_000)),
   ]);
-  await rm(persistenceDirectory, { recursive: true, force: true });
+  await rm(persistenceDirectory, { recursive: true, force: true, maxRetries: 12, retryDelay: 250 });
 }
 
 console.log(`Static public export complete: ${staticRoutes.length} routes.`);

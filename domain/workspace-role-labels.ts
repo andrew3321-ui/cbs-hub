@@ -7,8 +7,8 @@ export function workspaceAccountRoleLabel(
   isPlatformAdmin: boolean,
 ) {
   if (isPlatformAdmin) return "Proprietário";
-  if (workspaceRole === "owner") return workspaceType === "office" ? "Responsável pelo escritório" : "Contador independente";
+  if (workspaceRole === "owner") return workspaceType === "office" ? "Responsável pelo workspace" : "Responsável pelo ambiente";
   if (workspaceRole === "admin") return "Administrador";
-  if (workspaceRole === "reviewer") return "Revisor";
-  return "Preparador";
+  if (workspaceRole === "reviewer") return "Analista";
+  return "Operador";
 }

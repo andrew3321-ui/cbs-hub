@@ -10,7 +10,7 @@ const rules = [
   { name: "Mercado Pago access token", pattern: /\b(?:APP_USR-\d{10,}-\d{6}-[a-f0-9]{20,}-\d+|TEST-\d{10,}-[A-Za-z0-9_-]{20,})\b/gi },
   { name: "private key", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
   { name: "OpenAI API key", pattern: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/g },
-  { name: "assigned secret", pattern: /^[ \t]*(?:OPENAI_API_KEY|MERCADO_PAGO_ACCESS_TOKEN|MERCADO_PAGO_WEBHOOK_SECRET|SECURITY_HASH_KEY|SECURITY_HASH_KEYS_PREVIOUS|SCENARIO_SIGNING_KEY_V1|CLOUDFLARE_API_TOKEN|CF_API_TOKEN)[ \t]*=[ \t]*[^\s#][^\r\n]*$/gm },
+  { name: "assigned secret", pattern: /^[ \t]*(?:OPENAI_API_KEY|MERCADO_PAGO_ACCESS_TOKEN|MERCADO_PAGO_WEBHOOK_SECRET|SECURITY_HASH_KEY|SECURITY_HASH_KEYS_PREVIOUS|CLOUDFLARE_API_TOKEN|CF_API_TOKEN)[ \t]*=[ \t]*[^\s#][^\r\n]*$/gm },
 ];
 
 for (const file of tracked) {

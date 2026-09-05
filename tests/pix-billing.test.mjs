@@ -48,23 +48,3 @@ test("Pix reconciliation validates identity, amount, country and method before g
   assert.match(cardRoute, /status: "cancelled", statusDetail: "replaced_by_card"/);
   assert.match(cardRoute, /PIX_CHECKOUT_CANCELLATION/);
 });
-
-test("UI distinguishes monthly Pix from automatic subscription without exposing a receiver key", async () => {
-  const [client, page, worker, webhook] = await Promise.all([
-    read("app/planos/PricingClient.tsx"),
-    read("app/planos/page.tsx"),
-    read("worker/index.ts"),
-    read("app/api/billing/webhook/route.ts"),
-  ]);
-  assert.match(client, /Cartão automático/);
-  assert.match(client, /Pix mensal/);
-  assert.match(client, /Pix Copia e Cola/);
-  assert.match(client, /O plano só é ativado depois/);
-  assert.match(client, /data:image\/png;base64/);
-  assert.match(client, /Pix exige confirmação a cada mês/);
-  assert.match(page, /entra na próxima renovação/);
-  assert.match(worker, /pathname === "\/api\/billing\/pix"/);
-  assert.match(webhook, /eventType === "order"/);
-  assert.match(webhook, /eventType === "payment"/);
-  assert.doesNotMatch(client, /\+55\d{11}|pixKey/);
-});

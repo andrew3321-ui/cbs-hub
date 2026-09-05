@@ -1,7 +1,7 @@
-import { billingPlans } from "./billing-plans.ts";
+
 
 export const SEO_SITE_URL = "https://cbshub.com.br";
-export const SEO_STRUCTURED_DATA_VERSION = "seo-structured-v1.0.0";
+export const SEO_STRUCTURED_DATA_VERSION = "seo-structured-v2.0.0";
 
 export const seoEligibilityPolicy = {
   faqPage: "not_eligible_general_saas",
@@ -32,28 +32,13 @@ export const seoSoftwareApplication = {
   "@id": `${SEO_SITE_URL}/#software`,
   name: "CBSHub",
   url: SEO_SITE_URL,
-  applicationCategory: "BusinessApplication",
-  applicationSubCategory: "Software tributário para contadores e tributaristas",
+  applicationCategory: "SecurityApplication",
+  applicationSubCategory: "Monitoramento defensivo da superfície externa",
   operatingSystem: "Web",
   inLanguage: "pt-BR",
-  description: "Plataforma tributária que conecta pesquisa de normas, fatos da operação, cálculos determinísticos, revisão e dossiês fiscais versionados em um só fluxo.",
+  description: "Diagnóstico passivo de DNS, e-mail e HTTPS em ativos autorizados, com evidências e prioridades de correção.",
   publisher: { "@id": seoOrganization["@id"] },
-  offers: [billingPlans.pro, billingPlans.escritorio].map((plan) => ({
-    "@type": "Offer",
-    name: plan.name,
-    url: `${SEO_SITE_URL}/planos`,
-    price: (plan.priceCents / 100).toFixed(2),
-    priceCurrency: "BRL",
-    category: "subscription",
-    availability: "https://schema.org/InStock",
-  })),
-  featureList: [
-    "Pesquisa de normas fiscais",
-    "Estruturação dos fatos da operação",
-    "Cálculos tributários determinísticos",
-    "Dossiês fiscais versionados",
-    "Revisão responsável e trilha de auditoria",
-  ],
+  featureList: ["Verificação de domínio por DNS", "Diagnóstico passivo de exposição", "Monitoramento agendado", "Evidências técnicas e trilha de auditoria"],
 } as const;
 
 export function buildHomeStructuredData() {
@@ -79,106 +64,6 @@ export function buildBreadcrumbStructuredData(items: BreadcrumbItem[]) {
       name: item.name,
       item: `${SEO_SITE_URL}${item.path === "/" ? "" : item.path}`,
     })),
-  };
-}
-
-export function buildSeoIntentPageStructuredData(input: { path: string; title: string; description: string; keywords: string[] }) {
-  if (!input.path.startsWith("/") || !input.title.trim() || !input.description.trim()) throw new Error("invalid_seo_intent_page");
-  return {
-    "@context": "https://schema.org",
-    "@type": "WebPage",
-    "@id": `${SEO_SITE_URL}${input.path}#webpage`,
-    url: `${SEO_SITE_URL}${input.path}`,
-    name: input.title,
-    description: input.description,
-    inLanguage: "pt-BR",
-    keywords: input.keywords.join(", "),
-    isPartOf: { "@id": seoWebSite["@id"] },
-    about: { "@id": seoSoftwareApplication["@id"] },
-  };
-}
-
-export function buildTaxContentArticleStructuredData(input: {
-  path: string;
-  title: string;
-  description: string;
-  tax: string;
-  reviewedAt: string;
-  version: string;
-  sourceUrls: string[];
-}) {
-  if (!input.path.startsWith("/conteudos/") || !input.title.trim() || !input.description.trim() || input.sourceUrls.length < 2) throw new Error("invalid_tax_content_article");
-  return {
-    "@context": "https://schema.org",
-    "@type": "TechArticle",
-    "@id": `${SEO_SITE_URL}${input.path}#article`,
-    mainEntityOfPage: `${SEO_SITE_URL}${input.path}`,
-    url: `${SEO_SITE_URL}${input.path}`,
-    headline: input.title,
-    description: input.description,
-    about: input.tax,
-    inLanguage: "pt-BR",
-    datePublished: "2026-08-01",
-    dateModified: input.reviewedAt,
-    version: input.version,
-    author: { "@type": "Organization", name: "CBSHub — Engenharia de regras fiscais", url: SEO_SITE_URL },
-    publisher: { "@id": seoOrganization["@id"] },
-    citation: input.sourceUrls,
-    isPartOf: { "@id": `${SEO_SITE_URL}/conteudos#collection` },
-  };
-}
-
-export function buildTaxContentCollectionStructuredData(items: Array<{ path: string; title: string }>) {
-  if (items.length < 1 || items.some((item) => !item.path.startsWith("/conteudos/") || !item.title.trim())) throw new Error("invalid_tax_content_collection");
-  return {
-    "@context": "https://schema.org",
-    "@type": "CollectionPage",
-    "@id": `${SEO_SITE_URL}/conteudos#collection`,
-    url: `${SEO_SITE_URL}/conteudos`,
-    name: "Central de conteúdo tributário CBSHub",
-    description: "Guias técnicos versionados com fontes oficiais, vigência, fatos mínimos e limites operacionais.",
-    inLanguage: "pt-BR",
-    isPartOf: { "@id": seoWebSite["@id"] },
-    mainEntity: {
-      "@type": "ItemList",
-      itemListElement: items.map((item, index) => ({
-        "@type": "ListItem",
-        position: index + 1,
-        name: item.title,
-        url: `${SEO_SITE_URL}${item.path}`,
-      })),
-    },
-  };
-}
-
-export function buildPublicCoverageStructuredData(input: {
-  dateModified: string;
-  version: string;
-  entries: number;
-  sourceUrls: string[];
-  taxes: string[];
-}) {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(input.dateModified) || !input.version.trim() || input.entries < 1 || input.sourceUrls.length < 2 || input.taxes.length < 1) {
-    throw new Error("invalid_public_coverage_dataset");
-  }
-  return {
-    "@context": "https://schema.org",
-    "@type": "Dataset",
-    "@id": `${SEO_SITE_URL}/cobertura#dataset`,
-    name: "Matriz pública de cobertura tributária do CBSHub",
-    description: "Cobertura versionada por tributo e recorte, classificada como suportada, parcial ou não suportada, com fontes oficiais, vigência, testes e bloqueios explícitos.",
-    url: `${SEO_SITE_URL}/cobertura`,
-    inLanguage: "pt-BR",
-    dateModified: input.dateModified,
-    version: input.version,
-    creator: { "@id": seoOrganization["@id"] },
-    publisher: { "@id": seoOrganization["@id"] },
-    license: `${SEO_SITE_URL}/termos`,
-    isAccessibleForFree: true,
-    measurementTechnique: "Classificação determinística derivada de catálogos fiscais versionados e regressões automáticas",
-    variableMeasured: input.taxes,
-    size: `${input.entries} recortes`,
-    citation: input.sourceUrls,
   };
 }
 

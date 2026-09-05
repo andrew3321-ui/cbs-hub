@@ -18,12 +18,12 @@ test("Search Console uses the minimum read-only scope and bounded retention", ()
 
 test("opportunity ranking prioritizes impressions with low CTR and attainable position", () => {
   const result = buildSearchConsoleOpportunities([
-    { query: "reforma tributária contador", page: "https://cbshub.com.br/calculadora-reforma-tributaria", impressions: 500, clicks: 5, ctr: 1, position: 8 },
+    { query: "segurança de domínio empresarial", page: "https://cbshub.com.br/", impressions: 500, clicks: 5, ctr: 1, position: 8 },
     { query: "cbs hub", page: "https://cbshub.com.br/", impressions: 100, clicks: 20, ctr: 20, position: 1 },
     { query: "consulta rara", page: "https://cbshub.com.br/", impressions: 3, clicks: 0, ctr: 0, position: 6 },
   ]);
   assert.equal(result.length, 1);
-  assert.equal(result[0].label, "reforma tributária contador");
+  assert.equal(result[0].label, "segurança de domínio empresarial");
   assert.ok(result[0].score > 400);
 });
 
@@ -46,15 +46,4 @@ test("migration persists aggregated search and index snapshots without user iden
   assert.match(migration, /search_console_index_snapshots/);
   assert.match(migration, /search_console_sync_runs/);
   assert.doesNotMatch(migration, /user_id|visitor_hash|session_hash/);
-});
-
-test("owner dashboard exposes organic funnel, opportunities and manual sync", () => {
-  const component = read("app/app/OwnerMetricsCenter.tsx");
-  const route = read("app/api/admin/metrics/route.ts");
-  assert.match(component, /Busca orgânica e indexação/);
-  assert.match(component, /Oportunidades de CTR/);
-  assert.match(component, /api\/admin\/search-console/);
-  assert.match(route, /organicVisitors/);
-  assert.match(route, /datetime\(e\.occurred_at, '-30 days'\)/);
-  assert.match(route, /buildSearchConsoleAlerts/);
 });

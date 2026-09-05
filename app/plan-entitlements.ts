@@ -1,88 +1,42 @@
-import { count, eq } from "drizzle-orm";
+import { env } from "cloudflare:workers";
+import { eq } from "drizzle-orm";
 import { getDb } from "../db";
-import { billingAccounts, companies, trialDeviceClaims, users } from "../db/schema";
-import { applyPlanUsage, resolveWorkspacePlan, type BillingAccessSnapshot, type PlanFeatureKey, type WorkspaceEntitlements } from "../domain/plan-entitlements";
+import { billingAccounts, trialDeviceClaims, users } from "../db/schema";
+import { applyPlanUsage, resolveWorkspacePlan, type BillingAccessSnapshot, type WorkspaceEntitlements } from "../domain/plan-entitlements";
 import { isPlatformAdminEmail } from "./platform-admin";
 import { getPlatformOperationState } from "./platform-controls";
-import { getCurrentUser } from "./auth";
-import { getWorkspaceContext, type WorkspaceContext } from "./workspace";
+import type { WorkspaceContext } from "./workspace";
 
 export async function getWorkspaceEntitlements(workspace: WorkspaceContext, now = Date.now()): Promise<WorkspaceEntitlements> {
   const db = getDb();
-  const [[billingAccount], [trial], [portfolio], [owner], operation] = await Promise.all([
-    db.select({
-      planKey: billingAccounts.planKey,
-      status: billingAccounts.status,
-      providerSubscriptionId: billingAccounts.providerSubscriptionId,
-      nextPaymentAt: billingAccounts.nextPaymentAt,
-      companyAddonBlocks: billingAccounts.companyAddonBlocks,
-      pendingCompanyAddonBlocks: billingAccounts.pendingCompanyAddonBlocks,
-    }).from(billingAccounts).where(eq(billingAccounts.userId, workspace.ownerUserId)).limit(1),
-    db.select({
-      startedAt: trialDeviceClaims.startedAt,
-      endsAt: trialDeviceClaims.endsAt,
-      status: trialDeviceClaims.status,
-    }).from(trialDeviceClaims).where(eq(trialDeviceClaims.workspaceId, workspace.id)).limit(1),
-    db.select({ total: count() }).from(companies).where(eq(companies.workspaceId, workspace.id)),
+  const [[billingAccount], [trial], [owner], operation, scopeCount] = await Promise.all([
+    db.select({ planKey: billingAccounts.planKey, status: billingAccounts.status, providerSubscriptionId: billingAccounts.providerSubscriptionId, nextPaymentAt: billingAccounts.nextPaymentAt }).from(billingAccounts).where(eq(billingAccounts.userId, workspace.ownerUserId)).limit(1),
+    db.select({ startedAt: trialDeviceClaims.startedAt, endsAt: trialDeviceClaims.endsAt, status: trialDeviceClaims.status }).from(trialDeviceClaims).where(eq(trialDeviceClaims.workspaceId, workspace.id)).limit(1),
     db.select({ email: users.email }).from(users).where(eq(users.id, workspace.ownerUserId)).limit(1),
     getPlatformOperationState(),
+    env.DB.prepare("SELECT COUNT(*) AS total FROM security_agent_scopes WHERE workspace_id = ? AND status <> 'revoked'").bind(workspace.id).first<{ total: number }>(),
   ]);
-  const snapshot: BillingAccessSnapshot = billingAccount ?? null;
   const plan = resolveWorkspacePlan({
     platformOwner: Boolean(owner?.email && isPlatformAdminEmail(owner.email)),
     betaEnabled: operation.betaEnabled,
-    billing: snapshot,
+    billing: (billingAccount ?? null) as BillingAccessSnapshot,
     trial: trial ?? null,
   }, now);
-  return applyPlanUsage(plan, snapshot, Number(portfolio?.total ?? 0), trial ?? null, now);
+  return applyPlanUsage(plan, billingAccount ?? null, Number(scopeCount?.total ?? 0), trial ?? null, now);
 }
 
-export function companyLimitResponse(entitlements: WorkspaceEntitlements) {
-  const limit = entitlements.companyLimit;
+export function scopeLimitResponse(entitlements: WorkspaceEntitlements) {
   return Response.json({
-    error: limit === null
-      ? "O cadastro não pôde ser concluído agora."
-      : entitlements.companyLimitExceeded
-        ? `Sua carteira possui ${entitlements.companyCount} empresas, acima do limite de ${limit} do plano ${entitlements.name}. Nenhum dado foi removido, mas novos cadastros estão bloqueados.`
-        : entitlements.trialActive
-          ? `O teste profissional permite até ${limit} empresas durante 5 dias. Para continuar, escolha o modo independente ou escritório.`
-          : `O plano ${entitlements.name} permite até ${limit} ${limit === 1 ? "empresa" : "empresas"}. Consulte os planos para escolher o modo compatível com sua carteira.`,
-    code: "PLAN_COMPANY_LIMIT",
+    error: `O workspace atingiu o limite de ${entitlements.scopeLimit ?? "escopos"} domínios ativos. Revogue um escopo antigo antes de autorizar outro.`,
+    code: "PLAN_SCOPE_LIMIT",
     entitlements,
   }, { status: 409 });
 }
 
-export function featureRequiredResponse(entitlements: WorkspaceEntitlements, feature: PlanFeatureKey) {
-  const officeOnly = feature === "officeCollaborationEnabled";
+export function officePlanRequiredResponse(entitlements: WorkspaceEntitlements) {
   return Response.json({
-    error: officeOnly
-      ? "Convites, papéis e revisão por outra pessoa exigem o plano Escritório ativo."
-      : "Este recurso exige um plano profissional ativo.",
-    code: officeOnly ? "PLAN_OFFICE_REQUIRED" : "PLAN_FEATURE_REQUIRED",
-    requiredPlan: officeOnly ? "escritorio" : "pro",
-    feature,
+    error: "A colaboração com equipe ainda não está liberada para este workspace.",
+    code: "PLAN_TEAM_REQUIRED",
     entitlements,
   }, { status: 403 });
-}
-
-export async function workspaceFeatureResponse(userId: number, feature: PlanFeatureKey) {
-  const workspace = await getWorkspaceContext(userId);
-  if (!workspace) return Response.json({ error: "Espaço profissional não encontrado." }, { status: 403 });
-  const entitlements = await getWorkspaceEntitlements(workspace);
-  return entitlements[feature] ? null : featureRequiredResponse(entitlements, feature);
-}
-
-type FeatureProtectedHandler = (request: Request) => Promise<Response>;
-
-export function withWorkspaceFeature(feature: PlanFeatureKey, handler: FeatureProtectedHandler): FeatureProtectedHandler {
-  return async (request) => {
-    const user = await getCurrentUser();
-    if (!user) return Response.json({ error: "Faça login para acessar este recurso." }, { status: 401 });
-    const blocked = await workspaceFeatureResponse(user.id, feature);
-    return blocked ?? handler(request);
-  };
-}
-
-export function officePlanRequiredResponse(entitlements: WorkspaceEntitlements) {
-  return featureRequiredResponse(entitlements, "officeCollaborationEnabled");
 }

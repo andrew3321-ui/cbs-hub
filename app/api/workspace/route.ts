@@ -18,7 +18,7 @@ async function upgradeWorkspace(request: Request) {
     if (!entitlements.officeCollaborationEnabled) return officePlanRequiredResponse(entitlements);
     const payload = (await request.json()) as Record<string, unknown>;
     const name = typeof payload.name === "string" ? payload.name.trim().replace(/\s+/g, " ").slice(0, 120) : "";
-    if (name.length < 2) return Response.json({ error: "Informe o nome do escritório contábil." }, { status: 400 });
+    if (name.length < 2) return Response.json({ error: "Informe o nome do workspace da equipe." }, { status: 400 });
     const db = getDb();
     await db.batch([
       db.update(accountingWorkspaces).set({ name, workspaceType: "office", suggestedPlanKey: "escritorio" }).where(and(eq(accountingWorkspaces.id, workspace.id), eq(accountingWorkspaces.ownerUserId, user.id))),
@@ -26,7 +26,7 @@ async function upgradeWorkspace(request: Request) {
     ]);
     return Response.json({ workspace: { ...workspace, name, type: "office", suggestedPlanKey: "escritorio" } });
   } catch {
-    return Response.json({ error: "Não foi possível ativar o modo escritório." }, { status: 500 });
+    return Response.json({ error: "Não foi possível ativar o workspace de equipe." }, { status: 500 });
   }
 }
 

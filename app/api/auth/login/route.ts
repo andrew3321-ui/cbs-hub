@@ -30,11 +30,7 @@ export async function POST(request: Request) {
     const session = await createSession(user.id);
     return Response.json({ user: { id: user.id, name: user.name, firstName: user.firstName, username: user.username, accountCode: user.accountCode, email: user.email } }, { headers: { "Set-Cookie": sessionCookieHeader(session.token, request) } });
   } catch (error) {
-    const reason = error instanceof Error && /^fiscal_(?:rule|knowledge)_/.test(error.message)
-      ? error.message
-      : error instanceof Error
-        ? error.name
-        : "UnknownError";
+    const reason = error instanceof Error ? error.name : "UnknownError";
     console.error(JSON.stringify({
       event: "auth.login_failed_unexpectedly",
       error: reason,

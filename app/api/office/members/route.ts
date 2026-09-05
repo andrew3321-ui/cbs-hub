@@ -15,7 +15,7 @@ async function listMembers() {
   try {
     await ensureScenarioSchema();
     const workspace = await getWorkspaceContext(user.id);
-    if (!workspace || workspace.type !== "office") return Response.json({ error: "A gestão de equipe está disponível no modo escritório." }, { status: 403 });
+    if (!workspace || workspace.type !== "office") return Response.json({ error: "A gestão de equipe está disponível em workspaces colaborativos." }, { status: 403 });
     const entitlements = await getWorkspaceEntitlements(workspace);
     const db = getDb();
     const members = await db.select({

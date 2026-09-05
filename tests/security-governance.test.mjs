@@ -46,13 +46,8 @@ test("workspace roles follow least privilege", () => {
 
 test("sensitive workspace routes keep database-level tenant predicates", () => {
   const routes = [
-    ["../app/api/audit-events/route.ts", /eq\(companies\.workspaceId, workspace\.id\)/],
-    ["../app/api/fiscal-documents/route.ts", /eq\(fiscalDocuments\.workspaceId, workspace\.id\)/],
-    ["../app/api/fiscal-dossiers/review/route.ts", /eq\(fiscalDossiers\.workspaceId, workspace\.id\)/],
-    ["../app/api/fiscal-dossier-shares/route.ts", /eq\(fiscalDossierShares\.workspaceId, workspace\.id\)/],
-    ["../app/api/reviews/route.ts", /eq\(scenarioReviewRounds\.workspaceId, workspace\.id\)/],
-    ["../app/api/scenarios/route.ts", /eq\(companies\.workspaceId, workspace\.id\)/],
-    ["../app/api/national-coverage/auto-parts/route.ts", /eq\(companies\.workspaceId, workspace\.id\)/],
+    ["../app/api/audit-events/route.ts", /WHERE id = \? AND workspace_id = \?/],
+    ["../app/api/security-agent/route.ts", /id = \? AND workspace_id = \?/],
   ];
   for (const [path, predicate] of routes) assert.match(read(path), predicate, path);
 });

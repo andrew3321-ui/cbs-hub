@@ -18,8 +18,6 @@ test("all externally emitted links use the canonical URL helper", () => {
   for (const path of [
     "../app/api/billing/checkout/route.ts",
     "../app/api/admin/billing/route.ts",
-    "../app/api/fiscal-dossier-shares/route.ts",
-    "../app/api/report-shares/route.ts",
   ]) {
     const source = read(path);
     assert.match(source, /PUBLIC_APP_URL/);
@@ -50,9 +48,8 @@ test("quality gate and Workers Builds block publishing before checks and migrati
 
 test("published Workers never replay legacy schema DDL during requests", () => {
   const database = read("../db/index.ts");
-  assert.match(database, /CF_VERSION_METADATA/);
-  assert.match(database, /SELECT 1 AS schema_ready/);
-  assert.match(database, /Never replay the legacy bootstrap DDL inside a production request/);
+  assert.match(database, /versioned D1 migrations/);
+  assert.doesNotMatch(database, /CREATE TABLE|INSERT INTO|ALTER TABLE/);
 });
 
 test("release metadata, structured alerts and smoke coverage are declared", () => {
@@ -72,7 +69,7 @@ test("release metadata, structured alerts and smoke coverage are declared", () =
   assert.match(smoke, /SMOKE_SURFACE_ATTEMPTS/);
   assert.match(smoke, /landing-page/);
   assert.match(smoke, /releaseChanged/);
-  for (const surface of ["/api/auth/login", "/api/deterministic-tax-lab", "/api/billing", "/relatorio/"]) {
+  for (const surface of ["/api/auth/login", "/api/security-agent", "/api/billing"]) {
     assert.match(smoke, new RegExp(surface.replaceAll("/", "\\/")));
   }
 });

@@ -29,17 +29,17 @@ test("legacy capacity contract remains deterministic and cannot be sold again", 
   assert.equal(normalizeCompanyAddonBlocks(1.5), null);
 });
 
-test("individual and office plans are the only new offers", () => {
+test("all former accounting offers are retained only for reconciliation", () => {
   assert.equal(billingPlans.pro.priceCents, 5_900);
   assert.equal(billingPlans.escritorio.priceCents, 14_900);
-  assert.equal(billingPlans.pro.purchasable, true);
-  assert.equal(billingPlans.escritorio.purchasable, true);
+  assert.equal(billingPlans.pro.purchasable, false);
+  assert.equal(billingPlans.escritorio.purchasable, false);
   assert.equal(billingAmountCents("pro", 9), 5_900);
   assert.equal(billingCompanyLimit("pro", 9), 10);
   assert.equal(billingCompanyLimit("escritorio", 9), 50);
 });
 
-test("checkout and Pix derive amount and capacity from validated add-on blocks", () => {
+test("checkout and Pix reject plans that are unavailable for new sales", () => {
   const checkout = read("../app/api/billing/checkout/route.ts");
   const pix = read("../app/api/billing/pix/route.ts");
   for (const source of [checkout, pix]) {
@@ -61,25 +61,10 @@ test("billing state follows the workspace owner and members cannot mutate the co
   assert.match(cancelRoute, /workspace\.role !== "owner"/);
 });
 
-test("capacity changes protect ownership, usage, beta and provider confirmation", () => {
-  const capacity = read("../app/api/billing/capacity/route.ts");
-  assert.match(capacity, /workspace\.role !== "owner"/);
-  assert.match(capacity, /entitlements\.companyCount > targetLimit/);
-  assert.match(capacity, /CAPACITY_BELOW_USAGE/);
-  assert.match(capacity, /if \(!operation\.paymentsEnabled\)/);
-  assert.match(capacity, /method: "PUT"/);
-  assert.match(capacity, /transaction_amount: amountCents \/ 100/);
-  assert.match(capacity, /providerAmountCents !== amountCents/);
-  assert.match(capacity, /billing\.capacity_changed/);
-});
-
 test("administrator can audit contracted capacity and dynamic monthly revenue", () => {
   const adminApi = read("../app/api/admin/billing/route.ts");
-  const center = read("../app/app/BillingCenter.tsx");
   assert.match(adminApi, /billingLimitForAccount/);
   assert.match(adminApi, /monthlyAmountCents: billingAmountForAccount/);
-  assert.match(center, /CONTRATOS E CAPACIDADE/);
-  assert.match(center, /bloco\(s\) adicional\(is\)/);
 });
 
 test("database migration persists active and pending capacity without rebuilding customer tables", () => {

@@ -59,11 +59,10 @@ test("cybersecurity is the canonical home and its legacy path is a noindex alias
   const policy = fs.readFileSync(new URL("../domain/seo-route-policy.ts", import.meta.url), "utf8");
   const home = fs.readFileSync(new URL("../app/page.tsx", import.meta.url), "utf8");
   const landing = fs.readFileSync(new URL("../app/CybersecurityLanding.tsx", import.meta.url), "utf8");
-  const page = fs.readFileSync(new URL("../app/cyberseguranca/page.tsx", import.meta.url), "utf8");
+  const page = fs.readFileSync(new URL("../next.config.ts", import.meta.url), "utf8");
   assert.doesNotMatch(policy, /path: "\/cyberseguranca"/);
   assert.match(home, /canonical: "\/"/);
   assert.match(home, /CybersecurityLanding/);
-  assert.match(page, /robots: \{ index: false, follow: true \}/);
-  assert.match(page, /canonical: "\/"/);
+  assert.match(page, /source: "\/cyberseguranca", destination: "\/", permanent: true/);
   assert.match(landing, /não executa testes invasivos/i);
 });

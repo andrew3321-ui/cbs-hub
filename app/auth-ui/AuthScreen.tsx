@@ -7,15 +7,15 @@ import BrandMark from "../BrandMark";
 type AuthMode = "login" | "register" | "recover";
 
 const content = {
-  login: { eyebrow: "BEM-VINDO DE VOLTA", title: "Entre no seu escritório", subtitle: "Continue o trabalho técnico e acompanhe cada cliente da carteira." },
-  register: { eyebrow: "DOIS CAMPOS · ACESSO IMEDIATO", title: "Comece pelo seu primeiro caso real", subtitle: "Escolha seu usuário e sua senha. Você entra com 5 dias de acesso completo, sem cartão e sem informar e-mail agora." },
+  login: { eyebrow: "SECURITY WORKSPACE", title: "Acesse seu centro de defesa", subtitle: "Continue monitorando ativos autorizados, evidências e prioridades de correção." },
+  register: { eyebrow: "DOIS CAMPOS · ACESSO IMEDIATO", title: "Crie seu workspace de segurança", subtitle: "Escolha seu usuário e sua senha. Você entra sem cartão e sem precisar informar e-mail agora." },
   recover: { eyebrow: "RECUPERAÇÃO SEGURA", title: "Defina uma nova senha", subtitle: "Use seu usuário e a chave de segurança entregue quando sua conta foi criada." },
 };
 
 type TrialResult = {
   granted: boolean;
   days: number;
-  companyLimit: number;
+  scopeLimit: number;
   endsAt: string | null;
   reason: string | null;
 };
@@ -224,15 +224,15 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
           <div className="recovery-key-box"><span>{issuedRecoveryKey}</span><button type="button" onClick={copyRecoveryKey}>{copied ? "Copiada ✓" : "Copiar chave"}</button></div>
           <div className="recovery-warning"><b>Importante</b><span>Salve em um gerenciador de senhas ou local seguro. Não compartilhe esta chave.</span></div>
           <div className="auth-plan-suggestion">
-            <span>{issuedTrial?.granted ? "TESTE PROFISSIONAL ATIVADO" : "ACESSO BÁSICO ATIVADO"}</span>
-            <b>{issuedTrial?.granted ? `${issuedTrial.days} dias · até ${issuedTrial.companyLimit} empresas` : "CBSHub"}</b>
+            <span>{issuedTrial?.granted ? "WORKSPACE DE AVALIAÇÃO ATIVADO" : "ACESSO BÁSICO ATIVADO"}</span>
+            <b>{issuedTrial?.granted ? `${issuedTrial.days} dias de acesso protegido` : "CBSHub Cybersecurity"}</b>
             <small>{issuedTrial?.granted && issuedTrial.endsAt
               ? `Todos os recursos estão liberados até ${new Date(issuedTrial.endsAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}. Nenhuma cobrança é iniciada automaticamente.`
               : issuedTrial?.reason === "workspace_inherited"
-                ? "Seu acesso acompanha as regras e o período do escritório para o qual você foi convidado."
+                ? "Seu acesso acompanha as regras e o período do workspace para o qual você foi convidado."
                 : "Este aparelho já utilizou o período de teste ou não pôde ser validado. Nenhuma cobrança foi iniciada."}</small>
           </div>
-          <a className="auth-primary-link" href={returnTo}>Entrar e analisar meu primeiro caso <span>→</span></a>
+          <a className="auth-primary-link" href={returnTo}>Entrar no Security Workspace <span>→</span></a>
         </section>
       </main>
     );
@@ -243,23 +243,26 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
       <Link className="auth-brand" href="/"><BrandMark /><span className="cbs-wordmark"><strong>CBS</strong>Hub</span></Link>
       <section className="auth-layout">
         <div className={`auth-story ${mode === "register" ? "auth-story-showcase-mode" : ""}`}>
-          <span className="auth-story-label">COMECE SEM PREPARAR A CONTA</span>
-          <h2>Troque o retrabalho pelo primeiro fluxo rastreável.</h2>
-          <p>Entre direto, use um caso real e veja pesquisa, cálculo, fontes, memória e relatório trabalhando juntos.</p>
-          {mode === "register" && <div className="auth-showcase" aria-label="Prévia real da plataforma CBSHub">
+          <span className="auth-story-label">DEFESA EXTERNA · ESCOPO AUTORIZADO</span>
+          <h2>Transforme sinais externos em prioridades de correção.</h2>
+          <p>Autorize um domínio, acompanhe a postura de DNS, e-mail, HTTPS e navegador e receba evidências rastreáveis.</p>
+          {mode === "register" && <div className="auth-showcase" aria-label="Prévia do Security Workspace CBSHub">
             <div className="auth-showcase-heading">
-              <span><i /> VISÃO REAL DA PLATAFORMA</span>
-              <small>Fluxo completo</small>
+              <span><i /> EXTERNAL POSTURE</span>
+              <small>Diagnóstico passivo</small>
             </div>
-            <div className="auth-showcase-media">
-              <video muted loop playsInline controls preload="none" poster="/media/cbshub-overview-completo-v2-poster.jpg">
-                <source src="/media/cbshub-overview-completo-v2.webm" type="video/webm" />
-              </video>
-              <span>Da operação ao dossiê revisável</span>
+            <div className="auth-cyber-preview">
+              <div className="auth-cyber-radar" aria-hidden="true"><i /><i /><i /></div>
+              <div className="auth-cyber-signals">
+                <span><b>DNS</b><em>PRONTO</em></span>
+                <span><b>E-MAIL</b><em>MONITORADO</em></span>
+                <span><b>HTTPS</b><em>VERIFICADO</em></span>
+                <span><b>BROWSER</b><em>ANALISADO</em></span>
+              </div>
             </div>
           </div>}
-          <div className="auth-story-points"><span><i>✓</i> 5 dias com todos os recursos</span><span><i>✓</i> Até 10 empresas para testar o fluxo</span><span><i>✓</i> Sem cartão e sem cobrança automática</span></div>
-          {mode !== "register" && <div className="auth-mini-panel"><span>EXPOSIÇÃO ESTIMADA</span><strong>+ R$ 13.665</strong><small>Reajuste recomendado <b>5,6%</b></small><i><em style={{height:"34%"}} /><em style={{height:"48%"}} /><em style={{height:"42%"}} /><em style={{height:"68%"}} /><em style={{height:"88%"}} /></i></div>}
+          <div className="auth-story-points"><span><i>✓</i> Somente ativos sob sua autorização</span><span><i>✓</i> Coleta passiva, pública e auditável</span><span><i>✓</i> Sem exploração, força bruta ou evasão</span></div>
+          {mode !== "register" && <div className="auth-mini-panel"><span>POSTURA EXTERNA</span><strong>DNS · WEB · E-MAIL</strong><small>Monitoramento <b>contínuo</b></small><i><em style={{height:"32%"}} /><em style={{height:"46%"}} /><em style={{height:"58%"}} /><em style={{height:"76%"}} /><em style={{height:"94%"}} /></i></div>}
         </div>
 
         <div className="auth-card">
@@ -290,12 +293,12 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
             {mode !== "login" && <div className="password-strength" aria-label={`Força da senha: ${passwordScore} de 4`}>{[1,2,3,4].map((item) => <i className={passwordScore >= item ? `active score-${passwordScore}` : ""} key={item} />)}<span>{passwordScore < 2 ? "Use 12 caracteres com letra e número" : passwordScore < 4 ? "Senha adequada" : "Senha forte"}</span></div>}
             {mode === "recover" && <label>Confirmar senha<input name="confirm_password" type={showPassword ? "text" : "password"} autoComplete="new-password" required value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} placeholder="Digite novamente" /></label>}
             {mode === "login" && <div className="auth-form-options"><label><input type="checkbox" defaultChecked /> Manter conectado</label><a href="/recuperar-senha">Esqueci minha senha</a></div>}
-            <button className="auth-submit" disabled={loading}>{loading ? "Liberando seu acesso…" : mode === "login" ? "Entrar no escritório" : mode === "register" ? inviteInfo ? "Entrar na equipe" : "Começar meus 5 dias" : "Redefinir senha"}<span>→</span></button>
+            <button className="auth-submit" disabled={loading}>{loading ? "Liberando seu acesso…" : mode === "login" ? "Entrar no workspace" : mode === "register" ? inviteInfo ? "Entrar na equipe" : "Criar workspace" : "Redefinir senha"}<span>→</span></button>
           </form>
           {mode === "register" && !inviteInfo && <div className="auth-fast-proof"><span>Sem cartão</span><span>E-mail só se contratar</span><span>Acesso imediato</span></div>}
           {mode === "register" && !inviteInfo && <p className="auth-trial-disclosure">O teste é concedido uma vez por aparelho. Para prevenir abuso, o sistema guarda somente identificadores técnicos pseudonimizados; não armazena as características brutas do dispositivo.</p>}
           <p className="auth-switch">{mode === "login" ? <>Ainda não tem acesso? <a href="/cadastro">Criar conta gratuita</a></> : mode === "register" ? <>Já tem uma conta? <a href="/entrar">Entrar</a></> : <>Lembrou sua senha? <a href="/entrar">Voltar ao login</a></>}</p>
-          <p className="auth-legal">Ao continuar, você concorda com o uso seguro dos dados exclusivamente para operar sua conta.</p>
+          <p className="auth-legal">Ao continuar, você confirma que utilizará a plataforma apenas em ativos próprios ou expressamente autorizados.</p>
         </div>
       </section>
     </main>
