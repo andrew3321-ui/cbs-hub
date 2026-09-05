@@ -1,0 +1,122 @@
+import { enqueueSecurityAgentJob, type SecurityAgentEnv, type SecurityScopeRow } from "./security-agent-service.ts";
+import { campaignExecutionReadiness, parseRepositoryTarget, parseSecurityCampaignInput, SECURITY_CAMPAIGN_POLICY_VERSION } from "../domain/security-campaign-policy.ts";
+
+export type SecurityDeliveryEnv = Pick<SecurityAgentEnv, "DB"> & { SECURITY_ACTIVE_RUNNER?: unknown; GITHUB_APP_ID?: string };
+type CampaignRow = { id: string; workspace_id: number; scope_id: string; status: string; techniques_json: string; window_start?: string; window_end?: string };
+type RemediationRow = { id: string; workspace_id: number; scope_id: string; finding_id: string; status: string };
+
+const uuid = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
+const authorizationCurrent = (scope: SecurityScopeRow) => scope.status === "verified" && Boolean(scope.authorization_expires_at) && Date.parse(scope.authorization_expires_at!) > Date.now();
+const integrations = (env: SecurityDeliveryEnv) => ({ isolatedRunner: Boolean(env.SECURITY_ACTIVE_RUNNER), repositoryConnector: Boolean(env.GITHUB_APP_ID?.trim()) });
+
+export async function createSecurityCampaign(env: SecurityDeliveryEnv, scope: SecurityScopeRow, actorUserId: number, raw: unknown) {
+  if (!authorizationCurrent(scope)) throw new Error("CAMPAIGN_SCOPE_NOT_AUTHORIZED");
+  const input = parseSecurityCampaignInput(raw);
+  const active = await env.DB.prepare("SELECT COUNT(*) total FROM security_campaigns WHERE workspace_id = ? AND status IN ('draft','approved','queued','running','review')").bind(scope.workspace_id).first<{ total: number }>();
+  if (Number(active?.total ?? 0) >= 5) throw new Error("CAMPAIGN_ACTIVE_LIMIT");
+  const id = uuid("sac");
+  const now = new Date().toISOString();
+  const readiness = campaignExecutionReadiness(input, integrations(env));
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO security_campaigns
+      (id, workspace_id, scope_id, created_by_user_id, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json, status, readiness_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`)
+      .bind(id, scope.workspace_id, scope.id, actorUserId, input.name, input.environment, JSON.stringify(input.techniques), SECURITY_CAMPAIGN_POLICY_VERSION, input.windowStart, input.windowEnd, input.maxRequestsPerMinute, input.maxTotalRequests, JSON.stringify(input.stopConditions), JSON.stringify(readiness), now, now),
+    env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, 'campaign.created', ?, ?)")
+      .bind(uuid("sace"), scope.workspace_id, id, actorUserId, JSON.stringify({ policyVersion: SECURITY_CAMPAIGN_POLICY_VERSION, environment: input.environment, techniques: input.techniques, readiness }), now),
+  ]);
+  return { id, scopeId: scope.id, status: "draft" as const, ...input, readiness, policyVersion: SECURITY_CAMPAIGN_POLICY_VERSION, createdAt: now };
+}
+
+export async function approveSecurityCampaign(env: SecurityDeliveryEnv, args: { workspaceId: number; scope: SecurityScopeRow; campaignId: unknown; actorUserId: number; approvalConfirmed: unknown }) {
+  if (args.approvalConfirmed !== true) throw new Error("CAMPAIGN_APPROVAL_REQUIRED");
+  if (!authorizationCurrent(args.scope)) throw new Error("CAMPAIGN_SCOPE_NOT_AUTHORIZED");
+  if (typeof args.campaignId !== "string" || !/^sac_[0-9a-f-]{36}$/i.test(args.campaignId)) throw new Error("CAMPAIGN_INVALID");
+  const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, techniques_json FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scope.id).first<CampaignRow>();
+  if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
+  if (campaign.status !== "draft") throw new Error("CAMPAIGN_STATE_INVALID");
+  const techniques = JSON.parse(campaign.techniques_json) as Parameters<typeof campaignExecutionReadiness>[0]["techniques"];
+  const readiness = campaignExecutionReadiness({ techniques }, integrations(env));
+  const now = new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE security_campaigns SET status = 'approved', approved_by_user_id = ?, approved_at = ?, readiness_json = ?, updated_at = ? WHERE id = ? AND status = 'draft'").bind(args.actorUserId, now, JSON.stringify(readiness), now, campaign.id),
+    env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, 'campaign.approved', ?, ?)").bind(uuid("sace"), args.workspaceId, campaign.id, args.actorUserId, JSON.stringify({ readiness, executionDispatched: false }), now),
+  ]);
+  return { id: campaign.id, status: "approved" as const, readiness, executionDispatched: false };
+}
+
+export async function cancelSecurityCampaign(env: SecurityDeliveryEnv, args: { workspaceId: number; scopeId: string; campaignId: unknown; actorUserId: number }) {
+  if (typeof args.campaignId !== "string" || !/^sac_[0-9a-f-]{36}$/i.test(args.campaignId)) throw new Error("CAMPAIGN_INVALID");
+  const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, techniques_json FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scopeId).first<CampaignRow>();
+  if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
+  if (!["draft", "approved"].includes(campaign.status)) throw new Error("CAMPAIGN_STATE_INVALID");
+  const now = new Date().toISOString();
+  await env.DB.batch([
+    env.DB.prepare("UPDATE security_campaigns SET status = 'cancelled', cancelled_at = ?, updated_at = ? WHERE id = ? AND status IN ('draft','approved')").bind(now, now, campaign.id),
+    env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, 'campaign.cancelled', '{}', ?)").bind(uuid("sace"), args.workspaceId, campaign.id, args.actorUserId, now),
+  ]);
+  return { id: campaign.id, status: "cancelled" as const };
+}
+
+export async function dispatchSecurityCampaign(env: SecurityDeliveryEnv & SecurityAgentEnv, args: { workspaceId: number; scope: SecurityScopeRow; campaignId: unknown; actorUserId: number; executionConfirmed: unknown }) {
+  if (args.executionConfirmed !== true) throw new Error("CAMPAIGN_EXECUTION_CONFIRMATION_REQUIRED");
+  if (!authorizationCurrent(args.scope)) throw new Error("CAMPAIGN_SCOPE_NOT_AUTHORIZED");
+  if (typeof args.campaignId !== "string" || !/^sac_[0-9a-f-]{36}$/i.test(args.campaignId)) throw new Error("CAMPAIGN_INVALID");
+  const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, techniques_json, window_start, window_end FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scope.id).first<CampaignRow>();
+  if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
+  if (campaign.status !== "approved") throw new Error("CAMPAIGN_STATE_INVALID");
+  const nowMs = Date.now();
+  if (!campaign.window_start || !campaign.window_end || nowMs < Date.parse(campaign.window_start)) throw new Error("CAMPAIGN_WINDOW_NOT_STARTED");
+  if (nowMs > Date.parse(campaign.window_end)) throw new Error("CAMPAIGN_WINDOW_EXPIRED");
+  const techniques = JSON.parse(campaign.techniques_json) as Parameters<typeof campaignExecutionReadiness>[0]["techniques"];
+  if (techniques.length !== 1 || techniques[0] !== "passive_external_posture") throw new Error("CAMPAIGN_EXECUTOR_NOT_CONFIGURED");
+  const job = await enqueueSecurityAgentJob(env, args.scope, args.actorUserId, "manual");
+  const now = new Date().toISOString();
+  const status = job.status === "queued" ? "queued" : "completed";
+  await env.DB.batch([
+    env.DB.prepare("UPDATE security_campaigns SET status = ?, agent_job_id = ?, updated_at = ? WHERE id = ? AND status = 'approved'").bind(status, job.id, now, campaign.id),
+    env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(uuid("sace"), args.workspaceId, campaign.id, args.actorUserId, status === "queued" ? "campaign.dispatched" : "campaign.completed", JSON.stringify({ agentJobId: job.id, executor: "existing_passive" }), now),
+  ]);
+  return { id: campaign.id, status, agentJobId: job.id, executor: "existing_passive" };
+}
+
+export async function createRemediationProposal(env: SecurityDeliveryEnv, args: { workspaceId: number; scopeId: string; actorUserId: number; target: unknown }) {
+  const target = parseRepositoryTarget(args.target);
+  const finding = await env.DB.prepare("SELECT id, scope_id, status FROM security_findings WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(target.findingId, args.workspaceId, args.scopeId).first<{ id: string; scope_id: string; status: string }>();
+  if (!finding || !["open", "investigating"].includes(finding.status)) throw new Error("REMEDIATION_FINDING_INVALID");
+  const id = uuid("sarp");
+  const now = new Date().toISOString();
+  try {
+    await env.DB.batch([
+      env.DB.prepare(`INSERT INTO security_remediation_proposals
+        (id, workspace_id, scope_id, finding_id, created_by_user_id, provider, repository_full_name, base_branch, strategy, status, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pull_request_only', 'draft', ?, ?)`)
+        .bind(id, args.workspaceId, args.scopeId, target.findingId, args.actorUserId, target.provider, target.repository, target.baseBranch, now, now),
+      env.DB.prepare("INSERT INTO security_remediation_events (id, workspace_id, remediation_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, 'remediation.created', ?, ?)")
+        .bind(uuid("sare"), args.workspaceId, id, args.actorUserId, JSON.stringify({ repository: target.repository, baseBranch: target.baseBranch, strategy: target.strategy, externalWritePerformed: false }), now),
+    ]);
+  } catch (error) {
+    if (error instanceof Error && /UNIQUE constraint/i.test(error.message)) throw new Error("REMEDIATION_ALREADY_ACTIVE");
+    throw error;
+  }
+  return { id, scopeId: args.scopeId, findingId: target.findingId, status: "draft" as const, provider: target.provider, repository: target.repository, baseBranch: target.baseBranch, strategy: target.strategy, connectorConfigured: integrations(env).repositoryConnector, externalWritePerformed: false };
+}
+
+export async function decideRemediationProposal(env: SecurityDeliveryEnv, args: { workspaceId: number; scopeId: string; remediationId: unknown; actorUserId: number; decision: unknown; approvalConfirmed: unknown }) {
+  if (typeof args.remediationId !== "string" || !/^sarp_[0-9a-f-]{36}$/i.test(args.remediationId) || !["approve", "reject"].includes(String(args.decision))) throw new Error("REMEDIATION_INVALID");
+  if (args.decision === "approve" && args.approvalConfirmed !== true) throw new Error("REMEDIATION_APPROVAL_REQUIRED");
+  const proposal = await env.DB.prepare("SELECT id, workspace_id, scope_id, finding_id, status FROM security_remediation_proposals WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.remediationId, args.workspaceId, args.scopeId).first<RemediationRow>();
+  if (!proposal) throw new Error("REMEDIATION_NOT_FOUND");
+  if (proposal.status !== "draft") throw new Error("REMEDIATION_STATE_INVALID");
+  const status = args.decision === "approve" ? "approved" : "rejected";
+  const now = new Date().toISOString();
+  const connectorConfigured = integrations(env).repositoryConnector;
+  await env.DB.batch([
+    env.DB.prepare(`UPDATE security_remediation_proposals SET status = ?, approved_by_user_id = ?, approved_at = ?, updated_at = ? WHERE id = ? AND status = 'draft'`)
+      .bind(status, status === "approved" ? args.actorUserId : null, status === "approved" ? now : null, now, proposal.id),
+    env.DB.prepare("INSERT INTO security_remediation_events (id, workspace_id, remediation_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(uuid("sare"), args.workspaceId, proposal.id, args.actorUserId, status === "approved" ? "remediation.approved" : "remediation.rejected", JSON.stringify({ connectorConfigured, externalWritePerformed: false }), now),
+  ]);
+  return { id: proposal.id, status, connectorConfigured, externalWritePerformed: false };
+}

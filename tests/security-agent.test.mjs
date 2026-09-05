@@ -8,6 +8,10 @@ const worker = fs.readFileSync(new URL("../worker/index.ts", import.meta.url), "
 const migration = fs.readFileSync(new URL("../drizzle/0051_security_validation_agent.sql", import.meta.url), "utf8");
 const queueMigration = fs.readFileSync(new URL("../drizzle/0052_security_agent_execution_queue.sql", import.meta.url), "utf8");
 const routingMigration = fs.readFileSync(new URL("../drizzle/0053_security_agent_model_routing.sql", import.meta.url), "utf8");
+const findingsMigration = fs.readFileSync(new URL("../drizzle/0054_security_findings_workflow.sql", import.meta.url), "utf8");
+const campaignMigration = fs.readFileSync(new URL("../drizzle/0055_security_campaigns_and_remediation.sql", import.meta.url), "utf8");
+const campaignService = fs.readFileSync(new URL("../app/security-campaign-service.ts", import.meta.url), "utf8");
+const campaignPolicy = fs.readFileSync(new URL("../domain/security-campaign-policy.ts", import.meta.url), "utf8");
 const client = fs.readFileSync(new URL("../app/app/SecurityAgentCenter.tsx", import.meta.url), "utf8");
 const wrangler = fs.readFileSync(new URL("../wrangler.migrations.jsonc", import.meta.url), "utf8");
 const finalizer = fs.readFileSync(new URL("../scripts/finalize-workers-config.mjs", import.meta.url), "utf8");
@@ -62,7 +66,7 @@ test("daily execution is opt-in, passive and auditable", () => {
   assert.match(service, /monitoring_enabled = 1/);
   assert.match(service, /DAILY_SCAN_LIMIT/);
   assert.match(service, /JOB_ALREADY_RUNNING/);
-  assert.match(service, /scan_mode.*'passive'/s);
+  assert.match(service, /normalizedTelemetry \? "blue_team" : "passive"/);
   assert.match(migration, /security_agent_jobs/);
   assert.match(migration, /security_agent_events/);
   assert.match(client, /Monitorar diariamente/);
@@ -91,4 +95,31 @@ test("authorization is time-bound and renewed with an explicit attestation", () 
   assert.match(route, /renew_authorization/);
   assert.match(route, /authorizationConfirmed !== true/);
   assert.match(client, /Renovar autorização/);
+});
+
+test("security findings are deduplicated, assignable and auditable", () => {
+  assert.match(service, /syncSecurityFindings/);
+  assert.match(findingsMigration, /security_findings_scope_evidence_idx/);
+  assert.match(findingsMigration, /security_finding_events/);
+  assert.match(route, /updateSecurityFinding/);
+  assert.match(route, /workspace_members wm JOIN users/);
+  assert.match(client, /SecurityFindingsBoard/);
+});
+
+test("pentest campaigns and remediation are approval gated and default to no external execution", () => {
+  assert.match(campaignMigration, /security_campaigns/);
+  assert.match(campaignMigration, /security_campaign_events/);
+  assert.match(campaignMigration, /security_remediation_proposals/);
+  assert.match(campaignMigration, /pull_request_only/);
+  assert.match(campaignService, /approvalConfirmed !== true/);
+  assert.match(campaignService, /executionDispatched: false/);
+  assert.match(campaignService, /dispatchSecurityCampaign/);
+  assert.match(campaignService, /techniques\[0\] !== "passive_external_posture"/);
+  assert.match(campaignService, /externalWritePerformed: false/);
+  assert.match(campaignPolicy, /denial_service/);
+  assert.match(campaignPolicy, /brute_force/);
+  assert.match(campaignPolicy, /data_exfiltration/);
+  assert.match(route, /create_campaign/);
+  assert.match(route, /create_remediation/);
+  assert.match(client, /SecurityDeliveryPanel/);
 });

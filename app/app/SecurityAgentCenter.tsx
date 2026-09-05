@@ -3,13 +3,19 @@
 import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import BrandMark from "../BrandMark";
+import SecurityOperationsPanel from "./SecurityOperationsPanel";
+import type { OperationalPlaybook } from "../../domain/security-operations";
+import SecurityFindingsBoard, { type SecurityFinding, type SecurityMember } from "./SecurityFindingsBoard";
+import SecurityDeliveryPanel, { type SecurityCampaign, type SecurityRemediation } from "./SecurityDeliveryPanel";
+import type { SecurityTechniqueId } from "../../domain/security-campaign-policy";
 
 type Verification = { type: string; name: string; value: string };
 type Scope = { id: string; domain: string; status: "pending" | "verified"; verifiedAt: string | null; authorizationExpiresAt: string | null; authorizationCurrent: boolean; monitoringEnabled: boolean; nextScanAt: string | null; lastScanAt: string | null; verification: Verification | null };
 type Check = { code: string; title: string; status: string; detail: string; action: string };
 type Assessment = { executiveSummary: string; riskLevel: string; confidence?: string; priorities: Array<{ title: string; severity: string; why: string; recommendation: string; evidenceCodes: string[] }>; positiveSignals: string[]; uncertainties?: string[]; limitations: string[] };
-type Job = { id: string; scopeId: string; trigger: string; status: string; scan: { posture?: { score: number }; checks?: Check[]; fingerprint?: string } | null; assessment: Assessment | null; provider: string | null; model: string | null; primaryModel: string | null; reviewModel: string | null; reviewReason: string | null; providerUsage: unknown; errorCode: string | null; startedAt: string; completedAt: string | null };
-type AgentData = { canManage: boolean; aiConfigured: boolean; modelRouting: { primary: string; review: string }; scopes: Scope[]; jobs: Job[] };
+type Job = { id: string; scopeId: string; trigger: string; mode: string; playbooks: OperationalPlaybook[]; status: string; scan: { posture?: { score?: number }; checks?: Check[]; fingerprint?: string } | null; assessment: Assessment | null; provider: string | null; model: string | null; primaryModel: string | null; reviewModel: string | null; reviewReason: string | null; providerUsage: unknown; errorCode: string | null; findingSyncStatus: string; findingSyncError: string | null; startedAt: string; completedAt: string | null };
+type Technique = { label: string; execution: string; risk: string; requiresRepository: boolean; requiresTestCredentials: boolean };
+type AgentData = { canManage: boolean; aiConfigured: boolean; modelRouting: { primary: string; review: string }; scopes: Scope[]; jobs: Job[]; findings: SecurityFinding[]; members: SecurityMember[]; campaigns: SecurityCampaign[]; remediations: SecurityRemediation[]; techniqueCatalog: Record<SecurityTechniqueId, Technique>; integrations: { isolatedRunner: boolean; repositoryConnector: boolean } };
 
 const severityLabel: Record<string, string> = { critical: "Crítico", high: "Alto", medium: "Médio", low: "Baixo" };
 
@@ -61,8 +67,16 @@ export default function SecurityAgentCenter() {
       if (action === "create_scope") { setDomain(""); setAuthorized(false); setMessage("Escopo criado. Publique o registro TXT indicado para comprovar a titularidade."); }
       if (action === "verify_scope") setMessage("Titularidade confirmada. O agente está liberado para este domínio.");
       if (action === "run_scan") setMessage(result.job?.status === "queued" ? "Diagnóstico autorizado e enviado para processamento seguro." : "Diagnóstico concluído e registrado na trilha de auditoria.");
+      if (action === "triage_telemetry") setMessage(result.job?.status === "queued" ? "Eventos enviados para triagem. O resultado aparecerá neste ativo." : "Triagem concluída e registrada na auditoria.");
       if (action === "set_monitoring") setMessage(payload.enabled ? "Monitoramento passivo diário ativado." : "Monitoramento automático pausado.");
       if (action === "renew_authorization") setMessage("Autorização do escopo renovada por 90 dias e registrada na auditoria.");
+      if (action === "update_finding") setMessage("Achado atualizado e decisão registrada na trilha de auditoria.");
+      if (action === "create_campaign") setMessage("Rascunho criado. Revise limites e técnicas antes de aprovar.");
+      if (action === "approve_campaign") setMessage("Campanha aprovada, sem iniciar execução externa.");
+      if (action === "dispatch_campaign") setMessage("Diagnóstico passivo iniciado dentro da janela aprovada.");
+      if (action === "cancel_campaign") setMessage("Campanha cancelada e registrada na auditoria.");
+      if (action === "create_remediation") setMessage("Proposta de correção criada sem alterar o repositório.");
+      if (action === "decide_remediation") setMessage("Decisão sobre a proposta registrada. Nenhuma alteração externa foi executada.");
       await load();
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Operação não concluída.");
@@ -98,8 +112,8 @@ export default function SecurityAgentCenter() {
 
       <section className="security-agent-hero" id="overview">
         <span>AUTHORIZED SECURITY VALIDATION · V1</span>
-        <h1>Um agente defensivo para transformar sinais externos em prioridade de correção.</h1>
-        <p>Cadastre apenas ativos sob sua administração ou autorização expressa. A primeira versão executa diagnóstico passivo de DNS, e-mail, HTTPS e defesas do navegador — sem exploração, força bruta ou varredura de portas.</p>
+        <h1>Investigue sinais. Prepare testes. Priorize a resposta.</h1>
+        <p>Analise DNS, e-mail e HTTPS dos seus ativos, prepare a validação dos controles e faça a triagem de eventos de autenticação e WAF. Cada recomendação fica ligada às evidências disponíveis.</p>
       </section>
 
       {error ? <div className="security-agent-alert error" role="alert">{error}</div> : null}
@@ -131,15 +145,20 @@ export default function SecurityAgentCenter() {
           const jobActive = latest?.status === "queued" || latest?.status === "running";
           return (
             <article className="security-agent-asset" key={scope.id}>
-              <div className="security-agent-asset-head"><div><span className={`security-agent-status ${scope.status}`}>{scope.status === "verified" ? "VERIFICADO" : "AGUARDANDO DNS"}</span><h3>{scope.domain}</h3><small>{scope.lastScanAt ? `Última leitura: ${new Date(scope.lastScanAt).toLocaleString("pt-BR")}` : "Nenhum diagnóstico persistente executado"}</small><small>{authorizationExpired ? "Autorização de avaliação expirada" : `Autorização válida até ${new Date(scope.authorizationExpiresAt!).toLocaleDateString("pt-BR")}`}</small></div>{latest?.scan?.posture ? <div className="security-agent-score"><b>{latest.scan.posture.score}</b><span>/100</span></div> : null}</div>
+              <div className="security-agent-asset-head"><div><span className={`security-agent-status ${scope.status}`}>{scope.status === "verified" ? "VERIFICADO" : "AGUARDANDO DNS"}</span><h3>{scope.domain}</h3><small>{scope.lastScanAt ? `Última leitura: ${new Date(scope.lastScanAt).toLocaleString("pt-BR")}` : "Nenhum diagnóstico persistente executado"}</small><small>{authorizationExpired ? "Autorização de avaliação expirada" : `Autorização válida até ${new Date(scope.authorizationExpiresAt!).toLocaleDateString("pt-BR")}`}</small></div>{typeof latest?.scan?.posture?.score === "number" ? <div className="security-agent-score"><b>{latest.scan.posture.score}</b><span>/100</span></div> : null}</div>
               {scope.verification ? <div className="security-agent-dns"><b>Publique e mantenha este registro no DNS</b><dl><div><dt>Tipo</dt><dd>{scope.verification.type}</dd></div><div><dt>Nome</dt><dd>{scope.verification.name}</dd></div><div><dt>Valor</dt><dd>{scope.verification.value}</dd></div></dl></div> : null}
               <div className="security-agent-actions">
                 {scope.status === "pending" ? <button disabled={busy.startsWith("verify_scope")} onClick={() => void act("verify_scope", { scopeId: scope.id })}>Confirmar DNS</button> : <button disabled={busy.startsWith("run_scan") || jobActive || authorizationExpired} onClick={() => void act("run_scan", { scopeId: scope.id })}>{jobActive ? latest?.status === "queued" ? "Na fila…" : "Analisando…" : busy === `run_scan:${scope.id}` ? "Agendando…" : "Executar agora"}</button>}
                 {scope.status === "verified" ? <label><input type="checkbox" checked={scope.monitoringEnabled} disabled={authorizationExpired} onChange={(event) => void act("set_monitoring", { scopeId: scope.id, enabled: event.target.checked })} /> Monitorar diariamente</label> : null}
                 {authorizationExpired ? <button className="secondary" onClick={() => { if (window.confirm("Confirmo novamente que administro este domínio ou possuo autorização expressa para avaliá-lo.")) void act("renew_authorization", { scopeId: scope.id, authorizationConfirmed: true }); }}>Renovar autorização</button> : null}
               </div>
-              {jobActive ? <div className="security-agent-alert success">{latest?.status === "queued" ? "Execução aguardando um runner disponível." : "Coleta passiva e análise em andamento."}</div> : null}
-              {latest?.assessment ? <div className="security-agent-report"><div className="security-agent-report-head"><span>RELATÓRIO · {latest.provider?.startsWith("openai") ? latest.reviewModel ? "OPENAI · REVISADO" : "OPENAI" : "MOTOR CBSHUB"}</span><b className={`risk-${latest.assessment.riskLevel}`}>{severityLabel[latest.assessment.riskLevel] ?? latest.assessment.riskLevel}</b></div><p>{latest.assessment.executiveSummary}</p><div className="security-agent-priorities">{latest.assessment.priorities.map((priority, index) => <div key={`${priority.title}-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><section><b>{priority.title}</b><p>{priority.why}</p><small>{priority.recommendation}</small></section></div>)}</div><footer>Motor: {latest.primaryModel ?? latest.model}{latest.reviewModel ? ` → ${latest.reviewModel} (revisão automática)` : ""} · Confiança: {latest.assessment.confidence ?? "não informada"} · Evidência: {latest.scan?.fingerprint ?? "registrada"} · Validação humana recomendada</footer></div> : null}
+              {jobActive ? <div className="security-agent-alert success">{latest?.status === "queued" ? "Execução aguardando processamento." : latest?.mode === "blue_team" ? "Triagem dos eventos em andamento." : "Coleta passiva e análise em andamento."}</div> : null}
+              {latest?.status === "failed" ? <p className="security-agent-alert error" role="alert">A análise falhou. Verifique a autorização e tente novamente. Código: {latest.errorCode ?? "SCAN_FAILED"}</p> : null}
+              {latest?.status === "completed" && latest.findingSyncStatus === "failed" ? <p className="security-agent-alert error" role="alert">A análise terminou, mas a fila de achados não foi sincronizada. Código: {latest.findingSyncError ?? "FINDING_SYNC_FAILED"}</p> : null}
+              {latest?.assessment && latest.status === "completed" ? <div className="security-agent-report"><div className="security-agent-report-head"><span>{latest.mode === "blue_team" ? "BLUE TEAM · CONTAGENS INFORMADAS" : "DIAGNÓSTICO PASSIVO"} · {latest.provider?.startsWith("openai") ? latest.reviewModel ? "OPENAI · REVISADO" : "OPENAI" : "MOTOR CBSHUB"}</span><b className={`risk-${latest.assessment.riskLevel}`}>{severityLabel[latest.assessment.riskLevel] ?? latest.assessment.riskLevel}</b></div><p>{latest.assessment.executiveSummary}</p><div className="security-agent-priorities">{latest.assessment.priorities.map((priority, index) => <div key={`${priority.title}-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><section><b>{priority.title}</b><p>{priority.why}</p><small>{priority.recommendation}</small><p>Evidência: {priority.evidenceCodes.join(", ")}</p></section></div>)}</div>{latest.assessment.limitations.map((limitation) => <p key={limitation} className="security-operations-note">{limitation}</p>)}<footer>Motor: {latest.primaryModel ?? latest.model}{latest.reviewModel ? ` → ${latest.reviewModel} (revisão automática)` : ""} · Confiança: {latest.assessment.confidence ?? "não informada"} · Evidência: {latest.scan?.fingerprint ?? "registrada"} · Validação humana recomendada</footer></div> : null}
+              <SecurityOperationsPanel scopeId={scope.id} disabled={!data?.canManage || Boolean(busy) || jobActive || scope.status !== "verified" || authorizationExpired} playbooks={latest?.playbooks ?? []} mode={latest?.mode} onTriage={act} />
+              <SecurityFindingsBoard scopeId={scope.id} findings={data?.findings ?? []} members={data?.members ?? []} disabled={!data?.canManage || Boolean(busy)} onUpdate={act} />
+              {data ? <SecurityDeliveryPanel scopeId={scope.id} disabled={!data.canManage || Boolean(busy) || scope.status !== "verified" || authorizationExpired} campaigns={data.campaigns} remediations={data.remediations} findings={data.findings} techniqueCatalog={data.techniqueCatalog} integrations={data.integrations} onAction={act} /> : null}
             </article>
           );
         })}

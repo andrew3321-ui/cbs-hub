@@ -12,11 +12,17 @@ import {
 } from "../../security-agent-service";
 import { canManageWorkspace, getWorkspaceContext, type WorkspaceContext } from "../../workspace";
 import { getWorkspaceEntitlements, scopeLimitResponse } from "../../plan-entitlements";
+import { operationalPlaybooks, parseTelemetry, type SecurityEvidence } from "../../../domain/security-operations";
+import { updateSecurityFinding } from "../../security-findings-service";
+import { securityKnowledgeForCode, SECURITY_KNOWLEDGE_VERSION } from "../../../domain/security-knowledge";
+import { approveSecurityCampaign, cancelSecurityCampaign, createRemediationProposal, createSecurityCampaign, decideRemediationProposal, dispatchSecurityCampaign, type SecurityDeliveryEnv } from "../../security-campaign-service";
+import { SECURITY_CAMPAIGN_POLICY_VERSION, securityTechniqueCatalog } from "../../../domain/security-campaign-policy";
 
 type JobRow = {
   id: string;
   scope_id: string;
   trigger_kind: string;
+  scan_mode: string;
   status: string;
   evidence_json: string;
   assessment_json: string;
@@ -27,9 +33,16 @@ type JobRow = {
   review_reason: string | null;
   provider_usage_json: string;
   error_code: string | null;
+  finding_sync_status: string;
+  finding_sync_error: string | null;
   started_at: string;
   completed_at: string | null;
 };
+
+type FindingRow = { id: string; scope_id: string; source_job_id: string; evidence_code: string; title: string; severity: string; status: string; assigned_user_id: number | null; due_at: string | null; resolution_summary: string; occurrence_count: number; first_observed_at: string; last_observed_at: string; closed_at: string | null; updated_at: string };
+type MemberRow = { user_id: number; role: string; username: string | null; name: string };
+type CampaignRow = { id: string; scope_id: string; name: string; environment: string; techniques_json: string; policy_version: string; window_start: string; window_end: string; max_requests_per_minute: number; max_total_requests: number; stop_conditions_json: string; status: string; readiness_json: string; agent_job_id: string | null; approved_at: string | null; cancelled_at: string | null; created_at: string; updated_at: string };
+type RemediationRow = { id: string; scope_id: string; finding_id: string; provider: string; repository_full_name: string; base_branch: string; strategy: string; status: string; approved_at: string | null; external_pr_url: string | null; created_at: string; updated_at: string };
 
 function runtime() {
   return env as unknown as SecurityAgentEnv;
@@ -57,16 +70,29 @@ async function getAgent() {
   const current = await context();
   if (current instanceof Response) return current;
   const db = runtime().DB;
-  const [scopes, jobs, entitlements] = await Promise.all([
+  const [scopes, jobs, entitlements, findings, members, campaigns, remediations] = await Promise.all([
     db.prepare("SELECT * FROM security_agent_scopes WHERE workspace_id = ? AND status <> 'revoked' ORDER BY created_at DESC").bind(current.workspace.id).all<SecurityScopeRow>(),
-    db.prepare(`SELECT id, scope_id, trigger_kind, status, evidence_json, assessment_json, provider, model, primary_model, review_model, review_reason, provider_usage_json, error_code, started_at, completed_at FROM security_agent_jobs WHERE workspace_id = ? ORDER BY started_at DESC LIMIT 20`).bind(current.workspace.id).all<JobRow>(),
+    db.prepare(`SELECT id, scope_id, trigger_kind, scan_mode, status, evidence_json, assessment_json, provider, model, primary_model, review_model, review_reason, provider_usage_json, error_code, finding_sync_status, finding_sync_error, started_at, completed_at FROM security_agent_jobs WHERE workspace_id = ? ORDER BY started_at DESC LIMIT 20`).bind(current.workspace.id).all<JobRow>(),
     getWorkspaceEntitlements(current.workspace),
+    db.prepare("SELECT id, scope_id, source_job_id, evidence_code, title, severity, status, assigned_user_id, due_at, resolution_summary, occurrence_count, first_observed_at, last_observed_at, closed_at, updated_at FROM security_findings WHERE workspace_id = ? ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, updated_at DESC LIMIT 100").bind(current.workspace.id).all<FindingRow>(),
+    db.prepare("SELECT wm.user_id, wm.role, u.username, u.name FROM workspace_members wm JOIN users u ON u.id = wm.user_id WHERE wm.workspace_id = ? AND wm.status = 'active' ORDER BY u.name, wm.user_id").bind(current.workspace.id).all<MemberRow>(),
+    db.prepare("SELECT id, scope_id, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json, status, readiness_json, agent_job_id, approved_at, cancelled_at, created_at, updated_at FROM security_campaigns WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 30").bind(current.workspace.id).all<CampaignRow>(),
+    db.prepare("SELECT id, scope_id, finding_id, provider, repository_full_name, base_branch, strategy, status, approved_at, external_pr_url, created_at, updated_at FROM security_remediation_proposals WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 50").bind(current.workspace.id).all<RemediationRow>(),
   ]);
+  const deliveryEnv = runtime() as SecurityDeliveryEnv;
   return Response.json({
     canManage: canManageWorkspace(current.workspace.role),
     aiConfigured: Boolean(runtime().OPENAI_API_KEY?.trim()),
     modelRouting: securityAgentModelRouting(runtime()),
+    knowledgeVersion: SECURITY_KNOWLEDGE_VERSION,
+    campaignPolicyVersion: SECURITY_CAMPAIGN_POLICY_VERSION,
+    techniqueCatalog: securityTechniqueCatalog,
+    integrations: { isolatedRunner: Boolean(deliveryEnv.SECURITY_ACTIVE_RUNNER), repositoryConnector: Boolean(deliveryEnv.GITHUB_APP_ID?.trim()) },
     entitlements,
+    members: members.results.map((member) => ({ id: member.user_id, role: member.role, label: member.username || member.name || `Usuário ${member.user_id}` })),
+    findings: findings.results.map((finding) => ({ id: finding.id, scopeId: finding.scope_id, sourceJobId: finding.source_job_id, evidenceCode: finding.evidence_code, title: finding.title, severity: finding.severity, status: finding.status, assignedUserId: finding.assigned_user_id, dueAt: finding.due_at, resolutionSummary: finding.resolution_summary, occurrenceCount: finding.occurrence_count, firstObservedAt: finding.first_observed_at, lastObservedAt: finding.last_observed_at, closedAt: finding.closed_at, updatedAt: finding.updated_at, knowledge: securityKnowledgeForCode(finding.evidence_code) })),
+    campaigns: campaigns.results.map((campaign) => ({ id: campaign.id, scopeId: campaign.scope_id, name: campaign.name, environment: campaign.environment, techniques: parseJson(campaign.techniques_json), policyVersion: campaign.policy_version, windowStart: campaign.window_start, windowEnd: campaign.window_end, maxRequestsPerMinute: campaign.max_requests_per_minute, maxTotalRequests: campaign.max_total_requests, stopConditions: parseJson(campaign.stop_conditions_json), status: campaign.status, readiness: parseJson(campaign.readiness_json), agentJobId: campaign.agent_job_id, approvedAt: campaign.approved_at, cancelledAt: campaign.cancelled_at, createdAt: campaign.created_at, updatedAt: campaign.updated_at })),
+    remediations: remediations.results.map((proposal) => ({ id: proposal.id, scopeId: proposal.scope_id, findingId: proposal.finding_id, provider: proposal.provider, repository: proposal.repository_full_name, baseBranch: proposal.base_branch, strategy: proposal.strategy, status: proposal.status, approvedAt: proposal.approved_at, externalPrUrl: proposal.external_pr_url, createdAt: proposal.created_at, updatedAt: proposal.updated_at })),
     scopes: scopes.results.map((scope: SecurityScopeRow) => ({
       id: scope.id,
       domain: scope.domain,
@@ -83,6 +109,7 @@ async function getAgent() {
       id: job.id,
       scopeId: job.scope_id,
       trigger: job.trigger_kind,
+      mode: job.scan_mode,
       status: job.status,
       scan: parseJson(job.evidence_json),
       assessment: parseJson(job.assessment_json),
@@ -93,8 +120,11 @@ async function getAgent() {
       reviewReason: job.review_reason,
       providerUsage: parseJson(job.provider_usage_json),
       errorCode: job.error_code,
+      findingSyncStatus: job.finding_sync_status,
+      findingSyncError: job.finding_sync_error,
       startedAt: job.started_at,
       completedAt: job.completed_at,
+      playbooks: job.status === "completed" && Array.isArray((parseJson(job.evidence_json) as SecurityEvidence | null)?.checks) ? operationalPlaybooks(parseJson(job.evidence_json) as SecurityEvidence) : [],
     })),
   }, { headers: { "Cache-Control": "no-store" } });
 }
@@ -120,6 +150,38 @@ async function postAgent(request: Request) {
   }
   const scope = await scopeForWorkspace(agentEnv.DB, current.workspace.id, body.scopeId);
   if (!scope) return Response.json({ error: "Escopo não encontrado." }, { status: 404 });
+  if (action === "create_campaign" || action === "approve_campaign" || action === "dispatch_campaign" || action === "cancel_campaign") {
+    try {
+      const deliveryEnv = agentEnv as SecurityDeliveryEnv;
+      if (action === "create_campaign") return Response.json({ campaign: await createSecurityCampaign(deliveryEnv, scope, current.user.id, body.campaign) }, { status: 201 });
+      if (action === "approve_campaign") return Response.json({ campaign: await approveSecurityCampaign(deliveryEnv, { workspaceId: current.workspace.id, scope, campaignId: body.campaignId, actorUserId: current.user.id, approvalConfirmed: body.approvalConfirmed }) });
+      if (action === "dispatch_campaign") return Response.json({ campaign: await dispatchSecurityCampaign(agentEnv as SecurityDeliveryEnv & SecurityAgentEnv, { workspaceId: current.workspace.id, scope, campaignId: body.campaignId, actorUserId: current.user.id, executionConfirmed: body.executionConfirmed }) }, { status: 202 });
+      return Response.json({ campaign: await cancelSecurityCampaign(deliveryEnv, { workspaceId: current.workspace.id, scopeId: scope.id, campaignId: body.campaignId, actorUserId: current.user.id }) });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "CAMPAIGN_FAILED";
+      return Response.json({ error: code === "CAMPAIGN_SCOPE_NOT_AUTHORIZED" ? "O domínio precisa permanecer verificado e com autorização vigente." : code === "CAMPAIGN_ACTIVE_LIMIT" ? "Conclua ou cancele uma campanha antes de criar outra." : code === "CAMPAIGN_EXECUTOR_NOT_CONFIGURED" ? "Esta campanha exige um executor isolado ou de repositório que ainda não está conectado." : code === "CAMPAIGN_WINDOW_NOT_STARTED" ? "A janela aprovada ainda não começou." : code === "CAMPAIGN_WINDOW_EXPIRED" ? "A janela aprovada terminou; crie uma nova campanha." : "Revise janela, técnicas, limites e condições de parada da campanha.", code }, { status: code === "CAMPAIGN_NOT_FOUND" ? 404 : 400 });
+    }
+  }
+  if (action === "create_remediation" || action === "decide_remediation") {
+    try {
+      const deliveryEnv = agentEnv as SecurityDeliveryEnv;
+      if (action === "create_remediation") return Response.json({ remediation: await createRemediationProposal(deliveryEnv, { workspaceId: current.workspace.id, scopeId: scope.id, actorUserId: current.user.id, target: body.target }) }, { status: 201 });
+      return Response.json({ remediation: await decideRemediationProposal(deliveryEnv, { workspaceId: current.workspace.id, scopeId: scope.id, remediationId: body.remediationId, actorUserId: current.user.id, decision: body.decision, approvalConfirmed: body.approvalConfirmed }) });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "REMEDIATION_FAILED";
+      return Response.json({ error: code === "REMEDIATION_ALREADY_ACTIVE" ? "Já existe uma proposta ativa para este achado." : code === "REMEDIATION_FINDING_INVALID" ? "Escolha um achado aberto deste domínio." : "Revise o repositório, branch e aprovação da proposta.", code }, { status: code === "REMEDIATION_NOT_FOUND" ? 404 : 400 });
+    }
+  }
+  if (action === "update_finding") {
+    try {
+      const finding = await updateSecurityFinding(agentEnv, { workspaceId: current.workspace.id, findingId: String(body.findingId ?? ""), actorUserId: current.user.id, status: body.status, assignedUserId: body.assignedUserId, dueAt: body.dueAt, resolutionSummary: body.resolutionSummary });
+      return Response.json({ finding });
+    } catch (error) {
+      const code = error instanceof Error ? error.message : "FINDING_UPDATE_FAILED";
+      const status = code === "FINDING_NOT_FOUND" ? 404 : 400;
+      return Response.json({ error: code === "FINDING_RESOLUTION_INVALID" ? "Descreva a validação ou decisão em pelo menos 10 caracteres e sem incluir segredos." : "Não foi possível atualizar o achado.", code }, { status });
+    }
+  }
   if (action === "renew_authorization") {
     if (body.authorizationConfirmed !== true) return Response.json({ error: "Confirme novamente que você administra o domínio ou possui autorização expressa para avaliá-lo." }, { status: 400 });
     const renewed = await createSecurityScope(agentEnv, current.workspace.id, current.user.id, scope.domain);
@@ -129,12 +191,15 @@ async function postAgent(request: Request) {
     const result = await verifySecurityScope(agentEnv, scope, current.user.id);
     return Response.json(result, { status: result.verified ? 200 : 409 });
   }
-  if (action === "run_scan") {
+  if (action === "run_scan" || action === "triage_telemetry") {
     if (scope.status !== "verified") return Response.json({ error: "Verifique a titularidade do domínio antes de executar o agente." }, { status: 409 });
     try {
-      const job = await enqueueSecurityAgentJob(agentEnv, scope, current.user.id, "manual");
+      if (action === "triage_telemetry" && body.telemetryAuthorized !== true) return Response.json({ error: "Confirme que os dados agregados pertencem ao ativo autorizado." }, { status: 400 });
+      const telemetry = action === "triage_telemetry" ? parseTelemetry(body.telemetry) : undefined;
+      const job = await enqueueSecurityAgentJob(agentEnv, scope, current.user.id, "manual", telemetry);
       return Response.json({ job }, { status: job.status === "queued" ? 202 : 200 });
     } catch (error) {
+      if (error instanceof Error && error.message.startsWith("TELEMETRY_")) return Response.json({ error: "Dados inválidos: use contagens inteiras, uma janela de até 24 horas nos últimos 30 dias e totais consistentes.", code: error.message }, { status: 400 });
       if (error instanceof Error && error.message === "SCOPE_VERIFICATION_LOST") return Response.json({ error: "A verificação DNS não está mais publicada. O monitoramento foi pausado até uma nova confirmação." }, { status: 409 });
       if (error instanceof Error && error.message === "SCOPE_AUTHORIZATION_EXPIRED") return Response.json({ error: "A declaração de autorização expirou. Confirme novamente o escopo antes de executar outra análise." }, { status: 409 });
       if (error instanceof Error && error.message === "JOB_ALREADY_RUNNING") return Response.json({ error: "Já existe uma análise em andamento para este domínio." }, { status: 409 });

@@ -379,6 +379,20 @@
       "when": 1788480000000,
       "tag": "0053_security_agent_model_routing",
       "breakpoints": true
+    },
+    {
+      "idx": 54,
+      "version": "6",
+      "when": 1788566400000,
+      "tag": "0054_security_findings_workflow",
+      "breakpoints": true
+    },
+    {
+      "idx": 55,
+      "version": "6",
+      "when": 1788568200000,
+      "tag": "0055_security_campaigns_and_remediation",
+      "breakpoints": true
     }
   ]
 }

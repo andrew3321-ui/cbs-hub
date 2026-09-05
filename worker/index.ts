@@ -193,6 +193,8 @@ function runSecurityRetentionCleanup(env: Env) {
     env.DB.prepare("DELETE FROM security_incidents WHERE retain_until < datetime('now')"),
     env.DB.prepare("DELETE FROM security_agent_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_agent_jobs WHERE created_at < datetime('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM security_campaign_events WHERE created_at < datetime('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM security_remediation_events WHERE created_at < datetime('now', '-365 days')"),
   ]);
 }
 

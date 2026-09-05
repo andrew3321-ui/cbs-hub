@@ -23,6 +23,10 @@ Estados do job: `queued -> running -> completed`; falhas transitórias retornam 
 
 ## Próxima fronteira: runner isolado
 
+A primeira camada de especialização e triagem manual de blue team está descrita em [security-operations-development.md](security-operations-development.md). Os jobs `blue_team` usam contagens declaradas, com origem explícita, e compartilham o processamento em fila; não executam coleta web nem alteram a agenda passiva.
+
 Testes autenticados ou ativos não devem ser acrescentados ao coletor passivo. Eles exigem um runner de containers separado, imagem imutável, rede de saída limitada, ferramentas em allowlist, teto de duração e requisições, evidências assinadas e interrupção de emergência. O Worker continuará decidindo o escopo; o runner receberá apenas um manifesto de execução assinado, nunca uma instrução livre.
 
 Antes dessa fase, a autorização deverá registrar ativo, janela, técnicas permitidas, contatos, origem da autorização e prazo. A interface continuará sem prometer pentest enquanto existir apenas diagnóstico passivo.
+
+A fundação de campanhas e correções revisáveis está descrita em [controlled-pentest-and-remediation.md](controlled-pentest-and-remediation.md). Ela registra a política, aprovação e bloqueadores, mas deliberadamente não despacha ferramentas nem escreve em repositórios.

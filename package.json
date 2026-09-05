@@ -11,6 +11,7 @@
     "build": "vinext build && node --experimental-strip-types scripts/export-public-static.mjs && node scripts/finalize-workers-config.mjs",
     "start": "vinext start",
     "test:unit": "node --experimental-strip-types --test tests/*.test.mjs",
+    "security:eval": "node --experimental-strip-types scripts/evaluate-security-agent.mjs",
     "test": "npm run build && npm run test:unit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .wrangler --ignore-pattern work --ignore-pattern output --ignore-pattern outputs",
     "db:generate": "drizzle-kit generate",

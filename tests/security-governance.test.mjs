@@ -61,6 +61,9 @@ test("account rights rotate sessions, preserve a pseudonymous trail and restrict
   assert.match(account, /createSession\(user\.id\)/);
   assert.match(account, /account_correction/);
   assert.match(account, /account_deletion/);
+  assert.match(account, /findingEvents/);
+  assert.match(account, /DELETE FROM security_finding_events WHERE workspace_id/);
+  assert.match(account, /UPDATE security_findings SET assigned_user_id = NULL/);
   assert.match(governance, /privacy_request_events|privacyRequestEvents/);
   assert.match(governance, /HMAC/);
   assert.doesNotMatch(governance, /detailsJson:\s*JSON\.stringify\(\{[^}]*email/);

@@ -8,7 +8,7 @@ export type PersonalDataInventoryItem = {
   deletionBehavior: string;
 };
 
-export const PRIVACY_GOVERNANCE_VERSION = "2026.07.29-v3";
+export const PRIVACY_GOVERNANCE_VERSION = "2026.09.05-v5";
 
 export const personalDataInventory: PersonalDataInventoryItem[] = [
   {
@@ -40,12 +40,12 @@ export const personalDataInventory: PersonalDataInventoryItem[] = [
   },
   {
     category: "Diagnósticos e evidências de segurança",
-    examples: ["registros DNS públicos", "cabeçalhos HTTPS", "prioridades de correção", "hash de evidências"],
-    purposes: ["diagnóstico defensivo", "acompanhamento da postura externa", "evidência técnica"],
+    examples: ["registros DNS públicos", "cabeçalhos HTTPS", "contagens agregadas informadas pelo operador", "prioridades de correção", "decisões sobre achados", "campanhas autorizadas", "referência de repositório e pull request", "hash de evidências"],
+    purposes: ["diagnóstico defensivo", "acompanhamento da postura externa", "planejamento de testes autorizados", "preparação de correção revisável", "evidência técnica"],
     legalBases: ["execução de contrato (LGPD, art. 7º, V)", "cumprimento de obrigação legal (LGPD, art. 7º, II), quando aplicável"],
-    stores: ["security_agent_jobs", "security_agent_events"],
-    retention: "até 365 dias; escopos permanecem enquanto necessários ao workspace",
-    deletionBehavior: "resultados e eventos são removidos pela rotina de retenção e pela exclusão do workspace",
+    stores: ["security_agent_jobs", "security_agent_events", "security_findings", "security_finding_events", "security_campaigns", "security_campaign_events", "security_remediation_proposals", "security_remediation_events"],
+    retention: "jobs e eventos do agente por até 365 dias; achados e decisões enquanto o workspace existir ou até sua exclusão",
+    deletionBehavior: "resultados antigos são removidos pela rotina de retenção; achados, decisões e escopos são exportados e excluídos com o workspace",
   },
   {
     category: "Cobrança e registros fiscais",

@@ -6,7 +6,7 @@ import {
   normalizePublicDomain,
   publicScanLimitation,
   type CyberCheck,
-} from "../domain/cybersecurity-preview";
+} from "../domain/cybersecurity-preview.ts";
 
 type DnsAnswer = { name?: string; type?: number; data?: string };
 type DnsResponse = { Status?: number; Answer?: DnsAnswer[] };

@@ -120,12 +120,18 @@ async function exportAccountData(request: Request) {
     ]);
     const securityData = canExportWorkspaceData ? {
       scopes: (await env.DB.prepare("SELECT id, domain, status, verified_at, authorization_basis, authorization_attested_at, authorization_expires_at, monitoring_enabled, created_at FROM security_agent_scopes WHERE workspace_id = ?").bind(workspace.id).all()).results,
-      jobs: (await env.DB.prepare("SELECT id, scope_id, status, evidence_json, assessment_json, provider, model, started_at, completed_at FROM security_agent_jobs WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      jobs: (await env.DB.prepare("SELECT id, scope_id, status, evidence_json, assessment_json, provider, model, finding_sync_status, finding_sync_error, started_at, completed_at FROM security_agent_jobs WHERE workspace_id = ?").bind(workspace.id).all()).results,
       events: (await env.DB.prepare("SELECT id, scope_id, actor_user_id, event_type, details_json, created_at FROM security_agent_events WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      findings: (await env.DB.prepare("SELECT id, scope_id, source_job_id, evidence_code, title, severity, status, assigned_user_id, due_at, resolution_summary, occurrence_count, first_observed_at, last_observed_at, closed_at, created_at, updated_at FROM security_findings WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      findingEvents: (await env.DB.prepare("SELECT id, finding_id, actor_user_id, event_type, from_status, to_status, details_json, created_at FROM security_finding_events WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      campaigns: (await env.DB.prepare("SELECT id, scope_id, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json, status, readiness_json, agent_job_id, approved_at, cancelled_at, created_at, updated_at FROM security_campaigns WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      campaignEvents: (await env.DB.prepare("SELECT id, campaign_id, actor_user_id, event_type, details_json, created_at FROM security_campaign_events WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      remediations: (await env.DB.prepare("SELECT id, scope_id, finding_id, provider, repository_full_name, base_branch, strategy, status, approved_at, external_pr_url, created_at, updated_at FROM security_remediation_proposals WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      remediationEvents: (await env.DB.prepare("SELECT id, remediation_id, actor_user_id, event_type, details_json, created_at FROM security_remediation_events WHERE workspace_id = ?").bind(workspace.id).all()).results,
     } : null;
     const exportData = {
       generatedAt: new Date().toISOString(),
-      formatVersion: "lgpd-access-v3",
+      formatVersion: "lgpd-access-v5",
       security: securityData,
       privacyGovernanceVersion: PRIVACY_GOVERNANCE_VERSION,
       scope: canExportWorkspaceData ? "account_and_owned_workspace" : "individual_account_only",
@@ -219,6 +225,14 @@ async function anonymizeIncidentActor(userId: number) {
     env.DB.prepare("UPDATE security_agent_events SET actor_user_id = NULL WHERE actor_user_id = ?").bind(userId),
     env.DB.prepare("UPDATE security_agent_jobs SET requested_by_user_id = NULL WHERE requested_by_user_id = ?").bind(userId),
     env.DB.prepare("UPDATE security_agent_scopes SET created_by_user_id = 0 WHERE created_by_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_finding_events SET actor_user_id = NULL WHERE actor_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_findings SET assigned_user_id = NULL WHERE assigned_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_campaigns SET created_by_user_id = NULL WHERE created_by_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_campaigns SET approved_by_user_id = NULL WHERE approved_by_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_campaign_events SET actor_user_id = NULL WHERE actor_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_remediation_proposals SET created_by_user_id = NULL WHERE created_by_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_remediation_proposals SET approved_by_user_id = NULL WHERE approved_by_user_id = ?").bind(userId),
+    env.DB.prepare("UPDATE security_remediation_events SET actor_user_id = NULL WHERE actor_user_id = ?").bind(userId),
   ]);
   await db.update(securityIncidents).set({ reportedByUserId: null }).where(eq(securityIncidents.reportedByUserId, userId));
   await db.update(securityIncidentEvents).set({ actorUserId: null }).where(eq(securityIncidentEvents.actorUserId, userId));
@@ -274,6 +288,12 @@ async function deleteAccount(request: Request) {
     trailStarted = true;
     const ownedCompanies = await db.select({ id: companies.id }).from(companies).where(eq(companies.workspaceId, workspace.id));
     await env.DB.batch([
+      env.DB.prepare("DELETE FROM security_remediation_events WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_remediation_proposals WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_campaign_events WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_campaigns WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_finding_events WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_findings WHERE workspace_id = ?").bind(workspace.id),
       env.DB.prepare("DELETE FROM security_agent_events WHERE workspace_id = ?").bind(workspace.id),
       env.DB.prepare("DELETE FROM security_agent_jobs WHERE workspace_id = ?").bind(workspace.id),
       env.DB.prepare("DELETE FROM security_agent_scopes WHERE workspace_id = ?").bind(workspace.id),
