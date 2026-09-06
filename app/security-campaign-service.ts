@@ -1,13 +1,47 @@
 import { enqueueSecurityAgentJob, type SecurityAgentEnv, type SecurityScopeRow } from "./security-agent-service.ts";
-import { campaignExecutionReadiness, parseRepositoryTarget, parseSecurityCampaignInput, SECURITY_CAMPAIGN_POLICY_VERSION } from "../domain/security-campaign-policy.ts";
+import { campaignExecutionReadiness, parseRepositoryTarget, parseSecurityCampaignInput, SECURITY_CAMPAIGN_POLICY_VERSION, securityTechniqueCatalog } from "../domain/security-campaign-policy.ts";
 
-export type SecurityDeliveryEnv = Pick<SecurityAgentEnv, "DB"> & { SECURITY_ACTIVE_RUNNER?: unknown; GITHUB_APP_ID?: string };
-type CampaignRow = { id: string; workspace_id: number; scope_id: string; status: string; techniques_json: string; window_start?: string; window_end?: string };
+export type SecurityDeliveryEnv = Pick<SecurityAgentEnv, "DB"> & { SECURITY_ACTIVE_RUNNER?: { fetch(request: Request): Promise<Response> }; SECURITY_RUNNER_SIGNING_KEY?: string; GITHUB_APP_ID?: string };
+type CampaignRow = { id: string; workspace_id: number; scope_id: string; status: string; name?: string; environment?: string; techniques_json: string; policy_version?: string; window_start?: string; window_end?: string; max_requests_per_minute?: number; max_total_requests?: number; stop_conditions_json?: string };
 type RemediationRow = { id: string; workspace_id: number; scope_id: string; finding_id: string; status: string };
 
 const uuid = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 const authorizationCurrent = (scope: SecurityScopeRow) => scope.status === "verified" && Boolean(scope.authorization_expires_at) && Date.parse(scope.authorization_expires_at!) > Date.now();
-const integrations = (env: SecurityDeliveryEnv) => ({ isolatedRunner: Boolean(env.SECURITY_ACTIVE_RUNNER), repositoryConnector: Boolean(env.GITHUB_APP_ID?.trim()) });
+const integrations = (env: SecurityDeliveryEnv) => ({ isolatedRunner: Boolean(env.SECURITY_ACTIVE_RUNNER && env.SECURITY_RUNNER_SIGNING_KEY?.trim()), repositoryConnector: Boolean(env.GITHUB_APP_ID?.trim()) });
+
+async function runnerSignature(secret: string, timestamp: string, body: string) {
+  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
+  const signed = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${timestamp}.${body}`));
+  return Array.from(new Uint8Array(signed), (byte) => byte.toString(16).padStart(2, "0")).join("");
+}
+
+async function dispatchIsolatedRunner(env: SecurityDeliveryEnv, scope: SecurityScopeRow, campaign: CampaignRow) {
+  const runner = env.SECURITY_ACTIVE_RUNNER;
+  const signingKey = env.SECURITY_RUNNER_SIGNING_KEY?.trim();
+  if (!runner || !signingKey || signingKey.length < 32) throw new Error("CAMPAIGN_EXECUTOR_NOT_CONFIGURED");
+  const techniques = JSON.parse(campaign.techniques_json) as Array<keyof typeof securityTechniqueCatalog>;
+  if (!techniques.length || techniques.some((technique) => securityTechniqueCatalog[technique]?.execution !== "isolated_runner" || securityTechniqueCatalog[technique]?.requiresTestCredentials)) throw new Error("CAMPAIGN_EXECUTOR_NOT_CONFIGURED");
+  const manifest = {
+    version: 1,
+    campaignId: campaign.id,
+    workspaceId: campaign.workspace_id,
+    scope: { domain: scope.domain },
+    name: campaign.name,
+    environment: campaign.environment,
+    techniques,
+    policyVersion: campaign.policy_version,
+    window: { start: campaign.window_start, end: campaign.window_end },
+    budgets: { requestsPerMinute: campaign.max_requests_per_minute, totalRequests: campaign.max_total_requests },
+    stopConditions: JSON.parse(campaign.stop_conditions_json ?? "{}") as unknown,
+  };
+  const body = JSON.stringify(manifest);
+  const timestamp = String(Math.floor(Date.now() / 1000));
+  const response = await runner.fetch(new Request("https://security-runner.internal/v1/jobs", { method: "POST", headers: { "Content-Type": "application/json", "X-CBSHub-Timestamp": timestamp, "X-CBSHub-Signature": `sha256=${await runnerSignature(signingKey, timestamp, body)}` }, body }));
+  if (response.status !== 202) throw new Error("CAMPAIGN_RUNNER_REJECTED");
+  const result = await response.json().catch(() => null) as { jobId?: unknown } | null;
+  if (!result || typeof result.jobId !== "string" || !/^run_[a-z0-9-]{8,80}$/i.test(result.jobId)) throw new Error("CAMPAIGN_RUNNER_RESPONSE_INVALID");
+  return { runnerJobId: result.jobId, manifest };
+}
 
 export async function createSecurityCampaign(env: SecurityDeliveryEnv, scope: SecurityScopeRow, actorUserId: number, raw: unknown) {
   if (!authorizationCurrent(scope)) throw new Error("CAMPAIGN_SCOPE_NOT_AUTHORIZED");
@@ -62,14 +96,23 @@ export async function dispatchSecurityCampaign(env: SecurityDeliveryEnv & Securi
   if (args.executionConfirmed !== true) throw new Error("CAMPAIGN_EXECUTION_CONFIRMATION_REQUIRED");
   if (!authorizationCurrent(args.scope)) throw new Error("CAMPAIGN_SCOPE_NOT_AUTHORIZED");
   if (typeof args.campaignId !== "string" || !/^sac_[0-9a-f-]{36}$/i.test(args.campaignId)) throw new Error("CAMPAIGN_INVALID");
-  const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, techniques_json, window_start, window_end FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scope.id).first<CampaignRow>();
+  const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scope.id).first<CampaignRow>();
   if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
   if (campaign.status !== "approved") throw new Error("CAMPAIGN_STATE_INVALID");
   const nowMs = Date.now();
   if (!campaign.window_start || !campaign.window_end || nowMs < Date.parse(campaign.window_start)) throw new Error("CAMPAIGN_WINDOW_NOT_STARTED");
   if (nowMs > Date.parse(campaign.window_end)) throw new Error("CAMPAIGN_WINDOW_EXPIRED");
   const techniques = JSON.parse(campaign.techniques_json) as Parameters<typeof campaignExecutionReadiness>[0]["techniques"];
-  if (techniques.length !== 1 || techniques[0] !== "passive_external_posture") throw new Error("CAMPAIGN_EXECUTOR_NOT_CONFIGURED");
+  if (techniques.length !== 1 || techniques[0] !== "passive_external_posture") {
+    const dispatched = await dispatchIsolatedRunner(env, args.scope, campaign);
+    const now = new Date().toISOString();
+    await env.DB.batch([
+      env.DB.prepare("UPDATE security_campaigns SET status = 'queued', executor = 'isolated_runner', runner_job_id = ?, updated_at = ? WHERE id = ? AND status = 'approved'").bind(dispatched.runnerJobId, now, campaign.id),
+      env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, 'campaign.dispatched', ?, ?)")
+        .bind(uuid("sace"), args.workspaceId, campaign.id, args.actorUserId, JSON.stringify({ runnerJobId: dispatched.runnerJobId, executor: "isolated_runner", policyVersion: SECURITY_CAMPAIGN_POLICY_VERSION, techniques }), now),
+    ]);
+    return { id: campaign.id, status: "queued" as const, runnerJobId: dispatched.runnerJobId, executor: "isolated_runner" as const };
+  }
   const job = await enqueueSecurityAgentJob(env, args.scope, args.actorUserId, "manual");
   const now = new Date().toISOString();
   const status = job.status === "queued" ? "queued" : "completed";

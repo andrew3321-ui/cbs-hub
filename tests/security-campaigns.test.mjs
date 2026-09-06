@@ -84,3 +84,38 @@ test("campaign and remediation lifecycle remains audited without dispatch or ext
     assert.equal(sqlite.prepare("SELECT COUNT(*) total FROM security_remediation_events").get().total, 2);
   } finally { globalThis.fetch = originalFetch; sqlite.close(); }
 });
+
+test("isolated runner receives a signed bounded manifest without arbitrary commands", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  try {
+    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
+    const DB = {
+      prepare(sql) {
+        const statement = sqlite.prepare(sql);
+        const bound = (values) => ({ first: async () => statement.get(...values) ?? null, all: async () => ({ results: statement.all(...values) }), run: async () => ({ meta: { changes: Number(statement.run(...values).changes) } }) });
+        return { ...bound([]), bind: (...values) => bound(values) };
+      },
+      batch: async (statements) => Promise.all(statements.map((statement) => statement.run())),
+    };
+    const requests = [];
+    const runner = { fetch: async (request) => { requests.push(request); return Response.json({ jobId: "run_bounded-0001" }, { status: 202 }); } };
+    const env = { DB, SECURITY_ACTIVE_RUNNER: runner, SECURITY_RUNNER_SIGNING_KEY: "runner-signing-key-with-more-than-thirty-two-characters" };
+    const now = new Date().toISOString();
+    const scope = { id: "scope", workspace_id: 42, domain: "example.com", status: "verified", verification_token: "expected", authorization_attested_at: now, authorization_expires_at: new Date(Date.now() + 86400_000).toISOString(), authorization_version: "test", monitoring_enabled: 0 };
+    const input = { ...futureCampaign(), name: "TLS seguro em homologação", techniques: ["safe_web_crawl", "tls_configuration_review"] };
+    const campaign = await createSecurityCampaign(env, scope, 7, input);
+    assert.equal(campaign.readiness.ready, true);
+    await approveSecurityCampaign(env, { workspaceId: 42, scope, campaignId: campaign.id, actorUserId: 8, approvalConfirmed: true });
+    sqlite.prepare("UPDATE security_campaigns SET window_start = ?, window_end = ? WHERE id = ?").run(new Date(Date.now() - 60_000).toISOString(), new Date(Date.now() + 3600_000).toISOString(), campaign.id);
+    const dispatched = await dispatchSecurityCampaign(env, { workspaceId: 42, scope, campaignId: campaign.id, actorUserId: 8, executionConfirmed: true });
+    assert.equal(dispatched.executor, "isolated_runner");
+    assert.equal(requests.length, 1);
+    const request = requests[0];
+    assert.match(request.headers.get("x-cbshub-signature"), /^sha256=[0-9a-f]{64}$/);
+    const manifest = JSON.parse(await request.text());
+    assert.deepEqual(manifest.techniques, ["safe_web_crawl", "tls_configuration_review"]);
+    assert.deepEqual(manifest.budgets, { requestsPerMinute: 20, totalRequests: 200 });
+    assert.equal(Object.hasOwn(manifest, "command"), false);
+    assert.equal(sqlite.prepare("SELECT status, executor, runner_job_id FROM security_campaigns").get().runner_job_id, "run_bounded-0001");
+  } finally { sqlite.close(); }
+});

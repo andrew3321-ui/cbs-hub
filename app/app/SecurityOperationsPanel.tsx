@@ -16,7 +16,7 @@ const coverageFields = [
 
 export default function SecurityOperationsPanel({ scopeId, disabled, playbooks, mode, onTriage }: {
   scopeId: string; disabled: boolean; playbooks: OperationalPlaybook[]; mode?: string;
-  onTriage: (action: string, payload: Record<string, unknown>) => Promise<void>;
+  onTriage: (action: string, payload: Record<string, unknown>) => Promise<unknown>;
 }) {
   const [localError, setLocalError] = useState("");
   async function submit(event: FormEvent<HTMLFormElement>) {

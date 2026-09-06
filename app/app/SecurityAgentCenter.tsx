@@ -8,6 +8,7 @@ import type { OperationalPlaybook } from "../../domain/security-operations";
 import SecurityFindingsBoard, { type SecurityFinding, type SecurityMember } from "./SecurityFindingsBoard";
 import SecurityDeliveryPanel, { type SecurityCampaign, type SecurityRemediation } from "./SecurityDeliveryPanel";
 import type { SecurityTechniqueId } from "../../domain/security-campaign-policy";
+import SecurityDefensePanel, { type DefenseAction, type DefenseConnector, type DefenseIncident } from "./SecurityDefensePanel";
 
 type Verification = { type: string; name: string; value: string };
 type Scope = { id: string; domain: string; status: "pending" | "verified"; verifiedAt: string | null; authorizationExpiresAt: string | null; authorizationCurrent: boolean; monitoringEnabled: boolean; nextScanAt: string | null; lastScanAt: string | null; verification: Verification | null };
@@ -15,7 +16,7 @@ type Check = { code: string; title: string; status: string; detail: string; acti
 type Assessment = { executiveSummary: string; riskLevel: string; confidence?: string; priorities: Array<{ title: string; severity: string; why: string; recommendation: string; evidenceCodes: string[] }>; positiveSignals: string[]; uncertainties?: string[]; limitations: string[] };
 type Job = { id: string; scopeId: string; trigger: string; mode: string; playbooks: OperationalPlaybook[]; status: string; scan: { posture?: { score?: number }; checks?: Check[]; fingerprint?: string } | null; assessment: Assessment | null; provider: string | null; model: string | null; primaryModel: string | null; reviewModel: string | null; reviewReason: string | null; providerUsage: unknown; errorCode: string | null; findingSyncStatus: string; findingSyncError: string | null; startedAt: string; completedAt: string | null };
 type Technique = { label: string; execution: string; risk: string; requiresRepository: boolean; requiresTestCredentials: boolean };
-type AgentData = { canManage: boolean; aiConfigured: boolean; modelRouting: { primary: string; review: string }; scopes: Scope[]; jobs: Job[]; findings: SecurityFinding[]; members: SecurityMember[]; campaigns: SecurityCampaign[]; remediations: SecurityRemediation[]; techniqueCatalog: Record<SecurityTechniqueId, Technique>; integrations: { isolatedRunner: boolean; repositoryConnector: boolean } };
+type AgentData = { canManage: boolean; aiConfigured: boolean; modelRouting: { primary: string; review: string }; scopes: Scope[]; jobs: Job[]; findings: SecurityFinding[]; members: SecurityMember[]; campaigns: SecurityCampaign[]; remediations: SecurityRemediation[]; defenseConnectors: DefenseConnector[]; defenseIncidents: DefenseIncident[]; defenseActions: DefenseAction[]; techniqueCatalog: Record<SecurityTechniqueId, Technique>; integrations: { isolatedRunner: boolean; repositoryConnector: boolean } };
 
 const severityLabel: Record<string, string> = { critical: "Crítico", high: "Alto", medium: "Médio", low: "Baixo" };
 
@@ -56,13 +57,13 @@ export default function SecurityAgentCenter() {
     return entries;
   }, [data]);
 
-  async function act(action: string, payload: Record<string, unknown>) {
+  async function act(action: string, payload: Record<string, unknown>): Promise<Record<string, unknown> | undefined> {
     setBusy(`${action}:${String(payload.scopeId ?? domain)}`);
     setError("");
     setMessage("");
     try {
       const response = await fetch("/api/security-agent", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, ...payload }) });
-      const result = await response.json() as { error?: string; verified?: boolean; job?: { status?: string } };
+      const result = await response.json() as Record<string, unknown> & { error?: string; verified?: boolean; job?: { status?: string } };
       if (!response.ok) throw new Error(result.error || (response.status === 409 ? "A alteração ainda não foi confirmada." : "Operação não concluída."));
       if (action === "create_scope") { setDomain(""); setAuthorized(false); setMessage("Escopo criado. Publique o registro TXT indicado para comprovar a titularidade."); }
       if (action === "verify_scope") setMessage("Titularidade confirmada. O agente está liberado para este domínio.");
@@ -77,7 +78,12 @@ export default function SecurityAgentCenter() {
       if (action === "cancel_campaign") setMessage("Campanha cancelada e registrada na auditoria.");
       if (action === "create_remediation") setMessage("Proposta de correção criada sem alterar o repositório.");
       if (action === "decide_remediation") setMessage("Decisão sobre a proposta registrada. Nenhuma alteração externa foi executada.");
+      if (action === "create_defense_connector") setMessage("Canal de telemetria criado. Armazene a credencial exibida antes de sair da página.");
+      if (action === "set_defense_connector") setMessage(payload.enabled ? "Ingestão defensiva retomada." : "Ingestão defensiva pausada.");
+      if (action === "update_defense_incident") setMessage("Estado do incidente atualizado na trilha de auditoria.");
+      if (action === "revoke_defense_action") setMessage("Resposta automática revogada imediatamente.");
       await load();
+      return result;
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Operação não concluída.");
     } finally { setBusy(""); }
@@ -156,8 +162,9 @@ export default function SecurityAgentCenter() {
               {latest?.status === "failed" ? <p className="security-agent-alert error" role="alert">A análise falhou. Verifique a autorização e tente novamente. Código: {latest.errorCode ?? "SCAN_FAILED"}</p> : null}
               {latest?.status === "completed" && latest.findingSyncStatus === "failed" ? <p className="security-agent-alert error" role="alert">A análise terminou, mas a fila de achados não foi sincronizada. Código: {latest.findingSyncError ?? "FINDING_SYNC_FAILED"}</p> : null}
               {latest?.assessment && latest.status === "completed" ? <div className="security-agent-report"><div className="security-agent-report-head"><span>{latest.mode === "blue_team" ? "BLUE TEAM · CONTAGENS INFORMADAS" : "DIAGNÓSTICO PASSIVO"} · {latest.provider?.startsWith("openai") ? latest.reviewModel ? "OPENAI · REVISADO" : "OPENAI" : "MOTOR CBSHUB"}</span><b className={`risk-${latest.assessment.riskLevel}`}>{severityLabel[latest.assessment.riskLevel] ?? latest.assessment.riskLevel}</b></div><p>{latest.assessment.executiveSummary}</p><div className="security-agent-priorities">{latest.assessment.priorities.map((priority, index) => <div key={`${priority.title}-${index}`}><span>{String(index + 1).padStart(2, "0")}</span><section><b>{priority.title}</b><p>{priority.why}</p><small>{priority.recommendation}</small><p>Evidência: {priority.evidenceCodes.join(", ")}</p></section></div>)}</div>{latest.assessment.limitations.map((limitation) => <p key={limitation} className="security-operations-note">{limitation}</p>)}<footer>Motor: {latest.primaryModel ?? latest.model}{latest.reviewModel ? ` → ${latest.reviewModel} (revisão automática)` : ""} · Confiança: {latest.assessment.confidence ?? "não informada"} · Evidência: {latest.scan?.fingerprint ?? "registrada"} · Validação humana recomendada</footer></div> : null}
+              <SecurityDefensePanel scopeId={scope.id} disabled={!data?.canManage || Boolean(busy) || scope.status !== "verified"} connectors={data?.defenseConnectors ?? []} incidents={data?.defenseIncidents ?? []} actions={data?.defenseActions ?? []} onAction={act} />
               <SecurityOperationsPanel scopeId={scope.id} disabled={!data?.canManage || Boolean(busy) || jobActive || scope.status !== "verified" || authorizationExpired} playbooks={latest?.playbooks ?? []} mode={latest?.mode} onTriage={act} />
-              <SecurityFindingsBoard scopeId={scope.id} findings={data?.findings ?? []} members={data?.members ?? []} disabled={!data?.canManage || Boolean(busy)} onUpdate={act} />
+              <SecurityFindingsBoard scopeId={scope.id} findings={data?.findings ?? []} members={data?.members ?? []} disabled={!data?.canManage || Boolean(busy)} onUpdate={async (action, payload) => { await act(action, payload); }} />
               {data ? <SecurityDeliveryPanel scopeId={scope.id} disabled={!data.canManage || Boolean(busy) || scope.status !== "verified" || authorizationExpired} campaigns={data.campaigns} remediations={data.remediations} findings={data.findings} techniqueCatalog={data.techniqueCatalog} integrations={data.integrations} onAction={act} /> : null}
             </article>
           );

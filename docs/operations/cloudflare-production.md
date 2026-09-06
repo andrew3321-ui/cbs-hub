@@ -32,6 +32,8 @@ Variáveis de runtime ficam em **Worker > Settings > Variables and Secrets**. Se
 | `PUBLIC_APP_URL` | runtime | não | URL canônica usada em retorno, webhook e compartilhamentos |
 | `OBSERVABILITY_SLOW_REQUEST_MS` | runtime | não | limite para alerta estruturado de latência |
 | `SECURITY_HASH_KEY` | runtime | sim | HMAC de antifraude e limitação de abuso |
+| `SECURITY_INGEST_SIGNING_KEY` | runtime | sim | deriva credenciais HMAC individuais dos conectores de telemetria |
+| `SECURITY_RUNNER_SIGNING_KEY` | runtime | sim | assina manifests enviados ao runner isolado |
 | `SCENARIO_SIGNING_KEY_V1` | runtime | sim | assinatura de cenários e decisões |
 | `MERCADO_PAGO_ACCESS_TOKEN` | runtime | sim | conciliação e cobrança |
 | `MERCADO_PAGO_WEBHOOK_SECRET` | runtime | sim | autenticação HMAC do webhook |
@@ -49,6 +51,8 @@ Variáveis de runtime ficam em **Worker > Settings > Variables and Secrets**. Se
 | `SMOKE_STRICT` | build | não | usar `1` para exigir todos os fluxos autenticados |
 
 Nenhum valor secreto deve ser salvo no Git, D1, logs ou documentação.
+
+Os crons versionados executam expiração de contenções a cada cinco minutos, rotinas operacionais às 08:15 UTC e o monitor passivo às 12:45 UTC. O service binding `SECURITY_ACTIVE_RUNNER` permanece ausente até que o runner isolado seja publicado e passe a validar assinatura, janela, domínio, orçamento e condições de interrupção de forma independente.
 
 ### Ativação do agente de segurança
 

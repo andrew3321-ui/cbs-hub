@@ -26,6 +26,7 @@ generated.compatibility_date = production.compatibility_date;
 generated.workers_dev = false;
 generated.preview_urls = false;
 generated.version_metadata = production.version_metadata ?? generated.version_metadata;
+generated.triggers = production.triggers ?? generated.triggers;
 generated.queues = production.queues ?? generated.queues;
 generated.d1_databases = [{
   binding: "DB",

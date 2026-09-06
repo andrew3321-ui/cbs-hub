@@ -1826,3 +1826,101 @@ export const securityAgentEvents = sqliteTable("security_agent_events", {
   index("security_agent_events_scope_created_idx").on(table.scopeId, table.createdAt, table.id),
   index("security_agent_events_workspace_created_idx").on(table.workspaceId, table.createdAt, table.id),
 ]);
+
+export const securityDefenseConnectors = sqliteTable("security_defense_connectors", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  scopeId: text("scope_id").notNull(),
+  provider: text("provider").notNull().default("signed_webhook"),
+  mode: text("mode").notNull().default("observe"),
+  enforcement: text("enforcement").notNull().default("observe_only"),
+  status: text("status").notNull().default("active"),
+  keySalt: text("key_salt").notNull(),
+  lastSignalAt: text("last_signal_at"),
+  createdByUserId: integer("created_by_user_id").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("security_defense_connectors_scope_provider_idx").on(table.scopeId, table.provider),
+  index("security_defense_connectors_workspace_status_idx").on(table.workspaceId, table.status, table.updatedAt, table.id),
+]);
+
+export const securityDefenseSignals = sqliteTable("security_defense_signals", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  scopeId: text("scope_id").notNull(),
+  connectorId: text("connector_id").notNull(),
+  externalEventId: text("external_event_id").notNull(),
+  signalType: text("signal_type").notNull(),
+  confidence: text("confidence").notNull(),
+  severity: text("severity").notNull(),
+  occurrenceCount: integer("occurrence_count").notNull(),
+  windowSeconds: integer("window_seconds").notNull(),
+  sourceHash: text("source_hash"),
+  resource: text("resource").notNull(),
+  summary: text("summary").notNull(),
+  attributesJson: text("attributes_json").notNull().default("{}"),
+  decisionJson: text("decision_json").notNull(),
+  policyVersion: text("policy_version").notNull(),
+  occurredAt: text("occurred_at").notNull(),
+  receivedAt: text("received_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("security_defense_signals_connector_event_idx").on(table.connectorId, table.externalEventId),
+  index("security_defense_signals_scope_occurred_idx").on(table.scopeId, table.occurredAt, table.id),
+]);
+
+export const securityDefenseIncidents = sqliteTable("security_defense_incidents", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  scopeId: text("scope_id").notNull(),
+  correlationKey: text("correlation_key").notNull(),
+  category: text("category").notNull(),
+  severity: text("severity").notNull(),
+  status: text("status").notNull().default("open"),
+  title: text("title").notNull(),
+  summary: text("summary").notNull(),
+  occurrenceCount: integer("occurrence_count").notNull().default(1),
+  autoContained: integer("auto_contained", { mode: "boolean" }).notNull().default(false),
+  firstObservedAt: text("first_observed_at").notNull(),
+  lastObservedAt: text("last_observed_at").notNull(),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  uniqueIndex("security_defense_incidents_scope_correlation_idx").on(table.scopeId, table.correlationKey),
+  index("security_defense_incidents_workspace_status_idx").on(table.workspaceId, table.status, table.severity, table.lastObservedAt, table.id),
+]);
+
+export const securityResponseActions = sqliteTable("security_response_actions", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  scopeId: text("scope_id").notNull(),
+  incidentId: text("incident_id").notNull(),
+  actionType: text("action_type").notNull(),
+  autonomy: text("autonomy").notNull(),
+  status: text("status").notNull(),
+  targetHash: text("target_hash"),
+  reason: text("reason").notNull(),
+  enforcement: text("enforcement").notNull(),
+  expiresAt: text("expires_at"),
+  decidedByUserId: integer("decided_by_user_id"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("security_response_actions_scope_status_idx").on(table.scopeId, table.status, table.expiresAt, table.id),
+  index("security_response_actions_target_active_idx").on(table.targetHash, table.status, table.expiresAt, table.id),
+]);
+
+export const securityDefenseEvents = sqliteTable("security_defense_events", {
+  id: text("id").primaryKey(),
+  workspaceId: integer("workspace_id").notNull(),
+  scopeId: text("scope_id").notNull(),
+  incidentId: text("incident_id"),
+  actionId: text("action_id"),
+  actorUserId: integer("actor_user_id"),
+  eventType: text("event_type").notNull(),
+  detailsJson: text("details_json").notNull().default("{}"),
+  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+}, (table) => [
+  index("security_defense_events_scope_created_idx").on(table.scopeId, table.createdAt, table.id),
+  index("security_defense_events_incident_created_idx").on(table.incidentId, table.createdAt, table.id),
+]);

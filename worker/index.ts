@@ -5,11 +5,14 @@ import { runScheduledBillingReconciliation } from "../app/billing-scheduled-reco
 import { runSearchConsoleSync } from "../app/search-console-service";
 import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
 import { processSecurityAgentQueueMessage, runScheduledSecurityAgent, type SecurityAgentQueueMessage } from "../app/security-agent-service";
+import { activeEdgeBlock, expireDefenseActions } from "../app/security-defense-service";
 
 interface Env {
   ASSETS: Fetcher;
   DB: D1Database;
   SECURITY_HASH_KEY?: string;
+  SECURITY_INGEST_SIGNING_KEY?: string;
+  SECURITY_RUNNER_SIGNING_KEY?: string;
   PUBLIC_APP_URL?: string;
   OBSERVABILITY_SLOW_REQUEST_MS?: string;
   GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL?: string;
@@ -20,6 +23,9 @@ interface Env {
   OPENAI_SECURITY_REVIEW_MODEL?: string;
   SECURITY_SCAN_QUEUE?: {
     send(message: SecurityAgentQueueMessage): Promise<void>;
+  };
+  SECURITY_ACTIVE_RUNNER?: {
+    fetch(request: Request): Promise<Response>;
   };
   CF_VERSION_METADATA?: {
     id: string;
@@ -102,6 +108,7 @@ function maximumBodyBytes(pathname: string) {
   if (pathname.startsWith("/api/auth/")) return 16 * 1024;
   if (pathname === "/api/public/cybersecurity-preview") return 4 * 1024;
   if (pathname === "/api/security-agent") return 16 * 1024;
+  if (pathname === "/api/security/telemetry") return 16 * 1024;
   if (pathname === "/api/billing/webhook") return 64 * 1024;
   return 1024 * 1024;
 }
@@ -116,6 +123,7 @@ function rateLimitRule(pathname: string, method: string): RateLimitRule | null {
   if (pathname === "/api/billing/checkout" || pathname === "/api/billing/pix") return { scope: "billing-checkout", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/public/cybersecurity-preview") return { scope: "public-cyber-preview", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/security-agent") return { scope: "security-agent", limit: 12, windowSeconds: 10 * 60 };
+  if (pathname === "/api/security/telemetry") return { scope: "security-telemetry", limit: 300, windowSeconds: 60 };
   if (pathname.startsWith("/api/admin/")) return { scope: "platform-admin", limit: 30, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/")) return { scope: "api-write", limit: 120, windowSeconds: 60 };
   return null;
@@ -195,6 +203,8 @@ function runSecurityRetentionCleanup(env: Env) {
     env.DB.prepare("DELETE FROM security_agent_jobs WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_campaign_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_remediation_events WHERE created_at < datetime('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM security_defense_signals WHERE received_at < datetime('now', '-180 days')"),
+    env.DB.prepare("DELETE FROM security_defense_events WHERE created_at < datetime('now', '-365 days')"),
   ]);
 }
 
@@ -233,7 +243,13 @@ const worker = {
     if (request.url.length > 4096) return finalize(jsonError(414, "Endereço da requisição muito longo.", "URI_TOO_LONG"));
     const declaredLength = Number(request.headers.get("content-length") ?? 0);
     if (Number.isFinite(declaredLength) && declaredLength > maximumBodyBytes(url.pathname)) return finalize(jsonError(413, "Conteúdo acima do limite permitido.", "PAYLOAD_TOO_LARGE"));
-    if (url.pathname.startsWith("/api/") && stateChangingMethods.has(request.method) && url.pathname !== "/api/billing/webhook" && !sameOriginRequest(request)) {
+    const activeBlock = await activeEdgeBlock(env, request);
+    if (activeBlock) {
+      const retryAfter = Math.max(1, Math.ceil((Date.parse(activeBlock.expires_at) - Date.now()) / 1000));
+      console.warn(JSON.stringify({ event: "security_defense.edge_blocked", requestId, actionId: activeBlock.id, route: url.pathname, retryAfter }));
+      return finalize(jsonError(403, "Origem temporariamente bloqueada pela política de segurança.", "SECURITY_TEMPORARY_BLOCK", { "Retry-After": String(retryAfter) }));
+    }
+    if (url.pathname.startsWith("/api/") && stateChangingMethods.has(request.method) && url.pathname !== "/api/billing/webhook" && url.pathname !== "/api/security/telemetry" && !sameOriginRequest(request)) {
       return finalize(jsonError(403, "Origem da requisição não autorizada.", "CROSS_SITE_REQUEST_BLOCKED"));
     }
     const limitRule = rateLimitRule(url.pathname, request.method);
@@ -271,16 +287,26 @@ const worker = {
   },
   async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
     const date = new Date(controller.scheduledTime).toISOString().slice(0, 10);
-    ctx.waitUntil(runScheduledBillingReconciliation(controller.scheduledTime).then((summary) => {
-      console.info(JSON.stringify({ event: "billing.reconciliation_completed", date, cron: controller.cron, ...summary }));
-    }).catch((error) => {
-      console.error(JSON.stringify({
-        event: "billing.reconciliation_failed",
-        date,
-        error: error instanceof Error ? error.name : "UnknownError",
+    if (controller.cron !== "*/5 * * * *") {
+      ctx.waitUntil(runScheduledBillingReconciliation(controller.scheduledTime).then((summary) => {
+        console.info(JSON.stringify({ event: "billing.reconciliation_completed", date, cron: controller.cron, ...summary }));
+      }).catch((error) => {
+        console.error(JSON.stringify({
+          event: "billing.reconciliation_failed",
+          date,
+          error: error instanceof Error ? error.name : "UnknownError",
+        }));
+        throw error;
       }));
-      throw error;
-    }));
+    }
+    if (controller.cron === "*/5 * * * *") {
+      ctx.waitUntil(expireDefenseActions(env).then((result) => {
+        if (result.expired) console.info(JSON.stringify({ event: "security_defense.responses_expired", date, ...result }));
+      }).catch((error) => {
+        console.error(JSON.stringify({ event: "security_defense.expiration_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
+    }
     if (controller.cron === "15 8 * * *") {
       ctx.waitUntil(runSecurityRetentionCleanup(env).catch((error) => {
         console.error(JSON.stringify({ event: "security.retention_cleanup_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
