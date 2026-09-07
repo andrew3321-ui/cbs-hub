@@ -400,6 +400,13 @@
       "when": 1788570000000,
       "tag": "0056_continuous_defense",
       "breakpoints": true
+    },
+    {
+      "idx": 57,
+      "version": "6",
+      "when": 1788742800000,
+      "tag": "0057_cloudflare_customer_connector",
+      "breakpoints": true
     }
   ]
 }

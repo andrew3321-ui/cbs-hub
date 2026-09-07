@@ -18,7 +18,7 @@ import { securityKnowledgeForCode, SECURITY_KNOWLEDGE_VERSION } from "../../../d
 import { approveSecurityCampaign, cancelSecurityCampaign, createRemediationProposal, createSecurityCampaign, decideRemediationProposal, dispatchSecurityCampaign, type SecurityDeliveryEnv } from "../../security-campaign-service";
 import { SECURITY_CAMPAIGN_POLICY_VERSION, securityTechniqueCatalog } from "../../../domain/security-campaign-policy";
 import { SECURITY_DEFENSE_POLICY_VERSION } from "../../../domain/security-defense-policy";
-import { createDefenseConnector, revokeDefenseAction, setDefenseConnectorStatus, updateDefenseIncident, type SecurityDefenseEnv } from "../../security-defense-service";
+import { checkCloudflareDefenseConnector, connectCloudflareDefenseConnector, createDefenseConnector, disconnectCloudflareDefenseConnector, revokeDefenseAction, setDefenseConnectorStatus, updateDefenseIncident, type SecurityDefenseEnv } from "../../security-defense-service";
 
 type JobRow = {
   id: string;
@@ -45,7 +45,7 @@ type FindingRow = { id: string; scope_id: string; source_job_id: string; evidenc
 type MemberRow = { user_id: number; role: string; username: string | null; name: string };
 type CampaignRow = { id: string; scope_id: string; name: string; environment: string; techniques_json: string; policy_version: string; window_start: string; window_end: string; max_requests_per_minute: number; max_total_requests: number; stop_conditions_json: string; status: string; readiness_json: string; agent_job_id: string | null; executor: string | null; runner_job_id: string | null; approved_at: string | null; cancelled_at: string | null; created_at: string; updated_at: string };
 type RemediationRow = { id: string; scope_id: string; finding_id: string; provider: string; repository_full_name: string; base_branch: string; strategy: string; status: string; approved_at: string | null; external_pr_url: string | null; created_at: string; updated_at: string };
-type DefenseConnectorRow = { id: string; scope_id: string; provider: string; mode: string; enforcement: string; status: string; last_signal_at: string | null; created_at: string; updated_at: string };
+type DefenseConnectorRow = { id: string; scope_id: string; provider: string; mode: string; enforcement: string; status: string; external_zone_id: string | null; capabilities_json: string; last_health_at: string | null; last_error_code: string | null; last_signal_at: string | null; created_at: string; updated_at: string };
 type DefenseIncidentRow = { id: string; scope_id: string; category: string; severity: string; status: string; title: string; summary: string; occurrence_count: number; auto_contained: number; first_observed_at: string; last_observed_at: string; updated_at: string };
 type DefenseActionRow = { id: string; scope_id: string; incident_id: string; action_type: string; autonomy: string; status: string; reason: string; enforcement: string; expires_at: string | null; created_at: string; updated_at: string };
 
@@ -83,7 +83,7 @@ async function getAgent() {
     db.prepare("SELECT wm.user_id, wm.role, u.username, u.name FROM workspace_members wm JOIN users u ON u.id = wm.user_id WHERE wm.workspace_id = ? AND wm.status = 'active' ORDER BY u.name, wm.user_id").bind(current.workspace.id).all<MemberRow>(),
     db.prepare("SELECT id, scope_id, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json, status, readiness_json, agent_job_id, executor, runner_job_id, approved_at, cancelled_at, created_at, updated_at FROM security_campaigns WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 30").bind(current.workspace.id).all<CampaignRow>(),
     db.prepare("SELECT id, scope_id, finding_id, provider, repository_full_name, base_branch, strategy, status, approved_at, external_pr_url, created_at, updated_at FROM security_remediation_proposals WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 50").bind(current.workspace.id).all<RemediationRow>(),
-    db.prepare("SELECT id, scope_id, provider, mode, enforcement, status, last_signal_at, created_at, updated_at FROM security_defense_connectors WHERE workspace_id = ? AND status <> 'revoked' ORDER BY created_at DESC").bind(current.workspace.id).all<DefenseConnectorRow>(),
+    db.prepare("SELECT id, scope_id, provider, mode, enforcement, status, external_zone_id, capabilities_json, last_health_at, last_error_code, last_signal_at, created_at, updated_at FROM security_defense_connectors WHERE workspace_id = ? AND status <> 'revoked' ORDER BY created_at DESC").bind(current.workspace.id).all<DefenseConnectorRow>(),
     db.prepare("SELECT id, scope_id, category, severity, status, title, summary, occurrence_count, auto_contained, first_observed_at, last_observed_at, updated_at FROM security_defense_incidents WHERE workspace_id = ? ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, last_observed_at DESC LIMIT 100").bind(current.workspace.id).all<DefenseIncidentRow>(),
     db.prepare("SELECT id, scope_id, incident_id, action_type, autonomy, status, reason, enforcement, expires_at, created_at, updated_at FROM security_response_actions WHERE workspace_id = ? ORDER BY created_at DESC LIMIT 100").bind(current.workspace.id).all<DefenseActionRow>(),
   ]);
@@ -96,13 +96,13 @@ async function getAgent() {
     campaignPolicyVersion: SECURITY_CAMPAIGN_POLICY_VERSION,
     defensePolicyVersion: SECURITY_DEFENSE_POLICY_VERSION,
     techniqueCatalog: securityTechniqueCatalog,
-    integrations: { isolatedRunner: Boolean(deliveryEnv.SECURITY_ACTIVE_RUNNER && deliveryEnv.SECURITY_RUNNER_SIGNING_KEY?.trim()), repositoryConnector: Boolean(deliveryEnv.GITHUB_APP_ID?.trim()) },
+    integrations: { isolatedRunner: Boolean(deliveryEnv.SECURITY_ACTIVE_RUNNER && deliveryEnv.SECURITY_RUNNER_SIGNING_KEY?.trim()), repositoryConnector: Boolean(deliveryEnv.GITHUB_APP_ID?.trim()), cloudflareCredentialVault: Boolean((runtime() as SecurityAgentEnv & SecurityDefenseEnv).SECURITY_CONNECTOR_ENCRYPTION_KEY?.trim()) },
     entitlements,
     members: members.results.map((member) => ({ id: member.user_id, role: member.role, label: member.username || member.name || `Usuário ${member.user_id}` })),
     findings: findings.results.map((finding) => ({ id: finding.id, scopeId: finding.scope_id, sourceJobId: finding.source_job_id, evidenceCode: finding.evidence_code, title: finding.title, severity: finding.severity, status: finding.status, assignedUserId: finding.assigned_user_id, dueAt: finding.due_at, resolutionSummary: finding.resolution_summary, occurrenceCount: finding.occurrence_count, firstObservedAt: finding.first_observed_at, lastObservedAt: finding.last_observed_at, closedAt: finding.closed_at, updatedAt: finding.updated_at, knowledge: securityKnowledgeForCode(finding.evidence_code) })),
     campaigns: campaigns.results.map((campaign) => ({ id: campaign.id, scopeId: campaign.scope_id, name: campaign.name, environment: campaign.environment, techniques: parseJson(campaign.techniques_json), policyVersion: campaign.policy_version, windowStart: campaign.window_start, windowEnd: campaign.window_end, maxRequestsPerMinute: campaign.max_requests_per_minute, maxTotalRequests: campaign.max_total_requests, stopConditions: parseJson(campaign.stop_conditions_json), status: campaign.status, readiness: parseJson(campaign.readiness_json), agentJobId: campaign.agent_job_id, executor: campaign.executor, runnerJobId: campaign.runner_job_id, approvedAt: campaign.approved_at, cancelledAt: campaign.cancelled_at, createdAt: campaign.created_at, updatedAt: campaign.updated_at })),
     remediations: remediations.results.map((proposal) => ({ id: proposal.id, scopeId: proposal.scope_id, findingId: proposal.finding_id, provider: proposal.provider, repository: proposal.repository_full_name, baseBranch: proposal.base_branch, strategy: proposal.strategy, status: proposal.status, approvedAt: proposal.approved_at, externalPrUrl: proposal.external_pr_url, createdAt: proposal.created_at, updatedAt: proposal.updated_at })),
-    defenseConnectors: defenseConnectors.results.map((connector) => ({ id: connector.id, scopeId: connector.scope_id, provider: connector.provider, mode: connector.mode, enforcement: connector.enforcement, status: connector.status, lastSignalAt: connector.last_signal_at, createdAt: connector.created_at, updatedAt: connector.updated_at })),
+    defenseConnectors: defenseConnectors.results.map((connector) => ({ id: connector.id, scopeId: connector.scope_id, provider: connector.provider, mode: connector.mode, enforcement: connector.enforcement, status: connector.status, zoneId: connector.external_zone_id, capabilities: parseJson(connector.capabilities_json), lastHealthAt: connector.last_health_at, lastErrorCode: connector.last_error_code, lastSignalAt: connector.last_signal_at, createdAt: connector.created_at, updatedAt: connector.updated_at })),
     defenseIncidents: defenseIncidents.results.map((incident) => ({ id: incident.id, scopeId: incident.scope_id, category: incident.category, severity: incident.severity, status: incident.status, title: incident.title, summary: incident.summary, occurrenceCount: incident.occurrence_count, autoContained: Boolean(incident.auto_contained), firstObservedAt: incident.first_observed_at, lastObservedAt: incident.last_observed_at, updatedAt: incident.updated_at })),
     defenseActions: defenseActions.results.map((action) => ({ id: action.id, scopeId: action.scope_id, incidentId: action.incident_id, actionType: action.action_type, autonomy: action.autonomy, status: action.status, reason: action.reason, enforcement: action.enforcement, expiresAt: action.expires_at, createdAt: action.created_at, updatedAt: action.updated_at })),
     scopes: scopes.results.map((scope: SecurityScopeRow) => ({
@@ -162,17 +162,29 @@ async function postAgent(request: Request) {
   }
   const scope = await scopeForWorkspace(agentEnv.DB, current.workspace.id, body.scopeId);
   if (!scope) return Response.json({ error: "Escopo não encontrado." }, { status: 404 });
-  if (action === "create_defense_connector" || action === "set_defense_connector" || action === "update_defense_incident" || action === "revoke_defense_action") {
+  if (action === "create_defense_connector" || action === "set_defense_connector" || action === "update_defense_incident" || action === "revoke_defense_action" || action === "connect_cloudflare" || action === "check_cloudflare" || action === "disconnect_cloudflare") {
     try {
       const defenseEnv = agentEnv as SecurityAgentEnv & SecurityDefenseEnv;
       if (action === "create_defense_connector") return Response.json({ connector: await createDefenseConnector(defenseEnv, { scope, actorUserId: current.user.id }) }, { status: 201 });
+      if (action === "connect_cloudflare") return Response.json({ connector: await connectCloudflareDefenseConnector(defenseEnv, { scope, actorUserId: current.user.id, apiToken: body.apiToken }) }, { status: 201 });
+      if (action === "check_cloudflare") return Response.json({ connector: await checkCloudflareDefenseConnector(defenseEnv, { workspaceId: current.workspace.id, scope, connectorId: body.connectorId, actorUserId: current.user.id }) });
+      if (action === "disconnect_cloudflare") return Response.json({ connector: await disconnectCloudflareDefenseConnector(defenseEnv, { workspaceId: current.workspace.id, scopeId: scope.id, connectorId: body.connectorId, actorUserId: current.user.id }) });
       if (action === "set_defense_connector") return Response.json({ connector: await setDefenseConnectorStatus(defenseEnv, { workspaceId: current.workspace.id, scopeId: scope.id, connectorId: body.connectorId, actorUserId: current.user.id, enabled: body.enabled }) });
       if (action === "update_defense_incident") return Response.json({ incident: await updateDefenseIncident(defenseEnv, { workspaceId: current.workspace.id, scopeId: scope.id, incidentId: body.incidentId, actorUserId: current.user.id, status: body.status }) });
       return Response.json({ responseAction: await revokeDefenseAction(defenseEnv, { workspaceId: current.workspace.id, scopeId: scope.id, actionId: body.actionId, actorUserId: current.user.id }) });
     } catch (error) {
       const code = error instanceof Error ? error.message : "DEFENSE_ACTION_FAILED";
-      const status = code.endsWith("NOT_FOUND") ? 404 : code === "DEFENSE_SIGNING_KEY_NOT_CONFIGURED" ? 503 : 400;
-      return Response.json({ error: code === "DEFENSE_SIGNING_KEY_NOT_CONFIGURED" ? "Configure o segredo de assinatura da telemetria no Worker antes de ativar o conector." : "Não foi possível alterar o monitor defensivo.", code }, { status });
+      const status = code.endsWith("NOT_FOUND") ? 404 : code.endsWith("NOT_CONFIGURED") || code === "CLOUDFLARE_UNAVAILABLE" ? 503 : code === "CLOUDFLARE_TOKEN_REJECTED" ? 401 : 400;
+      const messages: Record<string, string> = {
+        DEFENSE_SIGNING_KEY_NOT_CONFIGURED: "Configure o segredo de assinatura da telemetria no Worker antes de ativar o conector.",
+        DEFENSE_CONNECTOR_ENCRYPTION_KEY_NOT_CONFIGURED: "O cofre de credenciais dos conectores ainda não foi configurado no Worker.",
+        CLOUDFLARE_TOKEN_INVALID: "Informe um API Token Cloudflare válido, sem espaços.",
+        CLOUDFLARE_TOKEN_REJECTED: "A Cloudflare recusou o token. Confirme se ele está ativo e limitado à zona autorizada.",
+        CLOUDFLARE_ZONE_NOT_FOUND: "O token não permite acessar uma zona ativa com o mesmo domínio deste escopo.",
+        CLOUDFLARE_ZONE_MISMATCH: "A zona devolvida pela Cloudflare não corresponde ao domínio autorizado.",
+        CLOUDFLARE_UNAVAILABLE: "A Cloudflare não respondeu ao teste de conexão. Tente novamente.",
+      };
+      return Response.json({ error: messages[code] ?? "Não foi possível alterar o monitor defensivo.", code }, { status });
     }
   }
   if (action === "create_campaign" || action === "approve_campaign" || action === "dispatch_campaign" || action === "cancel_campaign") {
@@ -247,7 +259,7 @@ async function postAgent(request: Request) {
   if (action === "revoke_scope") {
     await agentEnv.DB.batch([
       agentEnv.DB.prepare("UPDATE security_agent_scopes SET status = 'revoked', monitoring_enabled = 0, updated_at = datetime('now') WHERE id = ?").bind(scope.id),
-      agentEnv.DB.prepare("UPDATE security_defense_connectors SET status = 'revoked', updated_at = datetime('now') WHERE scope_id = ? AND status <> 'revoked'").bind(scope.id),
+      agentEnv.DB.prepare("UPDATE security_defense_connectors SET status = 'revoked', credential_ciphertext = NULL, credential_iv = NULL, external_account_id = NULL, external_zone_id = NULL, capabilities_json = '{}', updated_at = datetime('now') WHERE scope_id = ? AND status <> 'revoked'").bind(scope.id),
       agentEnv.DB.prepare("UPDATE security_response_actions SET status = 'revoked', decided_by_user_id = ?, updated_at = datetime('now') WHERE scope_id = ? AND status = 'active'").bind(current.user.id, scope.id),
       agentEnv.DB.prepare("INSERT INTO security_agent_events (id, workspace_id, scope_id, actor_user_id, event_type, details_json) VALUES (?, ?, ?, ?, 'scope.revoked', '{}')").bind(`sae_${crypto.randomUUID()}`, current.workspace.id, scope.id, current.user.id),
     ]);

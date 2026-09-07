@@ -10,7 +10,7 @@ function requireInvariant(condition, code) {
   if (!condition) throw new Error(`security_build_blocked:${code}`);
 }
 
-const [appPage, appLayout, workspace, agentRoute, landing, seoPolicy, nextConfig, operations, findings, campaigns, campaignPolicy] = await Promise.all([
+const [appPage, appLayout, workspace, agentRoute, landing, seoPolicy, nextConfig, operations, findings, campaigns, campaignPolicy, defense, cloudflareConnector] = await Promise.all([
   source("app/app/page.tsx"),
   source("app/app/layout.tsx"),
   source("app/app/SecurityAgentCenter.tsx"),
@@ -22,6 +22,8 @@ const [appPage, appLayout, workspace, agentRoute, landing, seoPolicy, nextConfig
   source("app/security-findings-service.ts"),
   source("app/security-campaign-service.ts"),
   source("domain/security-campaign-policy.ts"),
+  source("app/security-defense-service.ts"),
+  source("docs/security/cloudflare-customer-connector.md"),
 ]);
 
 requireInvariant(appPage.includes("SecurityAgentCenter"), "workspace_entrypoint_missing");
@@ -32,6 +34,8 @@ requireInvariant(agentRoute.includes("getCurrentUser") && agentRoute.includes("e
 requireInvariant(agentRoute.includes("triage_telemetry") && operations.includes("manual_telemetry"), "blue_team_triage_missing");
 requireInvariant(findings.includes("syncSecurityFindings") && findings.includes("security_finding_events"), "security_findings_workflow_missing");
 requireInvariant(campaigns.includes("pull_request_only") && campaignPolicy.includes("blockedCapabilities"), "controlled_delivery_workflow_missing");
+requireInvariant(defense.includes("connectCloudflareDefenseConnector") && defense.includes("AES-GCM") && defense.includes("CLOUDFLARE_ZONE_MISMATCH"), "cloudflare_connector_guardrails_missing");
+requireInvariant(cloudflareConnector.includes("observe_only") && cloudflareConnector.includes("aprovação humana") && cloudflareConnector.includes("rollback"), "cloudflare_connector_runbook_missing");
 requireInvariant(landing.includes("CBSHub Cybersecurity") && !landing.includes("Produto fiscal"), "cybersecurity_landing_incomplete");
 requireInvariant(!seoPolicy.includes("taxContentRoutes") && !seoPolicy.includes("relatorios-fiscais"), "legacy_seo_routes_active");
 requireInvariant(nextConfig.includes("/calculadora-reforma-tributaria") && nextConfig.includes("permanent: true"), "legacy_redirects_missing");

@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { type FormEvent, useMemo, useState } from "react";
 
-export type DefenseConnector = { id: string; scopeId: string; provider: string; mode: string; enforcement: string; status: string; lastSignalAt: string | null; createdAt: string; updatedAt: string };
+export type DefenseConnector = { id: string; scopeId: string; provider: string; mode: string; enforcement: string; status: string; zoneId: string | null; capabilities: { zoneRead?: boolean; rulesetsRead?: boolean; rulesetsEdit?: boolean; automaticChanges?: boolean } | null; lastHealthAt: string | null; lastErrorCode: string | null; lastSignalAt: string | null; createdAt: string; updatedAt: string };
 export type DefenseIncident = { id: string; scopeId: string; category: string; severity: string; status: string; title: string; summary: string; occurrenceCount: number; autoContained: boolean; firstObservedAt: string; lastObservedAt: string; updatedAt: string };
 export type DefenseAction = { id: string; scopeId: string; incidentId: string; actionType: string; autonomy: string; status: string; reason: string; enforcement: string; expiresAt: string | null; createdAt: string; updatedAt: string };
 
@@ -10,9 +10,10 @@ type ConnectorSecret = { id: string; ingestSecret: string; signatureHeader: stri
 
 const statusLabels: Record<string, string> = { active: "ativo", paused: "pausado", pending: "aguardando revisão", expired: "expirado", revoked: "revogado", open: "aberto", investigating: "investigando", contained: "contido", resolved: "resolvido" };
 
-export default function SecurityDefensePanel({ scopeId, disabled, connectors, incidents, actions, onAction }: {
+export default function SecurityDefensePanel({ scopeId, disabled, cloudflareCredentialVault, connectors, incidents, actions, onAction }: {
   scopeId: string;
   disabled: boolean;
+  cloudflareCredentialVault: boolean;
   connectors: DefenseConnector[];
   incidents: DefenseIncident[];
   actions: DefenseAction[];
@@ -22,7 +23,8 @@ export default function SecurityDefensePanel({ scopeId, disabled, connectors, in
   const scopedConnectors = useMemo(() => connectors.filter((item) => item.scopeId === scopeId), [connectors, scopeId]);
   const scopedIncidents = useMemo(() => incidents.filter((item) => item.scopeId === scopeId), [incidents, scopeId]);
   const scopedActions = useMemo(() => actions.filter((item) => item.scopeId === scopeId), [actions, scopeId]);
-  const connector = scopedConnectors[0];
+  const connector = scopedConnectors.find((item) => item.provider === "signed_webhook");
+  const cloudflare = scopedConnectors.find((item) => item.provider === "cloudflare");
 
   async function provision() {
     if (!window.confirm(connector ? "Rotacionar a credencial atual? O coletor deixará de aceitar a credencial anterior imediatamente." : "Criar um canal assinado para receber sinais deste ativo?")) return;
@@ -31,15 +33,49 @@ export default function SecurityDefensePanel({ scopeId, disabled, connectors, in
     if (created?.ingestSecret) setSecret(created);
   }
 
+  async function connectCloudflare(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const values = new FormData(form);
+    if (values.get("authorization") !== "on") return;
+    const result = await onAction("connect_cloudflare", { scopeId, apiToken: values.get("apiToken") });
+    if (result) form.reset();
+  }
+
+  async function disconnectCloudflare() {
+    if (!cloudflare || !window.confirm("Desconectar esta zona? A credencial criptografada será apagada imediatamente e nenhuma alteração será feita na Cloudflare.")) return;
+    await onAction("disconnect_cloudflare", { scopeId, connectorId: cloudflare.id });
+  }
+
   return <section className="security-defense">
     <div className="security-defense-title">
       <div><span>DEFESA CONTÍNUA</span><h3>Detecção e resposta 24 horas</h3></div>
       <div className="security-integration-state">
-        <b className={connector?.status === "active" ? "ready" : "blocked"}>{connector ? statusLabels[connector.status] ?? connector.status : "sem telemetria"}</b>
-        <b className={connector?.enforcement === "cbshub_edge" ? "ready" : "blocked"}>{connector?.enforcement === "cbshub_edge" ? "bloqueio no edge CBSHub" : "somente observação"}</b>
+        <b className={cloudflare?.status === "active" ? "ready" : "blocked"}>{cloudflare ? `Cloudflare ${statusLabels[cloudflare.status] ?? cloudflare.status}` : "Cloudflare desconectada"}</b>
+        <b className={connector?.status === "active" ? "ready" : "blocked"}>{connector ? "telemetria assinada" : "sem telemetria"}</b>
       </div>
     </div>
-    <p>Recebe sinais assinados de WAF, autenticação, SIEM ou EDR. Apenas bloqueios temporários de origem, com alta confiança, podem ser automáticos; persistência, evasão, exfiltração e atividade destrutiva sempre exigem investigação humana.</p>
+    <p>Conecte a zona autorizada em modo somente leitura. A primeira etapa valida identidade, domínio e acesso aos rulesets; nenhuma regra externa é criada, alterada ou removida.</p>
+    <div className="security-cloudflare-connector">
+      <header><div><span>CLOUDFLARE · CONECTOR NATIVO</span><b>{cloudflare ? "Zona vinculada ao escopo" : "Conectar a infraestrutura do cliente"}</b></div><em className={cloudflare?.status === "active" ? "ready" : "blocked"}>{cloudflare ? statusLabels[cloudflare.status] ?? cloudflare.status : "não conectado"}</em></header>
+      {cloudflare ? <>
+        <dl>
+          <div><dt>Zona</dt><dd>{cloudflare.zoneId ?? "não informada"}</dd></div>
+          <div><dt>Último teste</dt><dd>{cloudflare.lastHealthAt ? new Date(cloudflare.lastHealthAt).toLocaleString("pt-BR") : "pendente"}</dd></div>
+          <div><dt>Leitura da zona</dt><dd>{cloudflare.capabilities?.zoneRead ? "confirmada" : "não confirmada"}</dd></div>
+          <div><dt>Leitura do WAF</dt><dd>{cloudflare.capabilities?.rulesetsRead ? "confirmada" : "permissão ausente"}</dd></div>
+        </dl>
+        {cloudflare.lastErrorCode ? <p className="security-connector-error">Conexão requer atenção: {cloudflare.lastErrorCode}</p> : null}
+        <div className="security-defense-actions"><button disabled={disabled} onClick={() => void onAction("check_cloudflare", { scopeId, connectorId: cloudflare.id })}>Testar conexão</button><button className="secondary" disabled={disabled} onClick={() => void disconnectCloudflare()}>Desconectar</button></div>
+      </> : <form onSubmit={(event) => void connectCloudflare(event)}>
+        <label>API Token da zona<input name="apiToken" type="password" autoComplete="new-password" minLength={20} maxLength={512} required disabled={disabled || !cloudflareCredentialVault} placeholder="Cole o token restrito à zona autorizada" /></label>
+        <small>Crie um token dedicado com leitura de Zona e Rulesets/WAF somente para este domínio. O token será criptografado no servidor e nunca será devolvido pela API.</small>
+        <label className="security-cloudflare-consent"><input name="authorization" type="checkbox" required disabled={disabled || !cloudflareCredentialVault} /> Confirmo que o token pertence ao ativo autorizado e foi criado com privilégio mínimo.</label>
+        {!cloudflareCredentialVault ? <p className="security-connector-error">O cofre de credenciais precisa ser configurado no Worker antes da conexão.</p> : null}
+        <button disabled={disabled || !cloudflareCredentialVault}>Validar e conectar</button>
+      </form>}
+    </div>
+    <p>O canal abaixo recebe sinais assinados de WAF, autenticação, SIEM ou EDR. Apenas bloqueios temporários de origem, com alta confiança, podem ser automáticos no próprio CBSHub; persistência, evasão, exfiltração e atividade destrutiva exigem investigação humana.</p>
     <div className="security-defense-actions">
       <button disabled={disabled} onClick={() => void provision()}>{connector ? "Rotacionar credencial" : "Ativar canal de telemetria"}</button>
       {connector ? <button className="secondary" disabled={disabled} onClick={() => void onAction("set_defense_connector", { scopeId, connectorId: connector.id, enabled: connector.status !== "active" })}>{connector.status === "active" ? "Pausar ingestão" : "Retomar ingestão"}</button> : null}

@@ -3,11 +3,11 @@ import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { evaluateDefenseSignal, parseDefenseSignal } from "../domain/security-defense-policy.ts";
-import { activeEdgeBlock, authenticateDefenseIngest, createDefenseConnector, expireDefenseActions, ingestDefenseSignal } from "../app/security-defense-service.ts";
+import { activeEdgeBlock, authenticateDefenseIngest, checkCloudflareDefenseConnector, connectCloudflareDefenseConnector, createDefenseConnector, disconnectCloudflareDefenseConnector, expireDefenseActions, ingestDefenseSignal } from "../app/security-defense-service.ts";
 
 function database() {
   const sqlite = new DatabaseSync(":memory:");
-  for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
+  for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0057_cloudflare_customer_connector.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
   const DB = {
     prepare(sql) {
       const statement = sqlite.prepare(sql);
@@ -101,5 +101,42 @@ test("external scopes remain observe-only until their edge connector exists", as
     const stored = sqlite.prepare("SELECT mode, enforcement FROM security_defense_connectors").get();
     assert.equal(stored.mode, "observe");
     assert.equal(stored.enforcement, "observe_only");
+  } finally { sqlite.close(); }
+});
+
+test("Cloudflare customer connector validates the exact zone and encrypts its token", async () => {
+  const { sqlite, DB } = database();
+  try {
+    const token = "cf_customer_token_that_must_never_be_stored_as_plaintext";
+    const now = new Date().toISOString();
+    const authorizationExpiresAt = new Date(Date.now() + 86400_000).toISOString();
+    sqlite.prepare("INSERT INTO security_agent_scopes (id, workspace_id, domain, status, verification_token, created_by_user_id, verified_at, authorization_attested_at, authorization_expires_at, created_at, updated_at) VALUES ('customer-scope', 42, 'customer.example', 'verified', 'token', 7, ?, ?, ?, ?, ?)").run(now, now, authorizationExpiresAt, now, now);
+    const scope = { id: "customer-scope", workspace_id: 42, domain: "customer.example", status: "verified", authorization_expires_at: authorizationExpiresAt };
+    const env = { DB, SECURITY_CONNECTOR_ENCRYPTION_KEY: "connector-encryption-key-with-more-than-thirty-two-characters" };
+    const fetcher = async (input) => {
+      const url = new URL(String(input));
+      if (url.pathname.endsWith("/user/tokens/verify")) return Response.json({ success: true, result: { id: "token-id", status: "active" } });
+      if (url.pathname.endsWith("/zones") && url.searchParams.get("name") === "customer.example") return Response.json({ success: true, result: [{ id: "zone-123", name: "customer.example", status: "active", account: { id: "account-123" } }] });
+      if (url.pathname.endsWith("/zones/zone-123/rulesets")) return Response.json({ success: true, result: [] });
+      if (url.pathname.endsWith("/zones/zone-123")) return Response.json({ success: true, result: { id: "zone-123", name: "customer.example", status: "active", account: { id: "account-123" } } });
+      return Response.json({ success: false }, { status: 404 });
+    };
+    const connector = await connectCloudflareDefenseConnector(env, { scope, actorUserId: 7, apiToken: token }, fetcher);
+    assert.equal(connector.provider, "cloudflare");
+    assert.equal(connector.enforcement, "observe_only");
+    assert.equal(connector.capabilities.rulesetsRead, true);
+    const stored = sqlite.prepare("SELECT * FROM security_defense_connectors WHERE provider = 'cloudflare'").get();
+    assert.equal(JSON.stringify(stored).includes(token), false);
+    assert.ok(stored.credential_ciphertext);
+    assert.equal(stored.external_zone_id, "zone-123");
+    const health = await checkCloudflareDefenseConnector(env, { workspaceId: 42, scope, connectorId: connector.id, actorUserId: 7 }, fetcher);
+    assert.equal(health.status, "active");
+    await disconnectCloudflareDefenseConnector(env, { workspaceId: 42, scopeId: scope.id, connectorId: connector.id, actorUserId: 7 });
+    const revoked = sqlite.prepare("SELECT status, credential_ciphertext, credential_iv, external_account_id, external_zone_id FROM security_defense_connectors WHERE id = ?").get(connector.id);
+    assert.equal(revoked.status, "revoked");
+    assert.equal(revoked.credential_ciphertext, null);
+    assert.equal(revoked.credential_iv, null);
+    assert.equal(revoked.external_account_id, null);
+    assert.equal(revoked.external_zone_id, null);
   } finally { sqlite.close(); }
 });

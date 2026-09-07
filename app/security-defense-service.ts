@@ -9,6 +9,7 @@ import type { SecurityScopeRow } from "./security-agent-service.ts";
 export type SecurityDefenseEnv = {
   DB: D1Database;
   SECURITY_INGEST_SIGNING_KEY?: string;
+  SECURITY_CONNECTOR_ENCRYPTION_KEY?: string;
   SECURITY_HASH_KEY?: string;
   PUBLIC_APP_URL?: string;
 };
@@ -17,13 +18,24 @@ export type SecurityDefenseConnectorRow = {
   id: string;
   workspace_id: number;
   scope_id: string;
-  provider: "signed_webhook";
+  provider: "signed_webhook" | "cloudflare";
   mode: "observe" | "protect";
   enforcement: "observe_only" | "cbshub_edge";
   status: "active" | "paused" | "revoked" | "error";
   key_salt: string;
+  credential_ciphertext: string | null;
+  credential_iv: string | null;
+  external_account_id: string | null;
+  external_zone_id: string | null;
+  capabilities_json: string;
+  last_health_at: string | null;
+  last_error_code: string | null;
   last_signal_at: string | null;
 };
+
+type CloudflareZone = { id: string; name: string; status?: string; account?: { id?: string } };
+type CloudflareEnvelope<T> = { success?: boolean; result?: T; errors?: Array<{ code?: number; message?: string }> };
+type CloudflareCapabilities = { zoneRead: boolean; rulesetsRead: boolean; rulesetsEdit: boolean; automaticChanges: boolean };
 
 const uuid = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 const encoder = new TextEncoder();
@@ -35,6 +47,12 @@ function bytesToHex(value: ArrayBuffer) {
 function bytesToBase64Url(value: ArrayBuffer) {
   const binary = Array.from(new Uint8Array(value), (byte) => String.fromCharCode(byte)).join("");
   return btoa(binary).replaceAll("+", "-").replaceAll("/", "_").replace(/=+$/g, "");
+}
+
+function base64UrlToBytes(value: string) {
+  const normalized = value.replaceAll("-", "+").replaceAll("_", "/").padEnd(Math.ceil(value.length / 4) * 4, "=");
+  const binary = atob(normalized);
+  return Uint8Array.from(binary, (character) => character.charCodeAt(0));
 }
 
 async function hmac(key: string, value: string) {
@@ -53,6 +71,153 @@ function requiredSigningKey(env: SecurityDefenseEnv) {
   const key = env.SECURITY_INGEST_SIGNING_KEY?.trim();
   if (!key || key.length < 32) throw new Error("DEFENSE_SIGNING_KEY_NOT_CONFIGURED");
   return key;
+}
+
+function requiredConnectorEncryptionKey(env: SecurityDefenseEnv) {
+  const key = env.SECURITY_CONNECTOR_ENCRYPTION_KEY?.trim();
+  if (!key || key.length < 32) throw new Error("DEFENSE_CONNECTOR_ENCRYPTION_KEY_NOT_CONFIGURED");
+  return key;
+}
+
+async function connectorAesKey(env: SecurityDefenseEnv) {
+  const material = await crypto.subtle.digest("SHA-256", encoder.encode(requiredConnectorEncryptionKey(env)));
+  return crypto.subtle.importKey("raw", material, "AES-GCM", false, ["encrypt", "decrypt"]);
+}
+
+async function encryptConnectorCredential(env: SecurityDefenseEnv, value: string, additionalData: string) {
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const ciphertext = await crypto.subtle.encrypt({ name: "AES-GCM", iv, additionalData: encoder.encode(additionalData) }, await connectorAesKey(env), encoder.encode(value));
+  return { ciphertext: bytesToBase64Url(ciphertext), iv: bytesToBase64Url(iv.buffer) };
+}
+
+async function decryptConnectorCredential(env: SecurityDefenseEnv, row: SecurityDefenseConnectorRow) {
+  if (!row.credential_ciphertext || !row.credential_iv || !row.external_zone_id) throw new Error("DEFENSE_CONNECTOR_CREDENTIAL_MISSING");
+  try {
+    const plaintext = await crypto.subtle.decrypt(
+      { name: "AES-GCM", iv: base64UrlToBytes(row.credential_iv), additionalData: encoder.encode(`cloudflare:${row.id}:${row.scope_id}:${row.external_zone_id}`) },
+      await connectorAesKey(env),
+      base64UrlToBytes(row.credential_ciphertext),
+    );
+    return new TextDecoder().decode(plaintext);
+  } catch {
+    throw new Error("DEFENSE_CONNECTOR_CREDENTIAL_INVALID");
+  }
+}
+
+function parseCloudflareToken(raw: unknown) {
+  if (typeof raw !== "string") throw new Error("CLOUDFLARE_TOKEN_INVALID");
+  const token = raw.trim();
+  if (token.length < 20 || token.length > 512 || /\s/.test(token)) throw new Error("CLOUDFLARE_TOKEN_INVALID");
+  return token;
+}
+
+async function cloudflareRequest<T>(fetcher: typeof fetch, token: string, path: string) {
+  let response: Response;
+  try {
+    response = await fetcher(`https://api.cloudflare.com/client/v4${path}`, {
+      headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
+      signal: AbortSignal.timeout(8_000),
+    });
+  } catch {
+    throw new Error("CLOUDFLARE_UNAVAILABLE");
+  }
+  const payload = await response.json().catch(() => null) as CloudflareEnvelope<T> | null;
+  if (!response.ok || !payload?.success) {
+    if (response.status === 401 || response.status === 403) throw new Error("CLOUDFLARE_TOKEN_REJECTED");
+    throw new Error("CLOUDFLARE_API_ERROR");
+  }
+  return payload.result as T;
+}
+
+async function inspectCloudflareCapabilities(fetcher: typeof fetch, token: string, zoneId: string): Promise<CloudflareCapabilities> {
+  let rulesetsRead = false;
+  try {
+    await cloudflareRequest<unknown[]>(fetcher, token, `/zones/${encodeURIComponent(zoneId)}/rulesets`);
+    rulesetsRead = true;
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "CLOUDFLARE_API_ERROR";
+    if (code !== "CLOUDFLARE_TOKEN_REJECTED") throw error;
+  }
+  return { zoneRead: true, rulesetsRead, rulesetsEdit: false, automaticChanges: false };
+}
+
+export async function connectCloudflareDefenseConnector(
+  env: SecurityDefenseEnv,
+  args: { scope: SecurityScopeRow; actorUserId: number; apiToken: unknown },
+  fetcher: typeof fetch = fetch,
+) {
+  if (args.scope.status !== "verified") throw new Error("DEFENSE_SCOPE_NOT_VERIFIED");
+  if (!args.scope.authorization_expires_at || Date.parse(args.scope.authorization_expires_at) <= Date.now()) throw new Error("DEFENSE_SCOPE_AUTHORIZATION_EXPIRED");
+  requiredConnectorEncryptionKey(env);
+  const token = parseCloudflareToken(args.apiToken);
+  const verification = await cloudflareRequest<{ id?: string; status?: string }>(fetcher, token, "/user/tokens/verify");
+  if (verification?.status !== "active") throw new Error("CLOUDFLARE_TOKEN_REJECTED");
+  const zones = await cloudflareRequest<CloudflareZone[]>(fetcher, token, `/zones?name=${encodeURIComponent(args.scope.domain)}&status=active&per_page=5`);
+  const zone = zones.find((candidate) => candidate.name.toLowerCase() === args.scope.domain && candidate.status !== "deleted");
+  if (!zone) throw new Error("CLOUDFLARE_ZONE_NOT_FOUND");
+  const capabilities = await inspectCloudflareCapabilities(fetcher, token, zone.id);
+  const existing = await env.DB.prepare("SELECT * FROM security_defense_connectors WHERE scope_id = ? AND provider = 'cloudflare'")
+    .bind(args.scope.id).first<SecurityDefenseConnectorRow>();
+  const id = existing?.id ?? uuid("sdc");
+  const additionalData = `cloudflare:${id}:${args.scope.id}:${zone.id}`;
+  const encrypted = await encryptConnectorCredential(env, token, additionalData);
+  const now = new Date().toISOString();
+  const salt = crypto.randomUUID();
+  await env.DB.batch([
+    env.DB.prepare(`INSERT INTO security_defense_connectors
+      (id, workspace_id, scope_id, provider, mode, enforcement, status, key_salt, credential_ciphertext, credential_iv, external_account_id, external_zone_id, capabilities_json, last_health_at, last_error_code, created_by_user_id, created_at, updated_at)
+      VALUES (?, ?, ?, 'cloudflare', 'observe', 'observe_only', 'active', ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, ?)
+      ON CONFLICT(scope_id, provider) DO UPDATE SET status = 'active', key_salt = excluded.key_salt,
+        credential_ciphertext = excluded.credential_ciphertext, credential_iv = excluded.credential_iv,
+        external_account_id = excluded.external_account_id, external_zone_id = excluded.external_zone_id,
+        capabilities_json = excluded.capabilities_json, last_health_at = excluded.last_health_at,
+        last_error_code = NULL, updated_at = excluded.updated_at`)
+      .bind(id, args.scope.workspace_id, args.scope.id, salt, encrypted.ciphertext, encrypted.iv, zone.account?.id ?? null, zone.id, JSON.stringify(capabilities), now, args.actorUserId, now, now),
+    env.DB.prepare("INSERT INTO security_defense_events (id, workspace_id, scope_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .bind(uuid("sde"), args.scope.workspace_id, args.scope.id, args.actorUserId, existing ? "cloudflare.credential_rotated" : "cloudflare.connected", JSON.stringify({ zoneId: zone.id, zoneName: zone.name, capabilities }), now),
+  ]);
+  return { id, scopeId: args.scope.id, provider: "cloudflare" as const, status: "active" as const, zoneName: zone.name, zoneId: zone.id, mode: "observe" as const, enforcement: "observe_only" as const, capabilities, lastHealthAt: now };
+}
+
+export async function checkCloudflareDefenseConnector(
+  env: SecurityDefenseEnv,
+  args: { workspaceId: number; scope: SecurityScopeRow; connectorId: unknown; actorUserId: number },
+  fetcher: typeof fetch = fetch,
+) {
+  if (typeof args.connectorId !== "string" || !/^sdc_[0-9a-f-]{36}$/i.test(args.connectorId)) throw new Error("DEFENSE_CONNECTOR_INVALID");
+  const connector = await env.DB.prepare("SELECT * FROM security_defense_connectors WHERE id = ? AND workspace_id = ? AND scope_id = ? AND provider = 'cloudflare' AND status <> 'revoked'")
+    .bind(args.connectorId, args.workspaceId, args.scope.id).first<SecurityDefenseConnectorRow>();
+  if (!connector?.external_zone_id) throw new Error("DEFENSE_CONNECTOR_NOT_FOUND");
+  try {
+    const token = await decryptConnectorCredential(env, connector);
+    const zone = await cloudflareRequest<CloudflareZone>(fetcher, token, `/zones/${encodeURIComponent(connector.external_zone_id)}`);
+    if (zone.name.toLowerCase() !== args.scope.domain || zone.status === "deleted") throw new Error("CLOUDFLARE_ZONE_MISMATCH");
+    const capabilities = await inspectCloudflareCapabilities(fetcher, token, connector.external_zone_id);
+    const now = new Date().toISOString();
+    await env.DB.batch([
+      env.DB.prepare("UPDATE security_defense_connectors SET status = 'active', capabilities_json = ?, last_health_at = ?, last_error_code = NULL, updated_at = ? WHERE id = ?")
+        .bind(JSON.stringify(capabilities), now, now, connector.id),
+      env.DB.prepare("INSERT INTO security_defense_events (id, workspace_id, scope_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, 'cloudflare.health_checked', ?, ?)")
+        .bind(uuid("sde"), args.workspaceId, args.scope.id, args.actorUserId, JSON.stringify({ zoneId: connector.external_zone_id, capabilities }), now),
+    ]);
+    return { id: connector.id, status: "active" as const, zoneName: zone.name, capabilities, lastHealthAt: now };
+  } catch (error) {
+    const code = error instanceof Error ? error.message : "CLOUDFLARE_API_ERROR";
+    await env.DB.prepare("UPDATE security_defense_connectors SET status = 'error', last_error_code = ?, updated_at = datetime('now') WHERE id = ?").bind(code, connector.id).run();
+    throw error;
+  }
+}
+
+export async function disconnectCloudflareDefenseConnector(env: SecurityDefenseEnv, args: { workspaceId: number; scopeId: string; connectorId: unknown; actorUserId: number }) {
+  if (typeof args.connectorId !== "string" || !/^sdc_[0-9a-f-]{36}$/i.test(args.connectorId)) throw new Error("DEFENSE_CONNECTOR_INVALID");
+  const result = await env.DB.prepare(`UPDATE security_defense_connectors SET status = 'revoked', credential_ciphertext = NULL, credential_iv = NULL,
+    external_account_id = NULL, external_zone_id = NULL, capabilities_json = '{}', last_error_code = NULL, updated_at = datetime('now')
+    WHERE id = ? AND workspace_id = ? AND scope_id = ? AND provider = 'cloudflare' AND status <> 'revoked'`)
+    .bind(args.connectorId, args.workspaceId, args.scopeId).run();
+  if (Number(result.meta.changes ?? 0) !== 1) throw new Error("DEFENSE_CONNECTOR_NOT_FOUND");
+  await env.DB.prepare("INSERT INTO security_defense_events (id, workspace_id, scope_id, actor_user_id, event_type, details_json) VALUES (?, ?, ?, ?, 'cloudflare.disconnected', ?)")
+    .bind(uuid("sde"), args.workspaceId, args.scopeId, args.actorUserId, JSON.stringify({ connectorId: args.connectorId })).run();
+  return { id: args.connectorId, status: "revoked" as const };
 }
 
 async function connectorSecret(env: SecurityDefenseEnv, connectorId: string, salt: string) {
@@ -126,7 +291,7 @@ export async function authenticateDefenseIngest(env: SecurityDefenseEnv, request
   if (!Number.isSafeInteger(timestamp) || Math.abs(Math.floor(Date.now() / 1000) - timestamp) > 300) throw new Error("DEFENSE_INGEST_EXPIRED");
   const connector = await env.DB.prepare(`SELECT c.* FROM security_defense_connectors c
     JOIN security_agent_scopes s ON s.id = c.scope_id
-    WHERE c.id = ? AND c.status = 'active' AND s.status = 'verified' AND s.authorization_expires_at > datetime('now')`)
+    WHERE c.id = ? AND c.provider = 'signed_webhook' AND c.status = 'active' AND s.status = 'verified' AND s.authorization_expires_at > datetime('now')`)
     .bind(connectorId).first<SecurityDefenseConnectorRow>();
   if (!connector) throw new Error("DEFENSE_INGEST_UNAUTHORIZED");
   const secret = await connectorSecret(env, connector.id, connector.key_salt);
