@@ -42,6 +42,9 @@ export type WorkspaceEntitlements = PlanDefinition & {
   trialStartedAt: string | null;
   trialEndsAt: string | null;
   trialDaysRemaining: number;
+  launchGateEnabled: boolean;
+  workspaceAccessAllowed: boolean;
+  workspaceAccessReason: "open" | "platform_owner" | "active_contract" | "controlled_opening";
 };
 
 const fullSecurity = {
@@ -84,10 +87,12 @@ export function resolveWorkspacePlan(input: { platformOwner: boolean; betaEnable
   return planDefinitions.beta;
 }
 
-export function applyPlanUsage(plan: PlanDefinition, snapshot: BillingAccessSnapshot, scopeCount: number, trial: TrialAccessSnapshot = null, now = Date.now()): WorkspaceEntitlements {
+export function applyPlanUsage(plan: PlanDefinition, snapshot: BillingAccessSnapshot, scopeCount: number, trial: TrialAccessSnapshot = null, now = Date.now(), launchGateEnabled = false): WorkspaceEntitlements {
   const safeCount = Number.isInteger(scopeCount) && scopeCount > 0 ? scopeCount : 0;
   const limit = plan.scopeLimit;
   const monthlyPriceCents = plan.key in billingPlans ? billingAmountCents(plan.key as PaidPlanKey) : plan.key === "beta" ? 0 : null;
+  const activeContract = billingAccessIsActive(snapshot, now);
+  const workspaceAccessAllowed = !launchGateEnabled || plan.key === "owner" || activeContract;
   return {
     ...plan,
     billingStatus: snapshot?.status ?? "beta",
@@ -102,5 +107,8 @@ export function applyPlanUsage(plan: PlanDefinition, snapshot: BillingAccessSnap
     trialStartedAt: trial?.startedAt ?? null,
     trialEndsAt: trial?.endsAt ?? null,
     trialDaysRemaining: plan.key === "trial" ? trialDaysRemaining(trial, now) : 0,
+    launchGateEnabled,
+    workspaceAccessAllowed,
+    workspaceAccessReason: !launchGateEnabled ? "open" : plan.key === "owner" ? "platform_owner" : activeContract ? "active_contract" : "controlled_opening",
   };
 }

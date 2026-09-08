@@ -65,6 +65,13 @@ async function context(): Promise<Response | { user: AppUser; workspace: Workspa
   if (!user) return Response.json({ error: "Faça login para acessar o agente de segurança." }, { status: 401 });
   const workspace = await getWorkspaceContext(user.id);
   if (!workspace) return Response.json({ error: "Workspace indisponível." }, { status: 403 });
+  const entitlements = await getWorkspaceEntitlements(workspace);
+  if (!entitlements.workspaceAccessAllowed) {
+    return Response.json({
+      error: "O Security Workspace está em abertura controlada. Sua conta está reservada, mas as operações ainda não foram liberadas.",
+      code: "CYBER_LAUNCH_GATE",
+    }, { status: 423, headers: { "Cache-Control": "no-store" } });
+  }
   return { user, workspace };
 }
 

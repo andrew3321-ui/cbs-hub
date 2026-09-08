@@ -265,6 +265,10 @@ tbody tr:last-child td { border-bottom: 0; }
 }
 .auth-card input:focus { border-color: var(--auth-cyan); box-shadow: 0 0 0 3px rgba(80, 230, 255, .1); }
 .auth-card input::placeholder { color: #63798b; }
+.auth-launch-offer { margin: -8px 0 20px; padding: 13px 14px; display: grid; gap: 4px; border: 1px solid rgba(184,255,61,.16); border-radius: 9px; background: rgba(184,255,61,.05); }
+.auth-launch-offer span { color: var(--auth-lime); font-size: 7px; font-weight: 900; letter-spacing: 1.1px; }
+.auth-launch-offer b { color: #eaffc5; font-size: 11px; }
+.auth-launch-offer small { color: #8199a8; font-size: 8px; line-height: 1.45; }
 .password-field button, .auth-form-options a, .auth-switch a { color: var(--auth-cyan); }
 .auth-submit, .auth-primary-link {
   background: linear-gradient(105deg, #0d738d, #343fa2);

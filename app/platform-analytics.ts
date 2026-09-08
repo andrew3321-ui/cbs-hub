@@ -7,7 +7,7 @@ const SESSION_COOKIE = "cbs_metric_session";
 const VISITOR_SECONDS = 365 * 24 * 60 * 60;
 const SESSION_SECONDS = 30 * 60;
 
-export type MetricEventType = "page_view" | "app_active" | "signup" | "trial_started" | "trial_denied" | "seo_cta" | "experiment_view" | "experiment_start" | "experiment_result" | "experiment_gate" | "experiment_signup_click" | "signup_start" | "signup_submit" | "signup_request" | "signup_failure" | "signup_client_error" | "web_vital";
+export type MetricEventType = "page_view" | "app_active" | "signup" | "trial_started" | "trial_reserved" | "trial_denied" | "seo_cta" | "experiment_view" | "experiment_start" | "experiment_result" | "experiment_gate" | "experiment_signup_click" | "signup_start" | "signup_submit" | "signup_request" | "signup_failure" | "signup_client_error" | "web_vital";
 type MetricPayload = { pathname?: unknown; source?: unknown; medium?: unknown; campaign?: unknown; referrerHost?: unknown; reason?: unknown; name?: unknown; value?: unknown; rating?: unknown; deviceClass?: unknown; navigationType?: unknown };
 
 function cookieValue(request: Request, name: string) {

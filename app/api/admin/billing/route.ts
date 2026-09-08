@@ -13,7 +13,7 @@ import {
 import { platformIdentity } from "../../../../domain/platform-identity";
 import { billingAmountForAccount, billingLimitForAccount, billingPricingMode, mercadoPagoConfigurationStatus } from "../../../billing";
 import { getPlatformAdminUser, platformAdminIsConfigured } from "../../../platform-admin";
-import { getPlatformOperationState, PlatformModeError, setBetaMode } from "../../../platform-controls";
+import { getPlatformOperationState, PlatformModeError, setBetaMode, setCyberLaunchGate } from "../../../platform-controls";
 import { publicAppUrl } from "../../../public-url";
 
 function cleanText(value: unknown, maximum: number) {
@@ -224,6 +224,13 @@ export async function POST(request: Request) {
       const expectedConfirmation = body.betaEnabled ? "ATIVAR BETA" : "ATIVAR PAGAMENTOS";
       if (cleanText(body.confirmation, 40).toUpperCase() !== expectedConfirmation) return Response.json({ error: `Confirme a operação com: ${expectedConfirmation}.` }, { status: 400 });
       await setBetaMode(admin, body.betaEnabled);
+      return Response.json(await payloadFor(request), { headers: { "Cache-Control": "no-store" } });
+    }
+    if (action === "set_cyber_launch_gate") {
+      if (typeof body.enabled !== "boolean") return Response.json({ error: "Estado do gate de lançamento inválido." }, { status: 400 });
+      const expectedConfirmation = body.enabled ? "FECHAR WORKSPACE" : "ABRIR WORKSPACE";
+      if (cleanText(body.confirmation, 40).toUpperCase() !== expectedConfirmation) return Response.json({ error: `Confirme a operação com: ${expectedConfirmation}.` }, { status: 400 });
+      await setCyberLaunchGate(admin, body.enabled);
       return Response.json(await payloadFor(request), { headers: { "Cache-Control": "no-store" } });
     }
 

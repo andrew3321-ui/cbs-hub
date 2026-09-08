@@ -3,12 +3,13 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import BrandMark from "../BrandMark";
+import { cyberLaunchOffer, formatCyberPrice } from "../../domain/cyber-commercial";
 
 type AuthMode = "login" | "register" | "recover";
 
 const content = {
-  login: { eyebrow: "SECURITY WORKSPACE", title: "Acesse seu centro de defesa", subtitle: "Continue monitorando ativos autorizados, evidências e prioridades de correção." },
-  register: { eyebrow: "DOIS CAMPOS · ACESSO IMEDIATO", title: "Crie seu workspace de segurança", subtitle: "Escolha seu usuário e sua senha. Você entra sem cartão e sem precisar informar e-mail agora." },
+  login: { eyebrow: "SECURITY WORKSPACE", title: "Acesse seu centro de defesa", subtitle: "Entre para acompanhar sua conta e o status da abertura controlada do workspace." },
+  register: { eyebrow: "DOIS CAMPOS · RESERVA IMEDIATA", title: "Reserve seu workspace de segurança", subtitle: "Escolha seu usuário e sua senha. Sem cartão e sem precisar informar e-mail agora." },
   recover: { eyebrow: "RECUPERAÇÃO SEGURA", title: "Defina uma nova senha", subtitle: "Use seu usuário e a chave de segurança entregue quando sua conta foi criada." },
 };
 
@@ -103,7 +104,6 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
   const [confirmPassword, setConfirmPassword] = useState("");
   const [recoveryKey, setRecoveryKey] = useState("");
   const [issuedRecoveryKey, setIssuedRecoveryKey] = useState("");
-  const [issuedTrial, setIssuedTrial] = useState<TrialResult | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -188,7 +188,6 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
       if (!response.ok) throw new Error(data.error || "Não foi possível concluir.");
       if (mode === "register" && data.recoveryKey) {
         setIssuedRecoveryKey(data.recoveryKey);
-        setIssuedTrial(data.trial ?? null);
         setIssuedIdentity(data.user ?? null);
         return;
       }
@@ -218,21 +217,17 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
         <section className="auth-success-card">
           <span className="auth-success-icon">✓</span>
           <p className="auth-eyebrow">CONTA CRIADA COM SUCESSO</p>
-          <h1>Seu acesso está liberado</h1>
+          <h1>Sua conta está pronta</h1>
           <p>Guarde sua chave de recuperação. Como não pedimos e-mail no cadastro, ela permite redefinir sua senha com segurança.</p>
           {issuedIdentity && <div className="auth-issued-identity"><span>SEU ACESSO</span><b>@{issuedIdentity.username}</b><small>Identificador da conta: {issuedIdentity.accountCode}</small></div>}
           <div className="recovery-key-box"><span>{issuedRecoveryKey}</span><button type="button" onClick={copyRecoveryKey}>{copied ? "Copiada ✓" : "Copiar chave"}</button></div>
           <div className="recovery-warning"><b>Importante</b><span>Salve em um gerenciador de senhas ou local seguro. Não compartilhe esta chave.</span></div>
           <div className="auth-plan-suggestion">
-            <span>{issuedTrial?.granted ? "WORKSPACE DE AVALIAÇÃO ATIVADO" : "ACESSO BÁSICO ATIVADO"}</span>
-            <b>{issuedTrial?.granted ? `${issuedTrial.days} dias de acesso protegido` : "CBSHub Cybersecurity"}</b>
-            <small>{issuedTrial?.granted && issuedTrial.endsAt
-              ? `Todos os recursos estão liberados até ${new Date(issuedTrial.endsAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}. Nenhuma cobrança é iniciada automaticamente.`
-              : issuedTrial?.reason === "workspace_inherited"
-                ? "Seu acesso acompanha as regras e o período do workspace para o qual você foi convidado."
-                : "Este aparelho já utilizou o período de teste ou não pôde ser validado. Nenhuma cobrança foi iniciada."}</small>
+            <span>ABERTURA CONTROLADA</span>
+            <b>Workspace reservado · {formatCyberPrice()}/mês no lançamento</b>
+            <small>Ao entrar, você verá o status da liberação. Nenhuma análise ou cobrança começa enquanto o gate de produção estiver ativo.</small>
           </div>
-          <a className="auth-primary-link" href={returnTo}>Entrar no Security Workspace <span>→</span></a>
+          <a className="auth-primary-link" href={returnTo}>Ver status do Security Workspace <span>→</span></a>
         </section>
       </main>
     );
@@ -269,6 +264,7 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
           <p className="auth-eyebrow">{copy.eyebrow}</p>
           <h1>{copy.title}</h1>
           <p className="auth-subtitle">{copy.subtitle}</p>
+          {mode !== "recover" && <div className="auth-launch-offer"><span>OFERTA DE LANÇAMENTO</span><b>{formatCyberPrice()}/mês · até {cyberLaunchOffer.domainLimit} domínios</b><small>Acesso liberado por etapas. Nenhuma cobrança começa agora.</small></div>}
           {resetComplete && <div className="auth-success-message">Senha alterada. Entre com a nova senha.</div>}
           {error && <div className="auth-error" role="alert">{error}</div>}
           <form onSubmit={submit} onChange={() => {
@@ -295,8 +291,8 @@ export default function AuthScreen({ mode }: { mode: AuthMode }) {
             {mode === "login" && <div className="auth-form-options"><label><input type="checkbox" defaultChecked /> Manter conectado</label><a href="/recuperar-senha">Esqueci minha senha</a></div>}
             <button className="auth-submit" disabled={loading}>{loading ? "Liberando seu acesso…" : mode === "login" ? "Entrar no workspace" : mode === "register" ? inviteInfo ? "Entrar na equipe" : "Criar workspace" : "Redefinir senha"}<span>→</span></button>
           </form>
-          {mode === "register" && !inviteInfo && <div className="auth-fast-proof"><span>Sem cartão</span><span>E-mail só se contratar</span><span>Acesso imediato</span></div>}
-          {mode === "register" && !inviteInfo && <p className="auth-trial-disclosure">O teste é concedido uma vez por aparelho. Para prevenir abuso, o sistema guarda somente identificadores técnicos pseudonimizados; não armazena as características brutas do dispositivo.</p>}
+          {mode === "register" && !inviteInfo && <div className="auth-fast-proof"><span>Sem cartão</span><span>E-mail só se contratar</span><span>Conta reservada agora</span></div>}
+          {mode === "register" && !inviteInfo && <p className="auth-trial-disclosure">Seu período de avaliação fica reservado e só começa quando o workspace for liberado. Para prevenir abuso, o sistema guarda somente identificadores técnicos pseudonimizados; não armazena as características brutas do dispositivo.</p>}
           <p className="auth-switch">{mode === "login" ? <>Ainda não tem acesso? <a href="/cadastro">Criar conta gratuita</a></> : mode === "register" ? <>Já tem uma conta? <a href="/entrar">Entrar</a></> : <>Lembrou sua senha? <a href="/entrar">Voltar ao login</a></>}</p>
           <p className="auth-legal">Ao continuar, você confirma que utilizará a plataforma apenas em ativos próprios ou expressamente autorizados.</p>
         </div>

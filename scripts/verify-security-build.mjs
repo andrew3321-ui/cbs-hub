@@ -10,9 +10,10 @@ function requireInvariant(condition, code) {
   if (!condition) throw new Error(`security_build_blocked:${code}`);
 }
 
-const [appPage, appLayout, workspace, agentRoute, landing, seoPolicy, nextConfig, operations, findings, campaigns, campaignPolicy, defense, cloudflareConnector] = await Promise.all([
+const [appPage, appLayout, launchGate, workspace, agentRoute, landing, seoPolicy, nextConfig, operations, findings, campaigns, campaignPolicy, defense, cloudflareConnector] = await Promise.all([
   source("app/app/page.tsx"),
   source("app/app/layout.tsx"),
+  source("app/app/CyberLaunchGate.tsx"),
   source("app/app/SecurityAgentCenter.tsx"),
   source("app/api/security-agent/route.ts"),
   source("app/CybersecurityLanding.tsx"),
@@ -27,6 +28,7 @@ const [appPage, appLayout, workspace, agentRoute, landing, seoPolicy, nextConfig
 ]);
 
 requireInvariant(appPage.includes("SecurityAgentCenter"), "workspace_entrypoint_missing");
+requireInvariant(appPage.includes("workspaceAccessAllowed") && launchGate.includes("ABERTURA CONTROLADA") && agentRoute.includes("CYBER_LAUNCH_GATE"), "commercial_launch_gate_missing");
 requireInvariant(!appPage.includes("CBSHubApp") && !appPage.includes("GuestCBSHubApp"), "fiscal_workspace_still_active");
 requireInvariant(appLayout.includes("security-workspace.css") && appLayout.includes("security-agent.css"), "security_styles_missing");
 requireInvariant(workspace.includes("AUTHORIZED SECURITY VALIDATION") && workspace.includes("authorizationConfirmed"), "authorization_guard_missing");

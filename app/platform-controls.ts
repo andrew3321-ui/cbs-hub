@@ -7,6 +7,7 @@ import type { AppUser } from "./auth";
 import { platformIdentity } from "../domain/platform-identity";
 
 const BETA_SETTING_KEY = "beta_enabled";
+const CYBER_LAUNCH_GATE_SETTING_KEY = "cyber_launch_gate_enabled";
 
 type PlatformRuntimeEnvironment = {
   PLATFORM_OWNER_TAX_ID?: string;
@@ -80,19 +81,35 @@ function paymentReadinessGates(): ReadinessGate[] {
 
 async function readPlatformOperationState() {
   const db = getDb();
-  const [setting] = await db.select().from(platformSettings).where(eq(platformSettings.key, BETA_SETTING_KEY)).limit(1);
+  const settings = await db.select().from(platformSettings).where(inArray(platformSettings.key, [BETA_SETTING_KEY, CYBER_LAUNCH_GATE_SETTING_KEY]));
+  const setting = settings.find((item) => item.key === BETA_SETTING_KEY);
+  const launchGate = settings.find((item) => item.key === CYBER_LAUNCH_GATE_SETTING_KEY);
   const betaEnabled = setting?.value !== "false";
   const gates = paymentReadinessGates();
   const readinessReady = gates.every((gate) => gate.ready);
   const [{ total: activeSubscriptions }] = await db.select({ total: count() }).from(billingAccounts).where(inArray(billingAccounts.status, ["active", "authorized", "pending", "paused", "pix_creating", "renewal_pending"]));
   return {
     betaEnabled,
+    cyberLaunchGateEnabled: launchGate?.value !== "false",
     paymentsEnabled: !betaEnabled && readinessReady,
     revision: setting?.revision ?? 1,
     updatedAt: setting?.updatedAt ?? null,
     readiness: { ready: readinessReady, gates },
     activeSubscriptions,
   };
+}
+
+export async function setCyberLaunchGate(admin: AppUser, enabled: boolean) {
+  const current = await getPlatformOperationState();
+  if (current.cyberLaunchGateEnabled === enabled) return current;
+  const now = new Date().toISOString();
+  const [stored] = await getDb().select().from(platformSettings).where(eq(platformSettings.key, CYBER_LAUNCH_GATE_SETTING_KEY)).limit(1);
+  const revision = (stored?.revision ?? 0) + 1;
+  await getDb().batch([
+    getDb().insert(platformSettings).values({ key: CYBER_LAUNCH_GATE_SETTING_KEY, value: enabled ? "true" : "false", revision, updatedByUserId: admin.id, updatedAt: now }).onConflictDoUpdate({ target: platformSettings.key, set: { value: enabled ? "true" : "false", revision, updatedByUserId: admin.id, updatedAt: now } }),
+    getDb().insert(auditEvents).values({ ownerUserId: admin.id, eventType: enabled ? "platform.cyber_launch_gate_enabled" : "platform.cyber_launch_gate_disabled", eventData: JSON.stringify({ actorUserId: admin.id, revision, workspaceAccessOpen: !enabled }), createdAt: now }),
+  ]);
+  return getPlatformOperationState();
 }
 
 export async function getPlatformOperationState() {

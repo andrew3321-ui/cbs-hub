@@ -46,3 +46,22 @@ test("scope usage blocks new authorization without deleting existing evidence", 
   assert.equal(overLimit.scopeCount, 16);
   assert.equal(overLimit.scopeLimitExceeded, true);
 });
+
+test("controlled launch blocks unpaid workspaces but preserves owner and active contract access", () => {
+  const trial = applyPlanUsage(planDefinitions.trial, inactiveBilling, 0, { startedAt: "2026-07-18T10:00:00.000Z", endsAt: "2026-07-23T10:00:00.000Z", status: "active" }, now, true);
+  assert.equal(trial.workspaceAccessAllowed, false);
+  assert.equal(trial.workspaceAccessReason, "controlled_opening");
+
+  const owner = applyPlanUsage(planDefinitions.owner, inactiveBilling, 0, null, now, true);
+  assert.equal(owner.workspaceAccessAllowed, true);
+  assert.equal(owner.workspaceAccessReason, "platform_owner");
+
+  const paidBilling = { planKey: "pro", status: "active", providerSubscriptionId: "subscription-1", nextPaymentAt: null };
+  const paid = applyPlanUsage(planDefinitions.pro, paidBilling, 1, null, now, true);
+  assert.equal(paid.workspaceAccessAllowed, true);
+  assert.equal(paid.workspaceAccessReason, "active_contract");
+
+  const open = applyPlanUsage(planDefinitions.beta, inactiveBilling, 0);
+  assert.equal(open.workspaceAccessAllowed, true);
+  assert.equal(open.workspaceAccessReason, "open");
+});

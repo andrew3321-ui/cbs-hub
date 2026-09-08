@@ -8,6 +8,7 @@ import { getWorkspaceEntitlements, officePlanRequiredResponse } from "../../../p
 import { TRIAL_DURATION_DAYS, TRIAL_SCOPE_LIMIT, trialEndsAt } from "../../../../domain/trial";
 import { buildTrialClaimIdentity, trialDeviceCookieHeader } from "../../../trial-protection";
 import { metricIdentityCookies, recordPlatformMetricEvent, type MetricEventType } from "../../../platform-analytics";
+import { getPlatformOperationState } from "../../../platform-controls";
 
 const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -44,6 +45,7 @@ export async function POST(request: Request) {
     const inviteToken = typeof payload.inviteToken === "string" ? payload.inviteToken.trim().toLowerCase() : "";
 
     const db = getDb();
+    const operation = await getPlatformOperationState();
     let accountCode = createAccountCode();
     for (let attempt = 0; attempt < 3; attempt += 1) {
       const [collision] = await db.select({ id: users.id }).from(users).where(eq(users.accountCode, accountCode)).limit(1);
@@ -106,6 +108,7 @@ export async function POST(request: Request) {
     let workspaceId: number;
     let workspaceName: string;
     let trialGranted = false;
+    let trialReserved = false;
     let trialStartedAt: string | null = null;
     let trialEndsAtValue: string | null = null;
     if (invitation) {
@@ -136,7 +139,7 @@ export async function POST(request: Request) {
 
       if (trialIdentity) {
         trialStartedAt = new Date().toISOString();
-        trialEndsAtValue = trialEndsAt(trialStartedAt);
+        trialEndsAtValue = operation.cyberLaunchGateEnabled ? trialStartedAt : trialEndsAt(trialStartedAt);
         const hashVersions = [trialIdentity, ...trialIdentity.historicalHashes];
         const [usedClaim] = await db.select({ id: trialDeviceClaims.id }).from(trialDeviceClaims).where(or(
           inArray(trialDeviceClaims.deviceHash, hashVersions.map((hash) => hash.deviceHash)),
@@ -150,11 +153,12 @@ export async function POST(request: Request) {
           fingerprintHash: trialIdentity.fingerprintHash,
           emailHash: trialIdentity.emailHash,
           networkHash: trialIdentity.networkHash,
-          status: "active",
+          status: operation.cyberLaunchGateEnabled ? "reserved" : "active",
           startedAt: trialStartedAt,
           endsAt: trialEndsAtValue,
         }).onConflictDoNothing().returning({ id: trialDeviceClaims.id });
-        trialGranted = Boolean(claim);
+        trialReserved = Boolean(claim) && operation.cyberLaunchGateEnabled;
+        trialGranted = Boolean(claim) && !operation.cyberLaunchGateEnabled;
         createdTrialClaimId = claim?.id ?? null;
         if (!claim) {
           trialStartedAt = null;
@@ -165,7 +169,7 @@ export async function POST(request: Request) {
 
     try {
       await recordPlatformMetricEvent({ request, eventType: "signup", userId: user.id, payload: { pathname: "/cadastro" }, visitorId: metricIdentity.visitorId, sessionId: metricIdentity.sessionId });
-      if (!invitation) await recordPlatformMetricEvent({ request, eventType: trialGranted ? "trial_started" : "trial_denied", userId: user.id, payload: { pathname: "/cadastro", reason: trialGranted ? "granted" : trialIdentity ? "already_used" : "verification_unavailable" }, visitorId: metricIdentity.visitorId, sessionId: metricIdentity.sessionId });
+      if (!invitation) await recordPlatformMetricEvent({ request, eventType: trialGranted ? "trial_started" : trialReserved ? "trial_reserved" : "trial_denied", userId: user.id, payload: { pathname: "/cadastro", reason: trialGranted ? "granted" : trialReserved ? "controlled_opening" : trialIdentity ? "already_used" : "verification_unavailable" }, visitorId: metricIdentity.visitorId, sessionId: metricIdentity.sessionId });
     } catch (metricError) {
       console.warn(JSON.stringify({ event: "platform_metrics.signup_record_failed", error: metricError instanceof Error ? metricError.name : "UnknownError" }));
     }
@@ -189,6 +193,8 @@ export async function POST(request: Request) {
           ? "workspace_inherited"
           : trialGranted
             ? null
+            : trialReserved
+              ? "launch_reserved"
             : trialIdentity
               ? "device_already_used"
               : "device_verification_unavailable",
