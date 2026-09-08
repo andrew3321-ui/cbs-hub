@@ -10,7 +10,23 @@ function requireInvariant(condition, code) {
   if (!condition) throw new Error(`security_build_blocked:${code}`);
 }
 
-const [appPage, appLayout, launchGate, workspace, agentRoute, landing, marketingShell, seoPolicy, nextConfig, operations, findings, campaigns, campaignPolicy, defense, cloudflareConnector] = await Promise.all([
+const [
+  appPage,
+  appLayout,
+  launchGate,
+  workspace,
+  agentRoute,
+  landing,
+  marketingShell,
+  seoPolicy,
+  nextConfig,
+  operations,
+  findings,
+  campaigns,
+  campaignPolicy,
+  defense,
+  cloudflareConnector,
+] = await Promise.all([
   source("app/app/page.tsx"),
   source("app/app/layout.tsx"),
   source("app/app/CyberLaunchGate.tsx"),
@@ -28,23 +44,108 @@ const [appPage, appLayout, launchGate, workspace, agentRoute, landing, marketing
   source("docs/security/cloudflare-customer-connector.md"),
 ]);
 
-requireInvariant(appPage.includes("SecurityAgentCenter"), "workspace_entrypoint_missing");
-requireInvariant(appPage.includes("workspaceAccessAllowed") && launchGate.includes("ABERTURA CONTROLADA") && agentRoute.includes("CYBER_LAUNCH_GATE"), "commercial_launch_gate_missing");
-requireInvariant(!appPage.includes("CBSHubApp") && !appPage.includes("GuestCBSHubApp"), "fiscal_workspace_still_active");
-requireInvariant(appLayout.includes("security-workspace.css") && appLayout.includes("security-agent.css"), "security_styles_missing");
-requireInvariant(workspace.includes("AUTHORIZED SECURITY VALIDATION") && workspace.includes("authorizationConfirmed"), "authorization_guard_missing");
-requireInvariant(agentRoute.includes("getCurrentUser") && agentRoute.includes("enqueueSecurityAgentJob"), "authenticated_agent_route_missing");
-requireInvariant(agentRoute.includes("triage_telemetry") && operations.includes("manual_telemetry"), "blue_team_triage_missing");
-requireInvariant(findings.includes("syncSecurityFindings") && findings.includes("security_finding_events"), "security_findings_workflow_missing");
-requireInvariant(campaigns.includes("pull_request_only") && campaignPolicy.includes("blockedCapabilities"), "controlled_delivery_workflow_missing");
-requireInvariant(defense.includes("connectCloudflareDefenseConnector") && defense.includes("AES-GCM") && defense.includes("CLOUDFLARE_ZONE_MISMATCH"), "cloudflare_connector_guardrails_missing");
-requireInvariant(defense.includes("runDueCloudflareDefenseSync") && defense.includes("firewallEventsAdaptive") && defense.includes("CLOUDFLARE_EVENT_WINDOW_SATURATED"), "cloudflare_event_collection_missing");
-requireInvariant(defense.includes("auditCloudflareDefensePosture") && defense.includes("externalMutation: false") && defense.includes("security_defense_posture_snapshots"), "cloudflare_posture_control_plane_missing");
-requireInvariant(defense.includes("connectCloudflareWriteCredential") && defense.includes("create_rate_limit_managed_challenge") && defense.includes("CLOUDFLARE_CONFIGURATION_DRIFT") && defense.includes("rollbackCloudflareChangeProposal"), "cloudflare_controlled_change_guardrails_missing");
-requireInvariant(defense.includes('action: "managed_challenge"') && defense.includes("mitigation_timeout: 0") && !defense.includes('action: "block", enabled: true'), "cloudflare_gradual_mitigation_missing");
-requireInvariant(cloudflareConnector.includes("observe_only") && cloudflareConnector.includes("aprovação humana") && cloudflareConnector.includes("rollback"), "cloudflare_connector_runbook_missing");
-requireInvariant(landing.includes("CyberMarketingHeader") && marketingShell.includes("CBSHub Cybersecurity") && marketingShell.includes("/produto") && marketingShell.includes("/precos") && !landing.includes("Produto fiscal"), "cybersecurity_landing_incomplete");
-requireInvariant(!seoPolicy.includes("taxContentRoutes") && !seoPolicy.includes("relatorios-fiscais"), "legacy_seo_routes_active");
-requireInvariant(nextConfig.includes("/calculadora-reforma-tributaria") && nextConfig.includes("permanent: true"), "legacy_redirects_missing");
+requireInvariant(
+  appPage.includes("SecurityAgentCenter"),
+  "workspace_entrypoint_missing",
+);
+requireInvariant(
+  appPage.includes("workspaceAccessAllowed") &&
+    launchGate.includes("ABERTURA CONTROLADA") &&
+    agentRoute.includes("CYBER_LAUNCH_GATE"),
+  "commercial_launch_gate_missing",
+);
+requireInvariant(
+  !appPage.includes("CBSHubApp") && !appPage.includes("GuestCBSHubApp"),
+  "fiscal_workspace_still_active",
+);
+requireInvariant(
+  appLayout.includes("security-workspace.css") &&
+    appLayout.includes("security-agent.css"),
+  "security_styles_missing",
+);
+requireInvariant(
+  workspace.includes("AUTHORIZED SECURITY VALIDATION") &&
+    workspace.includes("authorizationConfirmed"),
+  "authorization_guard_missing",
+);
+requireInvariant(
+  agentRoute.includes("getCurrentUser") &&
+    agentRoute.includes("enqueueSecurityAgentJob"),
+  "authenticated_agent_route_missing",
+);
+requireInvariant(
+  agentRoute.includes("triage_telemetry") &&
+    operations.includes("manual_telemetry"),
+  "blue_team_triage_missing",
+);
+requireInvariant(
+  findings.includes("syncSecurityFindings") &&
+    findings.includes("security_finding_events"),
+  "security_findings_workflow_missing",
+);
+requireInvariant(
+  campaigns.includes("pull_request_only") &&
+    campaignPolicy.includes("blockedCapabilities"),
+  "controlled_delivery_workflow_missing",
+);
+requireInvariant(
+  defense.includes("connectCloudflareDefenseConnector") &&
+    defense.includes("AES-GCM") &&
+    defense.includes("CLOUDFLARE_ZONE_MISMATCH"),
+  "cloudflare_connector_guardrails_missing",
+);
+requireInvariant(
+  defense.includes("runDueCloudflareDefenseSync") &&
+    defense.includes("firewallEventsAdaptive") &&
+    defense.includes("CLOUDFLARE_EVENT_WINDOW_SATURATED"),
+  "cloudflare_event_collection_missing",
+);
+requireInvariant(
+  defense.includes("auditCloudflareDefensePosture") &&
+    defense.includes("externalMutation: false") &&
+    defense.includes("security_defense_posture_snapshots"),
+  "cloudflare_posture_control_plane_missing",
+);
+requireInvariant(
+  defense.includes("connectCloudflareWriteCredential") &&
+    defense.includes("create_rate_limit_managed_challenge") &&
+    defense.includes("CLOUDFLARE_CONFIGURATION_DRIFT") &&
+    defense.includes("rollbackCloudflareChangeProposal"),
+  "cloudflare_controlled_change_guardrails_missing",
+);
+requireInvariant(
+  defense.includes('action: "managed_challenge"') &&
+    defense.includes("mitigation_timeout: 0") &&
+    !defense.includes('action: "block", enabled: true'),
+  "cloudflare_gradual_mitigation_missing",
+);
+requireInvariant(
+  cloudflareConnector.includes("observe_only") &&
+    cloudflareConnector.includes("aprovação humana") &&
+    cloudflareConnector.includes("rollback"),
+  "cloudflare_connector_runbook_missing",
+);
+requireInvariant(
+  landing.includes("CyberMarketingHeader") &&
+    marketingShell.includes("CBSHub Cybersecurity") &&
+    marketingShell.includes("/produto") &&
+    marketingShell.includes("/casos-de-uso") &&
+    marketingShell.includes("/seguranca") &&
+    marketingShell.includes("/precos") &&
+    !landing.includes("Produto fiscal"),
+  "cybersecurity_landing_incomplete",
+);
+requireInvariant(
+  !seoPolicy.includes("taxContentRoutes") &&
+    !seoPolicy.includes("relatorios-fiscais"),
+  "legacy_seo_routes_active",
+);
+requireInvariant(
+  nextConfig.includes("/calculadora-reforma-tributaria") &&
+    nextConfig.includes("permanent: true"),
+  "legacy_redirects_missing",
+);
 
-process.stdout.write("Security build assurance passed: workspace, authorization guard, routing and legacy retirement verified.\n");
+process.stdout.write(
+  "Security build assurance passed: workspace, authorization guard, routing and legacy retirement verified.\n",
+);

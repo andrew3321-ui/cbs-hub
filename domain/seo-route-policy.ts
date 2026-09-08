@@ -1,8 +1,10 @@
-export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v2.1.0-cybersecurity-structure";
+export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v2.2.0-cybersecurity-trust";
 
 export const publicIndexableRoutes = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
   { path: "/produto", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/casos-de-uso", changeFrequency: "weekly", priority: 0.7 },
+  { path: "/seguranca", changeFrequency: "monthly", priority: 0.7 },
   { path: "/precos", changeFrequency: "weekly", priority: 0.8 },
   { path: "/privacidade", changeFrequency: "monthly", priority: 0.4 },
   { path: "/termos", changeFrequency: "monthly", priority: 0.4 },
@@ -23,5 +25,8 @@ export const privateIndexRoutePrefixes = [
 ] as const;
 
 export function routeMustNotBeIndexed(pathname: string) {
-  return privateIndexRoutePrefixes.some((prefix) => pathname === prefix.replace(/\/$/, "") || pathname.startsWith(prefix));
+  return privateIndexRoutePrefixes.some(
+    (prefix) =>
+      pathname === prefix.replace(/\/$/, "") || pathname.startsWith(prefix),
+  );
 }
