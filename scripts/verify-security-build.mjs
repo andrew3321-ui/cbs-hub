@@ -10,13 +10,14 @@ function requireInvariant(condition, code) {
   if (!condition) throw new Error(`security_build_blocked:${code}`);
 }
 
-const [appPage, appLayout, launchGate, workspace, agentRoute, landing, seoPolicy, nextConfig, operations, findings, campaigns, campaignPolicy, defense, cloudflareConnector] = await Promise.all([
+const [appPage, appLayout, launchGate, workspace, agentRoute, landing, marketingShell, seoPolicy, nextConfig, operations, findings, campaigns, campaignPolicy, defense, cloudflareConnector] = await Promise.all([
   source("app/app/page.tsx"),
   source("app/app/layout.tsx"),
   source("app/app/CyberLaunchGate.tsx"),
   source("app/app/SecurityAgentCenter.tsx"),
   source("app/api/security-agent/route.ts"),
   source("app/CybersecurityLanding.tsx"),
+  source("app/CyberMarketingShell.tsx"),
   source("domain/seo-route-policy.ts"),
   source("next.config.ts"),
   source("domain/security-operations.ts"),
@@ -42,7 +43,7 @@ requireInvariant(defense.includes("auditCloudflareDefensePosture") && defense.in
 requireInvariant(defense.includes("connectCloudflareWriteCredential") && defense.includes("create_rate_limit_managed_challenge") && defense.includes("CLOUDFLARE_CONFIGURATION_DRIFT") && defense.includes("rollbackCloudflareChangeProposal"), "cloudflare_controlled_change_guardrails_missing");
 requireInvariant(defense.includes('action: "managed_challenge"') && defense.includes("mitigation_timeout: 0") && !defense.includes('action: "block", enabled: true'), "cloudflare_gradual_mitigation_missing");
 requireInvariant(cloudflareConnector.includes("observe_only") && cloudflareConnector.includes("aprovação humana") && cloudflareConnector.includes("rollback"), "cloudflare_connector_runbook_missing");
-requireInvariant(landing.includes("CBSHub Cybersecurity") && !landing.includes("Produto fiscal"), "cybersecurity_landing_incomplete");
+requireInvariant(landing.includes("CyberMarketingHeader") && marketingShell.includes("CBSHub Cybersecurity") && marketingShell.includes("/produto") && marketingShell.includes("/precos") && !landing.includes("Produto fiscal"), "cybersecurity_landing_incomplete");
 requireInvariant(!seoPolicy.includes("taxContentRoutes") && !seoPolicy.includes("relatorios-fiscais"), "legacy_seo_routes_active");
 requireInvariant(nextConfig.includes("/calculadora-reforma-tributaria") && nextConfig.includes("permanent: true"), "legacy_redirects_missing");
 

@@ -1,7 +1,9 @@
-export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v2.0.0-cybersecurity";
+export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v2.1.0-cybersecurity-structure";
 
 export const publicIndexableRoutes = [
   { path: "/", changeFrequency: "weekly", priority: 1 },
+  { path: "/produto", changeFrequency: "weekly", priority: 0.8 },
+  { path: "/precos", changeFrequency: "weekly", priority: 0.8 },
   { path: "/privacidade", changeFrequency: "monthly", priority: 0.4 },
   { path: "/termos", changeFrequency: "monthly", priority: 0.4 },
   { path: "/responsavel", changeFrequency: "monthly", priority: 0.3 },

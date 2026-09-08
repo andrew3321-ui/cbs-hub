@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import { publicIndexableRoutes } from "../domain/seo-route-policy.ts";
 
 const SITE_URL = "https://cbshub.com.br";
-const LAST_CONTENT_REVIEW = new Date("2026-09-04T00:00:00-03:00");
+const LAST_CONTENT_REVIEW = new Date("2026-09-08T00:00:00-03:00");
 
 export default function sitemap(): MetadataRoute.Sitemap {
   return publicIndexableRoutes.map((route) => ({

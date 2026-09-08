@@ -10,7 +10,7 @@ test("launch offer is explicit, non-purchasable and consistently gated", async (
     source("app/app/page.tsx"),
     source("app/api/security-agent/route.ts"),
     source("app/auth-ui/AuthScreen.tsx"),
-    source("app/CybersecurityLanding.tsx"),
+    source("app/precos/page.tsx"),
     source("drizzle/0061_cyber_launch_gate.sql"),
     source("app/api/auth/register/route.ts"),
     source("app/plan-entitlements.ts"),

@@ -18,7 +18,7 @@ test("robots libera conteúdo público, protege superfícies privadas e anuncia 
 
 test("sitemap contém somente páginas públicas canônicas", () => {
   const entries = sitemap();
-  assert.deepEqual(entries.map((entry) => entry.url), ["https://cbshub.com.br", "https://cbshub.com.br/privacidade", "https://cbshub.com.br/termos", "https://cbshub.com.br/responsavel"]);
+  assert.deepEqual(entries.map((entry) => entry.url), ["https://cbshub.com.br", "https://cbshub.com.br/produto", "https://cbshub.com.br/precos", "https://cbshub.com.br/privacidade", "https://cbshub.com.br/termos", "https://cbshub.com.br/responsavel"]);
   assert.equal(new Set(entries.map((entry) => entry.url)).size, entries.length);
   assert.ok(entries.every((entry) => entry.url.startsWith("https://cbshub.com.br")));
 });
@@ -57,7 +57,7 @@ test("breadcrumbs têm posições, URLs absolutas e serialização segura", () =
 });
 
 test("páginas públicas internas recebem breadcrumb e metadados sociais próprios", () => {
-  for (const slug of ["privacidade", "termos", "responsavel"]) {
+  for (const slug of ["produto", "precos", "privacidade", "termos", "responsavel"]) {
     const source = fs.readFileSync(new URL(`../app/${slug}/page.tsx`, import.meta.url), "utf8");
     assert.match(source, /PublicPageBreadcrumb/);
     assert.match(source, /openGraph:/);

@@ -1,22 +1,13 @@
 import Link from "next/link";
 import BrandMark from "./BrandMark";
 import CybersecurityPreview from "./CybersecurityPreview";
-import { cyberLaunchOffer, formatCyberPrice } from "../domain/cyber-commercial";
+import { CyberMarketingFooter, CyberMarketingHeader } from "./CyberMarketingShell";
 
-export default function CybersecurityLanding({ homePath = "/" }: { homePath?: string }) {
+export default function CybersecurityLanding() {
   return (
     <main className="cyber-page">
       <div className="cyber-grid-overlay" aria-hidden="true" />
-      <header className="cyber-nav">
-        <Link className="cyber-lockup" href={homePath} aria-label="CBSHub Cybersecurity — início">
-          <BrandMark />
-          <span><strong>CBS</strong>Hub <small>Cybersecurity</small></span>
-        </Link>
-        <nav aria-label="Navegação de cybersecurity">
-          <a href="#diagnostico">Diagnóstico</a><a href="#protege">Superfície de ataque</a><a href="#metodo">Como funciona</a><a href="#preco">Preço</a>
-        </nav>
-        <div className="cyber-nav-actions"><Link className="cyber-login" href="/entrar?returnTo=%2Fapp">Entrar</Link><Link className="cyber-button cyber-button-small" href="/app">Abrir workspace <span>→</span></Link></div>
-      </header>
+      <CyberMarketingHeader />
 
       <section className="cyber-hero">
         <div className="cyber-hero-copy">
@@ -58,21 +49,9 @@ export default function CybersecurityLanding({ homePath = "/" }: { homePath?: st
         <ol><li><b>01</b><span><strong>Descoberta passiva</strong>Leitura dos controles públicos, sem acesso à rede interna.</span></li><li><b>02</b><span><strong>Priorização por risco</strong>Separação objetiva entre proteção adequada, atenção e exposição.</span></li><li><b>03</b><span><strong>Plano de proteção</strong>Monitoramento e evidências conectados em um único workspace.</span></li></ol>
       </section>
 
-      <section className="cyber-pricing" id="preco">
-        <div className="cyber-pricing-copy"><span>EARLY ACCESS · PREÇO TRANSPARENTE</span><h2>Proteção contínua sem contrato surpresa.</h2><p>Comece com um único workspace e evolua a operação conforme a CBSHub libera os controles de produção.</p></div>
-        <article className="cyber-price-card">
-          <span>PLANO DE LANÇAMENTO</span>
-          <h3>{formatCyberPrice()}<small>/mês</small></h3>
-          <p>Até {cyberLaunchOffer.domainLimit} domínios autorizados por workspace.</p>
-          <ul><li>Diagnóstico externo passivo</li><li>Priorização assistida por IA</li><li>Monitoramento e evidências</li><li>Controle defensivo Cloudflare</li></ul>
-          <Link className="cyber-button" href="/cadastro">Reservar meu workspace <span>→</span></Link>
-          <small>Nenhuma cobrança começa agora. A contratação será confirmada somente após a abertura.</small>
-        </article>
-      </section>
+      <section className="cyber-final-cta"><div><span>CONTINUE EXPLORANDO</span><h2>Produto, limites e preço agora têm espaços próprios.</h2></div><div className="cyber-final-actions"><Link className="cyber-button cyber-button-light" href="/produto">Conhecer o produto <span>→</span></Link><Link className="cyber-final-link" href="/precos">Ver preço</Link></div></section>
 
-      <section className="cyber-final-cta"><div><span>START WITH VISIBILITY</span><h2>Reserve o workspace que vai acompanhar sua superfície externa.</h2></div><Link className="cyber-button cyber-button-light" href="/cadastro">Reservar acesso <span>→</span></Link></section>
-
-      <footer className="cyber-footer"><div className="cyber-lockup"><BrandMark /><span><strong>CBS</strong>Hub <small>Cybersecurity</small></span></div><p>Diagnóstico informativo. Não substitui pentest, auditoria ou resposta a incidentes.<br />Suporte: <a href="mailto:supportofficial@cbshub.com.br">supportofficial@cbshub.com.br</a></p><div><Link href="/privacidade">Privacidade</Link><Link href="/termos">Termos</Link><Link href="/app">Security Workspace</Link></div></footer>
+      <CyberMarketingFooter />
     </main>
   );
 }

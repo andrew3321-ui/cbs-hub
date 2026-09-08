@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import "./marketing.css";
 import AnalyticsBeacon from "./AnalyticsBeacon";
 import WebVitalsBeacon from "./WebVitalsBeacon";
 
