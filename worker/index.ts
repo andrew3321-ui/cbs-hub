@@ -5,7 +5,7 @@ import { runScheduledBillingReconciliation } from "../app/billing-scheduled-reco
 import { runSearchConsoleSync } from "../app/search-console-service";
 import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
 import { processSecurityAgentQueueMessage, runScheduledSecurityAgent, type SecurityAgentQueueMessage } from "../app/security-agent-service";
-import { activeEdgeBlock, expireDefenseActions } from "../app/security-defense-service";
+import { activeEdgeBlock, expireDefenseActions, runDueCloudflareDefenseSync, runDueCloudflarePostureAudit } from "../app/security-defense-service";
 
 interface Env {
   ASSETS: Fetcher;
@@ -307,6 +307,12 @@ const worker = {
         console.error(JSON.stringify({ event: "security_defense.expiration_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
+      ctx.waitUntil(runDueCloudflareDefenseSync(env, fetch, controller.scheduledTime).then((result) => {
+        if (result.attempted) console.info(JSON.stringify({ event: "security_defense.cloudflare_sync_completed", date, ...result }));
+      }).catch((error) => {
+        console.error(JSON.stringify({ event: "security_defense.cloudflare_sync_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
     }
     if (controller.cron === "15 8 * * *") {
       ctx.waitUntil(runSecurityRetentionCleanup(env).catch((error) => {
@@ -321,6 +327,12 @@ const worker = {
       }));
     }
     if (controller.cron === "45 12 * * *") {
+      ctx.waitUntil(runDueCloudflarePostureAudit(env, fetch, controller.scheduledTime).then((result) => {
+        if (result.attempted) console.info(JSON.stringify({ event: "security_defense.cloudflare_posture_completed", date, ...result }));
+      }).catch((error: unknown) => {
+        console.error(JSON.stringify({ event: "security_defense.cloudflare_posture_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
       ctx.waitUntil(runScheduledSecurityAgent(env).then((result) => {
         console.info(JSON.stringify({ event: "security_agent.scheduled_completed", date, ...result }));
       }).catch((error: unknown) => {

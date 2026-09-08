@@ -35,6 +35,10 @@ requireInvariant(agentRoute.includes("triage_telemetry") && operations.includes(
 requireInvariant(findings.includes("syncSecurityFindings") && findings.includes("security_finding_events"), "security_findings_workflow_missing");
 requireInvariant(campaigns.includes("pull_request_only") && campaignPolicy.includes("blockedCapabilities"), "controlled_delivery_workflow_missing");
 requireInvariant(defense.includes("connectCloudflareDefenseConnector") && defense.includes("AES-GCM") && defense.includes("CLOUDFLARE_ZONE_MISMATCH"), "cloudflare_connector_guardrails_missing");
+requireInvariant(defense.includes("runDueCloudflareDefenseSync") && defense.includes("firewallEventsAdaptive") && defense.includes("CLOUDFLARE_EVENT_WINDOW_SATURATED"), "cloudflare_event_collection_missing");
+requireInvariant(defense.includes("auditCloudflareDefensePosture") && defense.includes("externalMutation: false") && defense.includes("security_defense_posture_snapshots"), "cloudflare_posture_control_plane_missing");
+requireInvariant(defense.includes("connectCloudflareWriteCredential") && defense.includes("create_rate_limit_managed_challenge") && defense.includes("CLOUDFLARE_CONFIGURATION_DRIFT") && defense.includes("rollbackCloudflareChangeProposal"), "cloudflare_controlled_change_guardrails_missing");
+requireInvariant(defense.includes('action: "managed_challenge"') && defense.includes("mitigation_timeout: 0") && !defense.includes('action: "block", enabled: true'), "cloudflare_gradual_mitigation_missing");
 requireInvariant(cloudflareConnector.includes("observe_only") && cloudflareConnector.includes("aprovação humana") && cloudflareConnector.includes("rollback"), "cloudflare_connector_runbook_missing");
 requireInvariant(landing.includes("CBSHub Cybersecurity") && !landing.includes("Produto fiscal"), "cybersecurity_landing_incomplete");
 requireInvariant(!seoPolicy.includes("taxContentRoutes") && !seoPolicy.includes("relatorios-fiscais"), "legacy_seo_routes_active");
