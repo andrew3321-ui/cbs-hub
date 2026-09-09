@@ -32,5 +32,11 @@
         "dead_letter_queue": "cbs-hub-security-scans-dlq"
       }
     ]
-  }
+  },
+  "services": [
+    {
+      "binding": "SECURITY_ACTIVE_RUNNER",
+      "service": "cbs-hub-security-runner"
+    }
+  ]
 }

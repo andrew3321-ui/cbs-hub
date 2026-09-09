@@ -28,6 +28,7 @@ generated.preview_urls = false;
 generated.version_metadata = production.version_metadata ?? generated.version_metadata;
 generated.triggers = production.triggers ?? generated.triggers;
 generated.queues = production.queues ?? generated.queues;
+generated.services = production.services ?? generated.services;
 generated.d1_databases = [{
   binding: "DB",
   database_name: productionDatabase.database_name,

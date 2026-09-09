@@ -19,7 +19,7 @@ Build command: npm run ci:build
 Deploy command: npm run ci:deploy
 ```
 
-`ci:build` executa varredura de segredos, lint, validação da sequência de migrations, testes e build. `ci:deploy` recusa branch diferente de `main`, aplica as migrations D1 pendentes, publica o Worker e executa o smoke test. Uma falha interrompe a sequência.
+`ci:build` executa varredura de segredos, lint, validação da sequência de migrations, testes e build. `ci:deploy` recusa branch diferente de `main`, aplica as migrations D1 pendentes, garante as filas do runner, publica o Worker isolado, sincroniza uma nova chave HMAC entre os dois Workers, publica o controle principal e executa o smoke test. Uma falha interrompe a sequência.
 
 O Wrangler registra migrations já aplicadas em `d1_migrations`. Por isso uma reexecução aplica somente arquivos pendentes. Nunca alterar uma migration que já chegou ao remoto; toda mudança de esquema recebe um novo número.
 
@@ -52,7 +52,9 @@ Variáveis de runtime ficam em **Worker > Settings > Variables and Secrets**. Se
 
 Nenhum valor secreto deve ser salvo no Git, D1, logs ou documentação.
 
-Os crons versionados executam expiração de contenções a cada cinco minutos, rotinas operacionais às 08:15 UTC e o monitor passivo às 12:45 UTC. O service binding `SECURITY_ACTIVE_RUNNER` permanece ausente até que o runner isolado seja publicado e passe a validar assinatura, janela, domínio, orçamento e condições de interrupção de forma independente.
+Os crons versionados executam expiração de contenções e conciliação de campanhas do runner a cada cinco minutos, rotinas operacionais às 08:15 UTC e o monitor passivo às 12:45 UTC. O service binding `SECURITY_ACTIVE_RUNNER` aponta exclusivamente para `cbs-hub-security-runner`, que não recebe chaves da OpenAI, cobrança ou conectores de clientes. A chave HMAC compartilhada é rotacionada durante a publicação e não é escrita em arquivo ou log.
+
+O executor usa a fila `cbs-hub-active-security-runs` e a DLQ correspondente. Antes de publicar, `npm run runner:check` precisa compilar o Worker separado. O runner compartilha somente o D1 operacional para registrar estado e resultado agregado; o processo separado não recebe acesso aos demais segredos do controle principal.
 
 ### Ativação do agente de segurança
 
@@ -68,7 +70,7 @@ Sem `OPENAI_API_KEY`, o produto continua emitindo a priorização determinístic
 
 ## Observabilidade
 
-`GET /api/health` verifica D1 e assinatura de cenários e expõe o ID da versão Cloudflare. Todas as respostas recebem `X-Request-Id` e `X-CBSHub-Version`. Os logs são JSON e produzem:
+`GET /api/health` verifica D1 e disponibilidade do runner isolado e expõe o ID da versão Cloudflare. Todas as respostas recebem `X-Request-Id` e `X-CBSHub-Version`. Os logs são JSON e produzem:
 
 - `edge.request` para status e duração;
 - `edge.alert.error` para HTTP 5xx;

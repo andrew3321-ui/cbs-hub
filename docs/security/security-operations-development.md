@@ -4,7 +4,7 @@ Implementação local: `security-operations.v2`, catálogo `security-knowledge.2
 
 ## Capacidades entregues
 
-- Preparação de pentest: procedimentos manuais ligados aos achados passivos, pré-requisitos para testes autenticados e critérios de reteste. Não há execução de exploração ou runner ativo nesta etapa.
+- Preparação de pentest: procedimentos manuais ligados aos achados passivos, pré-requisitos para testes autenticados e critérios de reteste. O runner separado cobre somente crawl HTTPS seguro; não há exploração nem teste autenticado.
 - Blue team: triagem de contagens agregadas informadas pelo operador para um domínio verificado. As métricas cobrem autenticação, MFA, WAF, respostas 5xx e alterações de privilégios. Nenhum conector de SIEM/EDR é anunciado como ativo.
 - As análises usam a fila, limite diário, autorização vigente, verificação DNS, lease, retries e auditoria do agente existente. Jobs de blue team não adiam o monitoramento passivo.
 - Terra faz a análise; o roteador pode chamar Sol para revisão. O procedimento e os playbooks são enviados em contexto. Respostas são validadas localmente quanto a formato, limites e referências de evidência antes de serem aceitas.

@@ -1,0 +1,38 @@
+{
+  "$schema": "../node_modules/wrangler/config-schema.json",
+  "name": "cbs-hub-security-runner",
+  "main": "./worker.ts",
+  "compatibility_date": "2026-07-25",
+  "workers_dev": false,
+  "preview_urls": false,
+  "version_metadata": {
+    "binding": "CF_VERSION_METADATA"
+  },
+  "observability": {
+    "enabled": true
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "margem-clara-production",
+      "database_id": "ce069e8f-9efb-4142-8a76-0721bfb04a1c"
+    }
+  ],
+  "queues": {
+    "producers": [
+      {
+        "binding": "ACTIVE_RUN_QUEUE",
+        "queue": "cbs-hub-active-security-runs"
+      }
+    ],
+    "consumers": [
+      {
+        "queue": "cbs-hub-active-security-runs",
+        "max_batch_size": 1,
+        "max_batch_timeout": 5,
+        "max_retries": 2,
+        "dead_letter_queue": "cbs-hub-active-security-runs-dlq"
+      }
+    ]
+  }
+}

@@ -50,7 +50,7 @@ async function waitForPublishedRelease() {
       } else {
         const body = await health.json();
         const releaseChanged = body.release?.id && (!previousReleaseId || body.release.id !== previousReleaseId);
-        if (body.status === "healthy" && body.checks?.database === "up" && releaseChanged) return body;
+        if (body.status === "healthy" && body.checks?.database === "up" && body.checks?.securityRunner === "up" && releaseChanged) return body;
         lastReason = body.release?.id === previousReleaseId
           ? `versão anterior ${previousReleaseId} ainda em tráfego`
           : "banco, assinatura ou versão ainda indisponível";

@@ -6,18 +6,19 @@ import { campaignExecutionReadiness, parseRepositoryTarget, parseSecurityCampaig
 import { approveSecurityCampaign, createRemediationProposal, createSecurityCampaign, decideRemediationProposal, dispatchSecurityCampaign } from "../app/security-campaign-service.ts";
 
 const futureCampaign = (now = Date.now()) => ({
-  name: "Validação controlada em homologação", environment: "staging", techniques: ["safe_web_crawl", "sast"],
+  name: "Validação controlada em homologação", environment: "staging", techniques: ["safe_web_crawl", "tls_configuration_review"],
   windowStart: new Date(now + 10 * 60_000).toISOString(), windowEnd: new Date(now + 70 * 60_000).toISOString(),
-  maxRequestsPerMinute: 20, maxTotalRequests: 200,
+  maxRequestsPerMinute: 20, maxTotalRequests: 20,
   stopConditions: { errorRatePercent: 10, consecutiveServerErrors: 5, unexpectedAuthentication: true }, authorizationConfirmed: true,
 });
 
 test("campaign policy rejects unbounded, destructive and unapproved work", () => {
   const now = Date.now();
-  assert.deepEqual(parseSecurityCampaignInput(futureCampaign(now), now).techniques, ["safe_web_crawl", "sast"]);
+  assert.deepEqual(parseSecurityCampaignInput(futureCampaign(now), now).techniques, ["safe_web_crawl", "tls_configuration_review"]);
   for (const mutate of [
     (data) => { data.authorizationConfirmed = false; },
     (data) => { data.techniques = ["brute_force"]; },
+    (data) => { data.techniques = ["safe_web_crawl", "sast"]; },
     (data) => { data.maxRequestsPerMinute = 61; },
     (data) => { data.environment = "production"; data.maxRequestsPerMinute = 31; },
     (data) => { data.windowEnd = new Date(now + 6 * 3600_000).toISOString(); },
@@ -114,7 +115,7 @@ test("isolated runner receives a signed bounded manifest without arbitrary comma
     assert.match(request.headers.get("x-cbshub-signature"), /^sha256=[0-9a-f]{64}$/);
     const manifest = JSON.parse(await request.text());
     assert.deepEqual(manifest.techniques, ["safe_web_crawl", "tls_configuration_review"]);
-    assert.deepEqual(manifest.budgets, { requestsPerMinute: 20, totalRequests: 200 });
+    assert.deepEqual(manifest.budgets, { requestsPerMinute: 20, totalRequests: 20 });
     assert.equal(Object.hasOwn(manifest, "command"), false);
     assert.equal(sqlite.prepare("SELECT status, executor, runner_job_id FROM security_campaigns").get().runner_job_id, "run_bounded-0001");
   } finally { sqlite.close(); }

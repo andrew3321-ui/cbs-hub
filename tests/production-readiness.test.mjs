@@ -62,6 +62,7 @@ test("release metadata, structured alerts and smoke coverage are declared", () =
   assert.match(worker, /edge\.alert\.latency/);
   assert.match(worker, /X-CBSHub-Version/);
   assert.match(health, /release:/);
+  assert.match(health, /securityRunner/);
   assert.match(vite, /version_metadata/);
   assert.match(smoke, /waitForPublishedRelease/);
   assert.match(smoke, /SMOKE_RELEASE_ATTEMPTS/);
@@ -69,6 +70,7 @@ test("release metadata, structured alerts and smoke coverage are declared", () =
   assert.match(smoke, /SMOKE_SURFACE_ATTEMPTS/);
   assert.match(smoke, /landing-page/);
   assert.match(smoke, /releaseChanged/);
+  assert.match(smoke, /checks\?\.securityRunner === "up"/);
   for (const surface of ["/api/auth/login", "/api/security-agent", "/api/billing"]) {
     assert.match(smoke, new RegExp(surface.replaceAll("/", "\\/")));
   }

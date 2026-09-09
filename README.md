@@ -8,12 +8,13 @@ Plataforma defensiva para mapear a superfície externa de organizações, compro
 - workspace autenticado para autorizar domínios por DNS;
 - coleta passiva de DNS, e-mail, HTTPS e defesas do navegador;
 - fila assíncrona no Cloudflare Queues;
+- Worker separado e fila dedicada para validações HTTPS ativas, estritamente limitadas;
 - avaliação estruturada por modelo primário e revisão seletiva;
 - monitoramento diário de escopos verificados;
 - trilha de auditoria, limites de uso e expiração da autorização;
 - exportação e exclusão de dados compatíveis com a LGPD.
 
-O agente não explora vulnerabilidades, não executa força bruta, evasão, varredura de portas ou DoS. Todo escopo persistente exige declaração expressa e comprovação por TXT no DNS.
+O agente não explora vulnerabilidades, não executa força bruta, evasão, varredura de portas ou DoS. A validação ativa limita-se a crawl HTTPS seguro e sinais agregados de transporte. Todo escopo persistente exige declaração expressa e comprovação por TXT no DNS.
 
 ## Arquitetura
 

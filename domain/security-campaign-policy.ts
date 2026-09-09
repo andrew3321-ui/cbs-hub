@@ -1,4 +1,5 @@
-export const SECURITY_CAMPAIGN_POLICY_VERSION = "security-campaign-policy.2026-09-05.v1";
+export const SECURITY_CAMPAIGN_POLICY_VERSION = "security-campaign-policy.2026-09-08.v2";
+export const SECURITY_ACTIVE_RUNNER_MAX_TOTAL_REQUESTS = 25;
 
 export const securityTechniqueCatalog = {
   passive_external_posture: { label: "Postura externa passiva", execution: "existing_passive", risk: "passive", requiresRepository: false, requiresTestCredentials: false },
@@ -36,7 +37,9 @@ export function parseSecurityCampaignInput(input: unknown, now = Date.now()): Se
   if (value.authorizationConfirmed !== true) throw new Error("CAMPAIGN_AUTHORIZATION_REQUIRED");
   if (typeof value.name !== "string" || value.name.trim().length < 4 || value.name.trim().length > 80 || secretPattern.test(value.name)) throw new Error("CAMPAIGN_NAME_INVALID");
   if (!(["lab", "staging", "production"] as unknown[]).includes(value.environment)) throw new Error("CAMPAIGN_ENVIRONMENT_INVALID");
-  if (!Array.isArray(value.techniques) || value.techniques.length < 1 || value.techniques.length > 7 || new Set(value.techniques).size !== value.techniques.length || value.techniques.some((item) => typeof item !== "string" || !(item in securityTechniqueCatalog))) throw new Error("CAMPAIGN_TECHNIQUES_INVALID");
+  if (!Array.isArray(value.techniques) || value.techniques.length < 1 || value.techniques.length > 7 || new Set(value.techniques).size !== value.techniques.length || value.techniques.some((item) => typeof item !== "string" || !Object.hasOwn(securityTechniqueCatalog, item))) throw new Error("CAMPAIGN_TECHNIQUES_INVALID");
+  const executionFamilies = new Set((value.techniques as SecurityTechniqueId[]).map((technique) => securityTechniqueCatalog[technique].execution));
+  if (executionFamilies.size !== 1) throw new Error("CAMPAIGN_MIXED_EXECUTION_INVALID");
   if (typeof value.windowStart !== "string" || typeof value.windowEnd !== "string") throw new Error("CAMPAIGN_WINDOW_INVALID");
   const start = Date.parse(value.windowStart), end = Date.parse(value.windowEnd);
   if (!Number.isFinite(start) || !Number.isFinite(end) || start < now + 5 * 60_000 || start > now + 30 * 86400_000 || end <= start || end - start > 4 * 3600_000) throw new Error("CAMPAIGN_WINDOW_INVALID");
@@ -45,6 +48,8 @@ export function parseSecurityCampaignInput(input: unknown, now = Date.now()): Se
   const totalLimit = environment === "production" ? 500 : 2000;
   if (!Number.isSafeInteger(value.maxRequestsPerMinute) || Number(value.maxRequestsPerMinute) < 1 || Number(value.maxRequestsPerMinute) > rpmLimit) throw new Error("CAMPAIGN_RATE_LIMIT_INVALID");
   if (!Number.isSafeInteger(value.maxTotalRequests) || Number(value.maxTotalRequests) < 1 || Number(value.maxTotalRequests) > totalLimit) throw new Error("CAMPAIGN_TOTAL_LIMIT_INVALID");
+  const usesActiveRunner = (value.techniques as SecurityTechniqueId[]).some((technique) => securityTechniqueCatalog[technique].execution === "isolated_runner");
+  if (usesActiveRunner && Number(value.maxTotalRequests) > SECURITY_ACTIVE_RUNNER_MAX_TOTAL_REQUESTS) throw new Error("CAMPAIGN_ACTIVE_RUNNER_TOTAL_LIMIT_INVALID");
   if (!value.stopConditions || typeof value.stopConditions !== "object" || Array.isArray(value.stopConditions)) throw new Error("CAMPAIGN_STOP_CONDITIONS_INVALID");
   const stop = value.stopConditions as Record<string, unknown>;
   exactKeys(stop, ["errorRatePercent", "consecutiveServerErrors", "unexpectedAuthentication"], "CAMPAIGN_STOP_CONDITIONS_INVALID");

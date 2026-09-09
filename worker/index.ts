@@ -6,6 +6,7 @@ import { runSearchConsoleSync } from "../app/search-console-service";
 import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
 import { processSecurityAgentQueueMessage, runScheduledSecurityAgent, type SecurityAgentQueueMessage } from "../app/security-agent-service";
 import { activeEdgeBlock, expireDefenseActions, runDueCloudflareDefenseSync, runDueCloudflarePostureAudit } from "../app/security-defense-service";
+import { reconcileSecurityRunnerCampaigns } from "../app/security-campaign-service";
 
 interface Env {
   ASSETS: Fetcher;
@@ -203,6 +204,8 @@ function runSecurityRetentionCleanup(env: Env) {
     env.DB.prepare("DELETE FROM security_agent_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_agent_jobs WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_campaign_events WHERE created_at < datetime('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM security_runner_events WHERE created_at < datetime('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM security_runner_jobs WHERE created_at < datetime('now', '-365 days') AND status IN ('completed','stopped','failed')"),
     env.DB.prepare("DELETE FROM security_remediation_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_defense_signals WHERE received_at < datetime('now', '-180 days')"),
     env.DB.prepare("DELETE FROM security_defense_events WHERE created_at < datetime('now', '-365 days')"),
@@ -311,6 +314,12 @@ const worker = {
         if (result.attempted) console.info(JSON.stringify({ event: "security_defense.cloudflare_sync_completed", date, ...result }));
       }).catch((error) => {
         console.error(JSON.stringify({ event: "security_defense.cloudflare_sync_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
+      ctx.waitUntil(reconcileSecurityRunnerCampaigns(env).then((result) => {
+        if (result.updated) console.info(JSON.stringify({ event: "security_runner.campaigns_reconciled", date, ...result }));
+      }).catch((error) => {
+        console.error(JSON.stringify({ event: "security_runner.reconciliation_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
     }

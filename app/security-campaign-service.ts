@@ -1,5 +1,6 @@
 import { enqueueSecurityAgentJob, type SecurityAgentEnv, type SecurityScopeRow } from "./security-agent-service.ts";
 import { campaignExecutionReadiness, parseRepositoryTarget, parseSecurityCampaignInput, SECURITY_CAMPAIGN_POLICY_VERSION, securityTechniqueCatalog } from "../domain/security-campaign-policy.ts";
+import { hmacHex, parseRunnerManifest } from "../domain/security-runner-policy.ts";
 
 export type SecurityDeliveryEnv = Pick<SecurityAgentEnv, "DB"> & { SECURITY_ACTIVE_RUNNER?: { fetch(request: Request): Promise<Response> }; SECURITY_RUNNER_SIGNING_KEY?: string; GITHUB_APP_ID?: string };
 type CampaignRow = { id: string; workspace_id: number; scope_id: string; status: string; name?: string; environment?: string; techniques_json: string; policy_version?: string; window_start?: string; window_end?: string; max_requests_per_minute?: number; max_total_requests?: number; stop_conditions_json?: string };
@@ -9,19 +10,13 @@ const uuid = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 const authorizationCurrent = (scope: SecurityScopeRow) => scope.status === "verified" && Boolean(scope.authorization_expires_at) && Date.parse(scope.authorization_expires_at!) > Date.now();
 const integrations = (env: SecurityDeliveryEnv) => ({ isolatedRunner: Boolean(env.SECURITY_ACTIVE_RUNNER && env.SECURITY_RUNNER_SIGNING_KEY?.trim()), repositoryConnector: Boolean(env.GITHUB_APP_ID?.trim()) });
 
-async function runnerSignature(secret: string, timestamp: string, body: string) {
-  const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const signed = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(`${timestamp}.${body}`));
-  return Array.from(new Uint8Array(signed), (byte) => byte.toString(16).padStart(2, "0")).join("");
-}
-
 async function dispatchIsolatedRunner(env: SecurityDeliveryEnv, scope: SecurityScopeRow, campaign: CampaignRow) {
   const runner = env.SECURITY_ACTIVE_RUNNER;
   const signingKey = env.SECURITY_RUNNER_SIGNING_KEY?.trim();
   if (!runner || !signingKey || signingKey.length < 32) throw new Error("CAMPAIGN_EXECUTOR_NOT_CONFIGURED");
   const techniques = JSON.parse(campaign.techniques_json) as Array<keyof typeof securityTechniqueCatalog>;
   if (!techniques.length || techniques.some((technique) => securityTechniqueCatalog[technique]?.execution !== "isolated_runner" || securityTechniqueCatalog[technique]?.requiresTestCredentials)) throw new Error("CAMPAIGN_EXECUTOR_NOT_CONFIGURED");
-  const manifest = {
+  const manifest = parseRunnerManifest({
     version: 1,
     campaignId: campaign.id,
     workspaceId: campaign.workspace_id,
@@ -33,14 +28,62 @@ async function dispatchIsolatedRunner(env: SecurityDeliveryEnv, scope: SecurityS
     window: { start: campaign.window_start, end: campaign.window_end },
     budgets: { requestsPerMinute: campaign.max_requests_per_minute, totalRequests: campaign.max_total_requests },
     stopConditions: JSON.parse(campaign.stop_conditions_json ?? "{}") as unknown,
-  };
+  });
   const body = JSON.stringify(manifest);
   const timestamp = String(Math.floor(Date.now() / 1000));
-  const response = await runner.fetch(new Request("https://security-runner.internal/v1/jobs", { method: "POST", headers: { "Content-Type": "application/json", "X-CBSHub-Timestamp": timestamp, "X-CBSHub-Signature": `sha256=${await runnerSignature(signingKey, timestamp, body)}` }, body }));
+  const response = await runner.fetch(new Request("https://security-runner.internal/v1/jobs", { method: "POST", headers: { "Content-Type": "application/json", "X-CBSHub-Timestamp": timestamp, "X-CBSHub-Signature": `sha256=${await hmacHex(signingKey, `${timestamp}.${body}`)}` }, body }));
   if (response.status !== 202) throw new Error("CAMPAIGN_RUNNER_REJECTED");
   const result = await response.json().catch(() => null) as { jobId?: unknown } | null;
   if (!result || typeof result.jobId !== "string" || !/^run_[a-z0-9-]{8,80}$/i.test(result.jobId)) throw new Error("CAMPAIGN_RUNNER_RESPONSE_INVALID");
   return { runnerJobId: result.jobId, manifest };
+}
+
+type RunnerReconciliationRow = {
+  campaign_id: string;
+  workspace_id: number;
+  scope_id: string;
+  campaign_status: string;
+  runner_status: string;
+  result_json: string;
+  error_code: string | null;
+  request_count: number;
+  error_count: number;
+  completed_at: string | null;
+};
+
+export async function reconcileSecurityRunnerCampaigns(env: SecurityDeliveryEnv, workspaceId?: number, limit = 20) {
+  const safeLimit = Math.max(1, Math.min(50, Math.floor(limit)));
+  const whereWorkspace = workspaceId ? "AND c.workspace_id = ?" : "";
+  const statement = env.DB.prepare(`SELECT c.id campaign_id, c.workspace_id, c.scope_id, c.status campaign_status,
+      j.status runner_status, j.result_json, j.error_code, j.request_count, j.error_count, j.completed_at
+    FROM security_campaigns c
+    JOIN security_runner_jobs j ON j.id = c.runner_job_id
+    WHERE c.executor = 'isolated_runner' AND c.status IN ('queued','running','review') ${whereWorkspace}
+    ORDER BY c.updated_at, c.id LIMIT ?`);
+  const rows = workspaceId
+    ? await statement.bind(workspaceId, safeLimit).all<RunnerReconciliationRow>()
+    : await statement.bind(safeLimit).all<RunnerReconciliationRow>();
+  let updated = 0;
+  for (const row of rows.results) {
+    const nextStatus = row.runner_status === "running" ? "running"
+      : row.runner_status === "completed" ? "completed"
+      : row.runner_status === "stopped" ? "review"
+      : row.runner_status === "failed" ? "failed"
+      : "queued";
+    const terminal = ["completed", "review", "failed"].includes(nextStatus);
+    const alreadySynchronized = row.campaign_status === nextStatus && (!terminal || Boolean(row.completed_at));
+    if (alreadySynchronized) continue;
+    const now = new Date().toISOString();
+    await env.DB.batch([
+      env.DB.prepare(`UPDATE security_campaigns SET status = ?, runner_result_json = ?, runner_error_code = ?, runner_completed_at = ?, updated_at = ?
+        WHERE id = ? AND workspace_id = ? AND executor = 'isolated_runner'`)
+        .bind(nextStatus, terminal ? row.result_json : "{}", row.error_code, terminal ? row.completed_at ?? now : null, now, row.campaign_id, row.workspace_id),
+      env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, NULL, 'campaign.runner_status_changed', ?, ?)")
+        .bind(uuid("sace"), row.workspace_id, row.campaign_id, JSON.stringify({ from: row.campaign_status, to: nextStatus, requestCount: row.request_count, errorCount: row.error_count, errorCode: row.error_code }), now),
+    ]);
+    updated += 1;
+  }
+  return { checked: rows.results.length, updated };
 }
 
 export async function createSecurityCampaign(env: SecurityDeliveryEnv, scope: SecurityScopeRow, actorUserId: number, raw: unknown) {

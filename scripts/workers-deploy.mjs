@@ -1,4 +1,5 @@
-import { execFileSync } from "node:child_process";
+import { execFileSync, spawnSync } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { resolve } from "node:path";
 
 const wrangler = resolve("node_modules", "wrangler", "bin", "wrangler.js");
@@ -27,6 +28,24 @@ function currentVersionId() {
 
 const previousVersionId = currentVersionId();
 
+function ensureQueue(name) {
+  try {
+    execFileSync(node, [wrangler, "queues", "create", name], { stdio: "pipe" });
+    console.log(`Queue ${name} criada.`);
+  } catch (error) {
+    const output = `${error?.stdout?.toString?.() ?? ""}\n${error?.stderr?.toString?.() ?? ""}`;
+    if (/already exists|já existe/i.test(output)) return;
+    throw error;
+  }
+}
+
+function putSecret(config, value) {
+  const result = spawnSync(node, [wrangler, "secret", "put", "SECURITY_RUNNER_SIGNING_KEY", "--config", config], {
+    input: `${value}\n`, encoding: "utf8", stdio: ["pipe", "inherit", "inherit"],
+  });
+  if (result.status !== 0) throw new Error(`Falha ao sincronizar o segredo do runner em ${config}.`);
+}
+
 // Refuse stale/local Vinext artifacts before touching D1 or uploading assets.
 execFileSync(node, ["scripts/finalize-workers-config.mjs"], { stdio: "inherit" });
 
@@ -34,6 +53,13 @@ execFileSync(node, [wrangler,
   "d1", "migrations", "apply", "margem-clara-production",
   "--remote", "--config", "wrangler.migrations.jsonc",
 ], { stdio: "inherit" });
+
+ensureQueue("cbs-hub-active-security-runs");
+ensureQueue("cbs-hub-active-security-runs-dlq");
+execFileSync(node, [wrangler, "deploy", "--config", "security-runner/wrangler.jsonc"], { stdio: "inherit" });
+const runnerSigningKey = randomBytes(48).toString("base64url");
+putSecret("security-runner/wrangler.jsonc", runnerSigningKey);
+putSecret("dist/server/wrangler.json", runnerSigningKey);
 
 execFileSync(node, [wrangler, "deploy", "--config", "dist/server/wrangler.json"], { stdio: "inherit" });
 

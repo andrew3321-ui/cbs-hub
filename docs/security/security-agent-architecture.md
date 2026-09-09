@@ -21,12 +21,12 @@ Se o revisor falhar, o resultado do Terra continua válido e auditado. Se a aná
 
 Estados do job: `queued -> running -> completed`; falhas transitórias retornam a `queued`, e falhas terminais chegam a `failed`. Mensagens irrecuperáveis seguem para `cbs-hub-security-scans-dlq`.
 
-## Próxima fronteira: runner isolado
+## Plano de execução separado
 
 A primeira camada de especialização e triagem manual de blue team está descrita em [security-operations-development.md](security-operations-development.md). Os jobs `blue_team` usam contagens declaradas, com origem explícita, e compartilham o processamento em fila; não executam coleta web nem alteram a agenda passiva.
 
-Testes autenticados ou ativos não devem ser acrescentados ao coletor passivo. Eles exigem um runner de containers separado, imagem imutável, rede de saída limitada, ferramentas em allowlist, teto de duração e requisições, evidências assinadas e interrupção de emergência. O Worker continuará decidindo o escopo; o runner receberá apenas um manifesto de execução assinado, nunca uma instrução livre.
+Testes ativos não são acrescentados ao coletor passivo. O Worker `cbs-hub-security-runner` recebe somente um manifesto HMAC por service binding, repete as validações e executa crawl HTTPS seguro em fila própria. O teto atual é de 25 requisições, sem query, cookies, credenciais, payloads ou comandos livres. Resultados persistidos são agregados e retornam ao plano de controle por conciliação.
 
-Antes dessa fase, a autorização deverá registrar ativo, janela, técnicas permitidas, contatos, origem da autorização e prazo. A interface continuará sem prometer pentest enquanto existir apenas diagnóstico passivo.
+Autorização, ativo, janela, técnicas, limites e prazo são obrigatórios antes do despacho. A interface descreve o recurso como validação ativa limitada, não como pentest completo.
 
-A fundação de campanhas e correções revisáveis está descrita em [controlled-pentest-and-remediation.md](controlled-pentest-and-remediation.md). Ela registra a política, aprovação e bloqueadores, mas deliberadamente não despacha ferramentas nem escreve em repositórios.
+As campanhas e os limites do runner estão descritos em [controlled-pentest-and-remediation.md](controlled-pentest-and-remediation.md). Correções em repositório continuam bloqueadas até existir uma GitHub App independente; nenhuma integração realiza merge automático.
