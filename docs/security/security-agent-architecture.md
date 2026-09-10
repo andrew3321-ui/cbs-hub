@@ -29,4 +29,4 @@ Testes ativos não são acrescentados ao coletor passivo. O Worker `cbs-hub-secu
 
 Autorização, ativo, janela, técnicas, limites e prazo são obrigatórios antes do despacho. A interface descreve o recurso como validação ativa limitada, não como pentest completo.
 
-As campanhas e os limites do runner estão descritos em [controlled-pentest-and-remediation.md](controlled-pentest-and-remediation.md). Correções em repositório continuam bloqueadas até existir uma GitHub App independente; nenhuma integração realiza merge automático.
+As campanhas e os limites do runner estão descritos em [controlled-pentest-and-remediation.md](controlled-pentest-and-remediation.md). O painel de projetos usa uma GitHub App independente e o Worker `cbs-hub-repository-runner` para inspeção estática por SHA, consulta de dependências à OSV e evidências de possíveis segredos. Correções suportadas são preparadas e publicadas em PR em rascunho após aprovação; nenhuma integração realiza merge automático. A configuração e os limites estão em [github-repository-security.md](github-repository-security.md).

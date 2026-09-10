@@ -442,6 +442,13 @@
       "when": 1789092000000,
       "tag": "0062_isolated_security_runner",
       "breakpoints": true
+    },
+    {
+      "idx": 63,
+      "version": "6",
+      "when": 1789178400000,
+      "tag": "0063_github_repository_security",
+      "breakpoints": true
     }
   ]
 }

@@ -58,7 +58,9 @@ export default async function PrivacyPage() {
             Identificador da conta, nome e e-mail quando informados, domínios
             autorizados, registros de verificação DNS, resultados de
             diagnóstico, trilhas de auditoria e registros técnicos, financeiros
-            e fiscais necessários à operação.
+            e fiscais necessários à operação. Quando a integração GitHub é
+            ativada, também são tratados os repositórios autorizados, arquivos
+            necessários à análise, commits, achados e propostas de correção.
           </p>
         </article>
         <article>
@@ -75,8 +77,12 @@ export default async function PrivacyPage() {
           <span>03</span>
           <h2>Minimização</h2>
           <p>
-            A primeira versão coleta somente sinais públicos necessários ao
-            diagnóstico autorizado. Senhas em texto e características brutas do
+            O diagnóstico externo coleta sinais públicos necessários à análise
+            autorizada. Na integração GitHub, os arquivos são inspecionados
+            temporariamente; possíveis credenciais encontradas são ocultadas
+            nos resultados. Conteúdos de correções suportadas permanecem
+            temporariamente até publicação ou expiração da proposta.
+            Senhas em texto e características brutas do
             aparelho não são armazenadas. Na documentação de cobranças, são
             mantidas referências com hash do PDF/XML e identificadores
             mascarados quando possível.
@@ -110,7 +116,11 @@ export default async function PrivacyPage() {
             A hospedagem processa a aplicação e o banco. Provedores de modelos
             podem processar evidências técnicas minimizadas para produzir
             priorização defensiva, e o Mercado Pago participa somente quando
-            pagamentos forem ativados. A plataforma não vende dados pessoais.
+            pagamentos forem ativados. Quando conectado pelo cliente, o GitHub
+            fornece acesso aos projetos autorizados. Nomes e versões de pacotes
+            suportados são consultados na OSV e no registro npm para avaliar
+            alertas e preparar atualizações; o código do repositório não é
+            enviado a esses serviços de consulta. A plataforma não vende dados pessoais.
           </p>
         </article>
       </section>

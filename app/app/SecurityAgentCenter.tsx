@@ -4,6 +4,7 @@ import Link from "next/link";
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import BrandMark from "../BrandMark";
 import SecurityOperationsPanel from "./SecurityOperationsPanel";
+import SecurityRepositoriesPanel from "./SecurityRepositoriesPanel";
 import type { OperationalPlaybook } from "../../domain/security-operations";
 import SecurityFindingsBoard, { type SecurityFinding, type SecurityMember } from "./SecurityFindingsBoard";
 import SecurityDeliveryPanel, { type SecurityCampaign, type SecurityRemediation } from "./SecurityDeliveryPanel";
@@ -115,6 +116,7 @@ export default function SecurityAgentCenter() {
           <a href="#authorize"><span>02</span><b>Autorizar ativo</b></a>
           <a href="#assets"><span>03</span><b>Superfície monitorada</b></a>
           <a href="#guardrails"><span>04</span><b>Controles do agente</b></a>
+          <a href="#repositories"><span>05</span><b>Projetos e correções</b></a>
         </nav>
         <div className="security-workspace-sidebar-foot"><span>AMBIENTE PROTEGIDO</span><p>Coleta passiva, escopo autorizado e trilha auditável.</p><Link href="/sair">Encerrar sessão →</Link></div>
       </aside>
@@ -152,6 +154,7 @@ export default function SecurityAgentCenter() {
         </aside>
       </section>
 
+      <SecurityRepositoriesPanel />
       <section className="security-agent-assets" id="assets">
         <div className="security-agent-section-title"><span>ATIVOS AUTORIZADOS</span><h2>Escopos e monitoramento</h2></div>
         {!data ? <div className="security-agent-empty">Carregando os escopos…</div> : null}

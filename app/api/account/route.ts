@@ -119,6 +119,12 @@ async function exportAccountData(request: Request) {
       workspaceQuery(db.select().from(taxPeriodClosures).where(eq(taxPeriodClosures.ownerUserId, workspace.ownerUserId))),
     ]);
     const securityData = canExportWorkspaceData ? {
+      githubConnections: (await env.DB.prepare("SELECT id, installation_id, account_login, status, created_at, updated_at FROM github_connections WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      repositories: (await env.DB.prepare("SELECT id, github_id, full_name, default_branch, enabled, monitoring_enabled, authorized_until, last_scan_at FROM security_repositories WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      repositoryJobs: (await env.DB.prepare("SELECT id, repository_id, commit_sha, status, coverage_json, error_code, created_at, completed_at FROM security_repository_jobs WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      repositoryFindings: (await env.DB.prepare("SELECT id, repository_id, kind, title, severity, file_path, line, details_json, status, commit_sha, first_observed_at, last_observed_at, resolved_at FROM security_repository_findings WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      repositoryFixes: (await env.DB.prepare("SELECT id, repository_id, finding_id, base_sha, status, validation_json, approved_at, external_pr_url, created_at FROM security_repository_fixes WHERE workspace_id = ?").bind(workspace.id).all()).results,
+      repositoryEvents: (await env.DB.prepare("SELECT id, repository_id, actor_user_id, event_type, details_json, created_at FROM security_repository_events WHERE workspace_id = ?").bind(workspace.id).all()).results,
       scopes: (await env.DB.prepare("SELECT id, domain, status, verified_at, authorization_basis, authorization_attested_at, authorization_expires_at, monitoring_enabled, created_at FROM security_agent_scopes WHERE workspace_id = ?").bind(workspace.id).all()).results,
       jobs: (await env.DB.prepare("SELECT id, scope_id, status, evidence_json, assessment_json, provider, model, finding_sync_status, finding_sync_error, started_at, completed_at FROM security_agent_jobs WHERE workspace_id = ?").bind(workspace.id).all()).results,
       events: (await env.DB.prepare("SELECT id, scope_id, actor_user_id, event_type, details_json, created_at FROM security_agent_events WHERE workspace_id = ?").bind(workspace.id).all()).results,
@@ -140,7 +146,7 @@ async function exportAccountData(request: Request) {
     } : null;
     const exportData = {
       generatedAt: new Date().toISOString(),
-      formatVersion: "lgpd-access-v6",
+      formatVersion: "lgpd-access-v7",
       security: securityData,
       privacyGovernanceVersion: PRIVACY_GOVERNANCE_VERSION,
       scope: canExportWorkspaceData ? "account_and_owned_workspace" : "individual_account_only",
@@ -297,6 +303,13 @@ async function deleteAccount(request: Request) {
     trailStarted = true;
     const ownedCompanies = await db.select({ id: companies.id }).from(companies).where(eq(companies.workspaceId, workspace.id));
     await env.DB.batch([
+      env.DB.prepare("DELETE FROM github_oauth_states WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_repository_events WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_repository_fixes WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_repository_findings WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_repository_jobs WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM security_repositories WHERE workspace_id = ?").bind(workspace.id),
+      env.DB.prepare("DELETE FROM github_connections WHERE workspace_id = ?").bind(workspace.id),
       env.DB.prepare("DELETE FROM security_defense_events WHERE workspace_id = ?").bind(workspace.id),
       env.DB.prepare("DELETE FROM security_response_actions WHERE workspace_id = ?").bind(workspace.id),
       env.DB.prepare("DELETE FROM security_defense_incidents WHERE workspace_id = ?").bind(workspace.id),

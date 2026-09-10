@@ -56,6 +56,9 @@ execFileSync(node, [wrangler,
 
 ensureQueue("cbs-hub-active-security-runs");
 ensureQueue("cbs-hub-active-security-runs-dlq");
+ensureQueue("cbs-hub-repository-scans");
+ensureQueue("cbs-hub-repository-scans-dlq");
+execFileSync(node, [wrangler, "deploy", "--config", "repository-runner/wrangler.jsonc"], { stdio: "inherit" });
 execFileSync(node, [wrangler, "deploy", "--config", "security-runner/wrangler.jsonc"], { stdio: "inherit" });
 const runnerSigningKey = randomBytes(48).toString("base64url");
 putSecret("security-runner/wrangler.jsonc", runnerSigningKey);

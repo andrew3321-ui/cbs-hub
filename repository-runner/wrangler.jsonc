@@ -1,0 +1,9 @@
+{
+ "$schema": "../node_modules/wrangler/config-schema.json",
+ "name": "cbs-hub-repository-runner", "main": "worker.ts",
+ "compatibility_date": "2026-07-25", "compatibility_flags": ["nodejs_compat"],
+ "workers_dev": false, "preview_urls": false, "observability": { "enabled": true },
+ "d1_databases": [{ "binding": "DB", "database_name": "margem-clara-production", "database_id": "ce069e8f-9efb-4142-8a76-0721bfb04a1c" }],
+ "triggers": { "crons": ["*/10 * * * *"] },
+ "queues": { "producers": [{ "binding": "SECURITY_REPOSITORY_QUEUE", "queue": "cbs-hub-repository-scans" }], "consumers": [{ "queue": "cbs-hub-repository-scans", "max_batch_size": 1, "max_batch_timeout": 5, "max_retries": 2, "dead_letter_queue": "cbs-hub-repository-scans-dlq" }] }
+}

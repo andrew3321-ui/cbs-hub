@@ -45,3 +45,4 @@ next-env.d.ts
 /.codex-remote-attachments/
 /tmp/
 /security-runner/tmp/
+/repository-runner/tmp/

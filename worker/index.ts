@@ -110,6 +110,7 @@ function maximumBodyBytes(pathname: string) {
   if (pathname.startsWith("/api/auth/")) return 16 * 1024;
   if (pathname === "/api/public/cybersecurity-preview") return 4 * 1024;
   if (pathname === "/api/security-agent") return 16 * 1024;
+  if (pathname === "/api/github") return 8 * 1024;
   if (pathname === "/api/security/telemetry") return 16 * 1024;
   if (pathname === "/api/billing/webhook") return 64 * 1024;
   return 1024 * 1024;
@@ -117,6 +118,7 @@ function maximumBodyBytes(pathname: string) {
 
 function rateLimitRule(pathname: string, method: string): RateLimitRule | null {
   if (method === "POST" && pathname === "/api/billing/webhook") return { scope: "billing-webhook", limit: 600, windowSeconds: 60 };
+  if (method === "POST" && pathname === "/api/github/webhook") return { scope: "github-webhook", limit: 600, windowSeconds: 60 };
   if (!stateChangingMethods.has(method)) return null;
   if (pathname === "/api/auth/login") return { scope: "auth-login", limit: 10, windowSeconds: 15 * 60 };
   if (pathname === "/api/auth/register") return { scope: "auth-register", limit: 6, windowSeconds: 60 * 60 };
@@ -125,6 +127,7 @@ function rateLimitRule(pathname: string, method: string): RateLimitRule | null {
   if (pathname === "/api/billing/checkout" || pathname === "/api/billing/pix") return { scope: "billing-checkout", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/public/cybersecurity-preview") return { scope: "public-cyber-preview", limit: 12, windowSeconds: 10 * 60 };
   if (pathname === "/api/security-agent") return { scope: "security-agent", limit: 12, windowSeconds: 10 * 60 };
+  if (pathname === "/api/github") return { scope: "github-projects", limit: 20, windowSeconds: 10 * 60 };
   if (pathname === "/api/security/telemetry") return { scope: "security-telemetry", limit: 300, windowSeconds: 60 };
   if (pathname.startsWith("/api/admin/")) return { scope: "platform-admin", limit: 30, windowSeconds: 10 * 60 };
   if (pathname.startsWith("/api/")) return { scope: "api-write", limit: 120, windowSeconds: 60 };
@@ -205,6 +208,10 @@ function runSecurityRetentionCleanup(env: Env) {
     env.DB.prepare("DELETE FROM security_agent_jobs WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_campaign_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_runner_events WHERE created_at < datetime('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM github_oauth_states WHERE expires_at < datetime('now', '-1 day')"),
+    env.DB.prepare("DELETE FROM github_webhook_deliveries WHERE received_at < datetime('now', '-30 days')"),
+    env.DB.prepare("UPDATE security_repository_fixes SET patch_json = '[]', status = 'expired' WHERE status = 'draft' AND created_at < datetime('now', '-1 day')"),
+    env.DB.prepare("DELETE FROM security_repository_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_runner_jobs WHERE created_at < datetime('now', '-365 days') AND status IN ('completed','stopped','failed')"),
     env.DB.prepare("DELETE FROM security_remediation_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_defense_signals WHERE received_at < datetime('now', '-180 days')"),
@@ -253,7 +260,7 @@ const worker = {
       console.warn(JSON.stringify({ event: "security_defense.edge_blocked", requestId, actionId: activeBlock.id, route: url.pathname, retryAfter }));
       return finalize(jsonError(403, "Origem temporariamente bloqueada pela política de segurança.", "SECURITY_TEMPORARY_BLOCK", { "Retry-After": String(retryAfter) }));
     }
-    if (url.pathname.startsWith("/api/") && stateChangingMethods.has(request.method) && url.pathname !== "/api/billing/webhook" && url.pathname !== "/api/security/telemetry" && !sameOriginRequest(request)) {
+    if (url.pathname.startsWith("/api/") && stateChangingMethods.has(request.method) && url.pathname !== "/api/billing/webhook" && url.pathname !== "/api/security/telemetry" && url.pathname !== "/api/github/webhook" && !sameOriginRequest(request)) {
       return finalize(jsonError(403, "Origem da requisição não autorizada.", "CROSS_SITE_REQUEST_BLOCKED"));
     }
     const limitRule = rateLimitRule(url.pathname, request.method);

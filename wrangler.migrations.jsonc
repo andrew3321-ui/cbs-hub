@@ -21,6 +21,10 @@
       {
         "binding": "SECURITY_SCAN_QUEUE",
         "queue": "cbs-hub-security-scans"
+      },
+      {
+        "binding": "SECURITY_REPOSITORY_QUEUE",
+        "queue": "cbs-hub-repository-scans"
       }
     ],
     "consumers": [

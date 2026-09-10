@@ -10,7 +10,7 @@ const rules = [
   { name: "Mercado Pago access token", pattern: /\b(?:APP_USR-\d{10,}-\d{6}-[a-f0-9]{20,}-\d+|TEST-\d{10,}-[A-Za-z0-9_-]{20,})\b/gi },
   { name: "private key", pattern: /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/g },
   { name: "OpenAI API key", pattern: /\bsk-(?:proj-)?[A-Za-z0-9_-]{20,}\b/g },
-  { name: "assigned secret", pattern: /^[ \t]*(?:OPENAI_API_KEY|MERCADO_PAGO_ACCESS_TOKEN|MERCADO_PAGO_WEBHOOK_SECRET|SECURITY_HASH_KEY|SECURITY_HASH_KEYS_PREVIOUS|SECURITY_INGEST_SIGNING_KEY|SECURITY_CONNECTOR_ENCRYPTION_KEY|SECURITY_RUNNER_SIGNING_KEY|CLOUDFLARE_API_TOKEN|CF_API_TOKEN)[ \t]*=[ \t]*[^\s#][^\r\n]*$/gm },
+  { name: "assigned secret", pattern: /^[ \t]*(?:OPENAI_API_KEY|MERCADO_PAGO_ACCESS_TOKEN|MERCADO_PAGO_WEBHOOK_SECRET|SECURITY_HASH_KEY|SECURITY_HASH_KEYS_PREVIOUS|SECURITY_INGEST_SIGNING_KEY|SECURITY_CONNECTOR_ENCRYPTION_KEY|SECURITY_RUNNER_SIGNING_KEY|GITHUB_APP_PRIVATE_KEY|GITHUB_CLIENT_SECRET|GITHUB_WEBHOOK_SECRET|CLOUDFLARE_API_TOKEN|CF_API_TOKEN)[ \t]*=[ \t]*[^\s#][^\r\n]*$/gm },
 ];
 
 for (const file of tracked) {
