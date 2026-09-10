@@ -34,7 +34,7 @@ function ensureQueue(name) {
     console.log(`Queue ${name} criada.`);
   } catch (error) {
     const output = `${error?.stdout?.toString?.() ?? ""}\n${error?.stderr?.toString?.() ?? ""}`;
-    if (/already exists|já existe/i.test(output)) return;
+    if (/already exists|already taken|já existe/i.test(output)) return;
     throw error;
   }
 }
