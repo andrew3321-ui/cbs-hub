@@ -20,7 +20,7 @@ O Cloudflare Worker `cbs-hub-repository-runner` consome uma fila própria. Ele i
 - Quando há limite, lockfile não suportado ou árvore truncada, a cobertura é parcial. A ausência de um achado não pode resolvê-lo nessa execução.
 - Reanálise completa que não observa mais um achado marca `resolved`. Isso não prova que uma credencial antiga foi revogada; a recomendação de rotação permanece necessária.
 
-Push na branch principal gera reanálise se o cliente ativou monitoramento. Push durante um job solicita nova análise após sua conclusão. Uma rotina a cada dez minutos recolhe esses pedidos e encerra jobs interrompidos. Webhooks duplicados têm identificação persistida; falhas transitórias recebem erro para permitir reentrega.
+Push na branch principal gera reanálise se o cliente ativou monitoramento. Push durante um job solicita nova análise após sua conclusão. O agendamento existente do Worker principal, a cada cinco minutos, recolhe esses pedidos e encerra jobs interrompidos; o runner não exige um cron adicional. Webhooks duplicados têm identificação persistida; falhas transitórias recebem erro para permitir reentrega.
 
 ## Correções
 

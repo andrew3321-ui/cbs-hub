@@ -1,6 +1,5 @@
 import { id, type GitHubEnv } from '../app/github-client.ts';
 import { scanRepository } from './scanner.ts';
-import { enqueueRepositoryScan } from '../app/github-repository-service.ts';
 
 export async function processRepositoryJob(env: GitHubEnv, jobId: string, scan = scanRepository) {
  if (!/^srj_[0-9a-f-]{36}$/.test(jobId)) return;
@@ -27,15 +26,6 @@ export async function processRepositoryJob(env: GitHubEnv, jobId: string, scan =
 const worker = {
  async queue(batch: { messages: Array<{ body: { jobId?: string }; ack(): void; retry(): void }> }, env: GitHubEnv) {
   for (const message of batch.messages) try { if (message.body?.jobId) await processRepositoryJob(env, message.body.jobId); message.ack(); } catch { message.retry(); }
- },
- async scheduled(_controller: unknown, env: GitHubEnv) {
-  await env.DB.prepare("UPDATE security_repository_jobs SET status = 'failed', error_code = 'REPOSITORY_EXECUTION_INTERRUPTED', completed_at = ? WHERE status IN ('queued','running') AND created_at < ?").bind(new Date().toISOString(), new Date(Date.now() - 30 * 60_000).toISOString()).run();
-  const pending = await env.DB.prepare("SELECT r.id, r.workspace_id FROM security_repositories r WHERE r.enabled = 1 AND r.monitoring_enabled = 1 AND r.rescan_requested = 1 AND NOT EXISTS (SELECT 1 FROM security_repository_jobs j WHERE j.repository_id = r.id AND j.status IN ('queued','running')) LIMIT 5").all<{ id: string; workspace_id: number }>();
-  for (const repo of pending.results) {
-   await env.DB.prepare('UPDATE security_repositories SET rescan_requested = 0 WHERE id = ?').bind(repo.id).run();
-   try { await enqueueRepositoryScan(env, repo.workspace_id, repo.id, null, 'push'); }
-   catch { await env.DB.prepare('UPDATE security_repositories SET rescan_requested = 1 WHERE id = ?').bind(repo.id).run(); }
-  }
  },
  async fetch() { return Response.json({ service: 'cbs-hub-repository-runner' }, { status: 404 }); },
 };
