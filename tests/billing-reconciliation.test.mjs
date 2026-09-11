@@ -65,12 +65,12 @@ test("pending Pix is queried officially and expired Pix access becomes overdue",
 
 test("the Worker schedules official reconciliation without making the webhook mandatory", () => {
   const worker = fs.readFileSync(new URL("../worker/index.ts", import.meta.url), "utf8");
-  const vite = fs.readFileSync(new URL("../vite.config.ts", import.meta.url), "utf8");
+  const wrangler = fs.readFileSync(new URL("../wrangler.jsonc", import.meta.url), "utf8");
   const job = fs.readFileSync(new URL("../app/billing-scheduled-reconciliation.ts", import.meta.url), "utf8");
   const card = fs.readFileSync(new URL("../app/billing-reconciliation.ts", import.meta.url), "utf8");
   const pix = fs.readFileSync(new URL("../app/billing-pix.ts", import.meta.url), "utf8");
 
-  assert.match(vite, /"\*\/30 \* \* \* \*"/);
+  assert.match(wrangler, /"\*\/5 \* \* \* \*"/);
   assert.match(worker, /runScheduledBillingReconciliation\(controller\.scheduledTime\)/);
   assert.match(job, /syncBillingAccountFromProvider\(account\)/);
   assert.match(job, /syncPixBillingAccount\(account\)/);

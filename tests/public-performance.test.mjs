@@ -34,11 +34,11 @@ test("HTML publico e exportado no edge sem consumir CPU do Worker", async () => 
   assert.match(exporter, /\/cadastro/);
   assert.doesNotMatch(exporter, /\/experimentar/);
   assert.match(exporter, /data-cbshub-static-navigation/);
-  assert.match(finalizer, /wrangler\.migrations\.jsonc/);
+  assert.match(finalizer, /wrangler\.jsonc/);
   assert.match(finalizer, /generated\.d1_databases/);
   assert.match(finalizer, /workers_dev = false/);
   assert.doesNotMatch(vite, /isCloudflareWorkersBuild/);
-  assert.match(vite, /cbshub-local/);
+  assert.match(vite, /main: "\.\/worker\/index\.ts"/);
   assert.match(headers, /\/cadastro[\s\S]*X-Robots-Tag: noindex/);
   assert.match(headers, /\/experimentar[\s\S]*X-Robots-Tag: noindex/);
   assert.match(headers, /Content-Security-Policy:/);

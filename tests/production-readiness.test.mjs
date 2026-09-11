@@ -37,7 +37,7 @@ test("quality gate and Workers Builds block publishing before checks and migrati
   assert.match(build, /"build"/);
   assert.match(deploy, /d1", "migrations", "apply"/);
   assert.match(deploy, /finalize-workers-config\.mjs/);
-  assert.match(deploy, /"deploy", "--config", "dist\/server\/wrangler\.json"/);
+  assert.match(deploy, /"deploy", "--config", "wrangler\.jsonc"/);
   assert.match(deploy, /post-deploy-smoke\.mjs/);
   assert.match(deploy, /currentVersionId/);
   assert.match(deploy, /Automatic rollback after post-deploy smoke failure/);
@@ -55,7 +55,7 @@ test("published Workers never replay legacy schema DDL during requests", () => {
 test("release metadata, structured alerts and smoke coverage are declared", () => {
   const worker = read("../worker/index.ts");
   const health = read("../app/api/health/route.ts");
-  const vite = read("../vite.config.ts");
+  const wrangler = read("../wrangler.jsonc");
   const smoke = read("../scripts/post-deploy-smoke.mjs");
   assert.match(worker, /CF_VERSION_METADATA/);
   assert.match(worker, /edge\.alert\.error/);
@@ -63,7 +63,7 @@ test("release metadata, structured alerts and smoke coverage are declared", () =
   assert.match(worker, /X-CBSHub-Version/);
   assert.match(health, /release:/);
   assert.match(health, /securityRunner/);
-  assert.match(vite, /version_metadata/);
+  assert.match(wrangler, /version_metadata/);
   assert.match(smoke, /waitForPublishedRelease/);
   assert.match(smoke, /SMOKE_RELEASE_ATTEMPTS/);
   assert.match(smoke, /requestUntilStatus/);

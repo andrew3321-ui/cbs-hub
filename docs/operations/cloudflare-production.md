@@ -63,7 +63,7 @@ O executor usa a fila `cbs-hub-active-security-runs` e a DLQ correspondente. Ant
 Crie uma chave de projeto dedicada na OpenAI, defina limite de gasto no projeto e grave o valor diretamente como segredo do Worker `cbs-hub`. Não cole a chave em conversa, arquivo `.env` versionado ou variável pública:
 
 ```text
-npx wrangler secret put OPENAI_API_KEY --config wrangler.migrations.jsonc
+npx wrangler secret put OPENAI_API_KEY --config wrangler.jsonc
 ```
 
 As variáveis de modelo são opcionais: os defaults são `gpt-5.6-terra` e `gpt-5.6-sol`. O Terra produz a análise normal; o Sol só é acionado quando uma regra determinística identifica criticidade, alta densidade de riscos, conflito entre evidência e conclusão ou baixa confiança. A variável antiga `OPENAI_SECURITY_MODEL` não é mais usada e pode ser removida depois do rollout.
