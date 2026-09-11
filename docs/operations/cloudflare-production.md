@@ -21,7 +21,7 @@ Deploy command: npm run ci:deploy
 
 `ci:build` executa varredura de segredos, lint, validação da sequência de migrations, testes e build. `ci:deploy` recusa branch diferente de `main`, aplica as migrations D1 pendentes, garante as filas do runner, publica o Worker isolado, sincroniza uma nova chave HMAC entre os dois Workers, publica o controle principal e executa o smoke test. Uma falha interrompe a sequência.
 
-O arquivo raiz `wrangler.jsonc` identifica exclusivamente o Worker web. Ele também protege o deploy automático do Cloudflare contra a descoberta acidental das configurações dos runners em subdiretórios. Os runners continuam sendo publicados apenas com `--config` explícito.
+O arquivo raiz `wrangler.jsonc` identifica exclusivamente o Worker web e também fornece os bindings ao plugin Cloudflare durante o build. Ele protege o deploy automático contra a descoberta acidental das configurações dos runners em subdiretórios. O `vite.config.ts` acrescenta somente o entry point TypeScript usado pelo build, sem redeclarar bindings. Os runners continuam sendo publicados apenas com `--config` explícito.
 
 O Wrangler registra migrations já aplicadas em `d1_migrations`. Por isso uma reexecução aplica somente arquivos pendentes. Nunca alterar uma migration que já chegou ao remoto; toda mudança de esquema recebe um novo número.
 
