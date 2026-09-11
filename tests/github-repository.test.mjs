@@ -56,6 +56,16 @@ test('GitHub app JWT has a short lifetime and installation OAuth is single-use a
   await assert.rejects(finishGitHubConnection(env,42,7,'code',state,fetcher),/GITHUB_OAUTH_INVALID/);
  } finally {sqlite.close();}
 });
+test('GitHub connection preserves a safe stage when a provider response is malformed', async () => {
+ const {sqlite,DB}=database(); const env={...configured,DB};
+ try {
+  const first=new URL((await startGitHubConnection(env,42,7)).url).searchParams.get('state');
+  await assert.rejects(finishGitHubConnection(env,42,7,'code',first,async()=>{throw new TypeError('provider transport detail');}),/GITHUB_OAUTH_NETWORK_FAILED/);
+  const second=new URL((await startGitHubConnection(env,42,7)).url).searchParams.get('state');
+  const fetcher=async input=>String(input).includes('/access_token')?Response.json({access_token:'ephemeral-user-token'}):Response.json({unexpected:[]});
+  await assert.rejects(finishGitHubConnection(env,42,7,'code',second,fetcher),/GITHUB_INSTALLATION_RESPONSE_INVALID/);
+ } finally {sqlite.close();}
+});
 test('repository scanning pins content to a commit and queries only package metadata',async()=>{
  const {sqlite,DB}=database(); seed(sqlite); const env={...configured,DB}; const urls=[];
  try {

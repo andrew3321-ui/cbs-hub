@@ -2,6 +2,10 @@ import { appJwt, boundedJson, digest, github, githubConfigured, id, installation
 import { createLeafDependencyPatch, inspectSource, type LeafPatch } from '../domain/repository-security.ts';
 
 export type RepositoryRow = { id: string; workspace_id: number; connection_id: string; github_id: number; full_name: string; default_branch: string; enabled: number; monitoring_enabled: number; authorized_until: string; installation_id: number; connection_status: string };
+function stageFailure(error: unknown, fallback: string): never {
+ if (error instanceof Error && /^GITHUB_[A-Z0-9_]+$/.test(error.message)) throw error;
+ throw new Error(fallback, { cause: error });
+}
 export async function repositoryFor(env: GitHubEnv, workspaceId: number, repositoryId: unknown) {
  if (typeof repositoryId !== 'string') throw new Error('GITHUB_REPOSITORY_INVALID');
  const row = await env.DB.prepare(`SELECT r.*, c.installation_id, c.status connection_status FROM security_repositories r JOIN github_connections c ON c.id = r.connection_id AND c.workspace_id = r.workspace_id WHERE r.id = ? AND r.workspace_id = ?`).bind(repositoryId, workspaceId).first<RepositoryRow>();
@@ -29,9 +33,16 @@ export async function finishGitHubConnection(env: GitHubEnv, workspaceId: number
  const consumed = await env.DB.prepare('UPDATE github_oauth_states SET consumed_at = ? WHERE state_hash = ? AND user_id = ? AND workspace_id = ? AND expires_at > ? AND consumed_at IS NULL').bind(new Date().toISOString(), await digest(state), userId, workspaceId, new Date().toISOString()).run();
  if (Number(consumed.meta.changes) !== 1) throw new Error('GITHUB_OAUTH_INVALID');
  const tokenRequest = new URLSearchParams({ client_id: env.GITHUB_CLIENT_ID!, client_secret: env.GITHUB_CLIENT_SECRET!, code, redirect_uri: publicOrigin(env) + '/api/github/callback', code_verifier: state });
- const response = await fetcher('https://github.com/login/oauth/access_token', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: tokenRequest.toString() });
+ let response: Response;
+ try { response = await fetcher('https://github.com/login/oauth/access_token', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: tokenRequest.toString() }); }
+ catch (error) { stageFailure(error, 'GITHUB_OAUTH_NETWORK_FAILED'); }
  if (!response.ok) throw new Error('GITHUB_OAUTH_FAILED');
- const access = await boundedJson(response, 20_000) as { access_token?: string; error?: string };
+ let access: { access_token?: string; error?: string };
+ try {
+  const payload = await boundedJson(response, 20_000);
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) throw new Error('GITHUB_OAUTH_RESPONSE_INVALID');
+  access = payload as { access_token?: string; error?: string };
+ } catch (error) { stageFailure(error, 'GITHUB_OAUTH_RESPONSE_INVALID'); }
  if (!access.access_token) {
   if (access.error === 'incorrect_client_credentials') throw new Error('GITHUB_OAUTH_CLIENT_INVALID');
   if (access.error === 'redirect_uri_mismatch') throw new Error('GITHUB_OAUTH_REDIRECT_INVALID');
@@ -43,22 +54,35 @@ export async function finishGitHubConnection(env: GitHubEnv, workspaceId: number
  let connected = 0;
  // Only repositories for which this authenticated GitHub user is an administrator can be attached.
  for (let page = 1; page <= 3; page++) {
-  const installations = await github<{ installations: Array<{ id: number; app_id: number; account: { login: string }; suspended_at?: string | null }> }>(`/user/installations?per_page=30&page=${page}`, token, {}, fetcher);
+  let installations: { installations: Array<{ id: number; app_id: number; account: { login: string }; suspended_at?: string | null }> };
+  try { installations = await github(`/user/installations?per_page=30&page=${page}`, token, {}, fetcher); }
+  catch (error) { stageFailure(error, 'GITHUB_INSTALLATION_LOOKUP_FAILED'); }
+  if (!installations || !Array.isArray(installations.installations)) throw new Error('GITHUB_INSTALLATION_RESPONSE_INVALID');
   for (const installation of installations.installations) {
+   if (!installation || !Number.isSafeInteger(installation.id) || !Number.isSafeInteger(installation.app_id) || typeof installation.account?.login !== 'string') throw new Error('GITHUB_INSTALLATION_RESPONSE_INVALID');
    if (String(installation.app_id) !== env.GITHUB_APP_ID || installation.suspended_at) continue;
    const existing = await env.DB.prepare('SELECT id, workspace_id FROM github_connections WHERE installation_id = ?').bind(installation.id).first<{ id: string; workspace_id: number }>();
    if (existing && existing.workspace_id !== workspaceId) continue;
    const repositories: GitHubRepo[] = [];
-   for (let rp = 1; rp <= 3; rp++) { const list = await github<{ repositories: GitHubRepo[] }>(`/user/installations/${installation.id}/repositories?per_page=100&page=${rp}`, token, {}, fetcher); repositories.push(...list.repositories.filter(r => r.permissions?.admin && !r.archived)); if (list.repositories.length < 100) break; }
+   for (let rp = 1; rp <= 3; rp++) {
+    let list: { repositories: GitHubRepo[] };
+    try { list = await github(`/user/installations/${installation.id}/repositories?per_page=100&page=${rp}`, token, {}, fetcher); }
+    catch (error) { stageFailure(error, 'GITHUB_REPOSITORY_LOOKUP_FAILED'); }
+    if (!list || !Array.isArray(list.repositories)) throw new Error('GITHUB_REPOSITORY_RESPONSE_INVALID');
+    repositories.push(...list.repositories.filter(r => r.permissions?.admin && !r.archived));
+    if (list.repositories.length < 100) break;
+   }
    if (!repositories.length) continue;
    const now = new Date().toISOString(), connectionId = existing?.id ?? id('ghc');
-   await env.DB.prepare(`INSERT INTO github_connections (id, workspace_id, installation_id, account_login, status, created_by_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, 'active', ?, ?, ?) ON CONFLICT(installation_id) DO UPDATE SET status = 'active', updated_at = excluded.updated_at WHERE github_connections.workspace_id = excluded.workspace_id`).bind(connectionId, workspaceId, installation.id, installation.account.login, userId, now, now).run();
-   await env.DB.prepare('UPDATE security_repositories SET enabled = 0, monitoring_enabled = 0 WHERE connection_id = ?').bind(connectionId).run();
-   for (const repo of repositories.slice(0, 100)) {
-    repoPath(repo.full_name);
-    await env.DB.prepare(`INSERT INTO security_repositories (id, workspace_id, connection_id, github_id, full_name, default_branch, authorized_until, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(workspace_id, github_id) DO UPDATE SET connection_id = excluded.connection_id, full_name = excluded.full_name, default_branch = excluded.default_branch, authorized_until = excluded.authorized_until, updated_at = excluded.updated_at`).bind(id('srp'), workspaceId, connectionId, repo.id, repo.full_name, repo.default_branch, new Date(Date.now() + 90 * 86400_000).toISOString(), now, now).run();
-    connected++;
-   }
+   try {
+    await env.DB.prepare(`INSERT INTO github_connections (id, workspace_id, installation_id, account_login, status, created_by_user_id, created_at, updated_at) VALUES (?, ?, ?, ?, 'active', ?, ?, ?) ON CONFLICT(installation_id) DO UPDATE SET status = 'active', updated_at = excluded.updated_at WHERE github_connections.workspace_id = excluded.workspace_id`).bind(connectionId, workspaceId, installation.id, installation.account.login, userId, now, now).run();
+    await env.DB.prepare('UPDATE security_repositories SET enabled = 0, monitoring_enabled = 0 WHERE connection_id = ?').bind(connectionId).run();
+    for (const repo of repositories.slice(0, 100)) {
+     repoPath(repo.full_name);
+     await env.DB.prepare(`INSERT INTO security_repositories (id, workspace_id, connection_id, github_id, full_name, default_branch, authorized_until, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(workspace_id, github_id) DO UPDATE SET connection_id = excluded.connection_id, full_name = excluded.full_name, default_branch = excluded.default_branch, authorized_until = excluded.authorized_until, updated_at = excluded.updated_at`).bind(id('srp'), workspaceId, connectionId, repo.id, repo.full_name, repo.default_branch, new Date(Date.now() + 90 * 86400_000).toISOString(), now, now).run();
+     connected++;
+    }
+   } catch (error) { stageFailure(error, 'GITHUB_REPOSITORY_SYNC_FAILED'); }
   }
   if (installations.installations.length < 30) break;
  }
