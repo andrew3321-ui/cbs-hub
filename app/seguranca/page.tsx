@@ -7,21 +7,21 @@ import {
 import { PublicPageBreadcrumb } from "../StructuredData";
 
 export const metadata: Metadata = {
-  title: "Segurança e confiança | CBSHub Cybersecurity",
+  title: "Central de confiança | CBSHub Cybersecurity",
   description:
-    "Conheça os limites operacionais, controles de acesso, tratamento de dados e processo responsável de segurança da CBSHub.",
+    "Metodologia, controles de segurança, privacidade, termos e responsabilidade institucional da CBSHub Cybersecurity em um só lugar.",
   alternates: { canonical: "/seguranca" },
   openGraph: {
-    title: "Segurança e confiança | CBSHub",
+    title: "Central de confiança | CBSHub Cybersecurity",
     description:
-      "Como a CBSHub controla autorização, dados, IA e mudanças defensivas.",
+      "Metodologia, controles, privacidade e limites operacionais da CBSHub Cybersecurity.",
     url: "/seguranca",
     type: "website",
     locale: "pt_BR",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Segurança e confiança | CBSHub",
+    title: "Central de confiança | CBSHub Cybersecurity",
     description:
       "Controles explícitos, limites defensivos e transparência operacional.",
   },
@@ -63,11 +63,11 @@ const controls = [
 export default function SecurityTrustPage() {
   return (
     <main className="marketing-page">
-      <PublicPageBreadcrumb current="Segurança e confiança" path="/seguranca" />
+      <PublicPageBreadcrumb current="Central de confiança" path="/seguranca" />
       <div className="marketing-grid" aria-hidden="true" />
       <CyberMarketingHeader />
       <section className="marketing-hero trust-hero">
-        <span>TRUST CENTER · TRANSPARÊNCIA OPERACIONAL</span>
+        <span>CENTRAL DE CONFIANÇA · TRANSPARÊNCIA OPERACIONAL</span>
         <h1>
           Confiança não nasce
           <br />
@@ -102,7 +102,21 @@ export default function SecurityTrustPage() {
         </aside>
       </section>
 
-      <section className="trust-controls">
+      <section className="trust-methodology" id="metodologia" aria-labelledby="trust-methodology-title">
+        <header>
+          <span>METODOLOGIA</span>
+          <h2 id="trust-methodology-title">Do ativo autorizado à correção verificável.</h2>
+          <p>O fluxo separa coleta, interpretação e mudança para que nenhuma conclusão ou ação ultrapasse a evidência disponível.</p>
+        </header>
+        <ol>
+          <li><b>01</b><span><strong>Autorizar</strong>Comprovar a titularidade ou registrar a autorização do ativo.</span></li>
+          <li><b>02</b><span><strong>Observar</strong>Coletar sinais públicos e telemetria permitida, com escopo e limites definidos.</span></li>
+          <li><b>03</b><span><strong>Priorizar</strong>Relacionar achados, impacto, confiança e evidência técnica.</span></li>
+          <li><b>04</b><span><strong>Corrigir</strong>Preparar mudanças controladas, aprovadas e acompanhadas por auditoria.</span></li>
+        </ol>
+      </section>
+
+      <section className="trust-controls" id="controles" aria-label="Controles implementados">
         {controls.map((control) => (
           <article key={control.code}>
             <span>{control.code}</span>
@@ -152,7 +166,13 @@ export default function SecurityTrustPage() {
         </a>
       </section>
 
-      <section className="trust-links">
+      <section className="trust-links" aria-label="Documentos da Central de confiança">
+        <article>
+          <span>METODOLOGIA</span>
+          <h3>Como o produto chega a uma conclusão</h3>
+          <p>Conheça as etapas, evidências e limites do diagnóstico defensivo.</p>
+          <Link href="/seguranca#metodologia">Ver metodologia →</Link>
+        </article>
         <article>
           <span>PRIVACIDADE</span>
           <h3>Finalidades, retenção e direitos</h3>

@@ -1,4 +1,4 @@
-export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v2.2.0-cybersecurity-trust";
+export const SEO_ROUTE_POLICY_VERSION = "seo-routes-v3.0.0-trust-center";
 
 export const publicIndexableRoutes = [
   { path: "/", changeFrequency: "weekly", priority: 1 },

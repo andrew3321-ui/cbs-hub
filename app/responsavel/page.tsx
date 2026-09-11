@@ -8,12 +8,12 @@ import {
 } from "../CyberMarketingShell";
 
 export const metadata: Metadata = {
-  title: "Responsável pela plataforma | CBSHub",
+  title: "Responsável pela plataforma | CBSHub Cybersecurity",
   description:
-    "Identificação pública do responsável pela plataforma CBSHub, com proteção dos documentos pessoais.",
+    "Identificação institucional do responsável pela CBSHub Cybersecurity e limites das informações publicadas.",
   alternates: { canonical: "/responsavel" },
   openGraph: {
-    title: "Responsável pela plataforma | CBSHub",
+    title: "Responsável pela plataforma | CBSHub Cybersecurity",
     description:
       "Identificação institucional e limites da declaração pública do CBSHub.",
     url: "/responsavel",
@@ -22,7 +22,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Responsável pela plataforma | CBSHub",
+    title: "Responsável pela plataforma | CBSHub Cybersecurity",
     description: "Identificação institucional pública do CBSHub.",
   },
 };
@@ -33,6 +33,7 @@ export default function PlatformOwnerPage() {
       <PublicPageBreadcrumb
         current="Responsável pela plataforma"
         path="/responsavel"
+        parent={{ name: "Central de confiança", path: "/seguranca" }}
       />
       <div className="legal-grid-backdrop" aria-hidden="true" />
       <CyberMarketingHeader />

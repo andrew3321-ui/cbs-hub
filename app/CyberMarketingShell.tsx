@@ -17,7 +17,7 @@ export function CyberMarketingHeader() {
       <nav aria-label="Navegação principal">
         <Link href="/produto">Produto</Link>
         <Link href="/casos-de-uso">Casos de uso</Link>
-        <Link href="/seguranca">Segurança</Link>
+        <Link href="/seguranca">Confiança</Link>
         <Link href="/precos">Preços</Link>
       </nav>
       <div>
@@ -54,13 +54,21 @@ export function CyberMarketingFooter() {
           supportofficial@cbshub.com.br
         </a>
       </p>
-      <div>
-        <Link href="/produto">Produto</Link>
-        <Link href="/casos-de-uso">Casos de uso</Link>
-        <Link href="/seguranca">Segurança</Link>
-        <Link href="/precos">Preços</Link>
-        <Link href="/privacidade">Privacidade</Link>
-        <Link href="/termos">Termos</Link>
+      <div className="marketing-footer-groups">
+        <nav aria-label="Produto">
+          <strong>Produto</strong>
+          <Link href="/produto">Visão geral</Link>
+          <Link href="/casos-de-uso">Casos de uso</Link>
+          <Link href="/precos">Preços</Link>
+        </nav>
+        <nav aria-label="Central de confiança">
+          <strong>Central de confiança</strong>
+          <Link href="/seguranca#metodologia">Metodologia</Link>
+          <Link href="/seguranca#controles">Controles</Link>
+          <Link href="/privacidade">Privacidade</Link>
+          <Link href="/termos">Termos de uso</Link>
+          <Link href="/responsavel">Responsável</Link>
+        </nav>
       </div>
     </footer>
   );

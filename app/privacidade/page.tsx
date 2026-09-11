@@ -14,12 +14,12 @@ import {
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
-  title: "Privacidade e proteção de dados | CBSHub",
+  title: "Privacidade e proteção de dados | CBSHub Cybersecurity",
   description:
-    "Como o CBSHub minimiza, protege e permite o controle de dados pessoais.",
+    "Política de privacidade da CBSHub Cybersecurity: dados tratados, finalidades, retenção, segurança e direitos dos titulares.",
   alternates: { canonical: "/privacidade" },
   openGraph: {
-    title: "Privacidade e proteção de dados | CBSHub",
+    title: "Privacidade e proteção de dados | CBSHub Cybersecurity",
     description:
       "Como o CBSHub minimiza, protege e permite o controle de dados pessoais.",
     url: "/privacidade",
@@ -28,7 +28,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Privacidade | CBSHub",
+    title: "Privacidade | CBSHub Cybersecurity",
     description: "Dados mínimos, finalidade clara e controle do titular.",
   },
 };
@@ -38,7 +38,7 @@ export default async function PrivacyPage() {
   const privacyEmail = privacyContactEmail();
   return (
     <main className="legal-shell">
-      <PublicPageBreadcrumb current="Privacidade" path="/privacidade" />
+      <PublicPageBreadcrumb current="Privacidade" path="/privacidade" parent={{ name: "Central de confiança", path: "/seguranca" }} />
       <div className="legal-grid-backdrop" aria-hidden="true" />
       <CyberMarketingHeader />
       <section className="legal-hero">

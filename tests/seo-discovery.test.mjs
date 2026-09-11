@@ -60,6 +60,15 @@ test("inventário SEO mantém toda rota pública indexável no sitemap e toda su
   assert.equal(routeMustNotBeIndexed("/planos"), false);
 });
 
+test("documentos públicos são agrupados pela Central de confiança", () => {
+  for (const slug of ["privacidade", "termos", "responsavel"]) {
+    const source = fs.readFileSync(new URL(`../app/${slug}/page.tsx`, import.meta.url), "utf8");
+    assert.match(source, /parent=\{\{ name: "Central de confiança", path: "\/seguranca" \}\}/);
+  }
+  const redirects = fs.readFileSync(new URL("../next.config.ts", import.meta.url), "utf8");
+  assert.match(redirects, /source: "\/metodologia", destination: "\/seguranca#metodologia", permanent: true/);
+});
+
 test("grafo inicial declara entidades verificáveis sem inventar avaliação", () => {
   const result = buildHomeStructuredData();
   assert.equal(result["@context"], "https://schema.org");

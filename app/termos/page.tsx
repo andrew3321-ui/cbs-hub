@@ -7,12 +7,12 @@ import {
 } from "../CyberMarketingShell";
 
 export const metadata: Metadata = {
-  title: "Termos de uso | CBSHub",
+  title: "Termos de uso | CBSHub Cybersecurity",
   description:
-    "Condições de uso defensivo, autorização de ativos e operação comercial do CBSHub.",
+    "Termos da CBSHub Cybersecurity para uso defensivo autorizado, contas, evidências, contratação e responsabilidades.",
   alternates: { canonical: "/termos" },
   openGraph: {
-    title: "Termos de uso | CBSHub",
+    title: "Termos de uso | CBSHub Cybersecurity",
     description:
       "Condições de uso defensivo, autorização de ativos e operação comercial do CBSHub.",
     url: "/termos",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Termos de uso | CBSHub",
+    title: "Termos de uso | CBSHub Cybersecurity",
     description:
       "Uso autorizado, limites defensivos e responsabilidades documentadas.",
   },
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
 export default function TermsPage() {
   return (
     <main className="legal-shell">
-      <PublicPageBreadcrumb current="Termos de uso" path="/termos" />
+      <PublicPageBreadcrumb current="Termos de uso" path="/termos" parent={{ name: "Central de confiança", path: "/seguranca" }} />
       <div className="legal-grid-backdrop" aria-hidden="true" />
       <CyberMarketingHeader />
       <section className="legal-hero">
@@ -136,13 +136,12 @@ export default function TermsPage() {
         <article>
           <h2>8. Documento fiscal da assinatura</h2>
           <p>
-            O comprovante do Mercado Pago e o recibo de acesso não substituem
-            NFS-e. Enquanto um emissor oficial ou provedor fiscal não estiver
-            integrado e configurado, a emissão é feita manualmente pelo
-            responsável da plataforma. O CBSHub concilia a cobrança, organiza a
-            fila e registra número, link e referências minimizadas do PDF/XML,
-            mas não promete emissão automática antes da ativação formal do
-            adaptador fiscal.
+            O comprovante de pagamento e o recibo de acesso não substituem a
+            nota fiscal aplicável. Quando a emissão automática não estiver
+            disponível, o documento será processado pelo responsável da
+            plataforma; nesse cenário, a CBSHub não promete emissão automática.
+            A plataforma conserva somente os registros necessários para comprovar
+            a contratação e cumprir as obrigações legais pertinentes.
           </p>
         </article>
       </section>

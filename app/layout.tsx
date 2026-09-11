@@ -7,6 +7,7 @@ import WebVitalsBeacon from "./WebVitalsBeacon";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://cbshub.com.br"),
+  applicationName: "CBSHub",
   title: "CBSHub Cybersecurity — Visibilidade externa antes do ataque",
   description:
     "Monitore a postura pública de domínios, e-mail e aplicações web e transforme sinais externos em prioridades de correção rastreáveis.",
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
   },
   manifest: "/site.webmanifest",
   openGraph: {
+    siteName: "CBSHub",
     title: "CBSHub Cybersecurity — Encontre sua exposição antes do atacante",
     description:
       "Diagnóstico passivo e monitoramento da superfície externa em um workspace defensivo.",

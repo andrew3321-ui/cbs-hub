@@ -1,7 +1,7 @@
 
 
 export const SEO_SITE_URL = "https://cbshub.com.br";
-export const SEO_STRUCTURED_DATA_VERSION = "seo-structured-v2.0.0";
+export const SEO_STRUCTURED_DATA_VERSION = "seo-structured-v3.0.0";
 
 export const seoEligibilityPolicy = {
   faqPage: "not_eligible_general_saas",
@@ -12,6 +12,7 @@ export const seoOrganization = {
   "@type": "Organization",
   "@id": `${SEO_SITE_URL}/#organization`,
   name: "CBSHub",
+  alternateName: "CBSHub Cybersecurity",
   url: SEO_SITE_URL,
   logo: `${SEO_SITE_URL}/cbshub-icon-1024.png`,
   email: "supportofficial@cbshub.com.br",
@@ -22,7 +23,7 @@ export const seoWebSite = {
   "@id": `${SEO_SITE_URL}/#website`,
   url: SEO_SITE_URL,
   name: "CBSHub",
-  alternateName: "CBS Hub",
+  alternateName: ["CBSHub Cybersecurity", "CBS Hub"],
   inLanguage: "pt-BR",
   publisher: { "@id": seoOrganization["@id"] },
 } as const;

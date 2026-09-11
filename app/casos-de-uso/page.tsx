@@ -12,7 +12,7 @@ export const metadata: Metadata = {
     "Veja como empresas, produtos digitais e equipes técnicas podem organizar postura externa e correções defensivas com a CBSHub.",
   alternates: { canonical: "/casos-de-uso" },
   openGraph: {
-    title: "Casos de uso | CBSHub",
+    title: "Casos de uso | CBSHub Cybersecurity",
     description:
       "Situações reais em que visibilidade externa e priorização defensiva reduzem exposição.",
     url: "/casos-de-uso",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
   },
   twitter: {
     card: "summary_large_image",
-    title: "Casos de uso | CBSHub",
+    title: "Casos de uso | CBSHub Cybersecurity",
     description:
       "Postura externa para empresas, SaaS, e-commerce e prestadores autorizados.",
   },
