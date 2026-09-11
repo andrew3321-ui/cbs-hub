@@ -34,7 +34,7 @@ export async function finishGitHubConnection(env: GitHubEnv, workspaceId: number
  if (Number(consumed.meta.changes) !== 1) throw new Error('GITHUB_OAUTH_INVALID');
  const tokenRequest = new URLSearchParams({ client_id: env.GITHUB_CLIENT_ID!, client_secret: env.GITHUB_CLIENT_SECRET!, code, redirect_uri: publicOrigin(env) + '/api/github/callback', code_verifier: state });
  let response: Response;
- try { response = await fetcher('https://github.com/login/oauth/access_token', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: tokenRequest.toString() }); }
+ try { response = await fetcher('https://github.com/login/oauth/access_token', { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: tokenRequest.toString() }); }
  catch (error) { stageFailure(error, 'GITHUB_OAUTH_NETWORK_FAILED'); }
  if (!response.ok) throw new Error('GITHUB_OAUTH_FAILED');
  let access: { access_token?: string; error?: string };
@@ -125,11 +125,11 @@ export async function prepareRepositoryFix(env: GitHubEnv, workspaceId: number, 
  const head = await github<{ sha: string }>(`${repoPath(repo.full_name)}/commits/${encodeURIComponent(repo.default_branch)}`, token, {}, fetcher);
  if (head.sha !== finding.commit_sha) throw new Error('REPOSITORY_RESCAN_REQUIRED');
  const [packageText, lockText] = await Promise.all(['package.json', 'package-lock.json'].map(path => githubFile(token, repo.full_name, path, head.sha, fetcher)));
- const metadataResponse = await fetcher(`https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(to)}`, { redirect: 'error', signal: AbortSignal.timeout(15_000) });
+ const metadataResponse = await fetcher(`https://registry.npmjs.org/${encodeURIComponent(name)}/${encodeURIComponent(to)}`, { redirect: 'manual', signal: AbortSignal.timeout(15_000) });
  if (!metadataResponse.ok) throw new Error('REPOSITORY_REGISTRY_UNAVAILABLE');
  const patch = createLeafDependencyPatch(packageText, lockText, name, from, to, await boundedJson(metadataResponse, 512_000) as Record<string, unknown>);
  for (const file of patch.files) if ((await inspectSource(file.path, file.content)).some(f => f.kind === 'secret')) throw new Error('REPOSITORY_PATCH_CONTAINS_SECRET');
- const response = await fetcher('https://api.osv.dev/v1/query', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ package: { ecosystem: 'npm', name }, version: to }) });
+ const response = await fetcher('https://api.osv.dev/v1/query', { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(15_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ package: { ecosystem: 'npm', name }, version: to }) });
  if (!response.ok) throw new Error('REPOSITORY_ADVISORIES_UNAVAILABLE');
  const advice = await boundedJson(response) as { vulns?: unknown[] };
  if (advice.vulns?.length) throw new Error('REPOSITORY_FIX_STILL_VULNERABLE');

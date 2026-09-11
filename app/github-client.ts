@@ -29,7 +29,7 @@ export async function boundedJson(response: Response, maxBytes = 4_000_000): Pro
 }
 export async function github<T>(path: string, token: string, init: RequestInit = {}, fetcher: Fetcher = fetch): Promise<T> {
  if (!path.startsWith('/') || path.startsWith('//') || path.includes('..')) throw new Error('GITHUB_PATH_INVALID');
- const response = await fetcher(`https://api.github.com${path}`, { ...init, redirect: 'error', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'CBSHub-Repository-Security', Authorization: `Bearer ${token}`, ...init.headers } });
+ const response = await fetcher(`https://api.github.com${path}`, { ...init, redirect: 'manual', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/vnd.github+json', 'Content-Type': 'application/json', 'X-GitHub-Api-Version': '2022-11-28', 'User-Agent': 'CBSHub-Repository-Security', Authorization: `Bearer ${token}`, ...init.headers } });
  if (!response.ok) { await response.body?.cancel(); throw new Error(`GITHUB_HTTP_${response.status}`); }
  if (response.status === 204) return null as T;
  return await boundedJson(response) as T;

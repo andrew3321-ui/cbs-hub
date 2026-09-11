@@ -26,7 +26,7 @@ export async function scanRepository(env: GitHubEnv, workspaceId: number, reposi
   const remaining = REPOSITORY_LIMITS.packages - packagesChecked;
   if (packages.length > remaining) complete = false;
   packages = packages.slice(0, remaining); if (!packages.length) continue;
-  const response = await fetcher('https://api.osv.dev/v1/querybatch', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(20_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ queries: packages.map(p => ({ package: { ecosystem: 'npm', name: p.name }, version: p.version })) }) });
+  const response = await fetcher('https://api.osv.dev/v1/querybatch', { method: 'POST', redirect: 'manual', signal: AbortSignal.timeout(20_000), headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ queries: packages.map(p => ({ package: { ecosystem: 'npm', name: p.name }, version: p.version })) }) });
   if (!response.ok) throw new Error('REPOSITORY_ADVISORIES_UNAVAILABLE');
   const batch = await boundedJson(response) as { results?: Array<{ vulns?: Array<{ id: string }>; next_page_token?: string }> };
   if (batch.results?.length !== packages.length) throw new Error('REPOSITORY_ADVISORIES_INVALID');
@@ -37,7 +37,7 @@ export async function scanRepository(env: GitHubEnv, workspaceId: number, reposi
     const p = packages[i]; let fixedVersion: string | null = null;
     // Fetch advisory details only for a bounded set of actionable direct dependencies.
     if (findings.filter(f => f.kind === 'dependency').length < 10 && /^[A-Za-z0-9_-]+$/.test(vuln.id)) {
-     const detailResponse = await fetcher(`https://api.osv.dev/v1/vulns/${encodeURIComponent(vuln.id)}`, { redirect: 'error', signal: AbortSignal.timeout(10_000) });
+     const detailResponse = await fetcher(`https://api.osv.dev/v1/vulns/${encodeURIComponent(vuln.id)}`, { redirect: 'manual', signal: AbortSignal.timeout(10_000) });
      if (detailResponse.ok) {
       const detail = await boundedJson(detailResponse, 512_000) as { affected?: Array<{ package?: { name?: string; ecosystem?: string }; ranges?: Array<{ events?: Array<{ fixed?: string }> }> }> };
       const candidates = (detail.affected ?? []).filter(a => a.package?.name === p.name && a.package.ecosystem === 'npm').flatMap(a => (a.ranges ?? []).flatMap(r => (r.events ?? []).flatMap(e => e.fixed && /^\d+\.\d+\.\d+$/.test(e.fixed) ? [e.fixed] : [])));
