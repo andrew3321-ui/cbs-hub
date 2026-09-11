@@ -44,6 +44,9 @@ test("quality gate and Workers Builds block publishing before checks and migrati
   assert.match(deploy, /ls-remote/);
   assert.match(deploy, /Publicação obsoleta bloqueada/);
   assert.match(deploy, /SMOKE_PREVIOUS_RELEASE_ID/);
+  assert.match(deploy, /if \(!isWorkersBuild\)/);
+  assert.match(deploy, /auxiliary runners skipped/);
+  assert.match(deploy, /putSecret\("wrangler\.jsonc"/);
 });
 
 test("published Workers never replay legacy schema DDL during requests", () => {

@@ -23,6 +23,8 @@ Deploy command: npm run ci:deploy
 
 O arquivo raiz `wrangler.jsonc` identifica exclusivamente o Worker web e também fornece os bindings ao plugin Cloudflare durante o build. Ele protege o deploy automático contra a descoberta acidental das configurações dos runners em subdiretórios. O `vite.config.ts` acrescenta somente o entry point TypeScript usado pelo build, sem redeclarar bindings. Os runners continuam sendo publicados apenas com `--config` explícito.
 
+Em Workers Builds (`WORKERS_CI=1`), o deploy publica exclusivamente o Worker web. O ambiente gerenciado vincula a credencial ao serviço `cbs-hub` e pode ignorar o nome presente em configurações aninhadas; por isso os runners e a rotação de sua chave compartilhada ficam restritos ao fluxo operacional executado fora do build automático.
+
 O Wrangler registra migrations já aplicadas em `d1_migrations`. Por isso uma reexecução aplica somente arquivos pendentes. Nunca alterar uma migration que já chegou ao remoto; toda mudança de esquema recebe um novo número.
 
 ## Variáveis por ambiente

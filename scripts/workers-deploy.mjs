@@ -5,12 +5,13 @@ import { resolve } from "node:path";
 const wrangler = resolve("node_modules", "wrangler", "bin", "wrangler.js");
 const node = process.execPath;
 const branch = process.env.WORKERS_CI_BRANCH ?? "";
+const isWorkersBuild = process.env.WORKERS_CI === "1";
 
-if (process.env.WORKERS_CI === "1" && branch !== "main") {
+if (isWorkersBuild && branch !== "main") {
   throw new Error(`Publicação bloqueada para ${branch || "branch desconhecida"}. Somente main pode publicar.`);
 }
 
-if (process.env.WORKERS_CI === "1") {
+if (isWorkersBuild) {
   const localHead = execFileSync("git", ["rev-parse", "HEAD"], { encoding: "utf8" }).trim();
   const remoteMain = execFileSync("git", ["ls-remote", "origin", "refs/heads/main"], { encoding: "utf8" }).trim().split(/\s+/)[0];
   if (!remoteMain || localHead !== remoteMain) {
@@ -54,15 +55,23 @@ execFileSync(node, [wrangler,
   "--remote", "--config", "wrangler.migrations.jsonc",
 ], { stdio: "inherit" });
 
-ensureQueue("cbs-hub-active-security-runs");
-ensureQueue("cbs-hub-active-security-runs-dlq");
-ensureQueue("cbs-hub-repository-scans");
-ensureQueue("cbs-hub-repository-scans-dlq");
-execFileSync(node, [wrangler, "deploy", "--config", "repository-runner/wrangler.jsonc"], { stdio: "inherit" });
-execFileSync(node, [wrangler, "deploy", "--config", "security-runner/wrangler.jsonc"], { stdio: "inherit" });
-const runnerSigningKey = randomBytes(48).toString("base64url");
-putSecret("security-runner/wrangler.jsonc", runnerSigningKey);
-putSecret("dist/server/wrangler.json", runnerSigningKey);
+// A Cloudflare Workers Build is scoped to the connected `cbs-hub` service and
+// overrides the name from nested Wrangler configs. Publishing an auxiliary
+// runner there would therefore replace the public website. Auxiliary workers
+// are provisioned only from an explicit local/operator deploy.
+if (!isWorkersBuild) {
+  ensureQueue("cbs-hub-active-security-runs");
+  ensureQueue("cbs-hub-active-security-runs-dlq");
+  ensureQueue("cbs-hub-repository-scans");
+  ensureQueue("cbs-hub-repository-scans-dlq");
+  execFileSync(node, [wrangler, "deploy", "--config", "repository-runner/wrangler.jsonc"], { stdio: "inherit" });
+  execFileSync(node, [wrangler, "deploy", "--config", "security-runner/wrangler.jsonc"], { stdio: "inherit" });
+  const runnerSigningKey = randomBytes(48).toString("base64url");
+  putSecret("security-runner/wrangler.jsonc", runnerSigningKey);
+  putSecret("wrangler.jsonc", runnerSigningKey);
+} else {
+  console.log("Workers Build: auxiliary runners skipped; publishing only the cbs-hub web Worker.");
+}
 
 execFileSync(node, [wrangler, "deploy", "--config", "wrangler.jsonc"], { stdio: "inherit" });
 
