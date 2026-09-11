@@ -3,7 +3,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const generatedPath = path.join(root, "dist", "server", "wrangler.json");
-const productionPath = path.join(root, "wrangler.migrations.jsonc");
+const productionPath = path.join(root, "wrangler.jsonc");
 
 const [generatedSource, productionSource] = await Promise.all([
   readFile(generatedPath, "utf8"),
