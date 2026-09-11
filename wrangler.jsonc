@@ -1,0 +1,34 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "cbs-hub",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-07-25",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": false,
+  "preview_urls": false,
+  "no_bundle": true,
+  "observability": { "enabled": true },
+  "assets": { "directory": "dist/client" },
+  "rules": [{ "type": "ESModule", "globs": ["**/*.js", "**/*.mjs"] }],
+  "version_metadata": { "binding": "CF_VERSION_METADATA" },
+  "triggers": { "crons": ["*/5 * * * *", "15 8 * * *", "45 12 * * *"] },
+  "d1_databases": [{
+    "binding": "DB",
+    "database_name": "margem-clara-production",
+    "database_id": "ce069e8f-9efb-4142-8a76-0721bfb04a1c"
+  }],
+  "queues": {
+    "producers": [
+      { "binding": "SECURITY_SCAN_QUEUE", "queue": "cbs-hub-security-scans" },
+      { "binding": "SECURITY_REPOSITORY_QUEUE", "queue": "cbs-hub-repository-scans" }
+    ],
+    "consumers": [{
+      "queue": "cbs-hub-security-scans",
+      "max_batch_size": 1,
+      "max_batch_timeout": 5,
+      "max_retries": 2,
+      "dead_letter_queue": "cbs-hub-security-scans-dlq"
+    }]
+  },
+  "services": [{ "binding": "SECURITY_ACTIVE_RUNNER", "service": "cbs-hub-security-runner" }]
+}

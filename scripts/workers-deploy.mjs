@@ -64,7 +64,7 @@ const runnerSigningKey = randomBytes(48).toString("base64url");
 putSecret("security-runner/wrangler.jsonc", runnerSigningKey);
 putSecret("dist/server/wrangler.json", runnerSigningKey);
 
-execFileSync(node, [wrangler, "deploy", "--config", "dist/server/wrangler.json"], { stdio: "inherit" });
+execFileSync(node, [wrangler, "deploy", "--config", "wrangler.jsonc"], { stdio: "inherit" });
 
 try {
   execFileSync(node, ["scripts/post-deploy-smoke.mjs"], {

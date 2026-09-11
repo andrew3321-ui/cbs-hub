@@ -14,6 +14,7 @@
     "security:eval": "node --experimental-strip-types scripts/evaluate-security-agent.mjs",
     "runner:check": "wrangler deploy --dry-run --config security-runner/wrangler.jsonc --outdir tmp/security-runner",
     "repository:check": "wrangler deploy --dry-run --config repository-runner/wrangler.jsonc --outdir tmp/repository-runner",
+    "site:check": "wrangler deploy --dry-run --config wrangler.jsonc --outdir tmp/site-worker",
     "test": "npm run build && npm run test:unit",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next --ignore-pattern .wrangler --ignore-pattern work --ignore-pattern output --ignore-pattern outputs",
     "db:generate": "drizzle-kit generate",
