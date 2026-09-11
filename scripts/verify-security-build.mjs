@@ -12,6 +12,7 @@ function requireInvariant(condition, code) {
 
 const [
   appPage,
+  workspaceRoute,
   appLayout,
   launchGate,
   workspace,
@@ -28,6 +29,7 @@ const [
   cloudflareConnector,
 ] = await Promise.all([
   source("app/app/page.tsx"),
+  source("app/app/SecurityWorkspaceRoute.tsx"),
   source("app/app/layout.tsx"),
   source("app/app/CyberLaunchGate.tsx"),
   source("app/app/SecurityAgentCenter.tsx"),
@@ -45,11 +47,12 @@ const [
 ]);
 
 requireInvariant(
-  appPage.includes("SecurityAgentCenter"),
+  appPage.includes("renderSecurityWorkspace") &&
+    workspaceRoute.includes("SecurityAgentCenter"),
   "workspace_entrypoint_missing",
 );
 requireInvariant(
-  appPage.includes("workspaceAccessAllowed") &&
+  workspaceRoute.includes("workspaceAccessAllowed") &&
     launchGate.includes("ABERTURA CONTROLADA") &&
     agentRoute.includes("CYBER_LAUNCH_GATE"),
   "commercial_launch_gate_missing",
@@ -64,8 +67,11 @@ requireInvariant(
   "security_styles_missing",
 );
 requireInvariant(
-  workspace.includes("AUTHORIZED SECURITY VALIDATION") &&
-    workspace.includes("authorizationConfirmed"),
+  workspace.includes("authorizationConfirmed") &&
+    workspace.includes("/app/autorizar") &&
+    workspace.includes("/app/ativos") &&
+    workspace.includes("/app/operacoes") &&
+    workspace.includes("/app/projetos"),
   "authorization_guard_missing",
 );
 requireInvariant(

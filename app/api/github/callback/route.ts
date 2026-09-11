@@ -8,5 +8,5 @@ export async function GET(request: Request) {
  let result = 'connected';
  try { await finishGitHubConnection(e, ctx.workspace.id, ctx.user.id, url.searchParams.get('code') ?? '', url.searchParams.get('state') ?? ''); }
  catch (error) { result = error instanceof Error && error.message === 'GITHUB_NO_ADMIN_REPOSITORIES' ? 'no_repositories' : 'failed'; }
- return new Response(null, { status: 303, headers: { Location: `${publicOrigin(e)}/app?github=${result}#repositories`, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
+ return new Response(null, { status: 303, headers: { Location: `${publicOrigin(e)}/app/projetos?github=${result}`, 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' } });
 }

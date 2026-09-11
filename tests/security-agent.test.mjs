@@ -72,6 +72,15 @@ test("daily execution is opt-in, passive and auditable", () => {
   assert.match(client, /Monitorar diariamente/);
 });
 
+test("workspace separates product modules and hides model names from the interface", () => {
+  for (const route of ["/app/autorizar", "/app/ativos", "/app/operacoes", "/app/projetos"]) {
+    assert.match(client, new RegExp(route.replaceAll("/", "\\/")));
+  }
+  assert.doesNotMatch(client, /gpt-5\.[0-9]/);
+  assert.doesNotMatch(client, /modelRouting\.primary/);
+  assert.doesNotMatch(client, /primaryModel \?\?/);
+});
+
 test("execution is queued, idempotently claimed and retried outside the request", () => {
   assert.match(route, /enqueueSecurityAgentJob/);
   assert.match(route, /status: job\.status === "queued" \? 202 : 200/);
