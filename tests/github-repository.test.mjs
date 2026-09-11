@@ -4,7 +4,7 @@ import { DatabaseSync } from 'node:sqlite';
 import { readFileSync } from 'node:fs';
 import { generateKeyPairSync } from 'node:crypto';
 import { inspectSource, lockedPackages, createLeafDependencyPatch } from '../domain/repository-security.ts';
-import { appJwt, webhookValid } from '../app/github-client.ts';
+import { appJwt, pkceChallenge, webhookValid } from '../app/github-client.ts';
 import { startGitHubConnection, finishGitHubConnection, enqueueRepositoryScan, publishRepositoryFix, repositoryFor } from '../app/github-repository-service.ts';
 import { scanRepository } from '../repository-runner/scanner.ts';
 import { processRepositoryJob } from '../repository-runner/worker.ts';
@@ -46,9 +46,10 @@ test('GitHub app JWT has a short lifetime and installation OAuth is single-use a
  const {sqlite,DB}=database(); const env={...configured,DB};
  try {
   const jwt=await appJwt(env), payload=JSON.parse(Buffer.from(jwt.split('.')[1],'base64url')); assert.ok(payload.exp-payload.iat<=600); assert.equal(payload.iss,'12');
-  const {url}=await startGitHubConnection(env,42,7); const state=new URL(url).searchParams.get('state');
+  const {url}=await startGitHubConnection(env,42,7); const authorize=new URL(url), state=authorize.searchParams.get('state');
+  assert.equal(authorize.searchParams.get('code_challenge_method'),'S256'); assert.equal(authorize.searchParams.get('code_challenge'),await pkceChallenge(state));
   await assert.rejects(finishGitHubConnection(env,42,8,'code',state,async()=>{throw new Error('should not fetch');}),/GITHUB_OAUTH_INVALID/);
-  const fetcher=async input=>{ const url=String(input); if(url.includes('/access_token'))return Response.json({access_token:'ephemeral-user-token'}); if(url.endsWith('/user/installations?per_page=30&page=1'))return Response.json({installations:[{id:123,app_id:12,account:{login:'acme'}}]}); if(url.includes('/repositories?'))return Response.json({repositories:[{id:987,full_name:'acme/portal',default_branch:'main',permissions:{admin:true}},{id:988,full_name:'acme/foreign',default_branch:'main',permissions:{admin:false}}]}); throw new Error(url); };
+  const fetcher=async (input,init={})=>{ const url=String(input); if(url.includes('/access_token')){assert.equal(init.headers['Content-Type'],'application/x-www-form-urlencoded');const form=new URLSearchParams(init.body);assert.equal(form.get('client_id'),configured.GITHUB_CLIENT_ID);assert.equal(form.get('client_secret'),configured.GITHUB_CLIENT_SECRET);assert.equal(form.get('code_verifier'),state);return Response.json({access_token:'ephemeral-user-token'});} if(url.endsWith('/user/installations?per_page=30&page=1'))return Response.json({installations:[{id:123,app_id:12,account:{login:'acme'}}]}); if(url.includes('/repositories?'))return Response.json({repositories:[{id:987,full_name:'acme/portal',default_branch:'main',permissions:{admin:true}},{id:988,full_name:'acme/foreign',default_branch:'main',permissions:{admin:false}}]}); throw new Error(url); };
   assert.deepEqual(await finishGitHubConnection(env,42,7,'code',state,fetcher),{repositories:1});
   assert.equal(sqlite.prepare('SELECT COUNT(*) n FROM security_repositories').get().n,1);
   assert.equal(sqlite.prepare('SELECT enabled FROM security_repositories').get().enabled,0);

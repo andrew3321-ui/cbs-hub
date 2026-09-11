@@ -11,6 +11,10 @@ export const id = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 export async function digest(value: string) {
  return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(value))), b => b.toString(16).padStart(2, '0')).join('');
 }
+export async function pkceChallenge(verifier: string) {
+ const bytes = new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(verifier)));
+ return Buffer.from(bytes).toString('base64url');
+}
 export function publicOrigin(env: GitHubEnv) {
  const url = new URL(env.PUBLIC_APP_URL || 'https://cbshub.com.br');
  if (url.protocol !== 'https:' || url.username || url.password) throw new Error('GITHUB_CONFIGURATION_INVALID');

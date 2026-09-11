@@ -1,4 +1,4 @@
-import { appJwt, boundedJson, digest, github, githubConfigured, id, installationToken, publicOrigin, repoPath, type Fetcher, type GitHubEnv } from './github-client.ts';
+import { appJwt, boundedJson, digest, github, githubConfigured, id, installationToken, pkceChallenge, publicOrigin, repoPath, type Fetcher, type GitHubEnv } from './github-client.ts';
 import { createLeafDependencyPatch, inspectSource, type LeafPatch } from '../domain/repository-security.ts';
 
 export type RepositoryRow = { id: string; workspace_id: number; connection_id: string; github_id: number; full_name: string; default_branch: string; enabled: number; monitoring_enabled: number; authorized_until: string; installation_id: number; connection_status: string };
@@ -19,6 +19,8 @@ export async function startGitHubConnection(env: GitHubEnv, workspaceId: number,
  const url = new URL('https://github.com/login/oauth/authorize');
  url.searchParams.set('client_id', env.GITHUB_CLIENT_ID!); url.searchParams.set('state', state);
  url.searchParams.set('redirect_uri', publicOrigin(env) + '/api/github/callback');
+ url.searchParams.set('code_challenge', await pkceChallenge(state));
+ url.searchParams.set('code_challenge_method', 'S256');
  return { url: url.toString() };
 }
 type GitHubRepo = { id: number; full_name: string; default_branch: string; archived?: boolean; permissions?: { admin?: boolean } };
@@ -26,10 +28,17 @@ export async function finishGitHubConnection(env: GitHubEnv, workspaceId: number
  if (!githubConfigured(env) || code.length > 300 || state.length > 100) throw new Error('GITHUB_OAUTH_INVALID');
  const consumed = await env.DB.prepare('UPDATE github_oauth_states SET consumed_at = ? WHERE state_hash = ? AND user_id = ? AND workspace_id = ? AND expires_at > ? AND consumed_at IS NULL').bind(new Date().toISOString(), await digest(state), userId, workspaceId, new Date().toISOString()).run();
  if (Number(consumed.meta.changes) !== 1) throw new Error('GITHUB_OAUTH_INVALID');
- const response = await fetcher('https://github.com/login/oauth/access_token', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json', 'Content-Type': 'application/json' }, body: JSON.stringify({ client_id: env.GITHUB_CLIENT_ID, client_secret: env.GITHUB_CLIENT_SECRET, code, redirect_uri: publicOrigin(env) + '/api/github/callback' }) });
+ const tokenRequest = new URLSearchParams({ client_id: env.GITHUB_CLIENT_ID!, client_secret: env.GITHUB_CLIENT_SECRET!, code, redirect_uri: publicOrigin(env) + '/api/github/callback', code_verifier: state });
+ const response = await fetcher('https://github.com/login/oauth/access_token', { method: 'POST', redirect: 'error', signal: AbortSignal.timeout(15_000), headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' }, body: tokenRequest.toString() });
  if (!response.ok) throw new Error('GITHUB_OAUTH_FAILED');
- const access = await boundedJson(response, 20_000) as { access_token?: string };
- if (!access.access_token) throw new Error('GITHUB_OAUTH_FAILED');
+ const access = await boundedJson(response, 20_000) as { access_token?: string; error?: string };
+ if (!access.access_token) {
+  if (access.error === 'incorrect_client_credentials') throw new Error('GITHUB_OAUTH_CLIENT_INVALID');
+  if (access.error === 'redirect_uri_mismatch') throw new Error('GITHUB_OAUTH_REDIRECT_INVALID');
+  if (access.error === 'bad_verification_code') throw new Error('GITHUB_OAUTH_CODE_INVALID');
+  if (access.error === 'unverified_user_email') throw new Error('GITHUB_OAUTH_EMAIL_UNVERIFIED');
+  throw new Error('GITHUB_OAUTH_FAILED');
+ }
  const token = access.access_token;
  let connected = 0;
  // Only repositories for which this authenticated GitHub user is an administrator can be attached.
