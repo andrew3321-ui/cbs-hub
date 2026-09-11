@@ -282,6 +282,105 @@
 .security-agent-control-scope .security-delivery { margin: 0; padding: 26px; border: 0; border-bottom: 1px solid var(--workspace-line); border-radius: 0; background: transparent; }
 .security-agent-control-scope .security-delivery { border-bottom: 0; }
 
+.security-operations { color: var(--workspace-text); }
+.security-operations > details { padding: 0; border: 1px solid var(--workspace-line); border-radius: 15px; background: rgba(5, 10, 17, .42); overflow: hidden; }
+.security-operations > details + details { margin-top: 14px; }
+.security-operations > details > summary {
+  min-height: 66px;
+  padding: 20px 22px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  list-style: none;
+  cursor: pointer;
+  border-bottom: 1px solid transparent;
+  color: var(--workspace-text);
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -.01em;
+  transition: background 160ms ease, border-color 160ms ease;
+}
+.security-operations > details > summary::-webkit-details-marker { display: none; }
+.security-operations > details > summary::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  flex: 0 0 auto;
+  border-right: 1.5px solid var(--workspace-cyan);
+  border-bottom: 1.5px solid var(--workspace-cyan);
+  transform: rotate(-45deg);
+  transition: transform 160ms ease;
+}
+.security-operations > details[open] > summary { border-bottom-color: var(--workspace-line); background: rgba(89, 217, 255, .035); }
+.security-operations > details[open] > summary::before { transform: rotate(45deg) translate(-2px, -2px); }
+.security-operations > details > p { margin: 18px 22px 0; color: var(--workspace-muted); font-size: 13px; line-height: 1.65; }
+.security-operations > details > .security-operations-note { margin-top: 7px; color: var(--workspace-faint); font-size: 12px; }
+.security-operations form { margin: 22px; }
+.security-operations fieldset { min-width: 0; margin: 0; padding: 0; border: 0; }
+.security-operations fieldset:disabled { opacity: .58; }
+.security-operations legend {
+  width: 100%;
+  margin-bottom: 13px;
+  color: var(--workspace-faint);
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .09em;
+  text-transform: uppercase;
+}
+.security-operations-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 13px; }
+.security-operations-fields + .security-operations-fields { margin-top: 18px; padding-top: 18px; border-top: 1px solid rgba(146, 183, 211, .1); }
+.security-operations-fields.security-coverage-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.security-operations-fields label { min-width: 0; display: grid; align-content: start; gap: 8px; color: #b7c6d2; font-size: 12px; font-weight: 650; }
+.security-operations input:not([type="checkbox"]),
+.security-operations select {
+  width: 100%;
+  min-width: 0;
+  height: 46px;
+  padding: 0 13px;
+  border: 1px solid rgba(146, 183, 211, .2);
+  border-radius: 9px;
+  outline: 0;
+  background: #080f19;
+  color: var(--workspace-text);
+  font-family: inherit;
+  font-size: 13px;
+  color-scheme: dark;
+  transition: border-color 160ms ease, background 160ms ease, box-shadow 160ms ease;
+}
+.security-operations input:not([type="checkbox"])::placeholder { color: #566b7b; }
+.security-operations input:not([type="checkbox"]):hover,
+.security-operations select:hover { border-color: rgba(89, 217, 255, .35); }
+.security-operations input:not([type="checkbox"]):focus,
+.security-operations select:focus { border-color: rgba(89, 217, 255, .7); background: #0a1420; box-shadow: 0 0 0 3px rgba(89, 217, 255, .08); }
+.security-operations fieldset > p { margin: 15px 0 0; color: var(--workspace-faint); font-size: 11px; line-height: 1.55; }
+.security-operations-consent { margin: 18px 0; padding: 14px 15px; display: flex; align-items: flex-start; gap: 11px; border: 1px solid rgba(120, 231, 189, .16); border-radius: 10px; background: rgba(120, 231, 189, .035); color: #afc2cf; font-size: 12px; line-height: 1.55; cursor: pointer; }
+.security-operations-consent input { width: 16px; height: 16px; margin: 1px 0 0; flex: 0 0 auto; accent-color: var(--workspace-mint); }
+.security-operations-error { color: #ffadb6 !important; }
+.security-operations-submit {
+  min-height: 46px;
+  padding: 0 17px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  border: 1px solid rgba(89, 217, 255, .35);
+  border-radius: 10px;
+  background: #17364a;
+  color: var(--workspace-text);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  cursor: pointer;
+}
+.security-operations-submit span { color: var(--workspace-cyan); }
+.security-operations-submit:hover { border-color: rgba(89, 217, 255, .62); background: #1b4058; }
+.security-operations > details > article { margin: 14px 22px 20px; padding: 17px 18px; border: 1px solid var(--workspace-line); border-radius: 11px; background: rgba(255, 255, 255, .018); }
+.security-operations > details > article h4 { margin: 0 0 7px; font-size: 14px; }
+.security-operations > details > article small { color: var(--workspace-faint); font-size: 11px; line-height: 1.55; }
+.security-operations > details > article ol { margin: 15px 0; padding-left: 20px; color: var(--workspace-muted); font-size: 12px; line-height: 1.7; }
+.security-operations > details > article p { color: var(--workspace-muted); font-size: 12px; line-height: 1.6; }
+.security-reference-list a { color: var(--workspace-cyan); }
+
 .security-repositories-page { margin: 0 auto; animation: workspace-content-enter 380ms 90ms ease-out both; }
 .security-workspace-main .security-repositories { margin: 0; padding: 28px; border-color: var(--workspace-line); border-radius: 18px; background: linear-gradient(145deg, var(--workspace-raised), var(--workspace-surface)); box-shadow: 0 22px 54px rgba(0, 0, 0, .16); }
 .security-workspace-main .repository-section-head > div:first-child > span { display: none; }
@@ -305,6 +404,7 @@
   .security-overview-grid { grid-template-columns: 1fr; }
   .security-guardrail-summary { align-items: flex-start; flex-direction: column; }
   .security-guardrail-summary ul { justify-content: flex-start; padding-left: 18px; }
+  .security-operations-fields.security-coverage-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 800px) {
@@ -343,6 +443,7 @@
   .security-workspace-main .security-agent-hero h1 { font-size: clamp(32px, 10vw, 44px); }
   .security-authorization-layout { grid-template-columns: 1fr; }
   .security-agent-control-head { align-items: flex-start; flex-direction: column; }
+  .security-operations-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 @media (max-width: 560px) {
@@ -360,6 +461,12 @@
   .security-agent-control-scope .security-operations,
   .security-agent-control-scope .security-findings,
   .security-agent-control-scope .security-delivery { padding: 20px; }
+  .security-operations > details > summary { min-height: 60px; padding: 17px; }
+  .security-operations > details > p { margin-inline: 17px; }
+  .security-operations form { margin: 18px 17px; }
+  .security-operations-fields,
+  .security-operations-fields.security-coverage-fields { grid-template-columns: 1fr; }
+  .security-operations-submit { width: 100%; }
 }
 
 @media (prefers-reduced-motion: reduce) {

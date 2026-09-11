@@ -7,6 +7,7 @@ import {
   isPrivateOrReservedAddress,
   normalizePublicDomain,
 } from "../domain/cybersecurity-preview.ts";
+import { websiteChecksFromResponse } from "../app/cybersecurity-scan-service.ts";
 
 test("normalizes public domains without retaining paths or protocols", () => {
   assert.equal(normalizePublicDomain(" HTTPS://WWW.Example.com.br/area?q=1 "), "www.example.com.br");
@@ -53,6 +54,38 @@ test("public scanner remains passive, bounded and rate limited", () => {
   assert.doesNotMatch(route, /env\.DB|INSERT INTO|db\.insert/);
   assert.match(worker, /public-cyber-preview/);
   assert.match(worker, /cybersecurity-preview"\) return 4 \* 1024/);
+});
+
+test("server errors make website controls inconclusive instead of producing false findings", () => {
+  const checks = websiteChecksFromResponse(new Response(null, { status: 522 }), new URL("https://example.com/"));
+  assert.deepEqual(checks.map(({ code, status }) => [code, status]), [
+    ["https", "unavailable"],
+    ["hsts", "unavailable"],
+    ["csp", "unavailable"],
+    ["browser-headers", "unavailable"],
+  ]);
+  assert.match(checks[0].detail, /HTTP 522/);
+  assert.equal(checks.some((check) => /ausente|não localizada/i.test(check.title)), false);
+});
+
+test("successful HTTPS responses still evaluate the actual security headers", () => {
+  const response = new Response(null, {
+    status: 200,
+    headers: {
+      "Strict-Transport-Security": "max-age=31536000",
+      "Content-Security-Policy": "default-src 'self'; frame-ancestors 'none'",
+      "X-Content-Type-Options": "nosniff",
+      "Referrer-Policy": "strict-origin-when-cross-origin",
+      "Permissions-Policy": "camera=()",
+    },
+  });
+  const checks = websiteChecksFromResponse(response, new URL("https://example.com/"));
+  assert.deepEqual(checks.map(({ code, status }) => [code, status]), [
+    ["https", "pass"],
+    ["hsts", "pass"],
+    ["csp", "pass"],
+    ["browser-headers", "pass"],
+  ]);
 });
 
 test("cybersecurity is the canonical home and its legacy path is a noindex alias", () => {

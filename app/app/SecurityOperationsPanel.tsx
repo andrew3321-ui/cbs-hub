@@ -43,9 +43,9 @@ export default function SecurityOperationsPanel({ scopeId, disabled, playbooks, 
             {fields.map(([name, label]) => <label key={name}>{label}<input name={name} type="number" min="0" max="1000000" step="1" required placeholder="Informe a contagem" /></label>)}
           </div>
           <p>O total web deve incluir bloqueios WAF e respostas 5xx, sem contar a mesma requisição duas vezes.</p>
-          <label className="security-operations-consent"><input name="authorized" type="checkbox" required />Confirmo que os totais pertencem a este ativo e que tenho autorização para analisá-los.</label>
-          {localError ? <p role="alert">{localError}</p> : null}
-          <button type="submit">Analisar eventos →</button>
+          <label className="security-operations-consent"><input name="authorized" type="checkbox" required /><span>Confirmo que os totais pertencem a este ativo e que tenho autorização para analisá-los.</span></label>
+          {localError ? <p className="security-operations-error" role="alert">{localError}</p> : null}
+          <button className="security-operations-submit" type="submit">Analisar eventos <span aria-hidden="true">→</span></button>
         </fieldset>
       </form>
     </details>

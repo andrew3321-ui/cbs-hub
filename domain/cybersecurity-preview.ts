@@ -1,4 +1,4 @@
-export const CYBERSECURITY_PREVIEW_VERSION = "cyber-preview.v1";
+export const CYBERSECURITY_PREVIEW_VERSION = "cyber-preview.v2";
 
 export type CyberCheckStatus = "pass" | "warning" | "risk" | "unavailable";
 

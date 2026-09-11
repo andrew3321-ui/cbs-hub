@@ -76,6 +76,49 @@ async function fetchWebsite(domain: string) {
   throw new Error("TOO_MANY_REDIRECTS");
 }
 
+export function websiteChecksFromResponse(response: Response, finalUrl: URL): CyberCheck[] {
+  if (response.status >= 500) {
+    const detail = `O endpoint HTTPS respondeu com código HTTP ${response.status}. A inspeção dos controles foi considerada inconclusiva para evitar falsos positivos durante uma indisponibilidade.`;
+    return [
+      { code: "https", category: "website", title: "Disponibilidade HTTPS inconclusiva", status: "unavailable", detail, action: "Repita a verificação após estabilizar a hospedagem ou a conexão com o servidor de origem.", weight: 18 },
+      ...([[
+        "hsts", "Proteção HSTS", 10,
+      ], [
+        "csp", "Política de conteúdo", 12,
+      ], [
+        "browser-headers", "Cabeçalhos do navegador", 8,
+      ]] as const).map(([code, title, weight]) => ({
+        code,
+        category: "website" as const,
+        title,
+        status: "unavailable" as const,
+        detail: `Controle não avaliado porque a resposta principal retornou HTTP ${response.status}.`,
+        action: "Repita a inspeção quando o site responder sem erro de servidor.",
+        weight,
+      })),
+    ];
+  }
+
+  const checks: CyberCheck[] = [];
+  checks.push({ code: "https", category: "website", title: "Site acessível por HTTPS", status: "pass", detail: `O site respondeu por HTTPS em ${finalUrl.hostname}, com código HTTP ${response.status}.`, action: "Mantenha a renovação do certificado e monitore regressões.", weight: 18 });
+  const hsts = response.headers.get("strict-transport-security");
+  checks.push(hsts
+    ? { code: "hsts", category: "website", title: "HSTS habilitado", status: "pass", detail: "O navegador recebe instrução para priorizar conexões HTTPS.", action: "Revise max-age e inclusão de subdomínios antes de ampliar a política.", weight: 10 }
+    : { code: "hsts", category: "website", title: "HSTS ausente", status: "warning", detail: "A resposta HTTPS não apresentou Strict-Transport-Security.", action: "Avalie habilitar HSTS após garantir HTTPS consistente em todos os subdomínios necessários.", weight: 10 });
+  const csp = response.headers.get("content-security-policy");
+  checks.push(csp
+    ? { code: "csp", category: "website", title: "CSP publicada", status: "pass", detail: "O site publica uma Content-Security-Policy para limitar origens de conteúdo.", action: "Mantenha a política sem liberações excessivas e acompanhe violações.", weight: 12 }
+    : { code: "csp", category: "website", title: "CSP não localizada", status: "risk", detail: "A resposta principal não apresentou Content-Security-Policy.", action: "Modele e publique uma CSP compatível com os scripts e serviços legítimos do site.", weight: 12 });
+  const browserHeaders = [
+    response.headers.has("x-content-type-options"),
+    response.headers.has("referrer-policy"),
+    response.headers.has("permissions-policy"),
+    response.headers.has("x-frame-options") || /frame-ancestors/i.test(csp ?? ""),
+  ].filter(Boolean).length;
+  checks.push({ code: "browser-headers", category: "website", title: "Defesas do navegador", status: browserHeaders >= 4 ? "pass" : browserHeaders >= 2 ? "warning" : "risk", detail: `${browserHeaders} de 4 controles básicos foram observados na resposta principal.`, action: "Revise proteção contra MIME sniffing, enquadramento, vazamento de referência e permissões do navegador.", weight: 8 });
+  return checks;
+}
+
 async function checksForDomain(domain: string) {
   const checks: CyberCheck[] = [];
   let addresses: string[] = [];
@@ -112,23 +155,7 @@ async function checksForDomain(domain: string) {
 
   try {
     const { response, finalUrl } = await fetchWebsite(domain);
-    const ok = response.status >= 200 && response.status < 500;
-    checks.push({ code: "https", category: "website", title: "Site acessível por HTTPS", status: ok ? "pass" : "risk", detail: ok ? `O site respondeu por HTTPS em ${finalUrl.hostname}, com código HTTP ${response.status}.` : `O site respondeu por HTTPS com código HTTP ${response.status}.`, action: ok ? "Mantenha a renovação do certificado e monitore regressões." : "Revise certificado, hospedagem e disponibilidade do serviço.", weight: 18 });
-    const hsts = response.headers.get("strict-transport-security");
-    checks.push(hsts
-      ? { code: "hsts", category: "website", title: "HSTS habilitado", status: "pass", detail: "O navegador recebe instrução para priorizar conexões HTTPS.", action: "Revise max-age e inclusão de subdomínios antes de ampliar a política.", weight: 10 }
-      : { code: "hsts", category: "website", title: "HSTS ausente", status: "warning", detail: "A resposta HTTPS não apresentou Strict-Transport-Security.", action: "Avalie habilitar HSTS após garantir HTTPS consistente em todos os subdomínios necessários.", weight: 10 });
-    const csp = response.headers.get("content-security-policy");
-    checks.push(csp
-      ? { code: "csp", category: "website", title: "CSP publicada", status: "pass", detail: "O site publica uma Content-Security-Policy para limitar origens de conteúdo.", action: "Mantenha a política sem liberações excessivas e acompanhe violações.", weight: 12 }
-      : { code: "csp", category: "website", title: "CSP não localizada", status: "risk", detail: "A resposta principal não apresentou Content-Security-Policy.", action: "Modele e publique uma CSP compatível com os scripts e serviços legítimos do site.", weight: 12 });
-    const browserHeaders = [
-      response.headers.has("x-content-type-options"),
-      response.headers.has("referrer-policy"),
-      response.headers.has("permissions-policy"),
-      response.headers.has("x-frame-options") || /frame-ancestors/i.test(csp ?? ""),
-    ].filter(Boolean).length;
-    checks.push({ code: "browser-headers", category: "website", title: "Defesas do navegador", status: browserHeaders >= 4 ? "pass" : browserHeaders >= 2 ? "warning" : "risk", detail: `${browserHeaders} de 4 controles básicos foram observados na resposta principal.`, action: "Revise proteção contra MIME sniffing, enquadramento, vazamento de referência e permissões do navegador.", weight: 8 });
+    checks.push(...websiteChecksFromResponse(response, finalUrl));
   } catch (error) {
     const reason = error instanceof Error && error.message === "UNSAFE_REDIRECT" ? "O site redirecionou para um domínio diferente e a análise foi interrompida por segurança." : "Não foi possível confirmar uma resposta HTTPS válida dentro do limite do diagnóstico.";
     checks.push({ code: "https", category: "website", title: "HTTPS não confirmado", status: "risk", detail: reason, action: "Revise o certificado, os redirecionamentos e a disponibilidade pública do site.", weight: 18 });
