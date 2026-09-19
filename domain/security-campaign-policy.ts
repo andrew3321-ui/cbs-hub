@@ -1,10 +1,15 @@
-export const SECURITY_CAMPAIGN_POLICY_VERSION = "security-campaign-policy.2026-09-08.v2";
+export const SECURITY_CAMPAIGN_POLICY_VERSION = "security-campaign-policy.2026-09-12.v3";
+export const SECURITY_CAMPAIGN_COMPATIBLE_POLICY_VERSIONS = [
+  "security-campaign-policy.2026-09-08.v2",
+  SECURITY_CAMPAIGN_POLICY_VERSION,
+] as const;
 export const SECURITY_ACTIVE_RUNNER_MAX_TOTAL_REQUESTS = 25;
 
 export const securityTechniqueCatalog = {
   passive_external_posture: { label: "Postura externa passiva", execution: "existing_passive", risk: "passive", requiresRepository: false, requiresTestCredentials: false },
   safe_web_crawl: { label: "Navegação web segura (GET/HEAD)", execution: "isolated_runner", risk: "non_invasive", requiresRepository: false, requiresTestCredentials: false },
   tls_configuration_review: { label: "Configuração TLS", execution: "isolated_runner", risk: "non_invasive", requiresRepository: false, requiresTestCredentials: false },
+  web_control_probe: { label: "Sonda adversarial web (CORS, métodos e cookies)", execution: "isolated_runner", risk: "non_invasive", requiresRepository: false, requiresTestCredentials: false },
   authenticated_access_review: { label: "Controles de acesso com conta de teste", execution: "isolated_runner", risk: "controlled", requiresRepository: false, requiresTestCredentials: true },
   sast: { label: "Análise estática do código", execution: "repository_runner", risk: "non_invasive", requiresRepository: true, requiresTestCredentials: false },
   dependency_audit: { label: "Dependências vulneráveis", execution: "repository_runner", risk: "non_invasive", requiresRepository: true, requiresTestCredentials: false },
@@ -24,6 +29,21 @@ export type SecurityCampaignInput = {
   stopConditions: { errorRatePercent: number; consecutiveServerErrors: number; unexpectedAuthentication: true };
 };
 
+/** Fixed, low-impact preset. Scheduling and execution still require explicit consent and a verified scope. */
+export function guidedWebCampaignInput(now = Date.now()) {
+  return {
+    name: "Validação web guiada",
+    environment: "production" as const,
+    techniques: ["safe_web_crawl", "tls_configuration_review", "web_control_probe"] as SecurityTechniqueId[],
+    windowStart: new Date(now + 6 * 60_000).toISOString(),
+    windowEnd: new Date(now + 66 * 60_000).toISOString(),
+    maxRequestsPerMinute: 10,
+    maxTotalRequests: 20,
+    stopConditions: { errorRatePercent: 10, consecutiveServerErrors: 3, unexpectedAuthentication: true as const },
+    authorizationConfirmed: true,
+  };
+}
+
 const blockedCapabilities = ["denial_service", "brute_force", "credential_harvesting", "persistence", "evasion", "lateral_movement", "data_exfiltration", "destructive_exploitation"] as const;
 const secretPattern = /(?:password|passwd|senha|token|secret|authorization|bearer|sk-|gh[opsu]_)/i;
 const exactKeys = (value: Record<string, unknown>, expected: string[], code: string) => {
@@ -37,7 +57,7 @@ export function parseSecurityCampaignInput(input: unknown, now = Date.now()): Se
   if (value.authorizationConfirmed !== true) throw new Error("CAMPAIGN_AUTHORIZATION_REQUIRED");
   if (typeof value.name !== "string" || value.name.trim().length < 4 || value.name.trim().length > 80 || secretPattern.test(value.name)) throw new Error("CAMPAIGN_NAME_INVALID");
   if (!(["lab", "staging", "production"] as unknown[]).includes(value.environment)) throw new Error("CAMPAIGN_ENVIRONMENT_INVALID");
-  if (!Array.isArray(value.techniques) || value.techniques.length < 1 || value.techniques.length > 7 || new Set(value.techniques).size !== value.techniques.length || value.techniques.some((item) => typeof item !== "string" || !Object.hasOwn(securityTechniqueCatalog, item))) throw new Error("CAMPAIGN_TECHNIQUES_INVALID");
+  if (!Array.isArray(value.techniques) || value.techniques.length < 1 || value.techniques.length > Object.keys(securityTechniqueCatalog).length || new Set(value.techniques).size !== value.techniques.length || value.techniques.some((item) => typeof item !== "string" || !Object.hasOwn(securityTechniqueCatalog, item))) throw new Error("CAMPAIGN_TECHNIQUES_INVALID");
   const executionFamilies = new Set((value.techniques as SecurityTechniqueId[]).map((technique) => securityTechniqueCatalog[technique].execution));
   if (executionFamilies.size !== 1) throw new Error("CAMPAIGN_MIXED_EXECUTION_INVALID");
   if (typeof value.windowStart !== "string" || typeof value.windowEnd !== "string") throw new Error("CAMPAIGN_WINDOW_INVALID");

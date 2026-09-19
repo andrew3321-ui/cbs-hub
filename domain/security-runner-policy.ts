@@ -1,12 +1,18 @@
 import { normalizePublicDomain } from "./cybersecurity-preview.ts";
-import { SECURITY_ACTIVE_RUNNER_MAX_TOTAL_REQUESTS, SECURITY_CAMPAIGN_POLICY_VERSION } from "./security-campaign-policy.ts";
+import { SECURITY_ACTIVE_RUNNER_MAX_TOTAL_REQUESTS, SECURITY_CAMPAIGN_COMPATIBLE_POLICY_VERSIONS, SECURITY_CAMPAIGN_POLICY_VERSION } from "./security-campaign-policy.ts";
 
-export const SECURITY_RUNNER_VERSION = "security-runner.2026-09-08.v1";
+export const SECURITY_RUNNER_VERSION = "security-runner.2026-09-12.v2";
 export const SECURITY_RUNNER_MAX_REQUESTS = SECURITY_ACTIVE_RUNNER_MAX_TOTAL_REQUESTS;
 export const SECURITY_RUNNER_MAX_BODY_BYTES = 16 * 1024;
 export const SECURITY_RUNNER_SIGNATURE_SKEW_SECONDS = 120;
 
 export const runnerTechniqueCatalog = {
+  safe_web_crawl: true,
+  tls_configuration_review: true,
+  web_control_probe: true,
+} as const;
+
+const legacyRunnerTechniqueCatalog = {
   safe_web_crawl: true,
   tls_configuration_review: true,
 } as const;
@@ -43,7 +49,7 @@ export function parseRunnerManifest(input: unknown, now = Date.now(), phase: "di
   if (!Number.isSafeInteger(value.workspaceId) || Number(value.workspaceId) < 1) throw new Error("RUNNER_MANIFEST_INVALID");
   if (typeof value.name !== "string" || value.name.trim().length < 4 || value.name.trim().length > 80) throw new Error("RUNNER_MANIFEST_INVALID");
   if (!(["lab", "staging", "production"] as unknown[]).includes(value.environment)) throw new Error("RUNNER_MANIFEST_INVALID");
-  if (value.policyVersion !== SECURITY_CAMPAIGN_POLICY_VERSION) throw new Error("RUNNER_POLICY_MISMATCH");
+  if (typeof value.policyVersion !== "string" || !(SECURITY_CAMPAIGN_COMPATIBLE_POLICY_VERSIONS as readonly string[]).includes(value.policyVersion)) throw new Error("RUNNER_POLICY_MISMATCH");
 
   const scope = record(value.scope, "RUNNER_SCOPE_INVALID");
   exactKeys(scope, ["domain"], "RUNNER_SCOPE_INVALID");
@@ -51,8 +57,9 @@ export function parseRunnerManifest(input: unknown, now = Date.now(), phase: "di
   const domain = normalizePublicDomain(scope.domain);
   if (domain !== scope.domain) throw new Error("RUNNER_SCOPE_INVALID");
 
-  if (!Array.isArray(value.techniques) || value.techniques.length < 1 || value.techniques.length > 2 || new Set(value.techniques).size !== value.techniques.length) throw new Error("RUNNER_TECHNIQUES_INVALID");
-  if (value.techniques.some((technique) => typeof technique !== "string" || !Object.hasOwn(runnerTechniqueCatalog, technique))) throw new Error("RUNNER_TECHNIQUES_INVALID");
+  if (!Array.isArray(value.techniques) || value.techniques.length < 1 || value.techniques.length > 3 || new Set(value.techniques).size !== value.techniques.length) throw new Error("RUNNER_TECHNIQUES_INVALID");
+  const allowedTechniques = value.policyVersion === SECURITY_CAMPAIGN_POLICY_VERSION ? runnerTechniqueCatalog : legacyRunnerTechniqueCatalog;
+  if (value.techniques.some((technique) => typeof technique !== "string" || !Object.hasOwn(allowedTechniques, technique))) throw new Error("RUNNER_TECHNIQUES_INVALID");
 
   const window = record(value.window, "RUNNER_WINDOW_INVALID");
   exactKeys(window, ["start", "end"], "RUNNER_WINDOW_INVALID");
@@ -81,7 +88,7 @@ export function parseRunnerManifest(input: unknown, now = Date.now(), phase: "di
     name: value.name.trim(),
     environment: value.environment as RunnerManifest["environment"],
     techniques: value.techniques as RunnerTechnique[],
-    policyVersion: SECURITY_CAMPAIGN_POLICY_VERSION,
+    policyVersion: value.policyVersion,
     window: { start: new Date(start).toISOString(), end: new Date(end).toISOString() },
     budgets: { requestsPerMinute: Number(budgets.requestsPerMinute), totalRequests: Number(budgets.totalRequests) },
     stopConditions: { errorRatePercent: Number(stop.errorRatePercent), consecutiveServerErrors: Number(stop.consecutiveServerErrors), unexpectedAuthentication: true },

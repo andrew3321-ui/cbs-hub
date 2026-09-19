@@ -449,6 +449,20 @@
       "when": 1789178400000,
       "tag": "0063_github_repository_security",
       "breakpoints": true
+    },
+    {
+      "idx": 64,
+      "version": "6",
+      "when": 1789783200000,
+      "tag": "0064_security_ai_impact_reviews",
+      "breakpoints": true
+    },
+    {
+      "idx": 65,
+      "version": "6",
+      "when": 1789869600000,
+      "tag": "0065_guided_security_campaigns",
+      "breakpoints": true
     }
   ]
 }

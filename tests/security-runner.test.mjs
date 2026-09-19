@@ -3,7 +3,8 @@ import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
 import { hmacHex, parseRunnerManifest, SECURITY_RUNNER_MAX_REQUESTS, verifyRunnerSignature } from "../domain/security-runner-policy.ts";
-import { executeRunnerManifest } from "../security-runner/executor.ts";
+import { SECURITY_CAMPAIGN_POLICY_VERSION } from "../domain/security-campaign-policy.ts";
+import { executeRunnerManifest, verifyRunnerOwnership } from "../security-runner/executor.ts";
 import { enqueue, processJob } from "../security-runner/worker.ts";
 import { reconcileSecurityRunnerCampaigns } from "../app/security-campaign-service.ts";
 
@@ -15,7 +16,7 @@ const manifestInput = (now = Date.now()) => ({
   name: "Validação web autorizada",
   environment: "staging",
   techniques: ["safe_web_crawl", "tls_configuration_review"],
-  policyVersion: "security-campaign-policy.2026-09-08.v2",
+  policyVersion: SECURITY_CAMPAIGN_POLICY_VERSION,
   window: { start: new Date(now - 60_000).toISOString(), end: new Date(now + 3600_000).toISOString() },
   budgets: { requestsPerMinute: 60, totalRequests: 10 },
   stopConditions: { errorRatePercent: 20, consecutiveServerErrors: 3, unexpectedAuthentication: true },
@@ -27,6 +28,10 @@ test("runner validates the exact signed manifest and enforces its independent ha
   assert.equal(parseRunnerManifest(manifest, now).scope.domain, "example.com");
   assert.throws(() => parseRunnerManifest({ ...manifest, techniques: ["brute_force"] }, now), /RUNNER_TECHNIQUES_INVALID/);
   assert.throws(() => parseRunnerManifest({ ...manifest, techniques: ["toString"] }, now), /RUNNER_TECHNIQUES_INVALID/);
+  const legacy = { ...manifest, policyVersion: "security-campaign-policy.2026-09-08.v2" };
+  assert.equal(parseRunnerManifest(legacy, now).policyVersion, legacy.policyVersion);
+  assert.throws(() => parseRunnerManifest({ ...legacy, techniques: ["web_control_probe"] }, now), /RUNNER_TECHNIQUES_INVALID/);
+  assert.throws(() => parseRunnerManifest({ ...manifest, policyVersion: "untrusted-policy" }, now), /RUNNER_POLICY_MISMATCH/);
   assert.throws(() => parseRunnerManifest({ ...manifest, budgets: { ...manifest.budgets, totalRequests: SECURITY_RUNNER_MAX_REQUESTS + 1 } }, now), /RUNNER_BUDGET_INVALID/);
   const body = JSON.stringify(manifest);
   const timestamp = String(Math.floor(now / 1000));
@@ -34,6 +39,99 @@ test("runner validates the exact signed manifest and enforces its independent ha
   const signature = `sha256=${await hmacHex(secret, `${timestamp}.${body}`)}`;
   assert.equal(await verifyRunnerSignature(secret, timestamp, signature, body, now), true);
   assert.equal(await verifyRunnerSignature(secret, timestamp, signature, `${body} `, now), false);
+});
+
+test("web control probe uses only fixed HEAD and OPTIONS and never persists cookie values", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["web_control_probe"] });
+  const targetRequests = [];
+  const fetcher = async (input, init = {}) => {
+    const url = new URL(String(input));
+    if (url.hostname === "cloudflare-dns.com") return Response.json({ Answer: url.searchParams.get("type") === "A" ? [{ type: 1, data: "93.184.216.34" }] : [] });
+    targetRequests.push({ url: url.toString(), ...init });
+    if (init.method === "HEAD") return new Response(null, { headers: { "Set-Cookie": "private-session=super-secret-value; Secure; HttpOnly; SameSite=Lax" } });
+    assert.equal(new Headers(init.headers).get("origin"), "https://security-probe.invalid");
+    assert.equal(new Headers(init.headers).get("access-control-request-method"), "GET");
+    return new Response(null, { headers: {
+      "Access-Control-Allow-Origin": "https://security-probe.invalid",
+      "Access-Control-Allow-Credentials": "true",
+      "Vary": "Accept-Encoding, Origin",
+      "Allow": "GET, HEAD, OPTIONS, TRACE, DELETE, arbitrary-server-value",
+    } });
+  };
+  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined });
+  assert.equal(result.outcome, "completed");
+  assert.equal(result.webProbe?.requestsCompleted, 2);
+  assert.equal(result.webProbe?.cors.verdict, "credentialed_origin_reflection");
+  assert.equal(result.webProbe?.cors.varyOrigin, true);
+  assert.deepEqual(result.webProbe?.methods.riskyAdvertised, ["DELETE", "TRACE"]);
+  assert.deepEqual(result.webProbe?.cookies, { observed: true, secureObserved: true, httpOnlyObserved: true, sameSiteObserved: true });
+  assert.deepEqual(result.webProbe?.signals.map((signal) => signal.code), ["cors_credentialed_origin_reflection", "http_risky_methods_advertised"]);
+  assert.equal(result.budget.consumed, 2);
+  assert.deepEqual(targetRequests.map((request) => request.method), ["HEAD", "OPTIONS"]);
+  assert.ok(targetRequests.every((request) => request.url === "https://example.com/" && !new Headers(request.headers).has("cookie") && !request.body));
+  assert.doesNotMatch(JSON.stringify(result), /private-session|super-secret-value|arbitrary-server-value/);
+});
+
+test("web control probe reports blocked responses as inconclusive without finding claims", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["web_control_probe"] });
+  const fetcher = async (input) => {
+    const url = new URL(String(input));
+    if (url.hostname === "cloudflare-dns.com") return Response.json({ Answer: [{ type: 1, data: "93.184.216.34" }] });
+    return new Response(null, { status: 403, headers: { "Allow": "DELETE", "Set-Cookie": "edge=secret" } });
+  };
+  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined });
+  assert.equal(result.webProbe?.cors.verdict, "inconclusive");
+  assert.equal(result.webProbe?.methods.responseObserved, false);
+  assert.equal(result.webProbe?.cookies.observed, false);
+  assert.deepEqual(result.webProbe?.signals, []);
+});
+
+test("runner stops immediately when the target returns a rate limit", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["web_control_probe", "safe_web_crawl"] });
+  let targetRequests = 0;
+  const fetcher = async (input) => {
+    const url = new URL(String(input));
+    if (url.hostname === "cloudflare-dns.com") return Response.json({ Answer: [{ type: 1, data: "93.184.216.34" }] });
+    targetRequests += 1;
+    return new Response(null, { status: 429 });
+  };
+  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined });
+  assert.equal(result.outcome, "stopped");
+  assert.equal(result.stopReason, "target_rate_limited");
+  assert.equal(targetRequests, 1);
+  assert.equal(result.webProbe?.cors.verdict, "inconclusive");
+});
+
+test("runner reconfirms an exact ownership TXT and fails closed on missing evidence", async () => {
+  await verifyRunnerOwnership("example.com", "expected-token", async (input) => {
+    const url = new URL(String(input));
+    assert.equal(url.hostname, "cloudflare-dns.com");
+    assert.equal(url.searchParams.get("name"), "_cbshub-verification.example.com");
+    assert.equal(url.searchParams.get("type"), "TXT");
+    return Response.json({ Status: 0, Answer: [{ type: 16, data: '"cbshub-verification=" "expected-token"' }] });
+  });
+  await assert.rejects(() => verifyRunnerOwnership("example.com", "expected-token", async () => Response.json({ Answer: [{ type: 16, data: '"cbshub-verification=wrong-token"' }] })), /RUNNER_SCOPE_VERIFICATION_LOST/);
+  await assert.rejects(() => verifyRunnerOwnership("example.com", "expected-token", async () => { throw new Error("network unavailable"); }), /RUNNER_SCOPE_VERIFICATION_UNAVAILABLE/);
+});
+
+test("web control probe preserves a one-request budget and rejects private DNS targets", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["web_control_probe"], budgets: { requestsPerMinute: 60, totalRequests: 1 } });
+  let targetRequests = 0;
+  const fetcher = async (input) => {
+    const url = new URL(String(input));
+    if (url.hostname === "cloudflare-dns.com") return Response.json({ Answer: [{ type: 1, data: "93.184.216.34" }] });
+    targetRequests += 1;
+    return new Response(null);
+  };
+  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined });
+  assert.equal(targetRequests, 1);
+  assert.equal(result.budget.consumed, 1);
+  assert.equal(result.stopReason, "request_budget_reached");
+  assert.equal(result.webProbe?.cors.verdict, "inconclusive");
+  await assert.rejects(() => executeRunnerManifest(manifest, { fetcher: async (input) => {
+    assert.equal(new URL(String(input)).hostname, "cloudflare-dns.com");
+    return Response.json({ Answer: [{ type: 1, data: "127.0.0.1" }] });
+  } }), /RUNNER_NON_PUBLIC_TARGET/);
 });
 
 test("safe runner crawls only related HTTPS pages and persists aggregate evidence", async () => {
@@ -97,8 +195,8 @@ test("runner service queues an idempotent job only after signature and policy va
       version: "security-runner.test", domain: manifest.scope.domain, techniques: manifest.techniques,
       startedAt: new Date().toISOString(), completedAt: new Date().toISOString(), outcome: "completed", stopReason: null,
       budget: { ...manifest.budgets, consumed: 2 }, requests: { successful: 2, errors: 0, serverErrors: 0, statusCodes: { "200": 2 } },
-      transport: { httpsReachable: true, status: 200, hstsObserved: true, cspObserved: true, limitation: "test" }, crawl: null, limitation: "test",
-    }));
+      transport: { httpsReachable: true, status: 200, hstsObserved: true, cspObserved: true, limitation: "test" }, crawl: null, webProbe: null, limitation: "test",
+    }), { ownershipFetcher: async () => Response.json({ Answer: [{ type: 16, data: '"cbshub-verification=verification-token"' }] }) });
     assert.equal(processed, "done");
     assert.deepEqual({ ...sqlite.prepare("SELECT status, request_count, error_count FROM security_runner_jobs").get() }, { status: "completed", request_count: 2, error_count: 0 });
     assert.deepEqual(await reconcileSecurityRunnerCampaigns({ DB }, 42), { checked: 1, updated: 1 });
@@ -107,7 +205,7 @@ test("runner service queues an idempotent job only after signature and policy va
     assert.ok(campaign.runner_completed_at);
     assert.equal(JSON.parse(campaign.runner_result_json).budget.consumed, 2);
 
-    const blockedManifest = manifestInput();
+    const blockedManifest = { ...manifestInput(), scope: { domain: "revoked.example.com" } };
     const blockedBody = JSON.stringify(blockedManifest);
     const blockedTimestamp = String(Math.floor(Date.now() / 1000));
     const blockedRequest = new Request("https://security-runner.internal/v1/jobs", { method: "POST", headers: { "Content-Type": "application/json", "X-CBSHub-Timestamp": blockedTimestamp, "X-CBSHub-Signature": `sha256=${await hmacHex(secret, `${blockedTimestamp}.${blockedBody}`)}` }, body: blockedBody });
@@ -126,6 +224,11 @@ test("runner service queues an idempotent job only after signature and policy va
     assert.equal(await processJob({ DB, SECURITY_RUNNER_SIGNING_KEY: secret, ACTIVE_RUN_QUEUE: { send: async () => undefined } }, blockedPayload.jobId, async () => { executedWithoutAuthorization = true; throw new Error("unexpected"); }), "done");
     assert.equal(executedWithoutAuthorization, false);
     assert.deepEqual({ ...sqlite.prepare("SELECT status, error_code FROM security_runner_jobs WHERE id = ?").get(blockedPayload.jobId) }, { status: "failed", error_code: "RUNNER_SCOPE_AUTHORIZATION_INVALID" });
+    sqlite.prepare("UPDATE security_agent_scopes SET status = 'verified' WHERE id = ?").run(blockedScopeId);
+    sqlite.prepare("UPDATE security_runner_jobs SET status = 'queued', attempt_count = 0 WHERE id = ?").run(blockedPayload.jobId);
+    await processJob({ DB, ACTIVE_RUN_QUEUE: { send: async () => undefined } }, blockedPayload.jobId, async () => { executedWithoutAuthorization = true; throw new Error("unexpected"); }, { ownershipFetcher: async () => Response.json({ Answer: [] }) });
+    assert.equal(executedWithoutAuthorization, false);
+    assert.equal(sqlite.prepare("SELECT error_code FROM security_runner_jobs WHERE id = ?").get(blockedPayload.jobId).error_code, "RUNNER_SCOPE_VERIFICATION_LOST");
     sqlite.prepare("UPDATE security_runner_jobs SET status = 'running', lease_expires_at = ? WHERE id = ?").run(new Date(Date.now() - 3600_000).toISOString(), payload.jobId);
     let replayed = false;
     await processJob({ DB, ACTIVE_RUN_QUEUE: { send: async () => undefined } }, payload.jobId, async () => { replayed = true; throw new Error("unexpected replay"); });

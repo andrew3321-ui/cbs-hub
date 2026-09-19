@@ -1,4 +1,4 @@
-import { executeRunnerManifest } from "./executor.ts";
+import { executeRunnerManifest, verifyRunnerOwnership } from "./executor.ts";
 import { parseRunnerManifest, SECURITY_RUNNER_MAX_BODY_BYTES, verifyRunnerSignature } from "../domain/security-runner-policy.ts";
 
 interface RunnerEnv {
@@ -24,6 +24,7 @@ type RunnerJobRow = {
   authorized_domain: string | null;
   scope_status: string | null;
   authorization_expires_at: string | null;
+  verification_token: string | null;
 };
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
@@ -81,7 +82,7 @@ async function claimJob(env: RunnerEnv, jobId: string) {
     .bind(lease, now, now, jobId).run();
   const row = await env.DB.prepare(`SELECT j.id, j.campaign_id, j.manifest_json, j.status, j.attempt_count, j.lease_expires_at,
       c.scope_id, c.status campaign_status, c.workspace_id campaign_workspace_id,
-      s.workspace_id scope_workspace_id, s.domain authorized_domain, s.status scope_status, s.authorization_expires_at
+      s.workspace_id scope_workspace_id, s.domain authorized_domain, s.status scope_status, s.authorization_expires_at, s.verification_token
     FROM security_runner_jobs j
     LEFT JOIN security_campaigns c ON c.id = j.campaign_id
     LEFT JOIN security_agent_scopes s ON s.id = c.scope_id
@@ -89,7 +90,7 @@ async function claimJob(env: RunnerEnv, jobId: string) {
   return { row, claimed: Number(claimed.meta.changes ?? 0) === 1 };
 }
 
-async function processJob(env: RunnerEnv, rawJobId: unknown, execute: typeof executeRunnerManifest = executeRunnerManifest) {
+async function processJob(env: RunnerEnv, rawJobId: unknown, execute: typeof executeRunnerManifest = executeRunnerManifest, options: { ownershipFetcher?: typeof fetch } = {}) {
   if (typeof rawJobId !== "string" || !/^run_[0-9a-f-]{36}$/i.test(rawJobId)) return "discard" as const;
   const { row, claimed } = await claimJob(env, rawJobId);
   if (!row) return "discard" as const;
@@ -111,6 +112,7 @@ async function processJob(env: RunnerEnv, rawJobId: unknown, execute: typeof exe
       || row.authorized_domain !== manifest.scope.domain || !Number.isFinite(authorizationExpiresAt) || authorizationExpiresAt <= Date.now()) {
       throw new Error("RUNNER_SCOPE_AUTHORIZATION_INVALID");
     }
+    await verifyRunnerOwnership(manifest.scope.domain, row.verification_token ?? "", options.ownershipFetcher);
     const result = await execute(manifest);
     const status = result.outcome === "stopped" ? "stopped" : "completed";
     const now = new Date().toISOString();

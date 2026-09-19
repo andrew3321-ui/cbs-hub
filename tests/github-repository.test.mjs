@@ -9,9 +9,11 @@ import { startGitHubConnection, finishGitHubConnection, enqueueRepositoryScan, p
 import { scanRepository } from '../repository-runner/scanner.ts';
 import { processRepositoryJob } from '../repository-runner/worker.ts';
 import { receiveGitHubWebhook } from '../app/github-webhook-service.ts';
+import { reviewCampaignSignal } from '../app/security-impact-service.ts';
+import { selectImpactPaths, summarizeImpactSource, validateImpactAssessment } from '../domain/security-impact-policy.ts';
 
 function database() {
- const sqlite = new DatabaseSync(':memory:'); sqlite.exec(readFileSync(new URL('../drizzle/0063_github_repository_security.sql', import.meta.url), 'utf8'));
+ const sqlite = new DatabaseSync(':memory:'); sqlite.exec(readFileSync(new URL('../drizzle/0063_github_repository_security.sql', import.meta.url), 'utf8')); sqlite.exec(readFileSync(new URL('../drizzle/0064_security_ai_impact_reviews.sql', import.meta.url), 'utf8'));
  const DB = { prepare(sql) { const stmt = sqlite.prepare(sql); const bound = values => ({ first: async () => stmt.get(...values) ?? null, all: async () => ({ results: stmt.all(...values) }), run: async () => ({ meta: { changes: Number(stmt.run(...values).changes) } }) }); return { ...bound([]), bind: (...values) => bound(values) }; }, batch: async statements => { sqlite.exec('BEGIN'); try { const rows = []; for (const s of statements) rows.push(await s.run()); sqlite.exec('COMMIT'); return rows; } catch(e) { sqlite.exec('ROLLBACK'); throw e; } } };
  return { sqlite, DB };
 }
@@ -26,6 +28,40 @@ const sha = 'a'.repeat(40), treeSha = 'b'.repeat(40);
 const pkg = { name:'test', dependencies: { 'safe-leaf':'1.0.0' } };
 const lock = { lockfileVersion:3, packages: { '':{ dependencies:{'safe-leaf':'1.0.0'} }, 'node_modules/safe-leaf': { version:'1.0.0',resolved:'https://registry.npmjs.org/safe-leaf/-/safe-leaf-1.0.0.tgz',integrity:'sha512-old' } } };
 const metadata = { name:'safe-leaf', version:'1.0.1', dist:{tarball:'https://registry.npmjs.org/safe-leaf/-/safe-leaf-1.0.1.tgz',integrity:'sha512-YWJjZA=='} };
+
+test('impact context is bounded, redacts literals, and rejects invented file citations', () => {
+ const paths=selectImpactPaths([{path:'src/cors.ts',type:'blob',size:100},{path:'node_modules/cors.ts',type:'blob',size:100},{path:'src/huge.ts',type:'blob',size:90000}], 'cors_wildcard');
+ assert.deepEqual(paths,[{path:'src/cors.ts',size:100}]);
+ const secret='gh'+'p_'+'A'.repeat(36);
+ const source=summarizeImpactSource('src/cors.ts',`export const cors = '${secret}';`, 'cors_wildcard');
+ assert.equal(JSON.stringify(source).includes(secret),false);
+ assert.throws(()=>validateImpactAssessment({confidence:'high',hypothesis:'Check CORS',relevantFiles:[{path:'src/other.ts',line:1,reason:'guess'}],affectedAreas:[],proposedChanges:[],tests:[],limitations:[]},[source]),/REPOSITORY_IMPACT_OUTPUT_INVALID/);
+});
+
+test('verified campaign signal maps to immutable read-only code context with a strict token budget', async () => {
+ const {sqlite,DB}=database();seed(sqlite);
+ sqlite.exec("CREATE TABLE security_agent_scopes (id text, workspace_id integer, domain text, status text, authorization_expires_at text); CREATE TABLE security_campaigns (id text, workspace_id integer, scope_id text, status text, executor text, runner_result_json text)");
+ sqlite.prepare("INSERT INTO security_agent_scopes VALUES ('scope',42,'portal.example','verified',?)").run(new Date(Date.now()+86400000).toISOString());
+ sqlite.prepare("INSERT INTO security_campaigns VALUES ('campaign',42,'scope','completed','isolated_runner',?)").run(JSON.stringify({webProbe:{signals:[{code:'cors_wildcard'}]}}));
+ const secret='gh'+'p_'+'B'.repeat(36);const calls=[];let aiCalls=0;
+ const env={...configured,DB,OPENAI_API_KEY:'test-key',OPENAI_SECURITY_PRIMARY_MODEL:'gpt-5.6-terra'};
+ const fetcher=async (input,init={})=>{const url=String(input);calls.push({url,init});
+  if(url.endsWith('/access_tokens')){assert.equal(JSON.parse(init.body).permissions.contents,'read');return Response.json({token:'read-token'});}
+  if(url.endsWith('/commits/main'))return Response.json({sha,commit:{tree:{sha:treeSha}}});
+  if(url.includes('/git/trees/'))return Response.json({truncated:false,tree:[{path:'src/cors.ts',type:'blob',mode:'100644',size:100}]});
+  if(url.includes('/contents/')){assert.ok(url.endsWith(`?ref=${sha}`));const source=`export const cors = '${secret}';`;return Response.json({content:Buffer.from(source).toString('base64'),encoding:'base64',size:source.length});}
+  if(url.includes('api.openai.com')){aiCalls++;const body=JSON.parse(init.body);assert.equal(body.store,false);assert.equal(body.max_output_tokens,1800);assert.equal(body.tools,undefined);assert.equal(JSON.stringify(body).includes(secret),false);return Response.json({status:'completed',output_text:JSON.stringify({confidence:'low',hypothesis:'CORS may be configured here',relevantFiles:[{path:'src/cors.ts',line:1,reason:'CORS setting'}],affectedAreas:['HTTP responses'],proposedChanges:['Review origin allowlist'],tests:['Verify allowed and denied origins'],limitations:['Header alone does not prove a data exposure']}),usage:{input_tokens:150,output_tokens:100,total_tokens:250}});}
+  throw new Error(url);
+ };
+ try {
+  await assert.rejects(reviewCampaignSignal(env,42,7,{repositoryId:'repo',campaignId:'campaign',signalCode:'cors_wildcard',relationshipConfirmed:false},fetcher),/AUTHORIZATION_REQUIRED/);
+  const input={repositoryId:'repo',campaignId:'campaign',signalCode:'cors_wildcard',relationshipConfirmed:true};
+  const result=await reviewCampaignSignal(env,42,7,input,fetcher);assert.equal(result.status,'completed');assert.equal(result.usage.total,250);
+  assert.equal((await reviewCampaignSignal(env,42,7,input,fetcher)).reviewId,result.reviewId);assert.equal(aiCalls,1);
+  assert.equal(sqlite.prepare('SELECT result_json FROM security_ai_impact_reviews').get().result_json.includes(secret),false);
+  assert.ok(calls.every(call=>!['PATCH','PUT','DELETE'].includes(call.init.method)));
+ } finally {sqlite.close();}
+});
 
 test('secret evidence never contains the discovered credential and records location', async () => {
  const secret = 'gh' + 'p_' + 'A'.repeat(36);

@@ -25,7 +25,7 @@ Estados do job: `queued -> running -> completed`; falhas transitórias retornam 
 
 A primeira camada de especialização e triagem manual de blue team está descrita em [security-operations-development.md](security-operations-development.md). Os jobs `blue_team` usam contagens declaradas, com origem explícita, e compartilham o processamento em fila; não executam coleta web nem alteram a agenda passiva.
 
-Testes ativos não são acrescentados ao coletor passivo. O Worker `cbs-hub-security-runner` recebe somente um manifesto HMAC por service binding, repete as validações e executa crawl HTTPS seguro em fila própria. O teto atual é de 25 requisições, sem query, cookies, credenciais, payloads ou comandos livres. Resultados persistidos são agregados e retornam ao plano de controle por conciliação.
+Testes ativos não são acrescentados ao coletor passivo. O Worker `cbs-hub-security-runner` recebe somente um manifesto HMAC por service binding, repete as validações e reconfirma o TXT de titularidade antes de executar em fila própria. O catálogo executável inclui crawl HTTPS seguro, confirmação limitada do transporte e sonda adversarial fixa via HEAD/OPTIONS para CORS, métodos anunciados e atributos de cookies. O teto atual é de 25 requisições, sem query, envio de cookies, credenciais, payloads ou comandos livres. HTTP 429 interrompe imediatamente a execução. Resultados persistidos são agregados, não incluem valores de cookies e retornam ao plano de controle por conciliação.
 
 Autorização, ativo, janela, técnicas, limites e prazo são obrigatórios antes do despacho. A interface descreve o recurso como validação ativa limitada, não como pentest completo.
 

@@ -28,14 +28,14 @@ export default function SecurityOperationsPanel({ scopeId, disabled, playbooks, 
   }
   return <div className="security-operations">
     <details>
-      <summary>Blue team · analisar eventos do ativo</summary>
+      <summary>Importar eventos manualmente · avançado</summary>
       <p>Traga os totais de uma mesma janela dos seus registros de autenticação e WAF. A triagem ajuda a investigar alertas e preparar a resposta a incidentes.</p>
       <p className="security-operations-note">Importação manual de contagens. Declare a cobertura de cada fonte: zero só significa nenhum evento observado quando a cobertura for completa. Nenhum log bruto, senha ou dado pessoal é solicitado.</p>
       <form onSubmit={submit}>
         <fieldset disabled={disabled}>
           <legend>Janela dos eventos · seu horário local</legend>
           <div className="security-operations-fields security-coverage-fields">
-            {coverageFields.map(([name, label]) => <label key={name}>{label}<select name={`coverage-${name}`} required defaultValue="complete"><option value="complete">Completa</option><option value="partial">Parcial</option><option value="unavailable">Indisponível</option></select></label>)}
+            {coverageFields.map(([name, label]) => <label key={name}>{label}<select name={`coverage-${name}`} required defaultValue="unavailable"><option value="unavailable">Indisponível / não confirmada</option><option value="partial">Parcial</option><option value="complete">Completa</option></select></label>)}
           </div>
           <div className="security-operations-fields">
             <label>Início<input name="start" type="datetime-local" required /></label>

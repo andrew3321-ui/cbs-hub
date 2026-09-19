@@ -13,6 +13,8 @@ const campaignMigration = fs.readFileSync(new URL("../drizzle/0055_security_camp
 const campaignService = fs.readFileSync(new URL("../app/security-campaign-service.ts", import.meta.url), "utf8");
 const campaignPolicy = fs.readFileSync(new URL("../domain/security-campaign-policy.ts", import.meta.url), "utf8");
 const client = fs.readFileSync(new URL("../app/app/SecurityAgentCenter.tsx", import.meta.url), "utf8");
+const deliveryPanel = fs.readFileSync(new URL("../app/app/SecurityDeliveryPanel.tsx", import.meta.url), "utf8");
+const operationsPanel = fs.readFileSync(new URL("../app/app/SecurityOperationsPanel.tsx", import.meta.url), "utf8");
 const wrangler = fs.readFileSync(new URL("../wrangler.migrations.jsonc", import.meta.url), "utf8");
 const finalizer = fs.readFileSync(new URL("../scripts/finalize-workers-config.mjs", import.meta.url), "utf8");
 
@@ -79,6 +81,17 @@ test("workspace separates product modules and hides model names from the interfa
   assert.doesNotMatch(client, /gpt-5\.[0-9]/);
   assert.doesNotMatch(client, /modelRouting\.primary/);
   assert.doesNotMatch(client, /primaryModel \?\?/);
+});
+
+test("operations lead with an authorized automatic scan and keep conservative controls advanced", () => {
+  assert.match(client, /security-automatic-evaluation/);
+  assert.match(client, /onClick=\{\(\) => void act\("run_scan", \{ scopeId: scope\.id \}\)\}/);
+  assert.match(client, /scope\.status !== "verified" \|\| authorizationExpired/);
+  assert.match(client, /security-advanced-tools/);
+  assert.match(operationsPanel, /defaultValue="unavailable"/);
+  assert.match(deliveryPanel, /setEnvironment\] = useState\("production"\)/);
+  assert.match(deliveryPanel, /"safe_web_crawl", "tls_configuration_review", "web_control_probe"/);
+  assert.match(deliveryPanel, /defaultValue="20"/);
 });
 
 test("execution is queued, idempotently claimed and retried outside the request", () => {

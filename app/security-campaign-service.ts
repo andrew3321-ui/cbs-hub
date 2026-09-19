@@ -1,5 +1,5 @@
 import { enqueueSecurityAgentJob, type SecurityAgentEnv, type SecurityScopeRow } from "./security-agent-service.ts";
-import { campaignExecutionReadiness, parseRepositoryTarget, parseSecurityCampaignInput, SECURITY_CAMPAIGN_POLICY_VERSION, securityTechniqueCatalog } from "../domain/security-campaign-policy.ts";
+import { campaignExecutionReadiness, guidedWebCampaignInput, parseRepositoryTarget, parseSecurityCampaignInput, SECURITY_CAMPAIGN_POLICY_VERSION, securityTechniqueCatalog } from "../domain/security-campaign-policy.ts";
 import { hmacHex, parseRunnerManifest } from "../domain/security-runner-policy.ts";
 
 export type SecurityDeliveryEnv = Pick<SecurityAgentEnv, "DB"> & { SECURITY_ACTIVE_RUNNER?: { fetch(request: Request): Promise<Response> }; SECURITY_RUNNER_SIGNING_KEY?: string; GITHUB_APP_ID?: string };
@@ -8,7 +8,7 @@ type RemediationRow = { id: string; workspace_id: number; scope_id: string; find
 
 const uuid = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 const authorizationCurrent = (scope: SecurityScopeRow) => scope.status === "verified" && Boolean(scope.authorization_expires_at) && Date.parse(scope.authorization_expires_at!) > Date.now();
-const integrations = (env: SecurityDeliveryEnv) => ({ isolatedRunner: Boolean(env.SECURITY_ACTIVE_RUNNER && env.SECURITY_RUNNER_SIGNING_KEY?.trim()), repositoryConnector: Boolean(env.GITHUB_APP_ID?.trim()) });
+const integrations = (env: SecurityDeliveryEnv) => ({ isolatedRunner: Boolean(env.SECURITY_ACTIVE_RUNNER && (env.SECURITY_RUNNER_SIGNING_KEY?.trim().length ?? 0) >= 32), repositoryConnector: Boolean(env.GITHUB_APP_ID?.trim()) });
 
 async function dispatchIsolatedRunner(env: SecurityDeliveryEnv, scope: SecurityScopeRow, campaign: CampaignRow) {
   const runner = env.SECURITY_ACTIVE_RUNNER;
@@ -122,6 +122,74 @@ export async function approveSecurityCampaign(env: SecurityDeliveryEnv, args: { 
   return { id: campaign.id, status: "approved" as const, readiness, executionDispatched: false };
 }
 
+/** One explicit user confirmation schedules the fixed preset; the cron still rechecks scope before dispatch. */
+export async function startGuidedSecurityCampaign(env: SecurityDeliveryEnv, scope: SecurityScopeRow, actorUserId: number, executionConfirmed: unknown) {
+  if (executionConfirmed !== true) throw new Error("CAMPAIGN_EXECUTION_CONFIRMATION_REQUIRED");
+  if (!authorizationCurrent(scope)) throw new Error("CAMPAIGN_SCOPE_NOT_AUTHORIZED");
+  if (!env.SECURITY_ACTIVE_RUNNER || (env.SECURITY_RUNNER_SIGNING_KEY?.trim().length ?? 0) < 32) throw new Error("CAMPAIGN_EXECUTOR_NOT_CONFIGURED");
+  const existing = await env.DB.prepare("SELECT id FROM security_campaigns WHERE workspace_id = ? AND scope_id = ? AND guided = 1 AND status IN ('approved','queued','running') LIMIT 1").bind(scope.workspace_id, scope.id).first<{ id: string }>();
+  if (existing) throw new Error("CAMPAIGN_GUIDED_ALREADY_ACTIVE");
+  const preset = guidedWebCampaignInput();
+  const created = await createSecurityCampaign(env, scope, actorUserId, preset);
+  if (!created.readiness.ready) throw new Error("CAMPAIGN_EXECUTOR_NOT_CONFIGURED");
+  await approveSecurityCampaign(env, { workspaceId: scope.workspace_id, scope, campaignId: created.id, actorUserId, approvalConfirmed: true });
+  let marked;
+  try {
+    marked = await env.DB.prepare("UPDATE security_campaigns SET guided = 1, auto_dispatch = 1 WHERE id = ? AND workspace_id = ? AND status = 'approved'").bind(created.id, scope.workspace_id).run();
+  } catch (error) {
+    await cancelSecurityCampaign(env, { workspaceId: scope.workspace_id, scopeId: scope.id, campaignId: created.id, actorUserId }).catch(() => undefined);
+    if (error instanceof Error && (error.message.includes("security_campaigns_active_guided_scope_idx") || error.message.includes("UNIQUE constraint failed: security_campaigns.scope_id"))) throw new Error("CAMPAIGN_GUIDED_ALREADY_ACTIVE");
+    throw error;
+  }
+  if (Number(marked.meta.changes) !== 1) throw new Error("CAMPAIGN_GUIDED_SCHEDULE_FAILED");
+  await env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, 'campaign.guided_scheduled', ?, ?)")
+    .bind(uuid("sace"), scope.workspace_id, created.id, actorUserId, JSON.stringify({ windowStart: preset.windowStart, techniques: preset.techniques, maxTotalRequests: preset.maxTotalRequests, maxRequestsPerMinute: preset.maxRequestsPerMinute }), new Date().toISOString()).run();
+  return { id: created.id, status: "approved" as const, guided: true, scheduledFor: preset.windowStart, windowEnd: preset.windowEnd, ...created.readiness };
+}
+
+/** At most once per campaign: failed or uncertain dispatches require a new user decision. */
+export async function dispatchDueGuidedSecurityCampaigns(env: SecurityDeliveryEnv & SecurityAgentEnv, now = Date.now(), limit = 10) {
+  const orphaned = await env.DB.prepare("SELECT id, workspace_id, window_end FROM security_campaigns WHERE guided = 1 AND auto_dispatch = 0 AND status = 'queued' AND runner_job_id IS NULL ORDER BY window_end, id LIMIT ?")
+    .bind(Math.max(1, Math.min(20, Math.floor(limit)))).all<{ id: string; workspace_id: number; window_end: string }>();
+  for (const row of orphaned.results) {
+    const runnerJob = await env.DB.prepare("SELECT id FROM security_runner_jobs WHERE campaign_id = ? AND workspace_id = ?").bind(row.id, row.workspace_id).first<{ id: string }>();
+    if (runnerJob) {
+      await env.DB.prepare("UPDATE security_campaigns SET runner_job_id = ?, executor = 'isolated_runner', updated_at = ? WHERE id = ? AND runner_job_id IS NULL AND status = 'queued'").bind(runnerJob.id, new Date(now).toISOString(), row.id).run();
+    } else if (Date.parse(row.window_end) <= now) {
+      await env.DB.prepare("UPDATE security_campaigns SET status = 'failed', runner_error_code = 'CAMPAIGN_GUIDED_DISPATCH_UNCERTAIN', updated_at = ? WHERE id = ? AND runner_job_id IS NULL AND status = 'queued'").bind(new Date(now).toISOString(), row.id).run();
+    }
+  }
+  const rows = await env.DB.prepare("SELECT id, workspace_id, scope_id, approved_by_user_id, window_end FROM security_campaigns WHERE guided = 1 AND auto_dispatch = 1 AND status = 'approved' AND window_start <= ? ORDER BY window_start, id LIMIT ?")
+    .bind(new Date(now).toISOString(), Math.max(1, Math.min(20, Math.floor(limit)))).all<{ id: string; workspace_id: number; scope_id: string; approved_by_user_id: number; window_end: string }>();
+  let queued = 0, failed = 0;
+  for (const row of rows.results) {
+    const claimed = await env.DB.prepare("UPDATE security_campaigns SET status = 'queued', auto_dispatch = 0, updated_at = ? WHERE id = ? AND status = 'approved' AND auto_dispatch = 1").bind(new Date(now).toISOString(), row.id).run();
+    if (Number(claimed.meta.changes) !== 1) continue;
+    try {
+      if (Date.parse(row.window_end) <= now) throw new Error("CAMPAIGN_WINDOW_EXPIRED");
+      const scope = await env.DB.prepare("SELECT * FROM security_agent_scopes WHERE id = ? AND workspace_id = ? AND status = 'verified'").bind(row.scope_id, row.workspace_id).first<SecurityScopeRow>();
+      if (!scope || !authorizationCurrent(scope)) throw new Error("CAMPAIGN_SCOPE_NOT_AUTHORIZED");
+      await dispatchSecurityCampaign(env, { workspaceId: row.workspace_id, scope, campaignId: row.id, actorUserId: row.approved_by_user_id, executionConfirmed: true, claimedGuided: true });
+      queued += 1;
+    } catch (error) {
+      const runnerJob = await env.DB.prepare("SELECT id FROM security_runner_jobs WHERE campaign_id = ? AND workspace_id = ?").bind(row.id, row.workspace_id).first<{ id: string }>().catch(() => null);
+      if (runnerJob) {
+        await env.DB.prepare("UPDATE security_campaigns SET runner_job_id = ?, executor = 'isolated_runner', updated_at = ? WHERE id = ? AND runner_job_id IS NULL AND status = 'queued'").bind(runnerJob.id, new Date().toISOString(), row.id).run();
+        queued += 1;
+        continue;
+      }
+      const code = error instanceof Error && /^CAMPAIGN_[A-Z0-9_]+$/.test(error.message) ? error.message : "CAMPAIGN_GUIDED_DISPATCH_FAILED";
+      const finishedAt = new Date().toISOString();
+      await env.DB.batch([
+        env.DB.prepare("UPDATE security_campaigns SET status = 'failed', runner_error_code = ?, updated_at = ? WHERE id = ? AND status = 'queued' AND runner_job_id IS NULL").bind(code, finishedAt, row.id),
+        env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, NULL, 'campaign.guided_dispatch_failed', ?, ?)").bind(uuid("sace"), row.workspace_id, row.id, JSON.stringify({ code }), finishedAt),
+      ]);
+      failed += 1;
+    }
+  }
+  return { checked: rows.results.length, queued, failed };
+}
+
 export async function cancelSecurityCampaign(env: SecurityDeliveryEnv, args: { workspaceId: number; scopeId: string; campaignId: unknown; actorUserId: number }) {
   if (typeof args.campaignId !== "string" || !/^sac_[0-9a-f-]{36}$/i.test(args.campaignId)) throw new Error("CAMPAIGN_INVALID");
   const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, techniques_json FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scopeId).first<CampaignRow>();
@@ -135,13 +203,13 @@ export async function cancelSecurityCampaign(env: SecurityDeliveryEnv, args: { w
   return { id: campaign.id, status: "cancelled" as const };
 }
 
-export async function dispatchSecurityCampaign(env: SecurityDeliveryEnv & SecurityAgentEnv, args: { workspaceId: number; scope: SecurityScopeRow; campaignId: unknown; actorUserId: number; executionConfirmed: unknown }) {
+export async function dispatchSecurityCampaign(env: SecurityDeliveryEnv & SecurityAgentEnv, args: { workspaceId: number; scope: SecurityScopeRow; campaignId: unknown; actorUserId: number; executionConfirmed: unknown; claimedGuided?: true }) {
   if (args.executionConfirmed !== true) throw new Error("CAMPAIGN_EXECUTION_CONFIRMATION_REQUIRED");
   if (!authorizationCurrent(args.scope)) throw new Error("CAMPAIGN_SCOPE_NOT_AUTHORIZED");
   if (typeof args.campaignId !== "string" || !/^sac_[0-9a-f-]{36}$/i.test(args.campaignId)) throw new Error("CAMPAIGN_INVALID");
-  const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scope.id).first<CampaignRow>();
+  const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, guided, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scope.id).first<CampaignRow & { guided: number }>();
   if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
-  if (campaign.status !== "approved") throw new Error("CAMPAIGN_STATE_INVALID");
+  if (args.claimedGuided ? campaign.status !== "queued" || campaign.guided !== 1 : campaign.status !== "approved" || campaign.guided === 1) throw new Error("CAMPAIGN_STATE_INVALID");
   const nowMs = Date.now();
   if (!campaign.window_start || !campaign.window_end || nowMs < Date.parse(campaign.window_start)) throw new Error("CAMPAIGN_WINDOW_NOT_STARTED");
   if (nowMs > Date.parse(campaign.window_end)) throw new Error("CAMPAIGN_WINDOW_EXPIRED");
@@ -150,7 +218,7 @@ export async function dispatchSecurityCampaign(env: SecurityDeliveryEnv & Securi
     const dispatched = await dispatchIsolatedRunner(env, args.scope, campaign);
     const now = new Date().toISOString();
     await env.DB.batch([
-      env.DB.prepare("UPDATE security_campaigns SET status = 'queued', executor = 'isolated_runner', runner_job_id = ?, updated_at = ? WHERE id = ? AND status = 'approved'").bind(dispatched.runnerJobId, now, campaign.id),
+      env.DB.prepare(`UPDATE security_campaigns SET status = 'queued', executor = 'isolated_runner', runner_job_id = ?, updated_at = ? WHERE id = ? AND status = ?`).bind(dispatched.runnerJobId, now, campaign.id, args.claimedGuided ? "queued" : "approved"),
       env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, 'campaign.dispatched', ?, ?)")
         .bind(uuid("sace"), args.workspaceId, campaign.id, args.actorUserId, JSON.stringify({ runnerJobId: dispatched.runnerJobId, executor: "isolated_runner", policyVersion: SECURITY_CAMPAIGN_POLICY_VERSION, techniques }), now),
     ]);

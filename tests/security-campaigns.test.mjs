@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { DatabaseSync } from "node:sqlite";
 import { readFileSync } from "node:fs";
-import { campaignExecutionReadiness, parseRepositoryTarget, parseSecurityCampaignInput } from "../domain/security-campaign-policy.ts";
-import { approveSecurityCampaign, createRemediationProposal, createSecurityCampaign, decideRemediationProposal, dispatchSecurityCampaign } from "../app/security-campaign-service.ts";
+import { campaignExecutionReadiness, guidedWebCampaignInput, parseRepositoryTarget, parseSecurityCampaignInput } from "../domain/security-campaign-policy.ts";
+import { approveSecurityCampaign, createRemediationProposal, createSecurityCampaign, decideRemediationProposal, dispatchDueGuidedSecurityCampaigns, dispatchSecurityCampaign, startGuidedSecurityCampaign } from "../app/security-campaign-service.ts";
 
 const futureCampaign = (now = Date.now()) => ({
   name: "Validação controlada em homologação", environment: "staging", techniques: ["safe_web_crawl", "tls_configuration_review"],
@@ -15,6 +15,8 @@ const futureCampaign = (now = Date.now()) => ({
 test("campaign policy rejects unbounded, destructive and unapproved work", () => {
   const now = Date.now();
   assert.deepEqual(parseSecurityCampaignInput(futureCampaign(now), now).techniques, ["safe_web_crawl", "tls_configuration_review"]);
+  assert.deepEqual(parseSecurityCampaignInput(guidedWebCampaignInput(now), now).techniques, ["safe_web_crawl", "tls_configuration_review", "web_control_probe"]);
+  assert.deepEqual(parseSecurityCampaignInput({ ...futureCampaign(now), techniques: ["safe_web_crawl", "tls_configuration_review", "web_control_probe"] }, now).techniques, ["safe_web_crawl", "tls_configuration_review", "web_control_probe"]);
   for (const mutate of [
     (data) => { data.authorizationConfirmed = false; },
     (data) => { data.techniques = ["brute_force"]; },
@@ -43,7 +45,7 @@ test("campaign and remediation lifecycle remains audited without dispatch or ext
   const sqlite = new DatabaseSync(":memory:");
   const originalFetch = globalThis.fetch;
   try {
-    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
+    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0065_guided_security_campaigns.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
     const DB = {
       prepare(sql) {
         const statement = sqlite.prepare(sql);
@@ -89,7 +91,7 @@ test("campaign and remediation lifecycle remains audited without dispatch or ext
 test("isolated runner receives a signed bounded manifest without arbitrary commands", async () => {
   const sqlite = new DatabaseSync(":memory:");
   try {
-    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
+    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0062_isolated_security_runner.sql", "0065_guided_security_campaigns.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
     const DB = {
       prepare(sql) {
         const statement = sqlite.prepare(sql);
@@ -103,7 +105,7 @@ test("isolated runner receives a signed bounded manifest without arbitrary comma
     const env = { DB, SECURITY_ACTIVE_RUNNER: runner, SECURITY_RUNNER_SIGNING_KEY: "runner-signing-key-with-more-than-thirty-two-characters" };
     const now = new Date().toISOString();
     const scope = { id: "scope", workspace_id: 42, domain: "example.com", status: "verified", verification_token: "expected", authorization_attested_at: now, authorization_expires_at: new Date(Date.now() + 86400_000).toISOString(), authorization_version: "test", monitoring_enabled: 0 };
-    const input = { ...futureCampaign(), name: "TLS seguro em homologação", techniques: ["safe_web_crawl", "tls_configuration_review"] };
+    const input = { ...futureCampaign(), name: "Controles web em homologação", techniques: ["safe_web_crawl", "tls_configuration_review", "web_control_probe"] };
     const campaign = await createSecurityCampaign(env, scope, 7, input);
     assert.equal(campaign.readiness.ready, true);
     await approveSecurityCampaign(env, { workspaceId: 42, scope, campaignId: campaign.id, actorUserId: 8, approvalConfirmed: true });
@@ -114,9 +116,51 @@ test("isolated runner receives a signed bounded manifest without arbitrary comma
     const request = requests[0];
     assert.match(request.headers.get("x-cbshub-signature"), /^sha256=[0-9a-f]{64}$/);
     const manifest = JSON.parse(await request.text());
-    assert.deepEqual(manifest.techniques, ["safe_web_crawl", "tls_configuration_review"]);
+    assert.deepEqual(manifest.techniques, ["safe_web_crawl", "tls_configuration_review", "web_control_probe"]);
     assert.deepEqual(manifest.budgets, { requestsPerMinute: 20, totalRequests: 20 });
     assert.equal(Object.hasOwn(manifest, "command"), false);
     assert.equal(sqlite.prepare("SELECT status, executor, runner_job_id FROM security_campaigns").get().runner_job_id, "run_bounded-0001");
+  } finally { sqlite.close(); }
+});
+
+test("guided web validation requires consent, schedules once, and rechecks authorization before runner dispatch", async () => {
+  const sqlite = new DatabaseSync(":memory:");
+  try {
+    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0062_isolated_security_runner.sql", "0065_guided_security_campaigns.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
+    const DB = {
+      prepare(sql) {
+        const statement = sqlite.prepare(sql);
+        const bound = (values) => ({ first: async () => statement.get(...values) ?? null, all: async () => ({ results: statement.all(...values) }), run: async () => ({ meta: { changes: Number(statement.run(...values).changes) } }) });
+        return { ...bound([]), bind: (...values) => bound(values) };
+      },
+      batch: async (statements) => Promise.all(statements.map((statement) => statement.run())),
+    };
+    const now = new Date().toISOString();
+    const expires = new Date(Date.now() + 86400_000).toISOString();
+    sqlite.prepare("INSERT INTO security_agent_scopes (id, workspace_id, domain, status, verification_token, created_by_user_id, authorization_attested_at, authorization_expires_at) VALUES ('scope', 42, 'example.com', 'verified', 'expected', 7, ?, ?)").run(now, expires);
+    const scope = { id: "scope", workspace_id: 42, domain: "example.com", status: "verified", authorization_expires_at: expires };
+    const requests = [];
+    const env = { DB, SECURITY_ACTIVE_RUNNER: { fetch: async (request) => { requests.push(request); return Response.json({ jobId: `run_guided-${String(requests.length).padStart(4, "0")}` }, { status: 202 }); } }, SECURITY_RUNNER_SIGNING_KEY: "runner-signing-key-with-more-than-thirty-two-characters" };
+    await assert.rejects(startGuidedSecurityCampaign(env, scope, 7, false), /CAMPAIGN_EXECUTION_CONFIRMATION_REQUIRED/);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) total FROM security_campaigns").get().total, 0);
+    const campaign = await startGuidedSecurityCampaign(env, scope, 7, true);
+    assert.equal(campaign.status, "approved");
+    await assert.rejects(startGuidedSecurityCampaign(env, scope, 7, true), /CAMPAIGN_GUIDED_ALREADY_ACTIVE/);
+    assert.deepEqual(await dispatchDueGuidedSecurityCampaigns(env), { checked: 0, queued: 0, failed: 0 });
+    assert.equal(requests.length, 0);
+    sqlite.prepare("UPDATE security_campaigns SET window_start = ?, window_end = ? WHERE id = ?").run(new Date(Date.now() - 60_000).toISOString(), new Date(Date.now() + 3600_000).toISOString(), campaign.id);
+    await assert.rejects(dispatchSecurityCampaign(env, { workspaceId: 42, scope, campaignId: campaign.id, actorUserId: 7, executionConfirmed: true }), /CAMPAIGN_STATE_INVALID/);
+    assert.deepEqual(await dispatchDueGuidedSecurityCampaigns(env), { checked: 1, queued: 1, failed: 0 });
+    assert.equal(requests.length, 1);
+    assert.equal(JSON.parse(await requests[0].text()).budgets.totalRequests, 20);
+    assert.deepEqual(await dispatchDueGuidedSecurityCampaigns(env), { checked: 0, queued: 0, failed: 0 });
+    assert.equal(requests.length, 1);
+    sqlite.prepare("UPDATE security_campaigns SET status = 'completed' WHERE id = ?").run(campaign.id);
+    const revoked = await startGuidedSecurityCampaign(env, scope, 7, true);
+    sqlite.prepare("UPDATE security_campaigns SET window_start = ? WHERE id = ?").run(new Date(Date.now() - 60_000).toISOString(), revoked.id);
+    sqlite.prepare("UPDATE security_agent_scopes SET status = 'revoked' WHERE id = 'scope'").run();
+    assert.deepEqual(await dispatchDueGuidedSecurityCampaigns(env), { checked: 1, queued: 0, failed: 1 });
+    assert.equal(requests.length, 1);
+    assert.equal(sqlite.prepare("SELECT status, runner_error_code FROM security_campaigns WHERE id = ?").get(revoked.id).runner_error_code, "CAMPAIGN_SCOPE_NOT_AUTHORIZED");
   } finally { sqlite.close(); }
 });
