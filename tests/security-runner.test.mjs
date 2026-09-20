@@ -22,6 +22,11 @@ const manifestInput = (now = Date.now()) => ({
   stopConditions: { errorRatePercent: 20, consecutiveServerErrors: 3, unexpectedAuthentication: true },
 });
 
+test("runner probes public Worker custom domains through the edge", () => {
+  const config = JSON.parse(readFileSync(new URL("../security-runner/wrangler.jsonc", import.meta.url), "utf8"));
+  assert.ok(config.compatibility_flags.includes("global_fetch_strictly_public"));
+});
+
 test("runner health advertises the campaign policy it accepts", async () => {
   const response = await securityRunnerWorker.fetch(new Request("https://security-runner.internal/health"), { CF_VERSION_METADATA: { id: "test-release" } });
   assert.equal(response.status, 200);
