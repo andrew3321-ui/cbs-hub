@@ -5,7 +5,7 @@ import { readFileSync } from "node:fs";
 import { hmacHex, parseRunnerManifest, SECURITY_RUNNER_MAX_REQUESTS, verifyRunnerSignature } from "../domain/security-runner-policy.ts";
 import { SECURITY_CAMPAIGN_POLICY_VERSION } from "../domain/security-campaign-policy.ts";
 import { executeRunnerManifest, verifyRunnerOwnership } from "../security-runner/executor.ts";
-import { enqueue, processJob } from "../security-runner/worker.ts";
+import securityRunnerWorker, { enqueue, processJob } from "../security-runner/worker.ts";
 import { reconcileSecurityRunnerCampaigns } from "../app/security-campaign-service.ts";
 
 const manifestInput = (now = Date.now()) => ({
@@ -20,6 +20,15 @@ const manifestInput = (now = Date.now()) => ({
   window: { start: new Date(now - 60_000).toISOString(), end: new Date(now + 3600_000).toISOString() },
   budgets: { requestsPerMinute: 60, totalRequests: 10 },
   stopConditions: { errorRatePercent: 20, consecutiveServerErrors: 3, unexpectedAuthentication: true },
+});
+
+test("runner health advertises the campaign policy it accepts", async () => {
+  const response = await securityRunnerWorker.fetch(new Request("https://security-runner.internal/health"), { CF_VERSION_METADATA: { id: "test-release" } });
+  assert.equal(response.status, 200);
+  const state = await response.json();
+  assert.equal(state.release, "test-release");
+  assert.equal(state.status, "healthy");
+  assert.ok(state.supportedPolicyVersions.includes(SECURITY_CAMPAIGN_POLICY_VERSION));
 });
 
 test("runner validates the exact signed manifest and enforces its independent hard cap", async () => {

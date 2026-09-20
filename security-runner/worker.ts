@@ -1,5 +1,6 @@
 import { executeRunnerManifest, verifyRunnerOwnership } from "./executor.ts";
 import { parseRunnerManifest, SECURITY_RUNNER_MAX_BODY_BYTES, verifyRunnerSignature } from "../domain/security-runner-policy.ts";
+import { SECURITY_CAMPAIGN_COMPATIBLE_POLICY_VERSIONS } from "../domain/security-campaign-policy.ts";
 
 interface RunnerEnv {
   DB: D1Database;
@@ -141,7 +142,7 @@ async function processJob(env: RunnerEnv, rawJobId: unknown, execute: typeof exe
 const worker = {
   async fetch(request: Request, env: RunnerEnv) {
     const url = new URL(request.url);
-    if (request.method === "GET" && url.pathname === "/health") return json({ status: "healthy", service: "cbs-hub-security-runner", release: env.CF_VERSION_METADATA?.id ?? "local" });
+    if (request.method === "GET" && url.pathname === "/health") return json({ status: "healthy", service: "cbs-hub-security-runner", release: env.CF_VERSION_METADATA?.id ?? "local", supportedPolicyVersions: SECURITY_CAMPAIGN_COMPATIBLE_POLICY_VERSIONS });
     if (request.method === "POST" && url.pathname === "/v1/jobs") return enqueue(request, env);
     return json({ error: "Not found.", code: "RUNNER_NOT_FOUND" }, 404);
   },
