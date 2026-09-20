@@ -36,6 +36,20 @@ test("runner health advertises the campaign policy it accepts", async () => {
   assert.ok(state.supportedPolicyVersions.includes(SECURITY_CAMPAIGN_POLICY_VERSION));
 });
 
+test("runner invokes the target fetcher without an incorrect this binding", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["tls_configuration_review"], budgets: { requestsPerMinute: 60, totalRequests: 1 } });
+  const fetcher = function(input) {
+    assert.equal(this, undefined);
+    const url = new URL(String(input));
+    if (url.hostname === "cloudflare-dns.com") return Promise.resolve(Response.json({ Answer: [{ type: 1, data: "93.184.216.34" }] }));
+    return Promise.resolve(new Response(null, { status: 200 }));
+  };
+  const result = await executeRunnerManifest(manifest, { fetcher });
+  assert.equal(result.requests.successful, 1);
+  assert.equal(result.transport?.httpsReachable, true);
+  assert.deepEqual(result.requests.statusCodes, { "200": 1 });
+});
+
 test("runner validates the exact signed manifest and enforces its independent hard cap", async () => {
   const now = Date.now();
   const manifest = manifestInput(now);

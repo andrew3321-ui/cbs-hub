@@ -145,7 +145,7 @@ async function targetRequest(args: {
   action: RunnerRequestEvent["action"];
   onRequest?: (event: RunnerRequestEvent) => Promise<void>;
 }): Promise<RequestObservation | null> {
-  const { manifest, state } = args;
+  const { manifest, state, fetcher } = args;
   if (state.stopReason || state.attempted >= manifest.budgets.totalRequests) {
     state.stopReason ??= "request_budget_reached";
     return null;
@@ -169,7 +169,7 @@ async function targetRequest(args: {
   state.attempted += 1;
   state.lastRequestAt = args.now();
   try {
-    const response = await args.fetcher(args.url, {
+    const response = await fetcher(args.url, {
       method: args.method,
       redirect: "manual",
       headers: {
