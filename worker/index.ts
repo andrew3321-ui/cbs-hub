@@ -7,6 +7,7 @@ import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
 import { processSecurityAgentQueueMessage, runScheduledSecurityAgent, type SecurityAgentQueueMessage } from "../app/security-agent-service";
 import { activeEdgeBlock, expireDefenseActions, runDueCloudflareDefenseSync, runDueCloudflarePostureAudit } from "../app/security-defense-service";
 import { dispatchDueGuidedSecurityCampaigns, reconcileSecurityRunnerCampaigns } from "../app/security-campaign-service";
+import { dispatchDueCampaignSpecialists, processCampaignSpecialistMessage, type CampaignSpecialistMessage } from "../app/security-campaign-specialists";
 import { maintainRepositoryJobs } from "../app/github-repository-maintenance.ts";
 import type { GitHubEnv } from "../app/github-client.ts";
 
@@ -26,7 +27,7 @@ interface Env extends GitHubEnv {
   OPENAI_SECURITY_PRIMARY_MODEL?: string;
   OPENAI_SECURITY_REVIEW_MODEL?: string;
   SECURITY_SCAN_QUEUE?: {
-    send(message: SecurityAgentQueueMessage): Promise<void>;
+    send(message: SecurityAgentQueueMessage | CampaignSpecialistMessage): Promise<void>;
   };
   SECURITY_ACTIVE_RUNNER?: {
     fetch(request: Request): Promise<Response>;
@@ -53,7 +54,7 @@ interface ExecutionContext {
 type RateLimitRule = { scope: string; limit: number; windowSeconds: number };
 type ScheduledController = { scheduledTime: number; cron: string };
 type SecurityQueueMessage = {
-  body: SecurityAgentQueueMessage;
+  body: SecurityAgentQueueMessage | CampaignSpecialistMessage;
   ack(): void;
   retry(options?: { delaySeconds?: number }): void;
 };
@@ -341,6 +342,12 @@ const worker = {
         console.error(JSON.stringify({ event: "security_runner.reconciliation_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
+      ctx.waitUntil(dispatchDueCampaignSpecialists(env).then((result) => {
+        if (result.queued) console.info(JSON.stringify({ event: "security_campaign.specialists_queued", date, ...result }));
+      }).catch((error) => {
+        console.error(JSON.stringify({ event: "security_campaign.specialist_dispatch_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
     }
     if (controller.cron === "15 8 * * *") {
       ctx.waitUntil(runSecurityRetentionCleanup(env).catch((error) => {
@@ -372,13 +379,16 @@ const worker = {
   async queue(batch: SecurityQueueBatch, env: Env) {
     for (const message of batch.messages) {
       try {
-        const result = await processSecurityAgentQueueMessage(env, message.body);
-        console.info(JSON.stringify({ event: "security_agent.queue_processed", queue: batch.queue, jobId: message.body.jobId, status: result.status }));
+        const result = message.body.version === 2
+          ? await processCampaignSpecialistMessage(env, message.body)
+          : await processSecurityAgentQueueMessage(env, message.body);
+        const jobId = message.body.version === 2 ? message.body.campaignId : message.body.jobId;
+        console.info(JSON.stringify({ event: "security_agent.queue_processed", queue: batch.queue, jobId, status: result.status }));
         if (result.status === "leased") message.retry({ delaySeconds: 120 });
         else message.ack();
       } catch (error) {
         const code = error instanceof Error ? error.message : "SECURITY_QUEUE_FAILED";
-        console.error(JSON.stringify({ event: "security_agent.queue_failed", queue: batch.queue, jobId: message.body.jobId, error: code }));
+        console.error(JSON.stringify({ event: "security_agent.queue_failed", queue: batch.queue, jobId: message.body.version === 2 ? message.body.campaignId : message.body.jobId, error: code }));
         if (code === "SECURITY_JOB_RETRY") message.retry({ delaySeconds: 30 });
         else message.ack();
       }

@@ -451,6 +451,19 @@
 .security-campaign-list > article > p { margin: 12px 0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 .security-campaign-list > article > footer { margin-top: 17px; display: flex; flex-wrap: wrap; gap: 9px; }
 .security-campaign-list footer a { align-self: center; color: var(--workspace-cyan); font-size: 12px; }
+.security-campaign-timeline { margin-top: 16px; border-top: 1px solid var(--workspace-line); color: var(--workspace-muted); }
+.security-campaign-timeline summary { padding: 15px 0 8px; cursor: pointer; color: var(--workspace-text); font-size: 11px; font-weight: 650; }
+.security-campaign-timeline > p { margin: 0 0 10px; color: var(--workspace-faint); font-size: 10px; line-height: 1.5; }
+.security-campaign-timeline ol { margin: 0; padding: 4px 0 0 17px; display: grid; gap: 9px; }
+.security-campaign-timeline li { padding-left: 3px; font-size: 11px; line-height: 1.5; }
+.security-campaign-timeline time { margin-right: 11px; color: var(--workspace-cyan); font-variant-numeric: tabular-nums; }
+.security-campaign-timeline small { display: block; margin-top: 10px; color: var(--workspace-faint); font-size: 10px; }
+.security-specialist-result { margin-top: 18px; padding: 18px; border: 1px solid rgba(89, 217, 255, .18); border-radius: 11px; background: #0a1521; }
+.security-specialist-result > b { display: block; margin-bottom: 6px; font-size: 12px; }
+.security-specialist-result small { color: var(--workspace-faint); font-size: 10px; line-height: 1.6; }
+.security-specialist-result article { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--workspace-line); }
+.security-specialist-result article strong { color: var(--workspace-cyan); font-size: 11px; }
+.security-specialist-result article p, .security-specialist-result > p { margin: 6px 0; color: var(--workspace-text); font-size: 11px; line-height: 1.6; }
 .security-runner-result { margin-top: 18px; padding: 18px; border: 1px solid rgba(89, 217, 255, .18); border-radius: 11px; background: #09121d; }
 .security-runner-result > b { font-size: 12px; }
 .security-runner-result dl { margin: 17px 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
@@ -458,6 +471,15 @@
 .security-runner-result dt { color: var(--workspace-faint); font-size: 10px; line-height: 1.4; }
 .security-runner-result dd { margin: 7px 0 0; color: var(--workspace-text); font-size: 12px; font-weight: 600; line-height: 1.5; }
 .security-runner-result small { display: block; color: var(--workspace-faint); font-size: 10px; line-height: 1.65; }
+.security-pentest-module .security-delivery { padding: 24px; }
+.security-pentest-module .security-guided-validation { margin: 20px 0; }
+.security-operations-pentest-link { margin: 18px 0; padding: 17px 20px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid var(--workspace-line); border-radius: 12px; background: rgba(89, 217, 255, .03); }
+.security-operations-pentest-link p { margin: 0; color: var(--workspace-muted); font-size: 12px; }
+.security-operations-pentest-link a { color: var(--workspace-cyan); font-size: 12px; font-weight: 700; white-space: nowrap; }
+.repository-remediation { margin-top: 22px; padding: 24px; border: 1px solid var(--workspace-line); border-radius: 14px; background: var(--workspace-panel); }
+.repository-remediation form { margin: 18px 0 0; }
+.repository-remediation .security-delivery-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.repository-remediation .security-campaign-list { margin-top: 20px; }
 .security-web-probe-result { margin-top: 20px; padding-top: 18px; border-top: 1px solid var(--workspace-line); }
 .security-web-probe-result > header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .security-web-probe-result > header b { font-size: 12px; }
@@ -565,7 +587,8 @@
   .security-operations-fields,
   .security-operations-fields.security-coverage-fields { grid-template-columns: 1fr; }
   .security-operations-submit { width: 100%; }
-  .security-delivery-grid, .security-techniques, .security-web-probe-result dl { grid-template-columns: 1fr; }
+  .security-delivery-grid, .repository-remediation .security-delivery-grid, .security-techniques, .security-web-probe-result dl { grid-template-columns: 1fr; }
+  .security-operations-pentest-link { align-items: flex-start; flex-direction: column; }
   .security-delivery form { margin: 17px; }
   .security-campaign-list > article { padding: 16px; }
   .security-runner-result { padding: 14px; }

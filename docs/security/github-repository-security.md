@@ -17,6 +17,7 @@ O Cloudflare Worker `cbs-hub-repository-runner` consome uma fila própria. Ele i
 - Dependências: versões exatas de package-lock npm v2/v3, com consulta à OSV. Não há suporte completo a outros ecossistemas, monorepos grandes ou histórico Git nesta versão.
 - Segredos: padrões de tokens e cabeçalhos de chave privada. Os valores encontrados não são armazenados ou usados; a evidência contém regra, arquivo e linha. São candidatos a revisão, não credenciais confirmadas.
 - Código: heurísticas de validação TLS desativada e eval. Não equivale a SAST abrangente.
+- Superfície de API: a análise prioriza arquivos de rota do Next.js e documentos OpenAPI JSON para listar caminhos e métodos no commit analisado, com verificações sugeridas de autenticação, isolamento entre contas, validação de entrada e webhooks. O inventário é limitado a 60 rotas e não executa requisições contra elas. Proteções em middleware podem não aparecer no arquivo da rota; nenhuma rota listada é classificada automaticamente como vulnerável.
 - Quando há limite, lockfile não suportado ou árvore truncada, a cobertura é parcial. A ausência de um achado não pode resolvê-lo nessa execução.
 - Reanálise completa que não observa mais um achado marca `resolved`. Isso não prova que uma credencial antiga foi revogada; a recomendação de rotação permanece necessária.
 

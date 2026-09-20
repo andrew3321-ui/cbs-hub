@@ -16,4 +16,20 @@
 .repository-impact-result ul{padding-left:20px;color:#c0d7e8;font-size:13px;line-height:1.7}
 .repository-impact-result li{overflow-wrap:anywhere}
 .repository-impact-result small{display:block;margin-top:12px}
+.repository-attack-surface{margin:18px 0 22px;padding:22px;border:1px solid #2d5268;border-radius:14px;background:#102031}
+.repository-attack-surface header{display:flex;justify-content:space-between;gap:18px;align-items:flex-start}
+.repository-attack-surface header span{font-size:10px;font-weight:800;letter-spacing:.12em;color:#67d9ef}
+.repository-attack-surface h3{margin:7px 0;font-size:20px}
+.repository-attack-surface p,.repository-attack-surface small{color:#a9bfd1;font-size:12px;line-height:1.6}
+.repository-attack-surface p{margin:6px 0 14px}
+.repository-route-list{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.repository-route-list article{min-width:0;padding:15px;border:1px solid #2b435b;border-radius:10px;background:#0b1828}
+.repository-route-list article>div{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-bottom:9px}
+.repository-route-list b{padding:4px 6px;border-radius:5px;background:#173f50;color:#8be9f5;font-size:10px}
+.repository-route-list code{overflow-wrap:anywhere;color:#f0f8ff;font-size:13px}
+.repository-route-list article>div>span{margin-left:auto;font-size:10px;color:#abc7d8}
+.repository-route-list article>div>.priority-high{color:#ffb4a8}
+.repository-route-list article>div>.priority-low{color:#acdda9}
+.repository-route-list small{display:block;margin-top:7px}
+@media(max-width:800px){.repository-route-list{grid-template-columns:1fr}.repository-attack-surface header{flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.security-repositories button{transition:none;transform:none!important}}

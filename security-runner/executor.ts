@@ -4,6 +4,7 @@ import { SECURITY_RUNNER_VERSION, type RunnerManifest } from "../domain/security
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type RequestObservation = { status: number; headers: Headers; body: string; redirect: URL | null };
 type WebProbeSignal = { code: string; severity: "high" | "medium" | "low"; title: string; detail: string };
+export type RunnerRequestEvent = { method: "GET" | "HEAD" | "OPTIONS"; action: "Raiz autorizada" | "robots.txt" | "Página pública autorizada"; status?: number; errorCategory?: "timeout" | "network_or_tls" | "response_read" };
 type ExecutionState = {
   deadline: number;
   attempted: number;
@@ -141,6 +142,8 @@ async function targetRequest(args: {
   now: () => number;
   enforceUnexpectedAuthentication?: boolean;
   extraHeaders?: Readonly<Record<string, string>>;
+  action: RunnerRequestEvent["action"];
+  onRequest?: (event: RunnerRequestEvent) => Promise<void>;
 }): Promise<RequestObservation | null> {
   const { manifest, state } = args;
   if (state.stopReason || state.attempted >= manifest.budgets.totalRequests) {
@@ -192,11 +195,14 @@ async function targetRequest(args: {
     }
     const contentType = response.headers.get("content-type") ?? "";
     const body = args.method === "GET" && /(?:text\/html|application\/xhtml\+xml|text\/plain)/i.test(contentType) ? await boundedText(response) : (await response.body?.cancel().catch(() => undefined), "");
+    await args.onRequest?.({ method: args.method, action: args.action, status: response.status }).catch(() => undefined);
     return { status: response.status, headers: response.headers, body, redirect };
   } catch (error) {
     state.errors += 1;
     state.consecutiveServerErrors = 0;
     if (state.attempted >= 5 && ((state.serverErrors + state.errors) / state.attempted) * 100 >= manifest.stopConditions.errorRatePercent) state.stopReason = "error_rate_threshold";
+    const errorCategory = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name) ? "timeout" : error instanceof TypeError ? "network_or_tls" : "response_read";
+    await args.onRequest?.({ method: args.method, action: args.action, errorCategory }).catch(() => undefined);
     if (error instanceof Error && error.message.startsWith("RUNNER_")) throw error;
     return null;
   }
@@ -208,7 +214,7 @@ function parseAdvertisedMethods(value: string | null) {
   return KNOWN_HTTP_METHODS.filter((method) => advertised.has(method));
 }
 
-function analyzeWebProbe(head: RequestObservation | null, options: RequestObservation | null): RunnerExecutionResult["webProbe"] {
+function analyzeWebProbe(head: RequestObservation | null, options: RequestObservation | null): NonNullable<RunnerExecutionResult["webProbe"]> {
   const usableOptions = options && options.status >= 200 && options.status < 300 ? options : null;
   const allowOrigin = usableOptions?.headers.get("access-control-allow-origin")?.trim() ?? "";
   const allowCredentials = usableOptions?.headers.get("access-control-allow-credentials")?.trim().toLowerCase() === "true";
@@ -276,7 +282,8 @@ function extractLinks(body: string, base: URL, domain: string, disallowed: strin
   return { links, skippedSensitive };
 }
 
-export async function executeRunnerManifest(manifest: RunnerManifest, options: { fetcher?: FetchLike; sleep?: (milliseconds: number) => Promise<void>; now?: () => number } = {}): Promise<RunnerExecutionResult> {
+export type RunnerStage = "web_control_probe" | "safe_web_crawl" | "tls_configuration_review";
+export async function executeRunnerManifest(manifest: RunnerManifest, options: { fetcher?: FetchLike; sleep?: (milliseconds: number) => Promise<void>; now?: () => number; onStage?: (stage: RunnerStage, status: "started" | "completed" | "skipped", counts?: Record<string, number>) => Promise<void>; onRequest?: (event: RunnerRequestEvent) => Promise<void> } = {}): Promise<RunnerExecutionResult> {
   const fetcher = options.fetcher ?? fetch;
   const sleep = options.sleep ?? ((milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds)));
   const now = options.now ?? Date.now;
@@ -288,10 +295,13 @@ export async function executeRunnerManifest(manifest: RunnerManifest, options: {
   const root = new URL(`https://${manifest.scope.domain}/`);
 
   if (manifest.techniques.includes("web_control_probe")) {
-    const head = await targetRequest({ url: root, method: "HEAD", manifest, state, fetcher, sleep, now, enforceUnexpectedAuthentication: false });
+    await options.onStage?.("web_control_probe", "started");
+    const head = await targetRequest({ url: root, method: "HEAD", action: "Raiz autorizada", onRequest: options.onRequest, manifest, state, fetcher, sleep, now, enforceUnexpectedAuthentication: false });
     const optionsObservation = state.stopReason ? null : await targetRequest({
       url: root,
       method: "OPTIONS",
+      action: "Raiz autorizada",
+      onRequest: options.onRequest,
       manifest,
       state,
       fetcher,
@@ -306,11 +316,15 @@ export async function executeRunnerManifest(manifest: RunnerManifest, options: {
     });
     webProbe = analyzeWebProbe(head, optionsObservation);
     if (head) transport = { httpsReachable: true, status: head.status, hstsObserved: head.headers.has("strict-transport-security"), cspObserved: head.headers.has("content-security-policy"), limitation: "O runtime confirma negociação HTTPS e resposta HTTP, mas não expõe cifra, protocolo ou validade detalhada do certificado." };
+    await options.onStage?.("web_control_probe", "completed", { requestsCompleted: webProbe.requestsCompleted, signals: webProbe.signals.length });
   }
 
   if (manifest.techniques.includes("safe_web_crawl")) {
+    if (state.stopReason) await options.onStage?.("safe_web_crawl", "skipped");
+    else {
+    await options.onStage?.("safe_web_crawl", "started");
     let disallowed: string[] = [];
-    const robots = await targetRequest({ url: new URL("/robots.txt", root), method: "GET", manifest, state, fetcher, sleep, now, enforceUnexpectedAuthentication: false });
+    const robots = await targetRequest({ url: new URL("/robots.txt", root), method: "GET", action: "robots.txt", onRequest: options.onRequest, manifest, state, fetcher, sleep, now, enforceUnexpectedAuthentication: false });
     if (robots?.status === 200) disallowed = robotsDisallow(robots.body);
     const pending: URL[] = disallowed.some((path) => root.pathname.startsWith(path)) ? [] : [root];
     const visited = new Set<string>();
@@ -320,7 +334,7 @@ export async function executeRunnerManifest(manifest: RunnerManifest, options: {
       const key = url.toString();
       if (visited.has(key)) continue;
       visited.add(key);
-      const observation = await targetRequest({ url, method: "GET", manifest, state, fetcher, sleep, now });
+      const observation = await targetRequest({ url, method: "GET", action: url.pathname === "/" ? "Raiz autorizada" : "Página pública autorizada", onRequest: options.onRequest, manifest, state, fetcher, sleep, now });
       if (!observation) continue;
       if (!transport) transport = { httpsReachable: true, status: observation.status, hstsObserved: observation.headers.has("strict-transport-security"), cspObserved: observation.headers.has("content-security-policy"), limitation: "O runtime confirma negociação HTTPS e resposta HTTP, mas não expõe cifra, protocolo ou validade detalhada do certificado." };
       if (observation.redirect) { redirectsObserved += 1; pending.unshift(observation.redirect); continue; }
@@ -343,13 +357,22 @@ export async function executeRunnerManifest(manifest: RunnerManifest, options: {
       hstsCoveragePercent: htmlPages ? Math.round((hstsPages / htmlPages) * 100) : 0,
       cspCoveragePercent: htmlPages ? Math.round((cspPages / htmlPages) * 100) : 0,
     };
+    await options.onStage?.("safe_web_crawl", "completed", { pagesVisited: crawl.pagesVisited, htmlPages: crawl.htmlPages });
+    }
   }
 
-  if (manifest.techniques.includes("tls_configuration_review") && !transport && !state.stopReason) {
-    const observation = await targetRequest({ url: root, method: "HEAD", manifest, state, fetcher, sleep, now });
-    transport = observation
-      ? { httpsReachable: true, status: observation.status, hstsObserved: observation.headers.has("strict-transport-security"), cspObserved: observation.headers.has("content-security-policy"), limitation: "O runtime confirma negociação HTTPS e resposta HTTP, mas não expõe cifra, protocolo ou validade detalhada do certificado." }
-      : { httpsReachable: false, status: null, hstsObserved: false, cspObserved: false, limitation: "A negociação HTTPS não foi confirmada dentro do tempo e do orçamento autorizados." };
+  if (manifest.techniques.includes("tls_configuration_review")) {
+    if (state.stopReason && !transport) await options.onStage?.("tls_configuration_review", "skipped");
+    else {
+    await options.onStage?.("tls_configuration_review", "started");
+    if (!transport && !state.stopReason) {
+      const observation = await targetRequest({ url: root, method: "HEAD", action: "Raiz autorizada", onRequest: options.onRequest, manifest, state, fetcher, sleep, now });
+      transport = observation
+        ? { httpsReachable: true, status: observation.status, hstsObserved: observation.headers.has("strict-transport-security"), cspObserved: observation.headers.has("content-security-policy"), limitation: "O runtime confirma negociação HTTPS e resposta HTTP, mas não expõe cifra, protocolo ou validade detalhada do certificado." }
+        : { httpsReachable: false, status: null, hstsObserved: false, cspObserved: false, limitation: "A negociação HTTPS não foi confirmada dentro do tempo e do orçamento autorizados." };
+    }
+    await options.onStage?.("tls_configuration_review", "completed", { httpsReachable: transport?.httpsReachable ? 1 : 0 });
+    }
   }
 
   return {

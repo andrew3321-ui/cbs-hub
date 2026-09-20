@@ -11,6 +11,7 @@ import { processRepositoryJob } from '../repository-runner/worker.ts';
 import { receiveGitHubWebhook } from '../app/github-webhook-service.ts';
 import { reviewCampaignSignal } from '../app/security-impact-service.ts';
 import { selectImpactPaths, summarizeImpactSource, validateImpactAssessment } from '../domain/security-impact-policy.ts';
+import { discoverOpenApiRoutes, discoverWebRoutes, isWebRouteFile } from '../domain/repository-attack-surface.ts';
 
 function database() {
  const sqlite = new DatabaseSync(':memory:'); sqlite.exec(readFileSync(new URL('../drizzle/0063_github_repository_security.sql', import.meta.url), 'utf8')); sqlite.exec(readFileSync(new URL('../drizzle/0064_security_ai_impact_reviews.sql', import.meta.url), 'utf8'));
@@ -69,6 +70,23 @@ test('secret evidence never contains the discovered credential and records locat
  assert.equal(findings.length,1); assert.equal(findings[0].line,2); assert.equal(findings[0].kind,'secret'); assert.equal(JSON.stringify(findings).includes(secret),false);
  assert.equal((await inspectSource('src/network.ts','const options = {rejectUnauthorized: false}')).length,1);
 });
+test('route inventory prioritizes review of mutating and privileged endpoints without asserting exposure', () => {
+ const source = 'export async function GET() { return Response.json({ ok: true }); }\nexport const PATCH = handler;';
+ assert.deepEqual(discoverWebRoutes('src/app/api/(private)/users/[id]/route.ts', source).map(({ route, method, line, priority }) => ({ route, method, line, priority })), [
+  { route: '/api/users/:id', method: 'GET', line: 1, priority: 'high' },
+  { route: '/api/users/:id', method: 'PATCH', line: 2, priority: 'high' },
+ ]);
+ assert.equal(discoverWebRoutes('pages/api/webhook.ts', 'export default function handler(req) {}')[0].checks[0], 'Validar assinatura ou state');
+ assert.equal(discoverWebRoutes('pages/api/health/index.ts', 'export default function handler(req) {}')[0].route, '/api/health');
+ assert.deepEqual(discoverWebRoutes('node_modules/app/api/admin/route.ts', source), []);
+ assert.equal(isWebRouteFile('src/app/api/route.ts'), true);
+ assert.equal(discoverWebRoutes('src/app/api/route.ts', 'export { GET, POST } from "./handlers";').length, 2);
+ const openapi=JSON.stringify({openapi:'3.0.3',paths:{'/v1/accounts/{id}':{get:{},delete:{}},'/health':{get:{}}}});
+ assert.deepEqual(discoverOpenApiRoutes('docs/openapi.json',openapi).map(({route,method})=>({route,method})),[
+  {route:'/v1/accounts/:id',method:'GET'}, {route:'/v1/accounts/:id',method:'DELETE'}, {route:'/health',method:'GET'},
+ ]);
+ assert.deepEqual(discoverOpenApiRoutes('docs/openapi.json','{"openapi":"3.0.3","paths":"invalid"}'),[]);
+});
 test('dependency recipe only updates pinned leaf versions and keeps package-lock aligned', () => {
  assert.deepEqual(lockedPackages(JSON.stringify(lock)),[{name:'safe-leaf',version:'1.0.0',location:'node_modules/safe-leaf'}]);
  const patch = createLeafDependencyPatch(JSON.stringify(pkg),JSON.stringify(lock),'safe-leaf','1.0.0','1.0.1',metadata);
@@ -108,13 +126,13 @@ test('repository scanning pins content to a commit and queries only package meta
   const fetcher=async (input,init={})=>{ const url=String(input);urls.push(url);
    if(url.endsWith('/access_tokens')) {assert.equal(JSON.parse(init.body).permissions.contents,'read');assert.deepEqual(JSON.parse(init.body).repository_ids,[987]);return Response.json({token:'short-install-token'});}
    if(url.endsWith('/commits/main'))return Response.json({sha,commit:{tree:{sha:treeSha}}});
-   if(url.includes('/git/trees/'))return Response.json({truncated:false,tree:[{path:'package-lock.json',type:'blob',mode:'100644',size:1000},{path:'src/index.ts',type:'blob',mode:'100644',size:200}]});
-   if(url.includes('/contents/')){assert.ok(url.endsWith(`?ref=${sha}`));const text=url.includes('package-lock')?JSON.stringify(lock):'const x = 1';return Response.json({content:Buffer.from(text).toString('base64'),encoding:'base64',size:text.length});}
+   if(url.includes('/git/trees/'))return Response.json({truncated:false,tree:[{path:'package-lock.json',type:'blob',mode:'100644',size:1000},{path:'src/index.ts',type:'blob',mode:'100644',size:200},{path:'src/app/api/admin/users/route.ts',type:'blob',mode:'100644',size:200},{path:'docs/openapi.json',type:'blob',mode:'100644',size:150}]});
+   if(url.includes('/contents/')){assert.ok(url.endsWith(`?ref=${sha}`));const text=url.includes('package-lock')?JSON.stringify(lock):url.includes('/admin/users/')?'export async function POST() { return new Response(); }':url.includes('openapi.json')?JSON.stringify({openapi:'3.0.3',paths:{'/v1/accounts/{id}':{get:{}}}}):'const x = 1';return Response.json({content:Buffer.from(text).toString('base64'),encoding:'base64',size:text.length});}
    if(url.endsWith('/querybatch')) {const body=JSON.parse(init.body);assert.deepEqual(body.queries,[{package:{ecosystem:'npm',name:'safe-leaf'},version:'1.0.0'}]);return Response.json({results:[{vulns:[{id:'GHSA-test-1234'}]}]});}
    if(url.includes('/vulns/'))return Response.json({affected:[{package:{name:'safe-leaf',ecosystem:'npm'},ranges:[{events:[{fixed:'1.0.1'}]}]}]});
    throw new Error(url);
   };
-  const result=await scanRepository(env,42,'repo',fetcher);assert.equal(result.sha,sha);assert.equal(result.coverage.complete,true);assert.equal(result.findings[0].details.fixedVersion,'1.0.1');assert.ok(urls.every(u=>u.startsWith('https://api.github.com/')||u.startsWith('https://api.osv.dev/')));
+  const result=await scanRepository(env,42,'repo',fetcher);assert.equal(result.sha,sha);assert.equal(result.coverage.complete,true);assert.equal(result.findings[0].details.fixedVersion,'1.0.1');assert.equal(result.coverage.attackSurface.routes[0].route,'/api/admin/users');assert.equal(result.coverage.attackSurface.routes[0].method,'POST');assert.equal(result.coverage.attackSurface.routes.length,2);assert.ok(urls.every(u=>u.startsWith('https://api.github.com/')||u.startsWith('https://api.osv.dev/')));
   await assert.rejects(repositoryFor(env,99,'repo'),/NOT_AUTHORIZED/);
  } finally {sqlite.close();}
 });

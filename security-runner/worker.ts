@@ -1,4 +1,4 @@
-import { executeRunnerManifest, verifyRunnerOwnership } from "./executor.ts";
+import { executeRunnerManifest, verifyRunnerOwnership, type RunnerRequestEvent, type RunnerStage } from "./executor.ts";
 import { parseRunnerManifest, SECURITY_RUNNER_MAX_BODY_BYTES, verifyRunnerSignature } from "../domain/security-runner-policy.ts";
 import { SECURITY_CAMPAIGN_COMPATIBLE_POLICY_VERSIONS } from "../domain/security-campaign-policy.ts";
 
@@ -30,6 +30,15 @@ type RunnerJobRow = {
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
 const eventId = () => `sarex_${crypto.randomUUID()}`;
+async function recordStage(env: RunnerEnv, job: { id: string; campaign_id: string }, stage: RunnerStage | "ownership_verification", status: "started" | "completed" | "skipped", counts: Record<string, number> = {}) {
+  await env.DB.prepare("INSERT INTO security_runner_events (id, runner_job_id, campaign_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(eventId(), job.id, job.campaign_id, `runner.stage_${status}`, JSON.stringify({ stage, counts }), new Date().toISOString()).run();
+}
+
+async function recordRequest(env: RunnerEnv, job: { id: string; campaign_id: string }, event: RunnerRequestEvent) {
+  await env.DB.prepare("INSERT INTO security_runner_events (id, runner_job_id, campaign_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .bind(eventId(), job.id, job.campaign_id, event.status ? "runner.request_completed" : "runner.request_failed", JSON.stringify(event), new Date().toISOString()).run();
+}
 
 async function sha256(value: string) {
   const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(value));
@@ -113,8 +122,10 @@ async function processJob(env: RunnerEnv, rawJobId: unknown, execute: typeof exe
       || row.authorized_domain !== manifest.scope.domain || !Number.isFinite(authorizationExpiresAt) || authorizationExpiresAt <= Date.now()) {
       throw new Error("RUNNER_SCOPE_AUTHORIZATION_INVALID");
     }
+    await recordStage(env, row, "ownership_verification", "started");
     await verifyRunnerOwnership(manifest.scope.domain, row.verification_token ?? "", options.ownershipFetcher);
-    const result = await execute(manifest);
+    await recordStage(env, row, "ownership_verification", "completed");
+    const result = await execute(manifest, { onStage: (stage, status, counts) => recordStage(env, row, stage, status, counts), onRequest: (event) => recordRequest(env, row, event) });
     const status = result.outcome === "stopped" ? "stopped" : "completed";
     const now = new Date().toISOString();
     await env.DB.batch([

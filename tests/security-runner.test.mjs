@@ -67,7 +67,9 @@ test("web control probe uses only fixed HEAD and OPTIONS and never persists cook
       "Allow": "GET, HEAD, OPTIONS, TRACE, DELETE, arbitrary-server-value",
     } });
   };
-  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined });
+  const stages = [];
+  const requestEvents = [];
+  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined, onStage: async (stage, status, counts) => stages.push({ stage, status, counts }), onRequest: async (event) => requestEvents.push(event) });
   assert.equal(result.outcome, "completed");
   assert.equal(result.webProbe?.requestsCompleted, 2);
   assert.equal(result.webProbe?.cors.verdict, "credentialed_origin_reflection");
@@ -77,8 +79,27 @@ test("web control probe uses only fixed HEAD and OPTIONS and never persists cook
   assert.deepEqual(result.webProbe?.signals.map((signal) => signal.code), ["cors_credentialed_origin_reflection", "http_risky_methods_advertised"]);
   assert.equal(result.budget.consumed, 2);
   assert.deepEqual(targetRequests.map((request) => request.method), ["HEAD", "OPTIONS"]);
+  assert.deepEqual(stages.map(({ stage, status }) => `${stage}:${status}`), ["web_control_probe:started", "web_control_probe:completed"]);
+  assert.equal(stages[1].counts.requestsCompleted, 2);
+  assert.deepEqual(requestEvents, [{ method: "HEAD", action: "Raiz autorizada", status: 200 }, { method: "OPTIONS", action: "Raiz autorizada", status: 200 }]);
   assert.ok(targetRequests.every((request) => request.url === "https://example.com/" && !new Headers(request.headers).has("cookie") && !request.body));
   assert.doesNotMatch(JSON.stringify(result), /private-session|super-secret-value|arbitrary-server-value/);
+});
+
+test("request log classifies pre-HTTP failures without persisting raw errors or URLs", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["web_control_probe", "safe_web_crawl", "tls_configuration_review"] });
+  const events = [];
+  const fetcher = async (input) => {
+    if (new URL(String(input)).hostname === "cloudflare-dns.com") return Response.json({ Answer: [{ type: 1, data: "93.184.216.34" }] });
+    throw new TypeError("secret diagnostic details must not be logged");
+  };
+  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined, onRequest: async (event) => events.push(event) });
+  assert.equal(result.stopReason, "error_rate_threshold");
+  assert.equal(result.requests.errors, 5);
+  assert.equal(result.requests.successful, 0);
+  assert.equal(events.length, 5);
+  assert.ok(events.every((event) => event.errorCategory === "network_or_tls" && !("status" in event)));
+  assert.doesNotMatch(JSON.stringify(events), /secret diagnostic|https:\/\/example\.com/);
 });
 
 test("web control probe reports blocked responses as inconclusive without finding claims", async () => {
@@ -207,6 +228,7 @@ test("runner service queues an idempotent job only after signature and policy va
       transport: { httpsReachable: true, status: 200, hstsObserved: true, cspObserved: true, limitation: "test" }, crawl: null, webProbe: null, limitation: "test",
     }), { ownershipFetcher: async () => Response.json({ Answer: [{ type: 16, data: '"cbshub-verification=verification-token"' }] }) });
     assert.equal(processed, "done");
+    assert.deepEqual(sqlite.prepare("SELECT event_type FROM security_runner_events WHERE runner_job_id = ? AND event_type LIKE 'runner.stage_%' ORDER BY created_at, id").all(payload.jobId).map((row) => row.event_type).sort(), ["runner.stage_completed", "runner.stage_started"]);
     assert.deepEqual({ ...sqlite.prepare("SELECT status, request_count, error_count FROM security_runner_jobs").get() }, { status: "completed", request_count: 2, error_count: 0 });
     assert.deepEqual(await reconcileSecurityRunnerCampaigns({ DB }, 42), { checked: 1, updated: 1 });
     const campaign = sqlite.prepare("SELECT status, runner_completed_at, runner_result_json FROM security_campaigns").get();

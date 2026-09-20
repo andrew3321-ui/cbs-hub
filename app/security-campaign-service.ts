@@ -105,11 +105,12 @@ export async function createSecurityCampaign(env: SecurityDeliveryEnv, scope: Se
   const id = uuid("sac");
   const now = new Date().toISOString();
   const readiness = campaignExecutionReadiness(input, integrations(env));
+  const specialistStatus = input.techniques.some((technique) => securityTechniqueCatalog[technique]?.execution === "isolated_runner") ? "pending" : "not_requested";
   await env.DB.batch([
     env.DB.prepare(`INSERT INTO security_campaigns
-      (id, workspace_id, scope_id, created_by_user_id, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json, status, readiness_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?)`)
-      .bind(id, scope.workspace_id, scope.id, actorUserId, input.name, input.environment, JSON.stringify(input.techniques), SECURITY_CAMPAIGN_POLICY_VERSION, input.windowStart, input.windowEnd, input.maxRequestsPerMinute, input.maxTotalRequests, JSON.stringify(input.stopConditions), JSON.stringify(readiness), now, now),
+      (id, workspace_id, scope_id, created_by_user_id, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json, status, readiness_json, specialist_status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, ?)`)
+      .bind(id, scope.workspace_id, scope.id, actorUserId, input.name, input.environment, JSON.stringify(input.techniques), SECURITY_CAMPAIGN_POLICY_VERSION, input.windowStart, input.windowEnd, input.maxRequestsPerMinute, input.maxTotalRequests, JSON.stringify(input.stopConditions), JSON.stringify(readiness), specialistStatus, now, now),
     env.DB.prepare("INSERT INTO security_campaign_events (id, workspace_id, campaign_id, actor_user_id, event_type, details_json, created_at) VALUES (?, ?, ?, ?, 'campaign.created', ?, ?)")
       .bind(uuid("sace"), scope.workspace_id, id, actorUserId, JSON.stringify({ policyVersion: SECURITY_CAMPAIGN_POLICY_VERSION, environment: input.environment, techniques: input.techniques, readiness }), now),
   ]);
@@ -250,6 +251,10 @@ export async function createRemediationProposal(env: SecurityDeliveryEnv, args: 
   const target = parseRepositoryTarget(args.target);
   const finding = await env.DB.prepare("SELECT id, scope_id, status FROM security_findings WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(target.findingId, args.workspaceId, args.scopeId).first<{ id: string; scope_id: string; status: string }>();
   if (!finding || !["open", "investigating"].includes(finding.status)) throw new Error("REMEDIATION_FINDING_INVALID");
+  const repository = await env.DB.prepare(`SELECT r.id FROM security_repositories r JOIN github_connections c ON c.id = r.connection_id
+    WHERE r.workspace_id = ? AND r.full_name = ? AND r.default_branch = ? AND r.enabled = 1 AND r.authorized_until > ? AND c.status = 'active' AND c.workspace_id = ?`)
+    .bind(args.workspaceId, target.repository, target.baseBranch, new Date().toISOString(), args.workspaceId).first<{ id: string }>();
+  if (!repository) throw new Error("REMEDIATION_REPOSITORY_NOT_AUTHORIZED");
   const id = uuid("sarp");
   const now = new Date().toISOString();
   try {

@@ -14,6 +14,8 @@ const campaignService = fs.readFileSync(new URL("../app/security-campaign-servic
 const campaignPolicy = fs.readFileSync(new URL("../domain/security-campaign-policy.ts", import.meta.url), "utf8");
 const client = fs.readFileSync(new URL("../app/app/SecurityAgentCenter.tsx", import.meta.url), "utf8");
 const deliveryPanel = fs.readFileSync(new URL("../app/app/SecurityDeliveryPanel.tsx", import.meta.url), "utf8");
+const projectRemediationPanel = fs.readFileSync(new URL("../app/app/SecurityProjectRemediationPanel.tsx", import.meta.url), "utf8");
+const repositoriesPanel = fs.readFileSync(new URL("../app/app/SecurityRepositoriesPanel.tsx", import.meta.url), "utf8");
 const operationsPanel = fs.readFileSync(new URL("../app/app/SecurityOperationsPanel.tsx", import.meta.url), "utf8");
 const wrangler = fs.readFileSync(new URL("../wrangler.migrations.jsonc", import.meta.url), "utf8");
 const finalizer = fs.readFileSync(new URL("../scripts/finalize-workers-config.mjs", import.meta.url), "utf8");
@@ -144,4 +146,10 @@ test("pentest campaigns and remediation are approval gated and default to no ext
   assert.match(route, /create_campaign/);
   assert.match(route, /create_remediation/);
   assert.match(client, /SecurityDeliveryPanel/);
+  assert.match(client, /\/app\/pentest/);
+  assert.match(deliveryPanel, /Log auditável/);
+  assert.doesNotMatch(deliveryPanel, /Preparar correção por pull request/);
+  assert.match(repositoriesPanel, /SecurityProjectRemediationPanel/);
+  assert.match(projectRemediationPanel, /create_remediation/);
+  assert.match(campaignService, /REMEDIATION_REPOSITORY_NOT_AUTHORIZED/);
 });
