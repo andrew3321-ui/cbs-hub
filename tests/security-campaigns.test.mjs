@@ -120,6 +120,14 @@ test("isolated runner receives a signed bounded manifest without arbitrary comma
     assert.deepEqual(manifest.budgets, { requestsPerMinute: 20, totalRequests: 20 });
     assert.equal(Object.hasOwn(manifest, "command"), false);
     assert.equal(sqlite.prepare("SELECT status, executor, runner_job_id FROM security_campaigns").get().runner_job_id, "run_bounded-0001");
+    runner.fetch = async () => Response.json({ error: "Manifest rejected.", code: "RUNNER_POLICY_MISMATCH" }, { status: 400 });
+    const rejected = await createSecurityCampaign(env, scope, 7, { ...input, name: "Validação incompatível" });
+    await approveSecurityCampaign(env, { workspaceId: 42, scope, campaignId: rejected.id, actorUserId: 8, approvalConfirmed: true });
+    sqlite.prepare("UPDATE security_campaigns SET window_start = ?, window_end = ? WHERE id = ?").run(new Date(Date.now() - 60_000).toISOString(), new Date(Date.now() + 3600_000).toISOString(), rejected.id);
+    await assert.rejects(dispatchSecurityCampaign(env, { workspaceId: 42, scope, campaignId: rejected.id, actorUserId: 8, executionConfirmed: true }), /CAMPAIGN_RUNNER_POLICY_MISMATCH/);
+    const rejectedState = sqlite.prepare("SELECT status, runner_job_id FROM security_campaigns WHERE id = ?").get(rejected.id);
+    assert.equal(rejectedState.status, "approved");
+    assert.equal(rejectedState.runner_job_id, null);
   } finally { sqlite.close(); }
 });
 

@@ -9,6 +9,13 @@ type RemediationRow = { id: string; workspace_id: number; scope_id: string; find
 const uuid = (prefix: string) => `${prefix}_${crypto.randomUUID()}`;
 const authorizationCurrent = (scope: SecurityScopeRow) => scope.status === "verified" && Boolean(scope.authorization_expires_at) && Date.parse(scope.authorization_expires_at!) > Date.now();
 const integrations = (env: SecurityDeliveryEnv) => ({ isolatedRunner: Boolean(env.SECURITY_ACTIVE_RUNNER && (env.SECURITY_RUNNER_SIGNING_KEY?.trim().length ?? 0) >= 32), repositoryConnector: Boolean(env.GITHUB_APP_ID?.trim()) });
+const runnerRejectionCodes = new Set([
+  "RUNNER_SIGNING_KEY_NOT_CONFIGURED", "RUNNER_SIGNATURE_INVALID", "RUNNER_POLICY_MISMATCH",
+  "RUNNER_TECHNIQUES_INVALID", "RUNNER_MANIFEST_INVALID", "RUNNER_MANIFEST_UNKNOWN_FIELD",
+  "RUNNER_SCOPE_INVALID", "RUNNER_WINDOW_INVALID", "RUNNER_OUTSIDE_WINDOW",
+  "RUNNER_BUDGET_INVALID", "RUNNER_STOP_CONDITIONS_INVALID", "RUNNER_PAYLOAD_TOO_LARGE",
+  "RUNNER_IDEMPOTENCY_CONFLICT", "RUNNER_QUEUE_DISPATCH_FAILED",
+]);
 
 async function dispatchIsolatedRunner(env: SecurityDeliveryEnv, scope: SecurityScopeRow, campaign: CampaignRow) {
   const runner = env.SECURITY_ACTIVE_RUNNER;
@@ -32,7 +39,11 @@ async function dispatchIsolatedRunner(env: SecurityDeliveryEnv, scope: SecurityS
   const body = JSON.stringify(manifest);
   const timestamp = String(Math.floor(Date.now() / 1000));
   const response = await runner.fetch(new Request("https://security-runner.internal/v1/jobs", { method: "POST", headers: { "Content-Type": "application/json", "X-CBSHub-Timestamp": timestamp, "X-CBSHub-Signature": `sha256=${await hmacHex(signingKey, `${timestamp}.${body}`)}` }, body }));
-  if (response.status !== 202) throw new Error("CAMPAIGN_RUNNER_REJECTED");
+  if (response.status !== 202) {
+    const rejection = await response.json().catch(() => null) as { code?: unknown } | null;
+    const code = typeof rejection?.code === "string" && runnerRejectionCodes.has(rejection.code) ? rejection.code : null;
+    throw new Error(code ? `CAMPAIGN_${code}` : "CAMPAIGN_RUNNER_REJECTED");
+  }
   const result = await response.json().catch(() => null) as { jobId?: unknown } | null;
   if (!result || typeof result.jobId !== "string" || !/^run_[a-z0-9-]{8,80}$/i.test(result.jobId)) throw new Error("CAMPAIGN_RUNNER_RESPONSE_INVALID");
   return { runnerJobId: result.jobId, manifest };
