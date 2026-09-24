@@ -7,6 +7,7 @@ import { routeMustNotBeIndexed } from "../domain/seo-route-policy.ts";
 import { processSecurityAgentQueueMessage, runScheduledSecurityAgent, type SecurityAgentQueueMessage } from "../app/security-agent-service";
 import { activeEdgeBlock, expireDefenseActions, runDueCloudflareDefenseSync, runDueCloudflarePostureAudit } from "../app/security-defense-service";
 import { dispatchDueGuidedSecurityCampaigns, reconcileSecurityRunnerCampaigns } from "../app/security-campaign-service";
+import { advanceDueAgenticPentests } from "../app/security-agentic-pentest";
 import { dispatchDueCampaignSpecialists, processCampaignSpecialistMessage, type CampaignSpecialistMessage } from "../app/security-campaign-specialists";
 import { maintainRepositoryJobs } from "../app/github-repository-maintenance.ts";
 import type { GitHubEnv } from "../app/github-client.ts";
@@ -334,6 +335,12 @@ const worker = {
         if (result.queued || result.failed) console.info(JSON.stringify({ event: "security_runner.guided_campaigns_dispatched", date, ...result }));
       }).catch((error) => {
         console.error(JSON.stringify({ event: "security_runner.guided_dispatch_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
+      ctx.waitUntil(advanceDueAgenticPentests(env, controller.scheduledTime).then((result) => {
+        if (result.advanced || result.failed) console.info(JSON.stringify({ event: "security_agentic.sessions_advanced", date, ...result }));
+      }).catch((error) => {
+        console.error(JSON.stringify({ event: "security_agentic.advance_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
       ctx.waitUntil(reconcileSecurityRunnerCampaigns(env).then((result) => {

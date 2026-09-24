@@ -484,6 +484,46 @@
 .security-runner-result small { display: block; color: var(--workspace-faint); font-size: 10px; line-height: 1.65; }
 .security-pentest-module .security-delivery { padding: 24px; }
 .security-pentest-module .security-guided-validation { margin: 20px 0; }
+.security-agentic-page { width: min(1470px, calc(100% - 96px)); margin: 0 auto 80px; animation: workspace-content-enter 380ms 90ms ease-out both; }
+.security-agentic-intro { display: flex; align-items: end; justify-content: space-between; gap: 24px; padding: 26px 28px; border: 1px solid var(--workspace-line); border-radius: 16px; background: linear-gradient(120deg, rgba(24, 62, 77, .4), rgba(12, 22, 34, .82)); }
+.security-agentic-intro span, .security-agentic-scope > header span { color: var(--workspace-cyan); font-size: 10px; font-weight: 750; letter-spacing: .1em; }
+.security-agentic-intro h2 { margin: 8px 0; font-size: clamp(22px, 3vw, 32px); font-weight: 600; letter-spacing: -.03em; }
+.security-agentic-intro p { max-width: 850px; margin: 0; color: var(--workspace-muted); font-size: 13px; line-height: 1.65; }
+.security-agentic-intro a { flex: 0 0 auto; color: var(--workspace-cyan); font-size: 12px; font-weight: 700; text-decoration: none; }
+.security-agentic-guardrails { display: flex; flex-wrap: wrap; gap: 8px; margin: 18px 0 27px; }
+.security-agentic-guardrails span { padding: 8px 10px; border: 1px solid rgba(89, 217, 255, .16); border-radius: 99px; color: #a7c4d0; background: rgba(89, 217, 255, .04); font-size: 10px; }
+.security-agentic-scope { margin-top: 20px; overflow: hidden; border: 1px solid var(--workspace-line); border-radius: 16px; background: var(--workspace-panel); }
+.security-agentic-scope > header { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 22px 26px; border-bottom: 1px solid var(--workspace-line); }
+.security-agentic-scope > header h2 { margin: 6px 0 0; font-size: 21px; font-weight: 600; overflow-wrap: anywhere; }
+.security-agentic-scope > header button { min-height: 43px; padding: 0 18px; flex: 0 0 auto; border: 1px solid rgba(89, 217, 255, .45); border-radius: 10px; color: #f2f8fc; background: #17516b; font-family: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.security-agentic-scope > header button:disabled { opacity: .48; cursor: not-allowed; }
+.security-agentic-runs { padding: 20px; display: grid; gap: 18px; }
+.security-agentic-run { padding: 20px; border: 1px solid var(--workspace-line); border-radius: 13px; background: rgba(5, 13, 21, .38); }
+.security-agentic-run > header { display: flex; align-items: flex-start; justify-content: space-between; gap: 15px; }
+.security-agentic-run > header span { color: var(--workspace-faint); font-size: 10px; }
+.security-agentic-run > header h3 { margin: 5px 0 0; font-size: 17px; font-weight: 650; }
+.security-agentic-run > header b { padding: 6px 9px; border: 1px solid var(--workspace-line); border-radius: 7px; color: var(--workspace-cyan); font-size: 10px; white-space: nowrap; }
+.security-agentic-stages { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin: 19px 0 0; padding: 0; list-style: none; }
+.security-agentic-progress { display: flex; flex-wrap: wrap; gap: 9px 20px; margin: 17px 0; color: var(--workspace-muted); font-size: 11px; }
+.security-agentic-evidence { margin-top: 12px; padding: 13px 17px; border: 1px solid var(--workspace-line); border-radius: 10px; }
+.security-agentic-evidence > summary { color: var(--workspace-cyan); font-size: 11px; font-weight: 650; cursor: pointer; }
+.security-agentic-cancel { margin-top: 17px; min-height: 39px; padding: 0 14px; border: 1px solid var(--workspace-line); border-radius: 9px; background: transparent; color: var(--workspace-muted); font-family: inherit; font-size: 11px; font-weight: 650; cursor: pointer; }
+.security-agentic-stages li { min-width: 0; display: flex; gap: 11px; padding: 15px; border: 1px solid var(--workspace-line); border-radius: 10px; background: rgba(255, 255, 255, .02); }
+.security-agentic-stages li[data-state="concluído"] { border-color: rgba(120, 217, 166, .28); background: rgba(120, 217, 166, .035); }
+.security-agentic-stages li[data-state="em andamento"] { border-color: rgba(89, 217, 255, .42); }
+.security-agentic-stages li[data-state="interrompido"] { border-color: rgba(239, 198, 110, .35); }
+.security-agentic-stages li[data-state="amostra parcial"] { border-color: rgba(239, 198, 110, .35); }
+.security-agentic-number { color: var(--workspace-cyan); font: 700 10px ui-monospace, monospace; }
+.security-agentic-stage-head { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px; }
+.security-agentic-stage-head strong { color: var(--workspace-text); font-size: 11px; }
+.security-agentic-stage-head small { color: var(--workspace-mint); font-size: 10px; }
+.security-agentic-stages p, .security-agentic-stages li > div > small { display: block; margin: 7px 0 0; color: var(--workspace-muted); font-size: 10px; line-height: 1.55; overflow-wrap: anywhere; }
+.security-agentic-stages .security-agentic-handoff { color: #b5d77b; }
+.security-agentic-notice, .security-agentic-empty, .security-agentic-disclaimer { margin: 0; padding: 17px 26px; color: var(--workspace-muted); font-size: 12px; line-height: 1.6; }
+.security-agentic-empty b { color: var(--workspace-text); }
+.security-agentic-empty p { margin-bottom: 0; }
+.security-agentic-run > .security-agentic-notice { padding: 12px 0 0; color: #efc66e; }
+.security-agentic-disclaimer { padding: 20px 0; }
 .security-operations-pentest-link { margin: 18px 0; padding: 17px 20px; display: flex; align-items: center; justify-content: space-between; gap: 18px; border: 1px solid var(--workspace-line); border-radius: 12px; background: rgba(89, 217, 255, .03); }
 .security-operations-pentest-link p { margin: 0; color: var(--workspace-muted); font-size: 12px; }
 .security-operations-pentest-link a { color: var(--workspace-cyan); font-size: 12px; font-weight: 700; white-space: nowrap; }
@@ -524,6 +564,7 @@
 @keyframes workspace-content-enter { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (max-width: 1080px) {
+  .security-agentic-stages { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .security-workspace-shell { grid-template-columns: 232px minmax(0, 1fr); }
   .security-overview-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .security-overview-grid { grid-template-columns: 1fr; }
@@ -549,7 +590,8 @@
   .security-workspace-sidebar .security-agent-brand,
   .security-workspace-product,
   .security-workspace-sidebar-foot { display: none; }
-  .security-workspace-sidebar nav { height: 100%; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 3px; }
+  .security-workspace-sidebar nav { height: 100%; display: flex; overflow-x: auto; gap: 3px; scrollbar-width: none; }
+  .security-workspace-sidebar nav a { flex: 1 0 86px; }
   .security-workspace-sidebar nav a { min-height: 0; padding: 4px; display: flex; flex-direction: column; justify-content: center; gap: 2px; box-shadow: none; }
   .security-workspace-sidebar nav a > span { width: 24px; height: 24px; }
   .security-workspace-sidebar nav a b { font-size: 9px; white-space: nowrap; }
@@ -563,6 +605,7 @@
   .security-workspace-main .security-agent-assets,
   .security-workspace-main .security-overview,
   .security-workspace-main .security-repositories-page,
+  .security-workspace-main .security-agentic-page,
   .security-workspace-main > .security-agent-page > .security-agent-alert { width: calc(100% - 30px); }
   .security-workspace-main .security-agent-hero { padding: 38px 0 26px; }
   .security-workspace-main .security-agent-hero h1 { font-size: clamp(32px, 10vw, 44px); }
@@ -571,6 +614,7 @@
   .security-automatic-evaluation { align-items: stretch; flex-direction: column; }
   .security-automatic-actions { width: 100%; }
   .security-guided-validation { align-items: stretch; flex-direction: column; }
+  .security-agentic-intro, .security-agentic-scope > header { align-items: flex-start; flex-direction: column; }
   .security-advanced-tools > summary { align-items: flex-start; flex-direction: column; }
   .security-operations-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .security-delivery-title { align-items: flex-start; flex-direction: column; }
@@ -578,6 +622,11 @@
 }
 
 @media (max-width: 560px) {
+  .security-agentic-stages { grid-template-columns: 1fr; }
+  .security-agentic-intro, .security-agentic-run { padding: 18px; }
+  .security-agentic-scope > header { padding: 18px; }
+  .security-agentic-scope > header button { width: 100%; }
+  .security-agentic-runs { padding: 12px; }
   .security-workspace-sidebar nav a b { display: none; }
   .security-workspace-sidebar nav a > span { width: 32px; height: 32px; }
   .security-overview-stats { grid-template-columns: 1fr 1fr; gap: 9px; }

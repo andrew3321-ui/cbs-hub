@@ -74,7 +74,7 @@ const stopLabels: Record<string, string> = {
   infrastructure_subrequest_budget: "Limite seguro de chamadas externas do runner atingido; evidências anteriores preservadas",
 };
 
-function RunnerResultCard({ result, maxTotalRequests }: { result: RunnerResult; maxTotalRequests: number }) {
+export function RunnerResultCard({ result, maxTotalRequests }: { result: RunnerResult; maxTotalRequests: number }) {
   const probe = result.webProbe;
   const noHttpResponse = (result.requests?.errors ?? 0) > 0 && (result.requests?.successful ?? 0) === 0;
   const cookieAttributes = probe ? [probe.cookies.secureObserved ? "Secure" : null, probe.cookies.httpOnlyObserved ? "HttpOnly" : null, probe.cookies.sameSiteObserved ? "SameSite" : null].filter(Boolean) : [];
@@ -104,7 +104,7 @@ function RunnerResultCard({ result, maxTotalRequests }: { result: RunnerResult; 
   </div>;
 }
 
-function CampaignTimeline({ events, campaign }: { events: SecurityCampaignEvent[]; campaign: SecurityCampaign }) {
+export function CampaignTimeline({ events, campaign }: { events: SecurityCampaignEvent[]; campaign: SecurityCampaign }) {
   const viewport = useRef<HTMLDivElement>(null);
   const followLatest = useRef(true);
   const latestId = events.at(-1)?.id;
@@ -126,7 +126,7 @@ function CampaignTimeline({ events, campaign }: { events: SecurityCampaignEvent[
   })}</div><footer>{events.length > 60 ? "Exibindo os 60 eventos mais recentes. " : ""}As linhas HTTP representam requisições reais e limitadas; os agentes recebem evidências e fragmentos. Não há shell remoto nem comandos livres executados pela IA.</footer></section>;
 }
 
-function SpecialistResultCard({ campaign }: { campaign: SecurityCampaign }) {
+export function SpecialistResultCard({ campaign }: { campaign: SecurityCampaign }) {
   const partialEvidence = campaign.status === "review" && ["request_budget_reached", "infrastructure_subrequest_budget"].includes(campaign.runnerResult?.stopReason ?? "") && (campaign.runnerResult?.requests?.successful ?? 0) >= 2;
   if (!campaign.specialistStatus || campaign.specialistStatus === "not_requested" || (campaign.specialistStatus === "pending" && campaign.status !== "completed" && !partialEvidence)) return null;
   const results = campaign.specialistResult ?? {};

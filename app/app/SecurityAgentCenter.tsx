@@ -8,10 +8,11 @@ import SecurityRepositoriesPanel from "./SecurityRepositoriesPanel";
 import type { OperationalPlaybook } from "../../domain/security-operations";
 import SecurityFindingsBoard, { type SecurityFinding, type SecurityMember } from "./SecurityFindingsBoard";
 import SecurityDeliveryPanel, { type SecurityCampaign, type SecurityCampaignEvent, type SecurityRemediation } from "./SecurityDeliveryPanel";
+import SecurityAgenticPentestPanel, { type AgenticSession, type AgenticStep, type AgenticEvent } from "./SecurityAgenticPentestPanel";
 import type { SecurityTechniqueId } from "../../domain/security-campaign-policy";
 import SecurityDefensePanel, { type DefenseAction, type DefenseConnector, type DefenseIncident, type DefensePosture, type DefenseProposal } from "./SecurityDefensePanel";
 
-export type WorkspaceView = "overview" | "authorize" | "assets" | "operations" | "pentest" | "repositories";
+export type WorkspaceView = "overview" | "authorize" | "assets" | "operations" | "pentest" | "agentic" | "repositories";
 
 type Verification = { type: string; name: string; value: string };
 type Scope = { id: string; domain: string; status: "pending" | "verified"; verifiedAt: string | null; authorizationExpiresAt: string | null; authorizationCurrent: boolean; monitoringEnabled: boolean; nextScanAt: string | null; lastScanAt: string | null; verification: Verification | null };
@@ -19,7 +20,7 @@ type Check = { code: string; title: string; status: string; detail: string; acti
 type Assessment = { executiveSummary: string; riskLevel: string; confidence?: string; priorities: Array<{ title: string; severity: string; why: string; recommendation: string; evidenceCodes: string[] }>; positiveSignals: string[]; uncertainties?: string[]; limitations: string[] };
 type Job = { id: string; scopeId: string; trigger: string; mode: string; playbooks: OperationalPlaybook[]; status: string; scan: { posture?: { score?: number }; checks?: Check[]; fingerprint?: string } | null; assessment: Assessment | null; provider: string | null; model: string | null; primaryModel: string | null; reviewModel: string | null; reviewReason: string | null; providerUsage: unknown; errorCode: string | null; findingSyncStatus: string; findingSyncError: string | null; startedAt: string; completedAt: string | null };
 type Technique = { label: string; execution: string; risk: string; requiresRepository: boolean; requiresTestCredentials: boolean };
-type AgentData = { canManage: boolean; aiConfigured: boolean; modelRouting: { primary: string; review: string }; scopes: Scope[]; jobs: Job[]; findings: SecurityFinding[]; members: SecurityMember[]; campaigns: SecurityCampaign[]; campaignEvents: SecurityCampaignEvent[]; remediations: SecurityRemediation[]; defenseConnectors: DefenseConnector[]; defenseIncidents: DefenseIncident[]; defenseActions: DefenseAction[]; defensePostures: DefensePosture[]; defenseProposals: DefenseProposal[]; techniqueCatalog: Record<SecurityTechniqueId, Technique>; integrations: { isolatedRunner: boolean; repositoryConnector: boolean; cloudflareCredentialVault: boolean } };
+type AgentData = { canManage: boolean; aiConfigured: boolean; modelRouting: { primary: string; review: string }; scopes: Scope[]; jobs: Job[]; findings: SecurityFinding[]; members: SecurityMember[]; campaigns: SecurityCampaign[]; campaignEvents: SecurityCampaignEvent[]; agenticSessions: AgenticSession[]; agenticSteps: AgenticStep[]; agenticEvents: AgenticEvent[]; remediations: SecurityRemediation[]; defenseConnectors: DefenseConnector[]; defenseIncidents: DefenseIncident[]; defenseActions: DefenseAction[]; defensePostures: DefensePosture[]; defenseProposals: DefenseProposal[]; techniqueCatalog: Record<SecurityTechniqueId, Technique>; integrations: { isolatedRunner: boolean; repositoryConnector: boolean; cloudflareCredentialVault: boolean } };
 
 const severityLabel: Record<string, string> = { critical: "Crítico", high: "Alto", medium: "Médio", low: "Baixo" };
 const navigation: Array<{ view: WorkspaceView; href: string; label: string; icon: string }> = [
@@ -28,6 +29,7 @@ const navigation: Array<{ view: WorkspaceView; href: string; label: string; icon
   { view: "assets", href: "/app/ativos", label: "Ativos monitorados", icon: "radar" },
   { view: "operations", href: "/app/operacoes", label: "Operações", icon: "controls" },
   { view: "pentest", href: "/app/pentest", label: "Testes e pentest", icon: "shield" },
+  { view: "agentic", href: "/app/pentest-agentivo", label: "Pentest agentivo", icon: "controls" },
   { view: "repositories", href: "/app/projetos", label: "Projetos", icon: "code" },
 ];
 const pageCopy: Record<WorkspaceView, { eyebrow: string; title: string; description: string }> = {
@@ -36,6 +38,7 @@ const pageCopy: Record<WorkspaceView, { eyebrow: string; title: string; descript
   assets: { eyebrow: "Superfície externa", title: "Monitore o que está exposto.", description: "Execute diagnósticos, acompanhe a postura de cada domínio e mantenha a análise recorrente sob seu controle." },
   operations: { eyebrow: "Centro de operações", title: "Avalie seu ativo sem configurar cada teste.", description: "Depois de confirmar a titularidade, inicie um diagnóstico automático e trate os achados aqui. Validações controladas e seus logs ficam na aba Testes e pentest." },
   pentest: { eyebrow: "Validação autorizada", title: "Testes, etapas e evidências em um só lugar.", description: "Acompanhe as requisições limitadas do runner e a revisão dos agentes especializados. Os logs mostram ações reais, sem simular comandos de terminal ou exploração não executada." },
+  agentic: { eyebrow: "Fluxo especializado", title: "Uma investigação, vários especialistas.", description: "Acompanhe o repasse de evidências entre o executor isolado e os agentes de superfície, controles e priorização. Cada etapa aparece somente quando foi executada." },
   repositories: { eyebrow: "Segurança de aplicações", title: "Do código à correção revisável.", description: "Conecte projetos autorizados, encontre riscos e prepare mudanças rastreáveis sem escrever diretamente na branch principal." },
 };
 
@@ -73,16 +76,17 @@ export default function SecurityAgentCenter({ view = "overview" }: { view?: Work
 
   useEffect(() => {
     const activeJob = data?.jobs.some((job) => job.status === "queued" || job.status === "running");
+    const activeAgenticSession = view === "agentic" && data?.agenticSessions.some((session) => ["scheduled", "running"].includes(session.status));
     const activeCampaign = data?.campaigns.some((campaign) => {
       const reviewEligible = campaign.status === "review" && ["request_budget_reached", "infrastructure_subrequest_budget"].includes(campaign.runnerResult?.stopReason ?? "")
         && (campaign.runnerResult?.requests?.successful ?? 0) >= 2;
       return ["approved", "queued", "running"].includes(campaign.status)
         || (data.aiConfigured && (campaign.status === "completed" || reviewEligible) && ["pending", "queued", "running"].includes(campaign.specialistStatus ?? ""));
     });
-    if (!activeJob && !activeCampaign) return;
+    if (!activeJob && !activeCampaign && !activeAgenticSession) return;
     const executingCampaign = data?.campaigns.some((campaign) => ["queued", "running"].includes(campaign.status)
       || ["queued", "running"].includes(campaign.specialistStatus ?? ""));
-    const timer = window.setInterval(() => { void fetchAgentData().then(setData).catch(() => undefined); }, activeJob || (view === "pentest" && executingCampaign) ? 2500 : 15000);
+    const timer = window.setInterval(() => { void fetchAgentData().then(setData).catch(() => undefined); }, activeJob || activeAgenticSession || ((view === "pentest" || view === "agentic") && executingCampaign) ? 2500 : 15000);
     return () => window.clearInterval(timer);
   }, [data, view]);
 
@@ -106,7 +110,9 @@ export default function SecurityAgentCenter({ view = "overview" }: { view?: Work
       if (action === "renew_authorization") setMessage("Autorização renovada por 90 dias.");
       if (action === "update_finding") setMessage("Achado atualizado e decisão registrada.");
       if (action === "create_campaign") setMessage("Rascunho criado. Revise os limites antes de aprovar.");
-      if (action === "start_guided_campaign") setMessage("Validação web agendada. Acompanhe a execução na aba Testes e pentest.");
+      if (action === "start_guided_campaign") setMessage("Validação web agendada. Acompanhe a coleta e os repasses entre especialistas nesta tela.");
+      if (action === "start_agentic_pentest") setMessage("Sessão agentiva agendada. Os próximos testes só serão escolhidos e executados dentro do escopo e orçamento aprovados.");
+      if (action === "cancel_agentic_pentest") setMessage("Sessão cancelada. Nenhuma nova etapa será iniciada; uma sonda já em execução pode terminar dentro do limite aprovado.");
       if (action === "approve_campaign") setMessage("Campanha aprovada, sem iniciar execução externa.");
       if (action === "dispatch_campaign") setMessage("Diagnóstico iniciado dentro da janela aprovada.");
       if (action === "cancel_campaign") setMessage("Campanha cancelada.");
@@ -202,7 +208,9 @@ export default function SecurityAgentCenter({ view = "overview" }: { view?: Work
 
         {view === "operations" ? <section className="security-agent-assets security-agent-module security-operations-module"><div className="security-agent-section-title"><span>Controles do workspace</span><h2>Operações por ativo</h2></div><aside className="security-guardrail-summary"><div><WorkspaceIcon name="shield" /><span><b>Execução sob controle</b><small>Escopo confirmado, limites rígidos e aprovação humana.</small></span></div><ul><li>Sem força bruta, evasão ou exploração destrutiva</li><li>Telemetria e evidências minimizadas</li><li>Alterações externas sempre revisáveis</li></ul></aside>{!data ? <div className="security-agent-empty">Carregando as operações…</div> : null}{data && !data.scopes.length ? <div className="security-agent-empty"><b>Nenhum ativo disponível</b><p>Autorize um domínio para habilitar os controles operacionais.</p><Link href="/app/autorizar">Autorizar ativo →</Link></div> : null}{data?.scopes.map((scope) => renderScope(scope, true))}</section> : null}
 
-        {view === "pentest" ? <section className="security-agent-assets security-agent-module security-pentest-module"><div className="security-agent-section-title"><span>Execução observável</span><h2>Campanhas por ativo</h2></div>{!data ? <div className="security-agent-empty">Carregando campanhas e logs…</div> : null}{data && !data.scopes.length ? <div className="security-agent-empty"><b>Nenhum ativo autorizado</b><p>Confirme a titularidade antes de iniciar testes.</p><Link href="/app/autorizar">Autorizar ativo →</Link></div> : null}{data?.scopes.map((scope) => <article className="security-agent-control-scope" key={scope.id}><header className="security-agent-control-head"><div><span className={`security-agent-status ${scope.status}`}>{scope.status === "verified" ? "Verificado" : "Aguardando DNS"}</span><h2>{scope.domain}</h2><p>As ações do runner e as revisões dos agentes aparecem abaixo conforme são registradas.</p></div><Link href="/app/operacoes">Abrir operações →</Link></header><SecurityDeliveryPanel scopeId={scope.id} scopeDomain={scope.domain} disabled={!data.canManage || Boolean(busy) || scope.status !== "verified" || !scope.authorizationCurrent} campaigns={data.campaigns} campaignEvents={data.campaignEvents} techniqueCatalog={data.techniqueCatalog} integrations={data.integrations} onAction={act} /></article>)}</section> : null}
+        {view === "pentest" ? <section className="security-agent-assets security-agent-module security-pentest-module"><div className="security-agent-section-title"><span>Execução observável</span><h2>Campanhas por ativo</h2></div>{!data ? <div className="security-agent-empty">Carregando campanhas e logs…</div> : null}{data && !data.scopes.length ? <div className="security-agent-empty"><b>Nenhum ativo autorizado</b><p>Confirme a titularidade antes de iniciar testes.</p><Link href="/app/autorizar">Autorizar ativo →</Link></div> : null}{data?.scopes.map((scope) => <article className="security-agent-control-scope" key={scope.id}><header className="security-agent-control-head"><div><span className={`security-agent-status ${scope.status}`}>{scope.status === "verified" ? "Verificado" : "Aguardando DNS"}</span><h2>{scope.domain}</h2><p>As ações do runner e as revisões dos agentes aparecem abaixo conforme são registradas.</p></div><Link href="/app/operacoes">Abrir operações →</Link></header><SecurityDeliveryPanel scopeId={scope.id} scopeDomain={scope.domain} disabled={!data.canManage || Boolean(busy) || scope.status !== "verified" || !scope.authorizationCurrent} campaigns={data.campaigns.filter((campaign) => !data.agenticSteps.some((step) => step.campaignId === campaign.id))} campaignEvents={data.campaignEvents} techniqueCatalog={data.techniqueCatalog} integrations={data.integrations} onAction={act} /></article>)}</section> : null}
+
+        {view === "agentic" ? data ? <SecurityAgenticPentestPanel scopes={data.scopes} sessions={data.agenticSessions} steps={data.agenticSteps} events={data.agenticEvents} campaigns={data.campaigns} campaignEvents={data.campaignEvents} canManage={data.canManage} busy={Boolean(busy)} runnerConnected={data.integrations.isolatedRunner} aiConfigured={data.aiConfigured} onAction={act} /> : <section className="security-agentic-page"><div className="security-agent-empty">Carregando fluxo agentivo…</div></section> : null}
 
         {view === "repositories" ? <section className="security-repositories-page"><SecurityRepositoriesPanel /></section> : null}
       </div>

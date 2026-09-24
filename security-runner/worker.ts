@@ -26,6 +26,7 @@ type RunnerJobRow = {
   scope_status: string | null;
   authorization_expires_at: string | null;
   verification_token: string | null;
+  agentic_session_status: string | null;
 };
 
 const json = (body: unknown, status = 200) => Response.json(body, { status, headers: { "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff" } });
@@ -92,10 +93,13 @@ async function claimJob(env: RunnerEnv, jobId: string) {
     .bind(lease, now, now, jobId).run();
   const row = await env.DB.prepare(`SELECT j.id, j.campaign_id, j.manifest_json, j.status, j.attempt_count, j.lease_expires_at,
       c.scope_id, c.status campaign_status, c.workspace_id campaign_workspace_id,
-      s.workspace_id scope_workspace_id, s.domain authorized_domain, s.status scope_status, s.authorization_expires_at, s.verification_token
+      s.workspace_id scope_workspace_id, s.domain authorized_domain, s.status scope_status, s.authorization_expires_at, s.verification_token,
+      agentic.status agentic_session_status
     FROM security_runner_jobs j
     LEFT JOIN security_campaigns c ON c.id = j.campaign_id
     LEFT JOIN security_agent_scopes s ON s.id = c.scope_id
+    LEFT JOIN security_agentic_steps step ON step.campaign_id = c.id
+    LEFT JOIN security_agentic_sessions agentic ON agentic.id = step.session_id
     WHERE j.id = ?`).bind(jobId).first<RunnerJobRow>();
   return { row, claimed: Number(claimed.meta.changes ?? 0) === 1 };
 }
@@ -119,6 +123,7 @@ async function processJob(env: RunnerEnv, rawJobId: unknown, execute: typeof exe
     const authorizationExpiresAt = Date.parse(row.authorization_expires_at ?? "");
     if (!row.scope_id || row.scope_status !== "verified" || !["approved", "queued", "running"].includes(row.campaign_status ?? "")
       || row.campaign_workspace_id !== manifest.workspaceId || row.scope_workspace_id !== manifest.workspaceId
+      || (row.agentic_session_status !== null && row.agentic_session_status !== "running")
       || row.authorized_domain !== manifest.scope.domain || !Number.isFinite(authorizationExpiresAt) || authorizationExpiresAt <= Date.now()) {
       throw new Error("RUNNER_SCOPE_AUTHORIZATION_INVALID");
     }

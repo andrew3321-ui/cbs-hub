@@ -206,6 +206,8 @@ export async function cancelSecurityCampaign(env: SecurityDeliveryEnv, args: { w
   if (typeof args.campaignId !== "string" || !/^sac_[0-9a-f-]{36}$/i.test(args.campaignId)) throw new Error("CAMPAIGN_INVALID");
   const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, techniques_json FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scopeId).first<CampaignRow>();
   if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
+  const agenticChild = await env.DB.prepare("SELECT id FROM security_agentic_steps WHERE campaign_id = ? AND workspace_id = ?").bind(campaign.id, args.workspaceId).first<{ id: string }>();
+  if (agenticChild) throw new Error("CAMPAIGN_AGENTIC_MANAGED");
   if (!["draft", "approved"].includes(campaign.status)) throw new Error("CAMPAIGN_STATE_INVALID");
   const now = new Date().toISOString();
   await env.DB.batch([
@@ -215,12 +217,14 @@ export async function cancelSecurityCampaign(env: SecurityDeliveryEnv, args: { w
   return { id: campaign.id, status: "cancelled" as const };
 }
 
-export async function dispatchSecurityCampaign(env: SecurityDeliveryEnv & SecurityAgentEnv, args: { workspaceId: number; scope: SecurityScopeRow; campaignId: unknown; actorUserId: number; executionConfirmed: unknown; claimedGuided?: true }) {
+export async function dispatchSecurityCampaign(env: SecurityDeliveryEnv & SecurityAgentEnv, args: { workspaceId: number; scope: SecurityScopeRow; campaignId: unknown; actorUserId: number; executionConfirmed: unknown; claimedGuided?: true; agenticInternal?: true }) {
   if (args.executionConfirmed !== true) throw new Error("CAMPAIGN_EXECUTION_CONFIRMATION_REQUIRED");
   if (!authorizationCurrent(args.scope)) throw new Error("CAMPAIGN_SCOPE_NOT_AUTHORIZED");
   if (typeof args.campaignId !== "string" || !/^sac_[0-9a-f-]{36}$/i.test(args.campaignId)) throw new Error("CAMPAIGN_INVALID");
   const campaign = await env.DB.prepare("SELECT id, workspace_id, scope_id, status, guided, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json FROM security_campaigns WHERE id = ? AND workspace_id = ? AND scope_id = ?").bind(args.campaignId, args.workspaceId, args.scope.id).first<CampaignRow & { guided: number }>();
   if (!campaign) throw new Error("CAMPAIGN_NOT_FOUND");
+  const agenticChild = await env.DB.prepare("SELECT s.session_id, a.status FROM security_agentic_steps s JOIN security_agentic_sessions a ON a.id = s.session_id WHERE s.campaign_id = ? AND s.workspace_id = ?").bind(campaign.id, args.workspaceId).first<{ session_id: string; status: string }>();
+  if (agenticChild && (!args.agenticInternal || agenticChild.status !== "running")) throw new Error("CAMPAIGN_AGENTIC_MANAGED");
   if (args.claimedGuided ? campaign.status !== "queued" || campaign.guided !== 1 : campaign.status !== "approved" || campaign.guided === 1) throw new Error("CAMPAIGN_STATE_INVALID");
   const nowMs = Date.now();
   if (!campaign.window_start || !campaign.window_end || nowMs < Date.parse(campaign.window_start)) throw new Error("CAMPAIGN_WINDOW_NOT_STARTED");

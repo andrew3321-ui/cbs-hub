@@ -306,7 +306,7 @@ test("safe runner crawls only related HTTPS pages and persists aggregate evidenc
 test("runner service queues an idempotent job only after signature and policy validation", async () => {
   const sqlite = new DatabaseSync(":memory:");
   try {
-    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0062_isolated_security_runner.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
+    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0062_isolated_security_runner.sql", "0067_agentic_pentest_sessions.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
     const DB = {
       prepare(sql) {
         const statement = sqlite.prepare(sql);

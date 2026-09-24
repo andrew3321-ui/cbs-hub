@@ -14,6 +14,8 @@ const campaignService = fs.readFileSync(new URL("../app/security-campaign-servic
 const campaignPolicy = fs.readFileSync(new URL("../domain/security-campaign-policy.ts", import.meta.url), "utf8");
 const client = fs.readFileSync(new URL("../app/app/SecurityAgentCenter.tsx", import.meta.url), "utf8");
 const deliveryPanel = fs.readFileSync(new URL("../app/app/SecurityDeliveryPanel.tsx", import.meta.url), "utf8");
+const agenticPanel = fs.readFileSync(new URL("../app/app/SecurityAgenticPentestPanel.tsx", import.meta.url), "utf8");
+const agenticPage = fs.readFileSync(new URL("../app/app/pentest-agentivo/page.tsx", import.meta.url), "utf8");
 const projectRemediationPanel = fs.readFileSync(new URL("../app/app/SecurityProjectRemediationPanel.tsx", import.meta.url), "utf8");
 const repositoriesPanel = fs.readFileSync(new URL("../app/app/SecurityRepositoriesPanel.tsx", import.meta.url), "utf8");
 const operationsPanel = fs.readFileSync(new URL("../app/app/SecurityOperationsPanel.tsx", import.meta.url), "utf8");
@@ -102,7 +104,13 @@ test("pentest console distinguishes executed HTTP probes from specialist handoff
   assert.match(deliveryPanel, /campaign\.specialist_completed/);
   assert.match(deliveryPanel, /fragment\.nextFocus/);
   assert.match(deliveryPanel, /Não há shell remoto nem comandos livres executados pela IA/);
-  assert.match(client, /activeJob \|\| \(view === "pentest" && executingCampaign\) \? 2500 : 15000/);
+  assert.match(client, /view === "pentest" \|\| view === "agentic"/);
+  assert.match(agenticPage, /renderSecurityWorkspace\("agentic", "\/app\/pentest-agentivo"\)/);
+  assert.match(agenticPanel, /step\.verdict\?\.summary/);
+  assert.match(agenticPanel, /<CampaignTimeline campaign=\{campaign\}/);
+  assert.match(agenticPanel, /scope\.status === "verified" && scope\.authorizationCurrent/);
+  assert.match(agenticPanel, /start_agentic_pentest/);
+  assert.match(agenticPanel, /Máximo de 3 etapas \/ 14 requisições/);
 });
 
 test("execution is queued, idempotently claimed and retried outside the request", () => {

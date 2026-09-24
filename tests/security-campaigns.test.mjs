@@ -46,7 +46,7 @@ test("campaign and remediation lifecycle remains audited without dispatch or ext
   const sqlite = new DatabaseSync(":memory:");
   const originalFetch = globalThis.fetch;
   try {
-    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0063_github_repository_security.sql", "0065_guided_security_campaigns.sql", "0066_campaign_specialist_pipeline.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
+    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0063_github_repository_security.sql", "0065_guided_security_campaigns.sql", "0066_campaign_specialist_pipeline.sql", "0067_agentic_pentest_sessions.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
     const DB = {
       prepare(sql) {
         const statement = sqlite.prepare(sql);
@@ -95,7 +95,7 @@ test("campaign and remediation lifecycle remains audited without dispatch or ext
 test("isolated runner receives a signed bounded manifest without arbitrary commands", async () => {
   const sqlite = new DatabaseSync(":memory:");
   try {
-    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0062_isolated_security_runner.sql", "0065_guided_security_campaigns.sql", "0066_campaign_specialist_pipeline.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
+    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0062_isolated_security_runner.sql", "0065_guided_security_campaigns.sql", "0066_campaign_specialist_pipeline.sql", "0067_agentic_pentest_sessions.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
     const DB = {
       prepare(sql) {
         const statement = sqlite.prepare(sql);
@@ -138,7 +138,7 @@ test("isolated runner receives a signed bounded manifest without arbitrary comma
 test("guided web validation requires consent, schedules once, and rechecks authorization before runner dispatch", async () => {
   const sqlite = new DatabaseSync(":memory:");
   try {
-    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0062_isolated_security_runner.sql", "0065_guided_security_campaigns.sql", "0066_campaign_specialist_pipeline.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
+    for (const migration of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0053_security_agent_model_routing.sql", "0054_security_findings_workflow.sql", "0055_security_campaigns_and_remediation.sql", "0056_continuous_defense.sql", "0062_isolated_security_runner.sql", "0065_guided_security_campaigns.sql", "0066_campaign_specialist_pipeline.sql", "0067_agentic_pentest_sessions.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${migration}`, import.meta.url), "utf8"));
     const DB = {
       prepare(sql) {
         const statement = sqlite.prepare(sql);

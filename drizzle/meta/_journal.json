@@ -470,6 +470,13 @@
       "when": 1789873200000,
       "tag": "0066_campaign_specialist_pipeline",
       "breakpoints": true
+    },
+    {
+      "idx": 67,
+      "version": "6",
+      "when": 1790290800000,
+      "tag": "0067_agentic_pentest_sessions",
+      "breakpoints": true
     }
   ]
 }
