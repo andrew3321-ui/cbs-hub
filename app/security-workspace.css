@@ -451,19 +451,30 @@
 .security-campaign-list > article > p { margin: 12px 0; font-size: 11px; line-height: 1.6; overflow-wrap: anywhere; }
 .security-campaign-list > article > footer { margin-top: 17px; display: flex; flex-wrap: wrap; gap: 9px; }
 .security-campaign-list footer a { align-self: center; color: var(--workspace-cyan); font-size: 12px; }
-.security-campaign-timeline { margin-top: 16px; border-top: 1px solid var(--workspace-line); color: var(--workspace-muted); }
-.security-campaign-timeline summary { padding: 15px 0 8px; cursor: pointer; color: var(--workspace-text); font-size: 11px; font-weight: 650; }
-.security-campaign-timeline > p { margin: 0 0 10px; color: var(--workspace-faint); font-size: 10px; line-height: 1.5; }
-.security-campaign-timeline ol { margin: 0; padding: 4px 0 0 17px; display: grid; gap: 9px; }
-.security-campaign-timeline li { padding-left: 3px; font-size: 11px; line-height: 1.5; }
-.security-campaign-timeline time { margin-right: 11px; color: var(--workspace-cyan); font-variant-numeric: tabular-nums; }
-.security-campaign-timeline small { display: block; margin-top: 10px; color: var(--workspace-faint); font-size: 10px; }
+.security-campaign-console { margin-top: 17px; overflow: hidden; border: 1px solid rgba(89, 217, 255, .2); border-radius: 11px; background: #050d14; }
+.security-campaign-console > header { display: flex; align-items: center; gap: 11px; padding: 11px 14px; border-bottom: 1px solid rgba(89, 217, 255, .14); background: #0a1822; }
+.security-campaign-console > header b { font-size: 11px; font-weight: 650; }
+.security-campaign-console > header > span { margin-left: auto; color: var(--workspace-cyan); font: 600 9px ui-monospace, monospace; letter-spacing: .1em; }
+.security-console-lights { display: flex; gap: 5px; }
+.security-console-lights i { width: 7px; height: 7px; border-radius: 50%; background: #ff7e74; }
+.security-console-lights i:nth-child(2) { background: #e9c46a; }
+.security-console-lights i:nth-child(3) { background: #78d9a6; }
+.security-console-lines { min-height: 80px; max-height: 380px; overflow: auto; padding: 14px; display: grid; align-content: start; gap: 9px; scrollbar-color: #294b59 transparent; }
+.security-console-line { display: grid; grid-template-columns: 65px 56px minmax(0, 1fr); gap: 9px; color: #a9c1c9; font: 11px/1.55 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.security-console-line time { color: #6f9ba9; font-variant-numeric: tabular-nums; }
+.security-console-source { color: #6bcfe8; font-size: 9px; font-weight: 700; letter-spacing: .04em; }
+.security-console-line[data-kind="agent"] .security-console-source { color: #b5d77b; }
+.security-console-line[data-kind="error"] .security-console-source { color: #ff9c9c; }
+.security-console-message { min-width: 0; overflow-wrap: anywhere; }
+.security-console-message em { color: #d3e7e5; font-style: normal; }
+.security-campaign-console > footer { padding: 10px 14px; border-top: 1px solid rgba(89, 217, 255, .1); color: var(--workspace-faint); font-size: 10px; line-height: 1.5; }
 .security-specialist-result { margin-top: 18px; padding: 18px; border: 1px solid rgba(89, 217, 255, .18); border-radius: 11px; background: #0a1521; }
 .security-specialist-result > b { display: block; margin-bottom: 6px; font-size: 12px; }
 .security-specialist-result small { color: var(--workspace-faint); font-size: 10px; line-height: 1.6; }
 .security-specialist-result article { margin-top: 13px; padding-top: 13px; border-top: 1px solid var(--workspace-line); }
 .security-specialist-result article strong { color: var(--workspace-cyan); font-size: 11px; }
 .security-specialist-result article p, .security-specialist-result > p { margin: 6px 0; color: var(--workspace-text); font-size: 11px; line-height: 1.6; }
+.security-specialist-result article .security-agent-handoff { margin-top: 9px; color: #b5d77b; }
 .security-runner-result { margin-top: 18px; padding: 18px; border: 1px solid rgba(89, 217, 255, .18); border-radius: 11px; background: #09121d; }
 .security-runner-result > b { font-size: 12px; }
 .security-runner-result dl { margin: 17px 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 13px; }
@@ -591,6 +602,8 @@
   .security-operations-pentest-link { align-items: flex-start; flex-direction: column; }
   .security-delivery form { margin: 17px; }
   .security-campaign-list > article { padding: 16px; }
+  .security-console-line { grid-template-columns: 55px minmax(0, 1fr); gap: 4px 8px; }
+  .security-console-message { grid-column: 2; }
   .security-runner-result { padding: 14px; }
   .security-web-probe-result > header { align-items: flex-start; flex-direction: column; }
 }

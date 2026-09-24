@@ -96,6 +96,15 @@ test("operations lead with an authorized automatic scan and keep conservative co
   assert.match(deliveryPanel, /defaultValue=\{String\(SECURITY_ACTIVE_RUNNER_BASELINE_REQUESTS\)\}/);
 });
 
+test("pentest console distinguishes executed HTTP probes from specialist handoffs", () => {
+  assert.match(deliveryPanel, /role="log"/);
+  assert.match(deliveryPanel, /event\.details\?\.action \? `\$ /);
+  assert.match(deliveryPanel, /campaign\.specialist_completed/);
+  assert.match(deliveryPanel, /fragment\.nextFocus/);
+  assert.match(deliveryPanel, /Não há shell remoto nem comandos livres executados pela IA/);
+  assert.match(client, /activeJob \|\| \(view === "pentest" && executingCampaign\) \? 2500 : 15000/);
+});
+
 test("execution is queued, idempotently claimed and retried outside the request", () => {
   assert.match(route, /enqueueSecurityAgentJob/);
   assert.match(route, /status: job\.status === "queued" \? 202 : 200/);

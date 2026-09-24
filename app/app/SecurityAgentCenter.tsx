@@ -73,12 +73,18 @@ export default function SecurityAgentCenter({ view = "overview" }: { view?: Work
 
   useEffect(() => {
     const activeJob = data?.jobs.some((job) => job.status === "queued" || job.status === "running");
-    const activeCampaign = data?.campaigns.some((campaign) => ["approved", "queued", "running"].includes(campaign.status)
-      || (data.aiConfigured && campaign.status === "completed" && ["pending", "queued", "running"].includes(campaign.specialistStatus ?? "")));
+    const activeCampaign = data?.campaigns.some((campaign) => {
+      const reviewEligible = campaign.status === "review" && ["request_budget_reached", "infrastructure_subrequest_budget"].includes(campaign.runnerResult?.stopReason ?? "")
+        && (campaign.runnerResult?.requests?.successful ?? 0) >= 2;
+      return ["approved", "queued", "running"].includes(campaign.status)
+        || (data.aiConfigured && (campaign.status === "completed" || reviewEligible) && ["pending", "queued", "running"].includes(campaign.specialistStatus ?? ""));
+    });
     if (!activeJob && !activeCampaign) return;
-    const timer = window.setInterval(() => { void fetchAgentData().then(setData).catch(() => undefined); }, activeJob ? 2500 : 15000);
+    const executingCampaign = data?.campaigns.some((campaign) => ["queued", "running"].includes(campaign.status)
+      || ["queued", "running"].includes(campaign.specialistStatus ?? ""));
+    const timer = window.setInterval(() => { void fetchAgentData().then(setData).catch(() => undefined); }, activeJob || (view === "pentest" && executingCampaign) ? 2500 : 15000);
     return () => window.clearInterval(timer);
-  }, [data]);
+  }, [data, view]);
 
   const latestByScope = useMemo(() => {
     const entries = new Map<string, Job>();
