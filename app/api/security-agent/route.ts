@@ -76,7 +76,7 @@ function publicCampaignEventDetails(value: string) {
   const method = ["GET", "HEAD", "OPTIONS"].includes(String(details.method)) ? String(details.method) : undefined;
   const action = ["Raiz autorizada", "robots.txt", "Página pública autorizada"].includes(String(details.action)) ? String(details.action) : undefined;
   const status = typeof details.status === "number" && Number.isInteger(details.status) && details.status >= 100 && details.status <= 599 ? details.status : undefined;
-  const errorCategory = ["timeout", "network_or_tls", "response_read"].includes(String(details.errorCategory)) ? String(details.errorCategory) : undefined;
+  const errorCategory = ["timeout", "network_or_tls", "response_read", "dns_unavailable", "domain_not_resolved"].includes(String(details.errorCategory)) ? String(details.errorCategory) : undefined;
   return { stage, counts, method, action, status, errorCategory };
 }
 

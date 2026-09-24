@@ -110,7 +110,7 @@ test("request log classifies pre-HTTP failures without persisting raw errors or 
   const events = [];
   const fetcher = async (input) => {
     if (new URL(String(input)).hostname === "cloudflare-dns.com") return Response.json({ Answer: [{ type: 1, data: "93.184.216.34" }] });
-    throw new TypeError("secret diagnostic details must not be logged");
+    throw new Error("secret diagnostic details must not be logged");
   };
   const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined, onRequest: async (event) => events.push(event) });
   assert.equal(result.stopReason, "error_rate_threshold");
@@ -119,6 +119,88 @@ test("request log classifies pre-HTTP failures without persisting raw errors or 
   assert.equal(events.length, 5);
   assert.ok(events.every((event) => event.errorCategory === "network_or_tls" && !("status" in event)));
   assert.doesNotMatch(JSON.stringify(events), /secret diagnostic|https:\/\/example\.com/);
+});
+
+test("response body failures are distinguished from pre-HTTP failures", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["safe_web_crawl"] });
+  const events = [];
+  const fetcher = async (input) => {
+    const url = new URL(String(input));
+    if (url.hostname === "cloudflare-dns.com") return Response.json({ Status: 0, Answer: url.searchParams.get("type") === "A" ? [{ type: 1, data: "93.184.216.34" }] : [] });
+    if (url.pathname === "/robots.txt") return new Response("", { headers: { "Content-Type": "text/plain" } });
+    return new Response(new ReadableStream({ start(controller) { controller.error(new Error("private body details")); } }), { headers: { "Content-Type": "text/html" } });
+  };
+  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined, onRequest: async (event) => events.push(event) });
+  assert.equal(result.requests.successful, 2);
+  assert.equal(result.requests.errors, 1);
+  assert.equal(result.crawl?.pagesVisited, 0);
+  assert.deepEqual(events.at(-1), { method: "GET", action: "Raiz autorizada", errorCategory: "response_read" });
+  assert.doesNotMatch(JSON.stringify({ events, result }), /private body details/);
+});
+
+test("temporary DNS failure stops safely and retains earlier HTTP evidence", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["web_control_probe", "safe_web_crawl", "tls_configuration_review"], budgets: { requestsPerMinute: 60, totalRequests: 20 } });
+  const events = [];
+  let dnsCalls = 0;
+  let targetCalls = 0;
+  const fetcher = async (input) => {
+    const url = new URL(String(input));
+    if (url.hostname === "cloudflare-dns.com") {
+      dnsCalls += 1;
+      if (dnsCalls > 4) throw new Error("private resolver diagnostics must not be logged");
+      return Response.json({ Status: 0, Answer: url.searchParams.get("type") === "A" ? [{ type: 1, data: "93.184.216.34" }] : [] });
+    }
+    targetCalls += 1;
+    return new Response(null, { status: 200, headers: { "Strict-Transport-Security": "max-age=31536000" } });
+  };
+  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined, onRequest: async (event) => events.push(event) });
+  assert.equal(result.outcome, "stopped");
+  assert.equal(result.stopReason, "dns_unavailable");
+  assert.equal(result.budget.consumed, 2);
+  assert.deepEqual(result.requests.statusCodes, { "200": 2 });
+  assert.equal(result.transport?.httpsReachable, true);
+  assert.equal(result.webProbe?.requestsCompleted, 2);
+  assert.equal(targetCalls, 2);
+  assert.deepEqual(events.at(-1), { method: "GET", action: "robots.txt", errorCategory: "dns_unavailable" });
+  assert.doesNotMatch(JSON.stringify({ events, result }), /private resolver diagnostics/);
+});
+
+test("a truly unresolved domain stays inconclusive without reaching the target", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["tls_configuration_review"] });
+  let targetCalls = 0;
+  const result = await executeRunnerManifest(manifest, { fetcher: async (input) => {
+    if (new URL(String(input)).hostname === "cloudflare-dns.com") return Response.json({ Status: 3, Answer: [] });
+    targetCalls += 1;
+    return new Response(null);
+  } });
+  assert.equal(result.outcome, "stopped");
+  assert.equal(result.stopReason, "domain_not_resolved");
+  assert.equal(result.budget.consumed, 0);
+  assert.equal(targetCalls, 0);
+});
+
+test("runner reserves external subrequests for the verified free-tier campaign", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["safe_web_crawl"], budgets: { requestsPerMinute: 60, totalRequests: 20 } });
+  let dnsCalls = 0;
+  let targetCalls = 0;
+  const links = Array.from({ length: 20 }, (_, index) => `<a href="/page-${index}">Page</a>`).join("");
+  const fetcher = async (input) => {
+    const url = new URL(String(input));
+    if (url.hostname === "cloudflare-dns.com") {
+      dnsCalls += 1;
+      return Response.json({ Status: 0, Answer: url.searchParams.get("type") === "A" ? [{ type: 1, data: "93.184.216.34" }] : [] });
+    }
+    targetCalls += 1;
+    return new Response(url.pathname === "/robots.txt" ? "" : url.pathname === "/" ? links : "<html>ok</html>", { headers: { "Content-Type": "text/html" } });
+  };
+  const result = await executeRunnerManifest(manifest, { fetcher, sleep: async () => undefined });
+  assert.equal(result.outcome, "stopped");
+  assert.equal(result.stopReason, "infrastructure_subrequest_budget");
+  assert.equal(result.budget.consumed, 14);
+  assert.equal(targetCalls, 14);
+  assert.equal(dnsCalls, 28);
+  assert.equal(result.requests.successful, 14);
+  assert.equal(result.crawl?.pagesVisited, 13);
 });
 
 test("web control probe reports blocked responses as inconclusive without finding claims", async () => {
@@ -254,6 +336,28 @@ test("runner service queues an idempotent job only after signature and policy va
     assert.equal(campaign.status, "completed");
     assert.ok(campaign.runner_completed_at);
     assert.equal(JSON.parse(campaign.runner_result_json).budget.consumed, 2);
+
+    const partialManifest = manifestInput();
+    const partialBody = JSON.stringify(partialManifest);
+    const partialTimestamp = String(Math.floor(Date.now() / 1000));
+    const partialRequest = new Request("https://security-runner.internal/v1/jobs", { method: "POST", headers: { "Content-Type": "application/json", "X-CBSHub-Timestamp": partialTimestamp, "X-CBSHub-Signature": `sha256=${await hmacHex(secret, `${partialTimestamp}.${partialBody}`)}` }, body: partialBody });
+    const partialResponse = await enqueue(partialRequest, { DB, SECURITY_RUNNER_SIGNING_KEY: secret, ACTIVE_RUN_QUEUE: { send: async (message) => queued.push(message) } });
+    const partialJob = await partialResponse.json();
+    sqlite.prepare(`INSERT INTO security_campaigns
+      (id, workspace_id, scope_id, name, environment, techniques_json, policy_version, window_start, window_end, max_requests_per_minute, max_total_requests, stop_conditions_json, status, executor, runner_job_id)
+      VALUES (?, 42, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'queued', 'isolated_runner', ?)`)
+      .run(partialManifest.campaignId, scopeId, partialManifest.name, partialManifest.environment, JSON.stringify(partialManifest.techniques), partialManifest.policyVersion, partialManifest.window.start, partialManifest.window.end, partialManifest.budgets.requestsPerMinute, partialManifest.budgets.totalRequests, JSON.stringify(partialManifest.stopConditions), partialJob.jobId);
+    await processJob({ DB, SECURITY_RUNNER_SIGNING_KEY: secret, ACTIVE_RUN_QUEUE: { send: async () => undefined } }, partialJob.jobId, async (parsed) => ({
+      version: "security-runner.test", domain: parsed.scope.domain, techniques: parsed.techniques,
+      startedAt: new Date().toISOString(), completedAt: new Date().toISOString(), outcome: "stopped", stopReason: "dns_unavailable",
+      budget: { ...parsed.budgets, consumed: 2 }, requests: { successful: 2, errors: 0, serverErrors: 0, statusCodes: { "200": 2 } },
+      transport: { httpsReachable: true, status: 200, hstsObserved: true, cspObserved: true, limitation: "test" }, crawl: { pagesVisited: 1, htmlPages: 1, redirectsObserved: 0, blockedRedirects: 0, skippedSensitiveLinks: 0, hstsCoveragePercent: 100, cspCoveragePercent: 100 }, webProbe: null, limitation: "test",
+    }), { ownershipFetcher: async () => Response.json({ Answer: [{ type: 16, data: '"cbshub-verification=verification-token"' }] }) });
+    assert.deepEqual({ ...sqlite.prepare("SELECT status, request_count, error_count FROM security_runner_jobs WHERE id = ?").get(partialJob.jobId) }, { status: "stopped", request_count: 2, error_count: 0 });
+    assert.deepEqual(await reconcileSecurityRunnerCampaigns({ DB }, 42), { checked: 1, updated: 1 });
+    const partialCampaign = sqlite.prepare("SELECT status, runner_result_json FROM security_campaigns WHERE id = ?").get(partialManifest.campaignId);
+    assert.equal(partialCampaign.status, "review");
+    assert.equal(JSON.parse(partialCampaign.runner_result_json).stopReason, "dns_unavailable");
 
     const blockedManifest = { ...manifestInput(), scope: { domain: "revoked.example.com" } };
     const blockedBody = JSON.stringify(blockedManifest);

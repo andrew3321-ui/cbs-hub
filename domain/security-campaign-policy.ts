@@ -4,6 +4,7 @@ export const SECURITY_CAMPAIGN_COMPATIBLE_POLICY_VERSIONS = [
   SECURITY_CAMPAIGN_POLICY_VERSION,
 ] as const;
 export const SECURITY_ACTIVE_RUNNER_MAX_TOTAL_REQUESTS = 25;
+export const SECURITY_ACTIVE_RUNNER_BASELINE_REQUESTS = 14;
 
 export const securityTechniqueCatalog = {
   passive_external_posture: { label: "Postura externa passiva", execution: "existing_passive", risk: "passive", requiresRepository: false, requiresTestCredentials: false },
@@ -38,7 +39,7 @@ export function guidedWebCampaignInput(now = Date.now()) {
     windowStart: new Date(now + 6 * 60_000).toISOString(),
     windowEnd: new Date(now + 66 * 60_000).toISOString(),
     maxRequestsPerMinute: 10,
-    maxTotalRequests: 20,
+    maxTotalRequests: SECURITY_ACTIVE_RUNNER_BASELINE_REQUESTS,
     stopConditions: { errorRatePercent: 10, consecutiveServerErrors: 3, unexpectedAuthentication: true as const },
     authorizationConfirmed: true,
   };

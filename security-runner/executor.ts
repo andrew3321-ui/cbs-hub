@@ -1,10 +1,11 @@
 import { isPrivateOrReservedAddress } from "../domain/cybersecurity-preview.ts";
+import { SECURITY_ACTIVE_RUNNER_BASELINE_REQUESTS } from "../domain/security-campaign-policy.ts";
 import { SECURITY_RUNNER_VERSION, type RunnerManifest } from "../domain/security-runner-policy.ts";
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type RequestObservation = { status: number; headers: Headers; body: string; redirect: URL | null };
 type WebProbeSignal = { code: string; severity: "high" | "medium" | "low"; title: string; detail: string };
-export type RunnerRequestEvent = { method: "GET" | "HEAD" | "OPTIONS"; action: "Raiz autorizada" | "robots.txt" | "Página pública autorizada"; status?: number; errorCategory?: "timeout" | "network_or_tls" | "response_read" };
+export type RunnerRequestEvent = { method: "GET" | "HEAD" | "OPTIONS"; action: "Raiz autorizada" | "robots.txt" | "Página pública autorizada"; status?: number; errorCategory?: "timeout" | "network_or_tls" | "response_read" | "dns_unavailable" | "domain_not_resolved" };
 type ExecutionState = {
   deadline: number;
   attempted: number;
@@ -90,14 +91,16 @@ async function dnsQuery(domain: string, type: "A" | "AAAA", fetcher: FetchLike) 
   url.searchParams.set("type", type);
   const response = await fetcher(url, { headers: { Accept: "application/dns-json", "User-Agent": "CBSHub-Security-Runner/1.0" }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
   if (!response.ok) throw new Error("RUNNER_DNS_UNAVAILABLE");
-  const payload = await response.json() as { Answer?: Array<{ type?: number; data?: string }> };
+  const payload = await response.json() as { Status?: number; Answer?: Array<{ type?: number; data?: string }> };
+  if (payload.Status !== undefined && payload.Status !== 0 && payload.Status !== 3) throw new Error("RUNNER_DNS_UNAVAILABLE");
+  if (payload.Status === 3) return [];
   return (payload.Answer ?? []).filter((item) => item.type === 1 || item.type === 28).map((item) => String(item.data ?? ""));
 }
 
 async function assertPublicResolution(domain: string, fetcher: FetchLike) {
   const results = await Promise.allSettled([dnsQuery(domain, "A", fetcher), dnsQuery(domain, "AAAA", fetcher)]);
   const addresses = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
-  if (!addresses.length) throw new Error("RUNNER_DOMAIN_NOT_RESOLVED");
+  if (!addresses.length) throw new Error(results.some((result) => result.status === "rejected") ? "RUNNER_DNS_UNAVAILABLE" : "RUNNER_DOMAIN_NOT_RESOLVED");
   if (addresses.some(isPrivateOrReservedAddress)) throw new Error("RUNNER_NON_PUBLIC_TARGET");
 }
 
@@ -150,6 +153,11 @@ async function targetRequest(args: {
     state.stopReason ??= "request_budget_reached";
     return null;
   }
+  // One TXT lookup plus three external fetches per target request must fit the 50-subrequest Worker tier.
+  if (state.attempted >= SECURITY_ACTIVE_RUNNER_BASELINE_REQUESTS) {
+    state.stopReason = "infrastructure_subrequest_budget";
+    return null;
+  }
   if (args.now() > Date.parse(manifest.window.end)) {
     state.stopReason = "execution_window_expired";
     return null;
@@ -161,13 +169,23 @@ async function targetRequest(args: {
     return null;
   }
   if (delay) await args.sleep(delay);
-  await assertPublicResolution(args.url.hostname, args.fetcher);
+  try {
+    await assertPublicResolution(args.url.hostname, fetcher);
+  } catch (error) {
+    const category = error instanceof Error && error.message === "RUNNER_DNS_UNAVAILABLE" ? "dns_unavailable"
+      : error instanceof Error && error.message === "RUNNER_DOMAIN_NOT_RESOLVED" ? "domain_not_resolved" : null;
+    if (!category) throw error;
+    state.stopReason = category;
+    await args.onRequest?.({ method: args.method, action: args.action, errorCategory: category }).catch(() => undefined);
+    return null;
+  }
   if (args.now() >= state.deadline || args.now() >= Date.parse(manifest.window.end)) {
     state.stopReason = "execution_window_expired";
     return null;
   }
   state.attempted += 1;
   state.lastRequestAt = args.now();
+  let responseReceived = false;
   try {
     const response = await fetcher(args.url, {
       method: args.method,
@@ -180,6 +198,7 @@ async function targetRequest(args: {
       },
       signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
     });
+    responseReceived = true;
     const statusKey = String(response.status);
     state.statusCodes[statusKey] = (state.statusCodes[statusKey] ?? 0) + 1;
     state.successful += 1;
@@ -201,7 +220,7 @@ async function targetRequest(args: {
     state.errors += 1;
     state.consecutiveServerErrors = 0;
     if (state.attempted >= 5 && ((state.serverErrors + state.errors) / state.attempted) * 100 >= manifest.stopConditions.errorRatePercent) state.stopReason = "error_rate_threshold";
-    const errorCategory = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name) ? "timeout" : error instanceof TypeError ? "network_or_tls" : "response_read";
+    const errorCategory = error instanceof Error && ["TimeoutError", "AbortError"].includes(error.name) ? "timeout" : responseReceived ? "response_read" : "network_or_tls";
     await args.onRequest?.({ method: args.method, action: args.action, errorCategory }).catch(() => undefined);
     if (error instanceof Error && error.message.startsWith("RUNNER_")) throw error;
     return null;
@@ -328,7 +347,7 @@ export async function executeRunnerManifest(manifest: RunnerManifest, options: {
     if (robots?.status === 200) disallowed = robotsDisallow(robots.body);
     const pending: URL[] = disallowed.some((path) => root.pathname.startsWith(path)) ? [] : [root];
     const visited = new Set<string>();
-    let htmlPages = 0, redirectsObserved = 0, blockedRedirects = 0, skippedSensitiveLinks = 0, hstsPages = 0, cspPages = 0;
+    let pagesVisited = 0, htmlPages = 0, redirectsObserved = 0, blockedRedirects = 0, skippedSensitiveLinks = 0, hstsPages = 0, cspPages = 0;
     while (pending.length && !state.stopReason && state.attempted < manifest.budgets.totalRequests) {
       const url = pending.shift()!;
       const key = url.toString();
@@ -336,6 +355,7 @@ export async function executeRunnerManifest(manifest: RunnerManifest, options: {
       visited.add(key);
       const observation = await targetRequest({ url, method: "GET", action: url.pathname === "/" ? "Raiz autorizada" : "Página pública autorizada", onRequest: options.onRequest, manifest, state, fetcher, sleep, now });
       if (!observation) continue;
+      pagesVisited += 1;
       if (!transport) transport = { httpsReachable: true, status: observation.status, hstsObserved: observation.headers.has("strict-transport-security"), cspObserved: observation.headers.has("content-security-policy"), limitation: "O runtime confirma negociação HTTPS e resposta HTTP, mas não expõe cifra, protocolo ou validade detalhada do certificado." };
       if (observation.redirect) { redirectsObserved += 1; pending.unshift(observation.redirect); continue; }
       if (observation.status >= 300 && observation.status < 400) { blockedRedirects += 1; continue; }
@@ -348,8 +368,9 @@ export async function executeRunnerManifest(manifest: RunnerManifest, options: {
         for (const link of extracted.links) if (!visited.has(link.toString()) && !pending.some((item) => item.toString() === link.toString())) pending.push(link);
       }
     }
+    if (pending.length && state.attempted >= manifest.budgets.totalRequests && !state.stopReason) state.stopReason = "request_budget_reached";
     crawl = {
-      pagesVisited: visited.size,
+      pagesVisited,
       htmlPages,
       redirectsObserved,
       blockedRedirects,

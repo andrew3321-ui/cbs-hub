@@ -16,6 +16,7 @@ test("campaign policy rejects unbounded, destructive and unapproved work", () =>
   const now = Date.now();
   assert.deepEqual(parseSecurityCampaignInput(futureCampaign(now), now).techniques, ["safe_web_crawl", "tls_configuration_review"]);
   assert.deepEqual(parseSecurityCampaignInput(guidedWebCampaignInput(now), now).techniques, ["safe_web_crawl", "tls_configuration_review", "web_control_probe"]);
+  assert.equal(guidedWebCampaignInput(now).maxTotalRequests, 14);
   assert.deepEqual(parseSecurityCampaignInput({ ...futureCampaign(now), techniques: ["safe_web_crawl", "tls_configuration_review", "web_control_probe"] }, now).techniques, ["safe_web_crawl", "tls_configuration_review", "web_control_probe"]);
   for (const mutate of [
     (data) => { data.authorizationConfirmed = false; },
@@ -163,7 +164,7 @@ test("guided web validation requires consent, schedules once, and rechecks autho
     await assert.rejects(dispatchSecurityCampaign(env, { workspaceId: 42, scope, campaignId: campaign.id, actorUserId: 7, executionConfirmed: true }), /CAMPAIGN_STATE_INVALID/);
     assert.deepEqual(await dispatchDueGuidedSecurityCampaigns(env), { checked: 1, queued: 1, failed: 0 });
     assert.equal(requests.length, 1);
-    assert.equal(JSON.parse(await requests[0].text()).budgets.totalRequests, 20);
+    assert.equal(JSON.parse(await requests[0].text()).budgets.totalRequests, 14);
     assert.deepEqual(await dispatchDueGuidedSecurityCampaigns(env), { checked: 0, queued: 0, failed: 0 });
     assert.equal(requests.length, 1);
     sqlite.prepare("UPDATE security_campaigns SET status = 'completed' WHERE id = ?").run(campaign.id);

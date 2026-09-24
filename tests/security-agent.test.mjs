@@ -93,7 +93,7 @@ test("operations lead with an authorized automatic scan and keep conservative co
   assert.match(operationsPanel, /defaultValue="unavailable"/);
   assert.match(deliveryPanel, /setEnvironment\] = useState\("production"\)/);
   assert.match(deliveryPanel, /"safe_web_crawl", "tls_configuration_review", "web_control_probe"/);
-  assert.match(deliveryPanel, /defaultValue="20"/);
+  assert.match(deliveryPanel, /defaultValue=\{String\(SECURITY_ACTIVE_RUNNER_BASELINE_REQUESTS\)\}/);
 });
 
 test("execution is queued, idempotently claimed and retried outside the request", () => {
