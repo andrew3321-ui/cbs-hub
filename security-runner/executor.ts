@@ -29,7 +29,7 @@ export type RunnerExecutionResult = {
   budget: { requestsPerMinute: number; totalRequests: number; consumed: number };
   requests: { successful: number; errors: number; serverErrors: number; statusCodes: Record<string, number> };
   transport: null | { httpsReachable: boolean; status: number | null; hstsObserved: boolean; cspObserved: boolean; limitation: string };
-  crawl: null | { pagesVisited: number; htmlPages: number; redirectsObserved: number; blockedRedirects: number; skippedSensitiveLinks: number; hstsCoveragePercent: number; cspCoveragePercent: number };
+  crawl: null | { pagesVisited: number; discoveredPages: number; remainingPages: number; htmlPages: number; redirectsObserved: number; blockedRedirects: number; skippedSensitiveLinks: number; hstsCoveragePercent: number; cspCoveragePercent: number };
   webProbe: null | {
     requestsCompleted: number;
     cors: { verdict: "inconclusive" | "not_advertised" | "restricted" | "wildcard" | "reflected_origin" | "credentialed_origin_reflection"; allowCredentials: boolean; varyOrigin: boolean };
@@ -353,13 +353,17 @@ export async function executeRunnerManifest(manifest: RunnerManifest, options: {
       const key = url.toString();
       if (visited.has(key)) continue;
       visited.add(key);
+      const attemptedBeforeRequest = state.attempted;
       const observation = await targetRequest({ url, method: "GET", action: url.pathname === "/" ? "Raiz autorizada" : "Página pública autorizada", onRequest: options.onRequest, manifest, state, fetcher, sleep, now });
-      if (!observation) continue;
+      if (!observation) {
+        if (state.stopReason && state.attempted === attemptedBeforeRequest) { visited.delete(key); pending.unshift(url); }
+        continue;
+      }
       pagesVisited += 1;
       if (!transport) transport = { httpsReachable: true, status: observation.status, hstsObserved: observation.headers.has("strict-transport-security"), cspObserved: observation.headers.has("content-security-policy"), limitation: "O runtime confirma negociação HTTPS e resposta HTTP, mas não expõe cifra, protocolo ou validade detalhada do certificado." };
       if (observation.redirect) { redirectsObserved += 1; pending.unshift(observation.redirect); continue; }
       if (observation.status >= 300 && observation.status < 400) { blockedRedirects += 1; continue; }
-      if (observation.body) {
+      if (observation.body && /(?:text\/html|application\/xhtml\+xml)/i.test(observation.headers.get("content-type") ?? "")) {
         htmlPages += 1;
         if (observation.headers.has("strict-transport-security")) hstsPages += 1;
         if (observation.headers.has("content-security-policy")) cspPages += 1;
@@ -371,6 +375,8 @@ export async function executeRunnerManifest(manifest: RunnerManifest, options: {
     if (pending.length && state.attempted >= manifest.budgets.totalRequests && !state.stopReason) state.stopReason = "request_budget_reached";
     crawl = {
       pagesVisited,
+      discoveredPages: visited.size + pending.length,
+      remainingPages: pending.length,
       htmlPages,
       redirectsObserved,
       blockedRedirects,

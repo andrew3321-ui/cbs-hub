@@ -84,8 +84,10 @@ function RunnerResultCard({ result, maxTotalRequests }: { result: RunnerResult; 
       <div><dt>Requisições</dt><dd>{result.budget?.consumed ?? 0}/{result.budget?.totalRequests ?? maxTotalRequests}</dd></div>
       <div><dt>HTTPS</dt><dd>{result.transport?.httpsReachable ? `confirmado · HTTP ${result.transport.status}` : noHttpResponse ? "inconclusivo · sem resposta HTTP" : "não confirmado"}</dd></div>
       <div><dt>Páginas HTML</dt><dd>{result.crawl?.htmlPages ?? 0}</dd></div>
-      <div><dt>Cobertura HSTS / CSP</dt><dd>{result.crawl?.htmlPages ? `${result.crawl.hstsCoveragePercent}% / ${result.crawl.cspCoveragePercent}%` : "não medida"}</dd></div>
+      {result.crawl?.discoveredPages !== undefined ? <div><dt>Páginas públicas conhecidas</dt><dd>{result.crawl.pagesVisited}/{result.crawl.discoveredPages}</dd></div> : null}
+      <div><dt>HSTS / CSP na amostra</dt><dd>{result.crawl?.htmlPages ? `${result.crawl.hstsCoveragePercent}% / ${result.crawl.cspCoveragePercent}%` : "não medida"}</dd></div>
     </dl>
+    {result.crawl?.remainingPages ? <p className="security-runner-stop">Amostra parcial: {result.crawl.remainingPages} página(s) pública(s) descoberta(s) não foram visitadas. Os percentuais acima se referem somente às respostas HTML observadas.</p> : null}
     {probe ? <section className="security-web-probe-result" aria-label="Resultado da sonda adversarial web">
       <header><b>Sonda adversarial web</b><span>{probe.requestsCompleted}/2 respostas observadas</span></header>
       <dl>
@@ -116,9 +118,11 @@ function CampaignTimeline({ events }: { events: SecurityCampaignEvent[] }) {
 }
 
 function SpecialistResultCard({ campaign }: { campaign: SecurityCampaign }) {
-  if (!campaign.specialistStatus || campaign.specialistStatus === "not_requested" || (campaign.specialistStatus === "pending" && campaign.status !== "completed")) return null;
+  const partialEvidence = campaign.status === "review" && ["request_budget_reached", "infrastructure_subrequest_budget"].includes(campaign.runnerResult?.stopReason ?? "") && (campaign.runnerResult?.requests?.successful ?? 0) >= 2;
+  if (!campaign.specialistStatus || campaign.specialistStatus === "not_requested" || (campaign.specialistStatus === "pending" && campaign.status !== "completed" && !partialEvidence)) return null;
   const results = campaign.specialistResult ?? {};
   return <section className="security-specialist-result"><b>Revisão por agentes especializados</b><small>Interpretação das sondas limitadas já executadas. Não equivale a pentest autenticado completo nem confirma exploração.</small>
+    {partialEvidence ? <p>A execução atingiu o orçamento autorizado. Esta revisão usa somente a amostra observada; páginas não visitadas permanecem sem avaliação.</p> : null}
     {(["surface", "controls", "remediation"] as const).map((stage) => results[stage]?.fragment ? <article key={stage}><strong>{campaignStageLabels[stage]}</strong><p>{results[stage]!.fragment.summary}</p><small>Evidências: {results[stage]!.fragment.evidenceCodes.join(", ") || "nenhuma citada"}</small></article> : null)}
     {campaign.specialistStatus === "pending" ? <p>Aguardando a fila e a disponibilidade dos modelos para iniciar a revisão.</p> : null}
     {campaign.specialistStatus === "running" || campaign.specialistStatus === "queued" ? <p>Revisão em andamento. As etapas aparecem no registro acima.</p> : null}

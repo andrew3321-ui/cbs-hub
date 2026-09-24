@@ -201,6 +201,22 @@ test("runner reserves external subrequests for the verified free-tier campaign",
   assert.equal(dnsCalls, 28);
   assert.equal(result.requests.successful, 14);
   assert.equal(result.crawl?.pagesVisited, 13);
+  assert.equal(result.crawl?.discoveredPages, 21);
+  assert.equal(result.crawl?.remainingPages, 8);
+});
+
+test("plain-text responses do not inflate HTML coverage or seed extra pages", async () => {
+  const manifest = parseRunnerManifest({ ...manifestInput(), techniques: ["safe_web_crawl"] });
+  const result = await executeRunnerManifest(manifest, { fetcher: async (input) => {
+    const url = new URL(String(input));
+    if (url.hostname === "cloudflare-dns.com") return Response.json({ Status: 0, Answer: url.searchParams.get("type") === "A" ? [{ type: 1, data: "93.184.216.34" }] : [] });
+    return new Response(url.pathname === "/" ? '<a href="/next">Not HTML</a>' : "", { headers: { "Content-Type": "text/plain" } });
+  }, sleep: async () => undefined });
+  assert.equal(result.outcome, "completed");
+  assert.equal(result.crawl?.pagesVisited, 1);
+  assert.equal(result.crawl?.htmlPages, 0);
+  assert.equal(result.crawl?.discoveredPages, 1);
+  assert.equal(result.crawl?.remainingPages, 0);
 });
 
 test("web control probe reports blocked responses as inconclusive without finding claims", async () => {

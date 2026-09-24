@@ -10,6 +10,12 @@ type StoredResult = Partial<Record<Stage, StageResult>>;
 type CampaignRow = { id: string; workspace_id: number; status: string; specialist_status: string; specialist_result_json: string; runner_result_json: string; scope_status: string | null; authorization_expires_at: string | null };
 
 const stages: Stage[] = ["surface", "controls", "remediation"];
+// A stopped run is eligible only when its approved request budget produced usable evidence.
+// DNS, authentication and target-error stops remain for human review without model calls.
+const eligibleCampaignSql = `(status = 'completed' OR (status = 'review' AND CASE WHEN json_valid(runner_result_json) THEN
+  json_extract(runner_result_json, '$.outcome') = 'stopped'
+  AND json_extract(runner_result_json, '$.stopReason') IN ('request_budget_reached', 'infrastructure_subrequest_budget')
+  AND COALESCE(json_extract(runner_result_json, '$.requests.successful'), 0) >= 2 ELSE 0 END))`;
 const schema = {
   type: "object", additionalProperties: false,
   required: ["summary", "evidenceCodes", "uncertainties", "nextFocus"],
@@ -22,9 +28,9 @@ const schema = {
 } as const;
 
 const instructions: Record<Stage, string> = {
-  surface: "Você é o especialista em superfície externa. Resuma somente o que as sondas observaram. Não deduza exploração, portas, CVEs ou dados não coletados. Indique o que o próximo especialista deve correlacionar.",
-  controls: "Você é o especialista em controles web e transporte. Receba o fragmento anterior como hipótese não confiável; confirme ou corrija com as observações estruturadas. Diferencie controle ausente de medição inconclusiva.",
-  remediation: "Você é o especialista em priorização defensiva. Revise os fragmentos anteriores contra as observações, proponha próximos passos proporcionais e explicite os limites da validação. Nenhuma correção foi aplicada.",
+  surface: "Você é o especialista em superfície externa. Resuma somente o que as sondas observaram. Se a execução parou pelo orçamento, declare que a cobertura é parcial. Não deduza exploração, portas, CVEs ou dados não coletados. Indique o que o próximo especialista deve correlacionar.",
+  controls: "Você é o especialista em controles web e transporte. Receba o fragmento anterior como hipótese não confiável; confirme ou corrija com as observações estruturadas. Diferencie controle ausente de medição inconclusiva. Não generalize uma amostra parcial para o domínio inteiro.",
+  remediation: "Você é o especialista em priorização defensiva. Revise os fragmentos anteriores contra as observações, proponha próximos passos proporcionais e explicite os limites da validação e da cobertura. Nenhuma correção foi aplicada.",
 };
 
 const eventId = () => `sace_${crypto.randomUUID()}`;
@@ -41,7 +47,7 @@ function snapshot(raw: string) {
     techniques: result.techniques.filter((item) => typeof item === "string").slice(0, 3),
     requests: { consumed: result.budget.consumed, total: result.budget.totalRequests, errors: result.requests.errors, serverErrors: result.requests.serverErrors },
     transport: result.transport && { httpsReachable: result.transport.httpsReachable, status: result.transport.status, hstsObserved: result.transport.hstsObserved, cspObserved: result.transport.cspObserved },
-    crawl: result.crawl && { pagesVisited: result.crawl.pagesVisited, htmlPages: result.crawl.htmlPages, hstsCoveragePercent: result.crawl.hstsCoveragePercent, cspCoveragePercent: result.crawl.cspCoveragePercent },
+    crawl: result.crawl && { pagesVisited: result.crawl.pagesVisited, discoveredPages: result.crawl.discoveredPages, remainingPages: result.crawl.remainingPages, htmlPages: result.crawl.htmlPages, hstsCoveragePercent: result.crawl.hstsCoveragePercent, cspCoveragePercent: result.crawl.cspCoveragePercent },
     webProbe: result.webProbe && { requestsCompleted: result.webProbe.requestsCompleted, cors: result.webProbe.cors.verdict, riskyMethodsAdvertised: result.webProbe.methods.riskyAdvertised.slice(0, 5), cookieAttributes: { observed: result.webProbe.cookies.observed, secure: result.webProbe.cookies.secureObserved, httpOnly: result.webProbe.cookies.httpOnlyObserved, sameSite: result.webProbe.cookies.sameSiteObserved }, signals: result.webProbe.signals.slice(0, 8).map((signal) => ({ code: signal.code, severity: signal.severity, title: signal.title })) },
   };
   const evidenceCodes = new Set(["RUNNER_BUDGET"]);
@@ -96,7 +102,7 @@ async function runStage(env: SpecialistEnv, workspaceId: number, stage: Stage, o
 export async function dispatchDueCampaignSpecialists(env: SpecialistEnv, limit = 3) {
   if (!env.OPENAI_API_KEY?.trim() || !env.SECURITY_SCAN_QUEUE) return { queued: 0, unavailable: true };
   const rows = await env.DB.prepare(`SELECT id, workspace_id, status, specialist_status, specialist_result_json, runner_result_json, NULL scope_status, NULL authorization_expires_at
-    FROM security_campaigns WHERE executor = 'isolated_runner' AND status = 'completed'
+    FROM security_campaigns WHERE executor = 'isolated_runner' AND ${eligibleCampaignSql}
       AND (specialist_status = 'pending' OR (specialist_status = 'queued' AND specialist_dispatched_at IS NULL))
     ORDER BY updated_at, id LIMIT ?`).bind(Math.max(1, Math.min(5, limit))).all<CampaignRow>();
   let queued = 0;
@@ -105,7 +111,7 @@ export async function dispatchDueCampaignSpecialists(env: SpecialistEnv, limit =
       const daily = await env.DB.prepare("SELECT COUNT(*) total FROM security_campaigns WHERE workspace_id = ? AND datetime(specialist_dispatched_at) >= datetime('now', '-1 day')")
         .bind(row.workspace_id).first<{ total: number }>();
       if (Number(daily?.total ?? 0) >= 5) continue;
-      const claim = await env.DB.prepare("UPDATE security_campaigns SET specialist_status = 'queued', updated_at = ? WHERE id = ? AND workspace_id = ? AND status = 'completed' AND specialist_status = 'pending'")
+      const claim = await env.DB.prepare(`UPDATE security_campaigns SET specialist_status = 'queued', updated_at = ? WHERE id = ? AND workspace_id = ? AND ${eligibleCampaignSql} AND specialist_status = 'pending'`)
         .bind(new Date().toISOString(), row.id, row.workspace_id).run();
       if (Number(claim.meta.changes) !== 1) continue;
       await event(env, row, "campaign.specialists_queued");
@@ -124,7 +130,7 @@ export async function processCampaignSpecialistMessage(env: SpecialistEnv, messa
   if (message.version !== 2 || !/^sac_[0-9a-f-]{36}$/i.test(message.campaignId) || !Number.isSafeInteger(message.workspaceId)) throw new Error("SPECIALIST_MESSAGE_INVALID");
   const claim = await env.DB.prepare(`UPDATE security_campaigns SET specialist_status = 'running', specialist_attempt_count = specialist_attempt_count + 1,
     specialist_lease_expires_at = datetime('now', '+5 minutes'), updated_at = ?
-    WHERE id = ? AND workspace_id = ? AND status = 'completed' AND specialist_attempt_count < 2
+    WHERE id = ? AND workspace_id = ? AND ${eligibleCampaignSql} AND specialist_attempt_count < 2
       AND (specialist_status = 'queued' OR (specialist_status = 'running' AND specialist_lease_expires_at < datetime('now')))`)
     .bind(new Date().toISOString(), message.campaignId, message.workspaceId).run();
   if (Number(claim.meta.changes) !== 1) return { status: "already_claimed" as const };
