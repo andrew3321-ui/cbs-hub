@@ -1,5 +1,4 @@
 import Link from "next/link";
-import BrandMark from "./BrandMark";
 import CybersecurityPreview from "./CybersecurityPreview";
 import { CyberMarketingFooter, CyberMarketingHeader } from "./CyberMarketingShell";
 
@@ -11,19 +10,17 @@ export default function CybersecurityLanding() {
 
       <section className="cyber-hero">
         <div className="cyber-hero-copy">
-          <span className="cyber-eyebrow"><i /> Cyber posture intelligence</span>
-          <h1>Encontre sua exposição <em>antes do atacante.</em></h1>
-          <p>A CBSHub transforma sinais públicos do seu domínio, e-mail e site em um mapa claro de risco — para sua empresa saber o que corrigir primeiro, sem instalar nada.</p>
+          <span className="cyber-eyebrow"><i /> Visibilidade para decidir com segurança</span>
+          <h1>Entenda sua exposição. <em>Priorize o que importa.</em></h1>
+          <p>Veja os controles públicos do seu domínio, e-mail e aplicações em um relatório claro. Acompanhe evidências e saiba por onde começar a correção.</p>
           <div className="cyber-hero-actions"><a className="cyber-button" href="#diagnostico">Iniciar diagnóstico gratuito <span>↓</span></a><a className="cyber-quiet-link" href="#metodo">Como protegemos o escopo</a></div>
           <ul className="cyber-assurances" aria-label="Condições da verificação">
             <li><b>100% passiva</b><span>nenhuma exploração</span></li><li><b>Resposta imediata</b><span>prioridades em instantes</span></li><li><b>Zero cadastro</b><span>no primeiro diagnóstico</span></li>
           </ul>
         </div>
 
-        <div className="cyber-hero-visual" aria-hidden="true">
-          <div className="cyber-orbit cyber-orbit-one" /><div className="cyber-orbit cyber-orbit-two" /><div className="cyber-scan-line" />
-          <div className="cyber-shield"><BrandMark /><span>ATTACK SURFACE</span><strong>MONITORED</strong><small>DNS · EMAIL · WEB</small></div>
-          <div className="cyber-signal cyber-signal-a"><i /> SPF + DMARC <b>OK</b></div><div className="cyber-signal cyber-signal-b"><i /> HTTPS + HSTS <b>SCAN</b></div><div className="cyber-signal cyber-signal-c"><i /> DNS PÚBLICO <b>LIVE</b></div>
+        <div className="cyber-hero-visual" aria-label="Exemplo ilustrativo de um relatório de postura externa">
+          <div className="cyber-preview-window"><div className="cyber-preview-window-head"><span className="cyber-preview-window-mark">C</span><span><b>Visão da superfície</b><small>Exemplo ilustrativo · empresa.com.br</small></span><i>Relatório</i></div><div className="cyber-preview-window-body"><div className="cyber-preview-window-title"><span>ANÁLISE EXTERNA</span><strong>O que está visível agora</strong><p>Controles públicos organizados por prioridade e evidência.</p></div><div className="cyber-preview-window-metrics"><div><span>Domínio e DNS</span><strong>Observado</strong><small>Resolução pública disponível</small></div><div><span>Proteção de e-mail</span><strong>Revisar</strong><small>SPF e DMARC em análise</small></div><div><span>Segurança web</span><strong>Verificar</strong><small>HTTPS e cabeçalhos</small></div></div><div className="cyber-preview-window-bottom"><span><i /> Evidências ligadas à fonte</span><span>Ver prioridades <b>↗</b></span></div></div></div>
         </div>
       </section>
 
@@ -49,7 +46,7 @@ export default function CybersecurityLanding() {
         <ol><li><b>01</b><span><strong>Descoberta passiva</strong>Leitura dos controles públicos, sem acesso à rede interna.</span></li><li><b>02</b><span><strong>Priorização por risco</strong>Separação objetiva entre proteção adequada, atenção e exposição.</span></li><li><b>03</b><span><strong>Plano de proteção</strong>Monitoramento e evidências conectados em um único workspace.</span></li></ol>
       </section>
 
-      <section className="cyber-final-cta"><div><span>CONTINUE EXPLORANDO</span><h2>Produto, limites e preço agora têm espaços próprios.</h2></div><div className="cyber-final-actions"><Link className="cyber-button cyber-button-light" href="/produto">Conhecer o produto <span>→</span></Link><Link className="cyber-final-link" href="/precos">Ver preço</Link></div></section>
+      <section className="cyber-final-cta"><div><span>COMECE COM VISIBILIDADE</span><h2>Transforme sinais dispersos em uma lista clara de prioridades.</h2></div><div className="cyber-final-actions"><Link className="cyber-button cyber-button-light" href="/produto">Conhecer o produto <span>→</span></Link><Link className="cyber-final-link" href="/precos">Ver planos</Link></div></section>
 
       <CyberMarketingFooter />
     </main>

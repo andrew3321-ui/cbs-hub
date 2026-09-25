@@ -107,10 +107,11 @@ test("pentest console distinguishes executed HTTP probes from specialist handoff
   assert.match(client, /view === "pentest" \|\| view === "agentic"/);
   assert.match(agenticPage, /renderSecurityWorkspace\("agentic", "\/app\/pentest-agentivo"\)/);
   assert.match(agenticPanel, /step\.verdict\?\.summary/);
-  assert.match(agenticPanel, /<CampaignTimeline campaign=\{campaign\}/);
+  assert.match(agenticPanel, /campaignEvents\.filter\(\(event\) => stageByCampaign\.has\(event\.campaignId\)\)/);
+  assert.match(agenticPanel, /role="log"/);
   assert.match(agenticPanel, /scope\.status === "verified" && scope\.authorizationCurrent/);
   assert.match(agenticPanel, /start_agentic_pentest/);
-  assert.match(agenticPanel, /Máximo de 3 etapas \/ 14 requisições/);
+  assert.match(agenticPanel, /Até 14 requisições GET, HEAD ou OPTIONS/);
 });
 
 test("execution is queued, idempotently claimed and retried outside the request", () => {

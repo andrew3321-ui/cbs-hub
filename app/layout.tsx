@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import "./marketing.css";
 import "./cyber-interface.css";
+import "./product-refresh.css";
 import AnalyticsBeacon from "./AnalyticsBeacon";
 import WebVitalsBeacon from "./WebVitalsBeacon";
 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import CybersecurityLanding from "./CybersecurityLanding";
 import "./cyberseguranca/cybersecurity.css";
 import "./cyberseguranca/cybersecurity-theme.css";
+import "./landing-refresh.css";
 
 export const metadata: Metadata = {
   title: "CBSHub Cybersecurity — Encontre sua exposição antes do atacante",

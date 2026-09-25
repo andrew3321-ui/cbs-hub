@@ -1,0 +1,105 @@
+/* Shared enterprise presentation for public, account and trust surfaces. */
+:root {
+  --paper: #0b1018;
+  --card: #111a26;
+  --ink: #f0f4fa;
+  --ink-soft: #a6b2c1;
+  --line: #293544;
+  --teal: #82aaff;
+  --lime: #82aaff;
+  --deep: #3c66c2;
+  --deep-2: #0b1018;
+}
+html, body { background: var(--paper); color: var(--ink); }
+body, button, input, select, textarea { font-family: Inter, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #82aaff; outline-offset: 3px; }
+
+.marketing-page, .auth-shell, .legal-shell, .ownership-shell, .app-recovery-screen {
+  --mk-cyan: #82aaff;
+  --mk-lime: #82aaff;
+  --mk-line: #293544;
+  --cyber-bg: #0b1018;
+  --cyber-panel: #111a26;
+  --cyber-panel-soft: #172230;
+  --cyber-line: #293544;
+  --cyber-line-strong: #40516a;
+  --cyber-cyan: #82aaff;
+  --cyber-lime: #82aaff;
+  --cyber-copy: #f0f4fa;
+  --cyber-muted: #a6b2c1;
+  color: #f0f4fa;
+  font-family: Inter, "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+}
+.marketing-page, .auth-shell, .legal-shell, .ownership-shell { background: #0b1018; }
+.marketing-grid, .legal-grid-backdrop, .auth-shell::before, .auth-shell::after { display: none; }
+.marketing-nav, .auth-access-header { border-bottom-color: #293544; }
+.marketing-lockup svg, .auth-access-header .auth-brand > .cbs-brand-symbol { filter: none; }
+.marketing-lockup small, .auth-access-header .auth-brand small { color: #82aaff; font-family: inherit; font-size: 10px; letter-spacing: .05em; }
+.marketing-nav nav a, .marketing-login, .marketing-footer a { color: #a6b2c1; font-weight: 550; }
+.marketing-nav nav a:hover, .marketing-login:hover, .marketing-footer a:hover { color: #f0f4fa; }
+.marketing-button, .auth-submit, .auth-primary-link {
+  border: 1px solid #5485e5;
+  border-radius: 9px;
+  background: #4c78d5;
+  color: white;
+  box-shadow: none;
+  font-weight: 680;
+  transition: background-color .16s ease, border-color .16s ease, transform .16s ease;
+}
+.marketing-button:hover, .auth-submit:hover, .auth-primary-link:hover { border-color: #82aaff; background: #5e8bef; transform: translateY(-1px); box-shadow: none; }
+.marketing-button span:last-child { color: white; }
+.marketing-footer { border-top: 1px solid #293544; }
+.marketing-footer p { color: #a6b2c1; }
+.marketing-hero { width: min(1200px, calc(100% - 48px)); padding: 79px 0 64px; }
+.marketing-hero > span, .pricing-primary-card header > span, .pricing-side article > span, .marketing-faq header > span, .product-pillars article > span, .product-flow > div > span, .product-boundary > span, .trust-methodology header > span { color: #8cabed; font-family: inherit; font-size: 11px; font-weight: 700; line-height: 1.3; letter-spacing: .075em; }
+.marketing-hero h1 { max-width: 860px; margin: 17px 0; color: #f0f4fa; font-size: clamp(42px, 5vw, 68px); line-height: 1.05; letter-spacing: -.052em; font-weight: 640; }
+.marketing-hero h1 em { color: #9ebeff; }
+.marketing-hero > p { color: #aab8c8; font-size: 17px; line-height: 1.62; }
+.marketing-text-link { color: #d3e2ff; font-weight: 620; }
+.pricing-layout, .trust-status, .trust-methodology, .trust-controls, .trust-links, .use-case-list, .use-case-cta { width: min(1200px, calc(100% - 48px)); }
+.pricing-primary-card, .pricing-side article, .marketing-faq article, .product-pillars article, .trust-status, .trust-methodology, .trust-methodology li, .trust-controls article, .trust-boundaries > div, .trust-links article, .use-case-list article { border: 1px solid #293544; border-radius: 11px; background: #111a26; box-shadow: none; }
+.pricing-primary-card { background: #152335; }
+.pricing-number strong { font-weight: 660; letter-spacing: -.05em; }
+.pricing-number span, .pricing-primary-card > p, .pricing-primary-card li span, .pricing-side p, .marketing-faq p, .product-pillars p, .product-flow p, .product-boundary p, .trust-status p, .trust-methodology header p, .trust-methodology li > span, .trust-controls p, .trust-boundaries p, .trust-links p { color: #a6b2c1; }
+.pricing-primary-card li { border-color: #354456; background: #1a293b; }
+.pricing-primary-card li b { color: #ecf2fa; font-size: 13px; }
+.pricing-primary-card li span, .pricing-side p { font-size: 12px; }
+.pricing-primary-card > small { color: #90a1b4; font-size: 11px; }
+.pricing-side h2, .marketing-faq h3, .product-pillars h2 { font-weight: 620; }
+.marketing-faq { border-color: #293544; background: #0e1621; }
+.product-pillars { gap: 12px; background: #0b1018; }
+.product-pillars article { min-height: 220px; }
+.product-pillars h2 { margin-top: 47px; }
+.product-flow { background: #0e1621; }
+.product-flow h2, .product-boundary h2 { font-weight: 620; letter-spacing: -.04em; }
+.product-flow li b, .trust-methodology li strong { color: #e8eff8; }
+.product-flow li span { color: #a6b2c1; }
+.product-boundary { border-color: #293544; background: #152335; }
+.trust-status aside { border-color: #3b536a; background: #1b3042; }
+.trust-status aside i { background: #8dc9b3; box-shadow: none; }
+.trust-methodology li { background: #182536; }
+.trust-controls article > span, .trust-links article > span { color: #8cabed; }
+.trust-boundaries { border-color: #293544; background: #0e1621; }
+.trust-disclosure { background: #152335; }
+.trust-links article { border-top-color: #6187c9; }
+
+.auth-shell { background: #0b1018; }
+.auth-layout { border: 1px solid #293544; border-radius: 16px; background: #111a26; box-shadow: none; overflow: hidden; }
+.auth-story { border-right: 1px solid #293544; background: #131f2d; }
+.auth-story::after, .auth-cyber-radar { opacity: .4; }
+.auth-story h2, .auth-card h1, .auth-success-card h1 { font-weight: 620; letter-spacing: -.04em; }
+.auth-story > p, .auth-subtitle, .auth-story-points span { color: #a6b2c1; }
+.auth-card { background: #111a26; }
+.auth-card input { border-color: #40516a; background: #0c141f; color: #f0f4fa; }
+.auth-card input:hover, .auth-card input:focus { border-color: #82aaff; }
+.auth-launch-offer, .auth-username-note, .auth-plan-suggestion, .auth-issued-identity, .auth-mini-panel, .auth-showcase { border-color: #334255; background: #172230; }
+.auth-eyebrow, .auth-story-label, .auth-launch-offer span { color: #82aaff; font-family: inherit; font-size: 11px; letter-spacing: .08em; }
+.auth-fast-proof span { border-color: #334255; background: #172230; }
+
+.legal-shell, .ownership-shell { background: #0b1018; }
+.legal-list article, .legal-grid article, .ownership-card, .legal-rights, .legal-boundary { border-color: #293544; background: #111a26; box-shadow: none; }
+.legal-hero h1, .ownership-heading h1 { font-weight: 620; letter-spacing: -.04em; }
+
+@media (prefers-reduced-motion: reduce) {
+  .marketing-button, .auth-submit, .auth-primary-link { transition: none; transform: none; }
+}
