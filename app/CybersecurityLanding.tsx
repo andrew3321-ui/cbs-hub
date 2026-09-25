@@ -9,6 +9,15 @@ export default function CybersecurityLanding() {
       <CyberMarketingHeader />
 
       <section className="cyber-hero">
+        <div className="cyber-code-rain" aria-hidden="true">
+          <span>01A7F09C2E4B8D</span>
+          <span>7C03B91E4A0F26</span>
+          <span>8F20C4D71A3E09</span>
+          <span>4B9E01C6D2A7F3</span>
+          <span>A3D80F2C71B4E9</span>
+          <span>09E4B7A2C81D3F</span>
+          <span>C2F07A91D4E8B3</span>
+        </div>
         <div className="cyber-hero-copy">
           <span className="cyber-eyebrow"><i /> Visibilidade para decidir com segurança</span>
           <h1>Entenda sua exposição. <em>Priorize o que importa.</em></h1>

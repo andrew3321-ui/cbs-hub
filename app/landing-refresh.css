@@ -60,5 +60,19 @@
 .cyber-button-light { border-color: #e3ebfa; background: #e3ebfa; color: #162436; }
 .cyber-button-light span { color: #162436; }
 .cyber-final-link { color: #b9c8df; }
+.cyber-hero { isolation: isolate; }
+.cyber-hero-copy, .cyber-hero-visual { position: relative; z-index: 1; }
+.cyber-code-rain { position: absolute; z-index: 0; inset: 0; overflow: hidden; pointer-events: none; mask-image: linear-gradient(to bottom, transparent, #000 16%, #000 82%, transparent); }
+.cyber-code-rain span { position: absolute; top: -55%; display: block; writing-mode: vertical-rl; text-orientation: upright; white-space: nowrap; font: 500 13px/1.7 ui-monospace, SFMono-Regular, Consolas, monospace; letter-spacing: .2em; color: #79c4f3; opacity: .3; text-shadow: 0 0 14px currentColor; animation: cyber-code-drift 24s linear infinite; }
+.cyber-code-rain span:nth-child(1) { left: 2%; animation-delay: -7s; color: #6ab9e8; }
+.cyber-code-rain span:nth-child(2) { left: 16%; animation-delay: -18s; color: #75c6a6; animation-duration: 28s; }
+.cyber-code-rain span:nth-child(3) { left: 38%; animation-delay: -12s; color: #9ba9f4; animation-duration: 30s; }
+.cyber-code-rain span:nth-child(4) { left: 56%; animation-delay: -23s; color: #76b5ec; animation-duration: 26s; }
+.cyber-code-rain span:nth-child(5) { left: 73%; animation-delay: -4s; color: #8ac9a8; animation-duration: 29s; }
+.cyber-code-rain span:nth-child(6) { left: 88%; animation-delay: -15s; color: #a7a3ee; animation-duration: 31s; }
+.cyber-code-rain span:nth-child(7) { left: 97%; animation-delay: -21s; color: #79bde9; animation-duration: 27s; }
+@keyframes cyber-code-drift { from { transform: translateY(-20%); } to { transform: translateY(330%); } }
 @media (max-width: 900px) { .cyber-hero { width: min(700px, calc(100% - 40px)); display: flex; flex-direction: column; align-items: stretch; padding-top: 68px; } .cyber-hero-copy, .cyber-hero-visual { width: 100%; max-width: 100%; } }
 @media (max-width: 600px) { .cyber-hero { width: calc(100% - 32px); padding-block: 54px 70px; } .cyber-hero h1 { max-width: 100%; font-size: clamp(39px, 10vw, 54px); overflow-wrap: break-word; } .cyber-hero-copy > p { max-width: 100%; } .cyber-assurances { width: 100%; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); } .cyber-assurances li { min-width: 0; padding-inline: 8px; } .cyber-assurances li:first-child { padding-left: 0; } .cyber-hero-visual { min-height: 0; padding: 10px; } .cyber-preview-window { min-height: 0; } .cyber-preview-window-head { padding-inline: 13px; } .cyber-preview-window-body { padding: 18px; } .cyber-preview-window-bottom { flex-direction: column; } }
+@media (max-width: 600px) { .cyber-code-rain span:nth-child(2), .cyber-code-rain span:nth-child(3), .cyber-code-rain span:nth-child(5), .cyber-code-rain span:nth-child(6) { display: none; } .cyber-code-rain span { opacity: .18; } }
+@media (prefers-reduced-motion: reduce) { .cyber-code-rain span { top: 16%; animation: none; opacity: .12; } }
