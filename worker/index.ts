@@ -9,6 +9,7 @@ import { activeEdgeBlock, expireDefenseActions, runDueCloudflareDefenseSync, run
 import { dispatchDueGuidedSecurityCampaigns, reconcileSecurityRunnerCampaigns } from "../app/security-campaign-service";
 import { advanceDueAgenticPentests } from "../app/security-agentic-pentest";
 import { dispatchDueCampaignSpecialists, processCampaignSpecialistMessage, type CampaignSpecialistMessage } from "../app/security-campaign-specialists";
+import { dispatchDueAuthReviewAgents, processAuthReviewAgentMessage, type AuthReviewAgentMessage } from "../app/security-auth-review-agents";
 import { maintainRepositoryJobs } from "../app/github-repository-maintenance.ts";
 import type { GitHubEnv } from "../app/github-client.ts";
 
@@ -28,7 +29,7 @@ interface Env extends GitHubEnv {
   OPENAI_SECURITY_PRIMARY_MODEL?: string;
   OPENAI_SECURITY_REVIEW_MODEL?: string;
   SECURITY_SCAN_QUEUE?: {
-    send(message: SecurityAgentQueueMessage | CampaignSpecialistMessage): Promise<void>;
+    send(message: SecurityAgentQueueMessage | CampaignSpecialistMessage | AuthReviewAgentMessage): Promise<void>;
   };
   SECURITY_ACTIVE_RUNNER?: {
     fetch(request: Request): Promise<Response>;
@@ -55,7 +56,7 @@ interface ExecutionContext {
 type RateLimitRule = { scope: string; limit: number; windowSeconds: number };
 type ScheduledController = { scheduledTime: number; cron: string };
 type SecurityQueueMessage = {
-  body: SecurityAgentQueueMessage | CampaignSpecialistMessage;
+  body: SecurityAgentQueueMessage | CampaignSpecialistMessage | AuthReviewAgentMessage;
   ack(): void;
   retry(options?: { delaySeconds?: number }): void;
 };
@@ -211,6 +212,7 @@ function runSecurityRetentionCleanup(env: Env) {
     env.DB.prepare("DELETE FROM security_agent_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_agent_jobs WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_campaign_events WHERE created_at < datetime('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM security_auth_reviews WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_runner_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM github_oauth_states WHERE expires_at < datetime('now', '-1 day')"),
     env.DB.prepare("DELETE FROM github_webhook_deliveries WHERE received_at < datetime('now', '-30 days')"),
@@ -355,6 +357,12 @@ const worker = {
         console.error(JSON.stringify({ event: "security_campaign.specialist_dispatch_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
         throw error;
       }));
+      ctx.waitUntil(dispatchDueAuthReviewAgents(env).then((result) => {
+        if (result.queued) console.info(JSON.stringify({ event: "security_auth_review.agents_queued", date, ...result }));
+      }).catch((error) => {
+        console.error(JSON.stringify({ event: "security_auth_review.agent_dispatch_failed", date, error: error instanceof Error ? error.name : "UnknownError" }));
+        throw error;
+      }));
     }
     if (controller.cron === "15 8 * * *") {
       ctx.waitUntil(runSecurityRetentionCleanup(env).catch((error) => {
@@ -388,14 +396,15 @@ const worker = {
       try {
         const result = message.body.version === 2
           ? await processCampaignSpecialistMessage(env, message.body)
+          : message.body.version === 3 ? await processAuthReviewAgentMessage(env, message.body)
           : await processSecurityAgentQueueMessage(env, message.body);
-        const jobId = message.body.version === 2 ? message.body.campaignId : message.body.jobId;
+        const jobId = message.body.version === 2 ? message.body.campaignId : message.body.version === 3 ? message.body.reviewId : message.body.jobId;
         console.info(JSON.stringify({ event: "security_agent.queue_processed", queue: batch.queue, jobId, status: result.status }));
         if (result.status === "leased") message.retry({ delaySeconds: 120 });
         else message.ack();
       } catch (error) {
         const code = error instanceof Error ? error.message : "SECURITY_QUEUE_FAILED";
-        console.error(JSON.stringify({ event: "security_agent.queue_failed", queue: batch.queue, jobId: message.body.version === 2 ? message.body.campaignId : message.body.jobId, error: code }));
+        console.error(JSON.stringify({ event: "security_agent.queue_failed", queue: batch.queue, jobId: message.body.version === 2 ? message.body.campaignId : message.body.version === 3 ? message.body.reviewId : message.body.jobId, error: code }));
         if (code === "SECURITY_JOB_RETRY") message.retry({ delaySeconds: 30 });
         else message.ack();
       }

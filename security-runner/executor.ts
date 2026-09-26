@@ -1,6 +1,7 @@
 import { isPrivateOrReservedAddress } from "../domain/cybersecurity-preview.ts";
 import { SECURITY_ACTIVE_RUNNER_BASELINE_REQUESTS } from "../domain/security-campaign-policy.ts";
 import { SECURITY_RUNNER_VERSION, type RunnerManifest } from "../domain/security-runner-policy.ts";
+import { classifyAuthReview, type AuthReviewMarkers, type AuthReviewStatuses } from "../domain/security-auth-review-policy.ts";
 
 type FetchLike = (input: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
 type RequestObservation = { status: number; headers: Headers; body: string; redirect: URL | null };
@@ -97,11 +98,70 @@ async function dnsQuery(domain: string, type: "A" | "AAAA", fetcher: FetchLike) 
   return (payload.Answer ?? []).filter((item) => item.type === 1 || item.type === 28).map((item) => String(item.data ?? ""));
 }
 
-async function assertPublicResolution(domain: string, fetcher: FetchLike) {
+export async function assertPublicResolution(domain: string, fetcher: FetchLike) {
   const results = await Promise.allSettled([dnsQuery(domain, "A", fetcher), dnsQuery(domain, "AAAA", fetcher)]);
   const addresses = results.flatMap((result) => result.status === "fulfilled" ? result.value : []);
   if (!addresses.length) throw new Error(results.some((result) => result.status === "rejected") ? "RUNNER_DNS_UNAVAILABLE" : "RUNNER_DOMAIN_NOT_RESOLVED");
   if (addresses.some(isPrivateOrReservedAddress)) throw new Error("RUNNER_NON_PUBLIC_TARGET");
+}
+
+async function responseContainsMarker(response: Response, marker: string) {
+  if (!/(?:^text\/|^application\/(?:json|xml|xhtml\+xml))/i.test(response.headers.get("content-type") ?? "")) {
+    await response.body?.cancel().catch(() => undefined);
+    return false;
+  }
+  if (!response.body) return false;
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let checked = 0;
+  let tail = "";
+  try {
+    while (checked < 64 * 1024) {
+      const { done, value } = await reader.read();
+      if (done) return false;
+      const bytes = value.slice(0, 64 * 1024 - checked);
+      checked += bytes.byteLength;
+      const text = tail + decoder.decode(bytes, { stream: true });
+      if (text.includes(marker)) return true;
+      tail = text.slice(-Math.max(0, marker.length - 1));
+    }
+    return false;
+  } finally { await reader.cancel().catch(() => undefined); }
+}
+
+export async function executeAuthenticatedAccessReview(input: { domain: string; path: string; limitedToken: string; privilegedToken: string; marker?: string | null }, fetcher: FetchLike = fetch) {
+  const url = new URL(`https://${input.domain}${input.path}`);
+  const statuses: AuthReviewStatuses = { anonymous: null, limited: null, privileged: null };
+  const markers: AuthReviewMarkers = { anonymous: null, limited: null, privileged: null };
+  let consumed = 0;
+  let stopReason: string | null = null;
+  for (const [role, token] of [["anonymous", null], ["limited", input.limitedToken], ["privileged", input.privilegedToken]] as const) {
+    try {
+      // Recheck before every request. Never follow a redirect with a test identity.
+      await assertPublicResolution(input.domain, fetcher);
+      const response = await fetcher(url, {
+        method: "GET", redirect: "manual", cache: "no-store",
+        headers: { Accept: "application/json,text/html;q=0.8,*/*;q=0.2", "User-Agent": "CBSHub-Access-Review/1.0", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
+      });
+      consumed += 1;
+      statuses[role] = response.status;
+      if (input.marker) markers[role] = await responseContainsMarker(response, input.marker);
+      else await response.body?.cancel().catch(() => undefined);
+      if (response.status === 429 || response.status >= 500) { stopReason = "target_unavailable_or_rate_limited"; break; }
+    } catch (error) {
+      stopReason = error instanceof Error && error.message.startsWith("RUNNER_") ? error.message : "request_failed";
+      break;
+    }
+  }
+  return {
+    statuses,
+    markerObserved: markers,
+    consumed,
+    verdict: stopReason ? "inconclusive" as const : classifyAuthReview(statuses, input.marker ? markers : undefined),
+    stopReason,
+    limitation: "Três leituras GET de um caminho declarado. São retidos apenas códigos HTTP e presença de um marcador sintético; corpos e credenciais não são armazenados. Outros impactos exigem revisão humana.",
+  };
 }
 
 async function boundedText(response: Response) {

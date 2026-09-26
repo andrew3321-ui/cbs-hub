@@ -19,7 +19,7 @@ function database() {
   return { sqlite, DB };
 }
 
-test("agentic session verifies one probe before planning the next and stops after the second verdict", async () => {
+test("agentic session verifies each probe and completes the required baseline despite an early model stop", async () => {
   const { sqlite, DB } = database();
   const originalFetch = globalThis.fetch;
   const secret = "agentic-test-signing-key-with-at-least-thirty-two-characters";
@@ -33,14 +33,18 @@ test("agentic session verifies one probe before planning the next and stops afte
     assert.equal(started.status, "scheduled");
     sqlite.prepare("UPDATE security_agentic_sessions SET window_start = ? WHERE id = ?").run(new Date(Date.now() - 60_000).toISOString(), started.id);
     let modelCalls = 0;
-    globalThis.fetch = async (input) => {
+    const modelInputs = [];
+    globalThis.fetch = async (input, init) => {
       assert.equal(String(input), "https://api.openai.com/v1/responses");
+      modelInputs.push(JSON.parse(init.body));
       modelCalls++;
       const outputs = [
         { testId: "web_control_probe", reason: "Conferir controles web observáveis antes de seguir." },
-        { summary: "Sonda de controles concluída com resposta observada.", confidence: "medium", evidenceCodes: ["RUNNER_REQUESTS", "RUNNER_WEB_PROBE"], uncertainties: [], nextFocus: "Conferir o transporte HTTPS.", continueTesting: true },
+        { summary: "Sonda de controles concluída com resposta observada.", confidence: "high", evidenceCodes: ["RUNNER_REQUESTS", "RUNNER_WEB_PROBE"], uncertainties: [], nextFocus: "tls_configuration_review", continueTesting: true },
         { testId: "tls_configuration_review", reason: "Complementar o controle web com o estado de HTTPS." },
-        { summary: "Transporte HTTPS observado na raiz.", confidence: "medium", evidenceCodes: ["RUNNER_REQUESTS", "RUNNER_TRANSPORT"], uncertainties: [], nextFocus: "Revisão humana da cobertura.", continueTesting: false },
+        { summary: "Transporte HTTPS observado na raiz.", confidence: "medium", evidenceCodes: ["RUNNER_REQUESTS", "RUNNER_TRANSPORT"], uncertainties: [], nextFocus: "safe_web_crawl", continueTesting: false },
+        { testId: "safe_web_crawl", reason: "Completar a cobertura pública com navegação limitada." },
+        { summary: "Navegação pública limitada concluída.", confidence: "medium", evidenceCodes: ["RUNNER_REQUESTS", "RUNNER_CRAWL"], uncertainties: ["Rotas privadas não foram testadas."], nextFocus: "human_review", continueTesting: false },
       ];
       return Response.json({ output_text: JSON.stringify(outputs[modelCalls - 1]) });
     };
@@ -55,16 +59,50 @@ test("agentic session verifies one probe before planning the next and stops afte
     const afterFirst = sqlite.prepare("SELECT status, phase, consumed_requests, step_count FROM security_agentic_sessions WHERE id = ?").get(started.id);
     assert.deepEqual({ ...afterFirst }, { status: "running", phase: "planning", consumed_requests: 2, step_count: 1 });
     assert.equal(JSON.parse(sqlite.prepare("SELECT verdict_json FROM security_agentic_steps WHERE id = ?").get(step.id).verdict_json).evidenceCodes[1], "RUNNER_WEB_PROBE");
+    assert.equal(JSON.parse(sqlite.prepare("SELECT verdict_json FROM security_agentic_steps WHERE id = ?").get(step.id).verdict_json).confidence, "medium");
     assert.deepEqual(await advanceDueAgenticPentests(env), { checked: 1, advanced: 1, failed: 0 });
     const second = sqlite.prepare("SELECT * FROM security_agentic_steps WHERE session_id = ? AND step_no = 2").get(started.id);
     assert.equal(second.test_id, "tls_configuration_review");
+    assert.equal(modelInputs[2].input.includes("Sonda de controles concluída"), false);
+    assert.equal(modelInputs[2].input.includes("RUNNER_WEB_PROBE"), true);
     assert.equal(sent.length, 2);
     sqlite.prepare("UPDATE security_runner_jobs SET status = 'completed', result_json = ?, request_count = 1 WHERE campaign_id = ?").run(JSON.stringify({ ...result, techniques: [second.test_id], budget: { requestsPerMinute: 10, totalRequests: 1, consumed: 1 }, requests: { successful: 1, errors: 0, serverErrors: 0, statusCodes: { "200": 1 } }, transport: { httpsReachable: true, status: 200, hstsObserved: true, cspObserved: false, limitation: "test" }, webProbe: null }), second.campaign_id);
     assert.deepEqual(await advanceDueAgenticPentests(env), { checked: 1, advanced: 1, failed: 0 });
+    assert.equal(sqlite.prepare("SELECT phase FROM security_agentic_sessions WHERE id = ?").get(started.id).phase, "planning");
+    assert.deepEqual(await advanceDueAgenticPentests(env), { checked: 1, advanced: 1, failed: 0 });
+    const third = sqlite.prepare("SELECT * FROM security_agentic_steps WHERE session_id = ? AND step_no = 3").get(started.id);
+    assert.equal(third.test_id, "safe_web_crawl");
+    sqlite.prepare("UPDATE security_runner_jobs SET status = 'completed', result_json = ?, request_count = 2 WHERE campaign_id = ?").run(JSON.stringify({ ...result, techniques: [third.test_id], budget: { requestsPerMinute: 10, totalRequests: 8, consumed: 2 }, requests: { successful: 2, errors: 0, serverErrors: 0, statusCodes: { "200": 2 } }, crawl: { pagesVisited: 2, discoveredPages: 2, remainingPages: 0, htmlPages: 2, redirectsObserved: 0, blockedRedirects: 0, skippedSensitiveLinks: 0, hstsCoveragePercent: 0, cspCoveragePercent: 0 }, webProbe: null }), third.campaign_id);
+    assert.deepEqual(await advanceDueAgenticPentests(env), { checked: 1, advanced: 1, failed: 0 });
     const session = sqlite.prepare("SELECT status, phase, consumed_requests, step_count FROM security_agentic_sessions WHERE id = ?").get(started.id);
-    assert.deepEqual({ ...session }, { status: "completed", phase: "done", consumed_requests: 3, step_count: 2 });
-    assert.equal(modelCalls, 4);
-    assert.equal(sent.length, 2);
+    assert.deepEqual({ ...session }, { status: "completed", phase: "done", consumed_requests: 5, step_count: 3 });
+    assert.equal(modelCalls, 6);
+    assert.equal(sent.length, 3);
+  } finally { globalThis.fetch = originalFetch; sqlite.close(); }
+});
+
+test("agentic session stops inconclusive without a verifier call when no HTTP response exists", async () => {
+  const { sqlite, DB } = database();
+  const originalFetch = globalThis.fetch;
+  const secret = "agentic-test-signing-key-with-at-least-thirty-two-characters";
+  const scope = { id: `sas_${crypto.randomUUID()}`, workspace_id: 42, domain: "example.com", status: "verified", authorization_expires_at: new Date(Date.now() + 86_400_000).toISOString() };
+  try {
+    sqlite.prepare("INSERT INTO security_agent_scopes (id, workspace_id, domain, status, verification_token, created_by_user_id, authorization_basis, authorization_attested_at, authorization_expires_at, authorization_version) VALUES (?, 42, ?, 'verified', 'token', 1, 'dns_control', datetime('now'), ?, 'test')")
+      .run(scope.id, scope.domain, scope.authorization_expires_at);
+    const env = { DB, OPENAI_API_KEY: "test-key", SECURITY_RUNNER_SIGNING_KEY: secret, SECURITY_ACTIVE_RUNNER: { fetch: (request) => enqueue(request, { DB, SECURITY_RUNNER_SIGNING_KEY: secret, ACTIVE_RUN_QUEUE: { send: async () => undefined } }) } };
+    const started = await startAgenticPentest(env, scope, 7, true);
+    sqlite.prepare("UPDATE security_agentic_sessions SET window_start = ? WHERE id = ?").run(new Date(Date.now() - 60_000).toISOString(), started.id);
+    let modelCalls = 0;
+    globalThis.fetch = async () => { modelCalls++; return Response.json({ output_text: JSON.stringify({ testId: "web_control_probe", reason: "Conferir os controles web observáveis." }) }); };
+    assert.equal((await advanceDueAgenticPentests(env)).failed, 0);
+    const step = sqlite.prepare("SELECT * FROM security_agentic_steps WHERE session_id = ?").get(started.id);
+    const result = { domain: scope.domain, techniques: [step.test_id], outcome: "stopped", stopReason: "network_or_tls", budget: { totalRequests: 2, consumed: 1 }, requests: { successful: 0, errors: 1, serverErrors: 0, statusCodes: {} }, transport: null, crawl: null, webProbe: null };
+    sqlite.prepare("UPDATE security_runner_jobs SET status = 'stopped', result_json = ?, request_count = 1 WHERE campaign_id = ?").run(JSON.stringify(result), step.campaign_id);
+    assert.equal((await advanceDueAgenticPentests(env)).failed, 0);
+    assert.equal(modelCalls, 1);
+    const session = sqlite.prepare("SELECT status, phase, last_error_code FROM security_agentic_sessions WHERE id = ?").get(started.id);
+    assert.deepEqual({ ...session }, { status: "review", phase: "done", last_error_code: "AGENTIC_NO_HTTP_EVIDENCE" });
+    assert.equal(sqlite.prepare("SELECT verdict_json FROM security_agentic_steps WHERE id = ?").get(step.id).verdict_json, "{}");
   } finally { globalThis.fetch = originalFetch; sqlite.close(); }
 });
 
@@ -79,4 +117,26 @@ test("cancellation prevents scheduled agentic probes", async () => {
     assert.deepEqual(await advanceDueAgenticPentests(env), { checked: 0, advanced: 0, failed: 0 });
     assert.equal(sqlite.prepare("SELECT COUNT(*) total FROM security_agentic_steps").get().total, 0);
   } finally { sqlite.close(); }
+});
+
+test("cancellation during model planning leaves no orphan campaign or completion event", async () => {
+  const { sqlite, DB } = database();
+  const originalFetch = globalThis.fetch;
+  const scope = { id: `sas_${crypto.randomUUID()}`, workspace_id: 42, domain: "example.com", status: "verified", authorization_expires_at: new Date(Date.now() + 86_400_000).toISOString() };
+  try {
+    sqlite.prepare("INSERT INTO security_agent_scopes (id, workspace_id, domain, status, verification_token, created_by_user_id, authorization_basis, authorization_attested_at, authorization_expires_at, authorization_version) VALUES (?, 42, ?, 'verified', 'token', 1, 'dns_control', datetime('now'), ?, 'test')")
+      .run(scope.id, scope.domain, scope.authorization_expires_at);
+    const env = { DB, OPENAI_API_KEY: "test-key", SECURITY_RUNNER_SIGNING_KEY: "agentic-test-signing-key-with-at-least-thirty-two-characters", SECURITY_ACTIVE_RUNNER: { fetch: async () => { throw new Error("must not dispatch"); } } };
+    const session = await startAgenticPentest(env, scope, 7, true);
+    sqlite.prepare("UPDATE security_agentic_sessions SET window_start = ? WHERE id = ?").run(new Date(Date.now() - 60_000).toISOString(), session.id);
+    globalThis.fetch = async () => {
+      await cancelAgenticPentest(env, { workspaceId: 42, scopeId: scope.id, sessionId: session.id, actorUserId: 7 });
+      return Response.json({ output_text: JSON.stringify({ testId: "web_control_probe", reason: "Revisar controles públicos autorizados." }) });
+    };
+    assert.equal((await advanceDueAgenticPentests(env)).failed, 0);
+    assert.equal(sqlite.prepare("SELECT status FROM security_agentic_sessions WHERE id = ?").get(session.id).status, "cancelled");
+    assert.equal(sqlite.prepare("SELECT COUNT(*) total FROM security_agentic_steps WHERE session_id = ?").get(session.id).total, 0);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) total FROM security_campaigns WHERE scope_id = ?").get(scope.id).total, 0);
+    assert.equal(sqlite.prepare("SELECT COUNT(*) total FROM security_agentic_events WHERE session_id = ? AND event_type = 'agentic.finished'").get(session.id).total, 0);
+  } finally { globalThis.fetch = originalFetch; sqlite.close(); }
 });

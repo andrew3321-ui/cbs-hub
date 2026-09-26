@@ -477,6 +477,34 @@
       "when": 1790290800000,
       "tag": "0067_agentic_pentest_sessions",
       "breakpoints": true
+    },
+    {
+      "idx": 68,
+      "version": "6",
+      "when": 1790377200000,
+      "tag": "0068_authenticated_access_review",
+      "breakpoints": true
+    },
+    {
+      "idx": 69,
+      "version": "6",
+      "when": 1790463600000,
+      "tag": "0069_auth_review_agent_pipeline",
+      "breakpoints": true
+    },
+    {
+      "idx": 70,
+      "version": "6",
+      "when": 1790550000000,
+      "tag": "0070_auth_review_modes",
+      "breakpoints": true
+    },
+    {
+      "idx": 71,
+      "version": "6",
+      "when": 1790636400000,
+      "tag": "0071_authorization_contracts",
+      "breakpoints": true
     }
   ]
 }

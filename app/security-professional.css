@@ -122,6 +122,14 @@
 .security-agentic-summary meter { display: block; width: 100%; height: 6px; margin-top: 9px; }
 .security-agentic-summary meter::-webkit-meter-bar { border: 0; border-radius: 99px; background: #26364a; }
 .security-agentic-summary meter::-webkit-meter-optimum-value { border-radius: 99px; background: #82aaff; }
+.security-agentic-coverage { margin: -3px 0 20px; padding: 15px 18px; border: 1px solid #293544; border-radius: 9px; background: #111b27; }
+.security-agentic-coverage > strong { color: #dce9f4; font-size: 12px; font-weight: 650; }
+.security-agentic-coverage ul { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 12px 0 9px; padding: 0; list-style: none; }
+.security-agentic-coverage li { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 5px 10px; padding: 10px 12px; border: 1px solid #304154; border-radius: 7px; color: #bdcad9; font-size: 11px; }
+.security-agentic-coverage li b { color: #a4b7ca; font-weight: 600; }
+.security-agentic-coverage li[data-state="revisada"] b { color: #9ed8bf; }
+.security-agentic-coverage li[data-state="coleta parcial"] b { color: #f0c48c; }
+.security-agentic-coverage > small { color: #879db3; font-size: 10px; line-height: 1.5; }
 .security-agentic-run-layout { display: grid; grid-template-columns: minmax(280px, .78fr) minmax(0, 1.22fr); gap: 16px; align-items: start; }
 .security-agentic-stage-column { min-width: 0; }
 .security-agentic-subhead { margin: 0 0 12px; }
@@ -181,6 +189,60 @@
 .security-execution-empty { padding: 25px 16px; color: #91a3b6; font-size: 12px; }
 .security-execution-console > footer { padding: 12px 16px; border-top: 1px solid #283747; color: #8294a8; font-size: 10px; line-height: 1.5; }
 
+.security-auth-review { margin-top: 24px; padding: clamp(20px, 3vw, 32px); border: 1px solid #344356; border-radius: 14px; background: #111b28; }
+.security-auth-review > header > span { color: #92b5f3; font-size: 11px; font-weight: 750; letter-spacing: .1em; }
+.security-auth-review > header h3 { margin: 12px 0 8px; color: #eef3f9; font-size: clamp(22px, 2.5vw, 29px); letter-spacing: -.035em; }
+.security-auth-review > header p { max-width: 850px; margin: 0; color: #a6b6c7; line-height: 1.6; }
+.security-auth-review-notice { margin-top: 22px; padding: 14px 16px; border: 1px solid #40506a; border-radius: 8px; background: #172338; color: #c8d4e5; font-size: 12px; line-height: 1.55; }
+.security-auth-review-message { color: #c9dbf5; font-size: 13px; }
+.security-auth-review-scope { margin-top: 22px; padding: 20px; border: 1px solid #2d3b4b; border-radius: 10px; background: #0d1621; }
+.security-auth-review-scope h4 { margin: 0 0 16px; color: #eef3f9; font-size: 16px; }
+.security-auth-review-scope form { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)) auto; gap: 12px; align-items: end; }
+.security-auth-review-scope label { display: grid; gap: 7px; color: #b3c2d3; font-size: 11px; font-weight: 690; }
+.security-auth-review-scope input { width: 100%; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid #3b4a5d; border-radius: 7px; outline: 0; background: #0b121c; color: #eef3f9; font: inherit; font-size: 13px; }
+.security-auth-review-scope input:focus { border-color: #79a7f4; box-shadow: 0 0 0 2px #79a7f433; }
+.security-auth-review-scope button { height: 44px; padding: 0 16px; border: 1px solid #5e8ce0; border-radius: 7px; background: #4775cd; color: #fff; font-weight: 700; cursor: pointer; }
+.security-auth-review-scope button:disabled { opacity: .5; cursor: not-allowed; }
+.security-auth-review-scope > small { display: block; margin-top: 12px; color: #a9b9ca; }
+.security-auth-review-scope article { margin-top: 12px; padding: 14px 16px; border: 1px solid #2f4052; border-radius: 8px; background: #142030; }
+.security-auth-review-scope article > div { display: flex; justify-content: space-between; gap: 14px; color: #e4edf8; }
+.security-auth-review-scope article time, .security-auth-review-scope article small { color: #97aabe; font-size: 11px; }
+.security-auth-review-scope article p { margin: 9px 0 6px; color: #c6d7ed; font-size: 13px; }
+.security-auth-review-scope select { width: 100%; min-width: 0; height: 44px; padding: 0 12px; border: 1px solid #3b4a5d; border-radius: 7px; background: #0b121c; color: #eef3f9; font: inherit; font-size: 13px; }
+.security-auth-review-retest-select { grid-column: 1 / -1; }
+.security-auth-review-agent-stages { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.security-auth-review-agent-stages span { padding: 5px 8px; border: 1px solid #374d62; border-radius: 4px; color: #b8cce0; font-size: 10px; }
+.security-auth-review-scope article .security-auth-review-retest-result { color: #a9d9ca; }
+.security-auth-review-agent-result { margin-top: 10px; padding: 10px 12px; border: 1px solid #314254; border-radius: 6px; color: #c9d9e9; }
+.security-auth-review-agent-result summary { cursor: pointer; font-size: 12px; font-weight: 700; }
+.security-auth-review-agent-result small { display: block; margin-top: 5px; }
+.security-authorization-contracts { margin-top: 24px; padding: 22px; border: 1px solid #3b526d; border-radius: 10px; background: #0b1420; }
+.security-authorization-contracts header > span { color: #92b5f3; font-size: 10px; font-weight: 750; letter-spacing: .1em; }
+.security-authorization-contracts h4 { margin: 10px 0; color: #edf3fb; font-size: 20px; letter-spacing: -.025em; }
+.security-authorization-contracts p { color: #aebed0; font-size: 13px; line-height: 1.6; }
+.security-contract-create { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; margin: 20px 0; }
+.security-contract-create label { display: grid; gap: 8px; color: #bdcbdc; font-size: 12px; }
+.security-contract-create input:not([type=checkbox]), .security-contract-create select { width: 100%; min-width: 0; min-height: 44px; border: 1px solid #3b4a5d; border-radius: 6px; background: #111d2c; color: #edf3fb; padding: 10px 12px; font: inherit; }
+.security-contract-create .security-contract-confirm { grid-column: 1 / -1; display: flex; align-items: flex-start; line-height: 1.5; }
+.security-contract-confirm input { margin-top: 3px; accent-color: #85acf3; }
+.security-authorization-contracts button, .security-contract-actions a { padding: 10px 14px; border: 1px solid #4d6d94; border-radius: 6px; background: #1b3552; color: #e3edfb; font: inherit; font-size: 12px; font-weight: 650; text-decoration: none; cursor: pointer; }
+.security-authorization-contracts button:disabled { opacity: .5; cursor: not-allowed; }
+.security-authorization-contracts :is(button, input, select, a):focus-visible { outline: 2px solid #9dbdff; outline-offset: 3px; }
+.security-contract-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; }
+.security-contract-list article { padding: 18px; min-width: 0; border: 1px solid #2d435c; border-radius: 8px; background: #122032; }
+.security-contract-heading { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 8px; color: #e1ebf8; }
+.security-contract-heading span { color: #a3c0e8; font-size: 11px; }
+.security-contract-list article > p { overflow-wrap: anywhere; }
+.security-contract-list small, .security-contract-create small, .security-contract-limit { color: #95aac2; font-size: 11px; line-height: 1.6; }
+.security-contract-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.security-contract-limit { display: block; margin-top: 18px; }
+.security-contract-history { padding-left: 18px; margin-top: 16px; color: #bccce0; font-size: 12px; }
+.security-contract-history li { margin-top: 10px; line-height: 1.5; }
+.security-contract-history time { display: block; color: #95aac2; font-size: 10px; }
+@media (max-width: 850px) { .security-contract-list, .security-contract-create { grid-template-columns: 1fr; } }
+@media (max-width: 1150px) { .security-auth-review-scope form { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 620px) { .security-auth-review-scope form { grid-template-columns: 1fr; } .security-auth-review-scope article > div { flex-direction: column; gap: 3px; } }
+
 @media (max-width: 1100px) { .security-agentic-run-layout { grid-template-columns: 1fr; } .security-agentic-capabilities { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 @media (max-width: 800px) {
   .security-workspace-shell { display: block; padding-bottom: 72px; }
@@ -195,6 +257,7 @@
 }
 @media (max-width: 620px) {
   .security-agentic-capabilities { grid-template-columns: 1fr; }
+  .security-agentic-coverage ul { grid-template-columns: 1fr; }
   .security-agentic-summary { grid-template-columns: 1fr; }
   .security-agentic-summary > div { min-height: 70px; border-right: 0; border-bottom: 1px solid #293544; }
   .security-agentic-summary > div:last-child { border-bottom: 0; }

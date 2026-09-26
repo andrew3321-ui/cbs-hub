@@ -8,7 +8,7 @@ export type PersonalDataInventoryItem = {
   deletionBehavior: string;
 };
 
-export const PRIVACY_GOVERNANCE_VERSION = "2026.09.05-v5";
+export const PRIVACY_GOVERNANCE_VERSION = "2026.09.25-v7";
 
 export const personalDataInventory: PersonalDataInventoryItem[] = [
   {
@@ -40,12 +40,12 @@ export const personalDataInventory: PersonalDataInventoryItem[] = [
   },
   {
     category: "Diagnósticos e evidências de segurança",
-    examples: ["registros DNS públicos", "cabeçalhos HTTPS", "contagens agregadas informadas pelo operador", "prioridades de correção", "decisões sobre achados", "campanhas autorizadas", "referência de repositório e pull request", "hash de evidências"],
+    examples: ["registros DNS públicos", "cabeçalhos HTTPS", "contagens agregadas informadas pelo operador", "prioridades de correção", "decisões sobre achados", "campanhas autorizadas", "códigos HTTP e presença de marcador sintético em revisão autenticada", "referência de repositório e pull request", "hash de evidências"],
     purposes: ["diagnóstico defensivo", "acompanhamento da postura externa", "planejamento de testes autorizados", "preparação de correção revisável", "evidência técnica"],
     legalBases: ["execução de contrato (LGPD, art. 7º, V)", "cumprimento de obrigação legal (LGPD, art. 7º, II), quando aplicável"],
-    stores: ["security_agent_jobs", "security_agent_events", "security_findings", "security_finding_events", "security_campaigns", "security_campaign_events", "security_remediation_proposals", "security_remediation_events"],
-    retention: "jobs e eventos do agente por até 365 dias; achados e decisões enquanto o workspace existir ou até sua exclusão",
-    deletionBehavior: "resultados antigos são removidos pela rotina de retenção; achados, decisões e escopos são exportados e excluídos com o workspace",
+    stores: ["security_agent_jobs", "security_agent_events", "security_findings", "security_finding_events", "security_campaigns", "security_campaign_events", "security_auth_reviews", "security_auth_contracts", "security_remediation_proposals", "security_remediation_events"],
+    retention: "jobs, eventos do agente e revisões autenticadas por até 365 dias; contratos de autorização, achados e decisões enquanto o workspace existir ou até sua exclusão",
+    deletionBehavior: "resultados antigos são removidos pela rotina de retenção; revisões, achados, decisões e escopos são exportados e excluídos com o workspace; tokens e corpos não são persistidos",
   },
   {
     category: "Cobrança e registros fiscais",

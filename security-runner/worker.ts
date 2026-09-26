@@ -1,5 +1,6 @@
-import { executeRunnerManifest, verifyRunnerOwnership, type RunnerRequestEvent, type RunnerStage } from "./executor.ts";
+import { executeAuthenticatedAccessReview, executeRunnerManifest, verifyRunnerOwnership, type RunnerRequestEvent, type RunnerStage } from "./executor.ts";
 import { parseRunnerManifest, SECURITY_RUNNER_MAX_BODY_BYTES, verifyRunnerSignature } from "../domain/security-runner-policy.ts";
+import { authReviewFindingIdentity, authReviewMarkerHash, classifyAuthReviewRetest, parseAuthReviewExecution, type AuthReviewVerdict } from "../domain/security-auth-review-policy.ts";
 import { SECURITY_CAMPAIGN_COMPATIBLE_POLICY_VERSIONS } from "../domain/security-campaign-policy.ts";
 
 interface RunnerEnv {
@@ -84,6 +85,66 @@ async function enqueue(request: Request, env: RunnerEnv) {
   return json({ jobId, status: "queued" }, 202);
 }
 
+async function authenticatedAccessReview(request: Request, env: RunnerEnv, options: { ownershipFetcher?: typeof fetch; targetFetcher?: typeof fetch } = {}) {
+  const secret = env.SECURITY_RUNNER_SIGNING_KEY?.trim() ?? "";
+  if (secret.length < 32) return json({ code: "RUNNER_SIGNING_KEY_NOT_CONFIGURED" }, 503);
+  const declaredLength = Number(request.headers.get("content-length") ?? 0);
+  if (Number.isFinite(declaredLength) && declaredLength > 8_192) return json({ code: "RUNNER_PAYLOAD_TOO_LARGE" }, 413);
+  const body = await request.text();
+  if (new TextEncoder().encode(body).byteLength > 8_192) return json({ code: "RUNNER_PAYLOAD_TOO_LARGE" }, 413);
+  if (!await verifyRunnerSignature(secret, request.headers.get("x-cbshub-timestamp"), request.headers.get("x-cbshub-signature"), body)) return json({ code: "RUNNER_SIGNATURE_INVALID" }, 401);
+  let input: ReturnType<typeof parseAuthReviewExecution>;
+  try { input = parseAuthReviewExecution(JSON.parse(body)); }
+  catch { return json({ code: "AUTH_REVIEW_INVALID" }, 400); }
+  const scope = await env.DB.prepare(`SELECT s.domain, s.status, s.authorization_expires_at, s.verification_token, r.status review_status, r.marker_sha256, r.retest_of_id, r.review_mode
+    FROM security_auth_reviews r JOIN security_agent_scopes s ON s.id = r.scope_id AND s.workspace_id = r.workspace_id
+    WHERE r.id = ? AND r.workspace_id = ? AND r.scope_id = ? AND r.path = ?`)
+    .bind(input.reviewId, input.workspaceId, input.scopeId, input.path)
+    .first<{ domain: string; status: string; authorization_expires_at: string | null; verification_token: string; review_status: string; marker_sha256: string | null; retest_of_id: string | null; review_mode: string }>();
+  const expiresAt = Date.parse(scope?.authorization_expires_at ?? "");
+  if (!scope || scope.domain !== input.domain || scope.status !== "verified" || !Number.isFinite(expiresAt) || expiresAt <= Date.now()) return json({ code: "RUNNER_SCOPE_AUTHORIZATION_INVALID" }, 403);
+  if (scope.review_mode !== input.reviewMode) return json({ code: "AUTH_REVIEW_MODE_MISMATCH" }, 403);
+  if (scope.marker_sha256 !== await authReviewMarkerHash(input.marker)) return json({ code: "AUTH_REVIEW_MARKER_MISMATCH" }, 403);
+  const prior = scope.retest_of_id ? await env.DB.prepare("SELECT verdict FROM security_auth_reviews WHERE id = ? AND workspace_id = ? AND scope_id = ? AND path = ? AND review_mode = ? AND status = 'completed'")
+    .bind(scope.retest_of_id, input.workspaceId, input.scopeId, input.path, input.reviewMode).first<{ verdict: AuthReviewVerdict }>() : null;
+  if (scope.retest_of_id && !prior) return json({ code: "AUTH_REVIEW_RETEST_INVALID" }, 403);
+  const claim = await env.DB.prepare("UPDATE security_auth_reviews SET status = 'executing' WHERE id = ? AND status = 'running'").bind(input.reviewId).run();
+  if (Number(claim.meta.changes ?? 0) !== 1) return json({ code: "AUTH_REVIEW_ALREADY_CLAIMED" }, 409);
+  try {
+    await verifyRunnerOwnership(input.domain, scope.verification_token, options.ownershipFetcher);
+    const result = await executeAuthenticatedAccessReview(input, options.targetFetcher);
+    const retestOutcome = prior ? classifyAuthReviewRetest(prior.verdict, result.verdict) : null;
+    const observedAt = new Date().toISOString();
+    const statements = [env.DB.prepare(`UPDATE security_auth_reviews SET status = 'completed', anonymous_status = ?, limited_status = ?, privileged_status = ?, anonymous_marker_observed = ?, limited_marker_observed = ?, privileged_marker_observed = ?, verdict = ?, retest_outcome = ?, completed_at = ? WHERE id = ? AND status = 'executing'`)
+      .bind(result.statuses.anonymous, result.statuses.limited, result.statuses.privileged,
+        result.markerObserved.anonymous === null ? null : Number(result.markerObserved.anonymous),
+        result.markerObserved.limited === null ? null : Number(result.markerObserved.limited),
+        result.markerObserved.privileged === null ? null : Number(result.markerObserved.privileged),
+        result.verdict, retestOutcome, observedAt, input.reviewId)];
+    if (result.verdict === "verified_test_marker_exposure") {
+      const finding = await authReviewFindingIdentity(input.scopeId, input.path, input.reviewMode, input.reviewId);
+      statements.push(env.DB.prepare(`INSERT INTO security_findings
+        (id, workspace_id, scope_id, source_job_id, evidence_code, title, severity, status, occurrence_count, first_observed_at, last_observed_at, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, 'medium', 'open', 1, ?, ?, ?, ?)
+        ON CONFLICT(scope_id, evidence_code) DO UPDATE SET source_job_id = excluded.source_job_id,
+          occurrence_count = security_findings.occurrence_count + 1, last_observed_at = excluded.last_observed_at,
+          status = CASE WHEN security_findings.status = 'mitigated' THEN 'open' ELSE security_findings.status END,
+          closed_at = CASE WHEN security_findings.status = 'mitigated' THEN NULL ELSE security_findings.closed_at END,
+          updated_at = excluded.updated_at`).bind(finding.findingId, input.workspaceId, input.scopeId, input.reviewId, finding.evidenceCode,
+        "Marcador sintético acessível por outra identidade de teste", observedAt, observedAt, observedAt, observedAt));
+      statements.push(env.DB.prepare(`INSERT OR IGNORE INTO security_finding_events
+        (id, workspace_id, finding_id, actor_user_id, event_type, details_json, created_at)
+        VALUES (?, ?, ?, NULL, 'auth_review.marker_observed', ?, ?)`).bind(finding.eventId, input.workspaceId, finding.findingId,
+        JSON.stringify({ reviewId: input.reviewId, mode: input.reviewMode, evidenceCode: finding.evidenceCode }), observedAt));
+    }
+    await env.DB.batch(statements);
+    return json({ id: input.reviewId, ...result, retestOutcome });
+  } catch (error) {
+    await env.DB.prepare("UPDATE security_auth_reviews SET status = 'failed', completed_at = ? WHERE id = ? AND status = 'executing'").bind(new Date().toISOString(), input.reviewId).run();
+    return json({ code: error instanceof Error && /^RUNNER_[A-Z0-9_]+$/.test(error.message) ? error.message : "AUTH_REVIEW_FAILED" }, 503);
+  }
+}
+
 async function claimJob(env: RunnerEnv, jobId: string) {
   const now = new Date().toISOString();
   const lease = new Date(Date.now() + 5 * 60_000).toISOString();
@@ -160,6 +221,7 @@ const worker = {
     const url = new URL(request.url);
     if (request.method === "GET" && url.pathname === "/health") return json({ status: "healthy", service: "cbs-hub-security-runner", release: env.CF_VERSION_METADATA?.id ?? "local", supportedPolicyVersions: SECURITY_CAMPAIGN_COMPATIBLE_POLICY_VERSIONS });
     if (request.method === "POST" && url.pathname === "/v1/jobs") return enqueue(request, env);
+    if (request.method === "POST" && url.pathname === "/v1/auth-review") return authenticatedAccessReview(request, env);
     return json({ error: "Not found.", code: "RUNNER_NOT_FOUND" }, 404);
   },
   async queue(batch: QueueBatch, env: RunnerEnv) {
@@ -172,5 +234,5 @@ const worker = {
   },
 };
 
-export { enqueue, processJob };
+export { enqueue, authenticatedAccessReview, processJob };
 export default worker;

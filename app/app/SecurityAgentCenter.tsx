@@ -38,7 +38,7 @@ const pageCopy: Record<WorkspaceView, { eyebrow: string; title: string; descript
   assets: { eyebrow: "Superfície externa", title: "Monitore o que está exposto.", description: "Execute diagnósticos, acompanhe a postura de cada domínio e mantenha a análise recorrente sob seu controle." },
   operations: { eyebrow: "Centro de operações", title: "Avalie seu ativo sem configurar cada teste.", description: "Depois de confirmar a titularidade, inicie um diagnóstico automático e trate os achados aqui. Validações controladas e seus logs ficam na aba Testes e pentest." },
   pentest: { eyebrow: "Validação autorizada", title: "Testes, etapas e evidências em um só lugar.", description: "Acompanhe as requisições limitadas do runner e a revisão dos agentes especializados. Os logs distinguem as sondas executadas das conclusões derivadas." },
-  agentic: { eyebrow: "Validação agentiva", title: "Acompanhe cada decisão e cada resposta.", description: "Veja as sondas web autorizadas, as respostas recebidas e a revisão dos agentes em uma trilha auditável. O escopo atual cobre apenas a superfície pública." },
+  agentic: { eyebrow: "Validação agentiva", title: "Acompanhe cada decisão e cada resposta.", description: "Veja as sondas web autorizadas, as respostas recebidas e a revisão dos agentes em uma trilha auditável. Compare também respostas de contas de teste em um caminho protegido." },
   repositories: { eyebrow: "Segurança de aplicações", title: "Do código à correção revisável.", description: "Conecte projetos autorizados, encontre riscos e prepare mudanças rastreáveis sem escrever diretamente na branch principal." },
 };
 

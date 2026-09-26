@@ -12,6 +12,8 @@
     "start": "vinext start",
     "test:unit": "node --experimental-strip-types --test tests/*.test.mjs",
     "security:eval": "node --experimental-strip-types scripts/evaluate-security-agent.mjs",
+    "security:auth-eval": "node --experimental-strip-types scripts/evaluate-auth-review.mjs",
+    "security:lab": "node --experimental-strip-types scripts/evaluate-authorization-lab.mjs",
     "runner:check": "wrangler deploy --dry-run --config security-runner/wrangler.jsonc --outdir tmp/security-runner",
     "repository:check": "wrangler deploy --dry-run --config repository-runner/wrangler.jsonc --outdir tmp/repository-runner",
     "site:check": "wrangler deploy --dry-run --config wrangler.jsonc --outdir tmp/site-worker",
