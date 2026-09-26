@@ -12,7 +12,7 @@ import { createAuthorizationLab, evaluateAuthorizationLaboratory, LAB_MARKER, LA
 
 function database() {
   const sqlite = new DatabaseSync(":memory:");
-  for (const file of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0054_security_findings_workflow.sql", "0068_authenticated_access_review.sql", "0069_auth_review_agent_pipeline.sql", "0070_auth_review_modes.sql", "0071_authorization_contracts.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${file}`, import.meta.url), "utf8"));
+  for (const file of ["0051_security_validation_agent.sql", "0052_security_agent_execution_queue.sql", "0054_security_findings_workflow.sql", "0063_github_repository_security.sql", "0068_authenticated_access_review.sql", "0069_auth_review_agent_pipeline.sql", "0070_auth_review_modes.sql", "0071_authorization_contracts.sql", "0072_authorization_code_maps.sql", "0073_authorization_regression_drafts.sql"]) sqlite.exec(readFileSync(new URL(`../drizzle/${file}`, import.meta.url), "utf8"));
   const DB = {
     prepare(sql) {
       const statement = sqlite.prepare(sql);

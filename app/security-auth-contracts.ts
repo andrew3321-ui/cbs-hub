@@ -1,5 +1,7 @@
 import { AUTH_CONTRACT_EXPECTATION, AUTH_CONTRACT_VERSION, authContractSpecHash, evaluateAuthContract, parseAuthContractId } from "../domain/security-auth-contracts.ts";
 import type { AuthReviewMode } from "../domain/security-auth-review-policy.ts";
+import { publicAuthCodeMap, type MapRow } from "./security-auth-code-map.ts";
+import { publicRegressionDraft, type RegressionDraftRow } from "./security-auth-regression.ts";
 
 export type AuthContractRow = { id: string; workspace_id: number; scope_id: string; title: string; path: string; review_mode: AuthReviewMode;
   marker_sha256: string; spec_sha256: string; baseline_review_id: string; created_at: string };
@@ -61,6 +63,8 @@ export async function authContractProofPack(DB: D1Database, workspaceId: number,
   const rows = await DB.prepare(`SELECT id, status, anonymous_status, limited_status, privileged_status, anonymous_marker_observed,
     limited_marker_observed, privileged_marker_observed, created_at, completed_at FROM security_auth_reviews
     WHERE workspace_id = ? AND contract_id = ? ORDER BY created_at DESC, id DESC LIMIT 20`).bind(workspaceId, contractId).all<ObservationRow>();
-  return { format: "cbshub-authorization-proof.1", contract: publicAuthContract(contract), runs: rows.results.map(authContractObservation),
+  const mappings = await DB.prepare("SELECT * FROM security_auth_code_maps WHERE workspace_id = ? AND contract_id = ? ORDER BY created_at DESC, id DESC LIMIT 20").bind(workspaceId, contractId).all<MapRow>();
+  const drafts = await DB.prepare("SELECT * FROM security_auth_regression_drafts WHERE workspace_id = ? AND contract_id = ? ORDER BY created_at DESC, id DESC LIMIT 20").bind(workspaceId, contractId).all<RegressionDraftRow>();
+  return { format: "cbshub-authorization-proof.3", contract: publicAuthContract(contract), runs: rows.results.map(authContractObservation), codeMappings: mappings.results.map(publicAuthCodeMap), regressionDrafts: drafts.results.map(publicRegressionDraft),
     exportedAt: new Date().toISOString(), historyLimit: 20, assurance: "Observações sintéticas de uma rota GET; não é certificação, assinatura digital, cobertura completa nem prova de correção em um commit implantado." };
 }

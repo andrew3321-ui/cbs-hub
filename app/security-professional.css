@@ -271,3 +271,25 @@
   .security-agentic-evidence > summary { flex-direction: column; gap: 5px; }
 }
 @media (prefers-reduced-motion: reduce) { .security-workspace-shell, .security-agentic-page { animation: none; } }
+.security-code-map { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--security-border, #233648); }
+.security-code-map-form { display: grid; gap: .85rem; margin: 1rem 0; }
+.security-code-map-form > label:first-child { display: grid; gap: .5rem; }
+.security-code-map-form select { max-width: 100%; width: 100%; }
+.security-code-map-results { display: grid; gap: 1rem; margin: 1rem 0; }
+.security-code-map-results > section { padding: 1rem; background: rgba(10, 20, 32, .45); border: 1px solid #233648; border-radius: 12px; }
+.security-code-map-results ul { list-style: none; padding: 0; display: grid; gap: .85rem; }
+.security-code-map-results li > small { display: block; margin-top: .25rem; }
+.security-code-map-results a, .security-code-map-results small { overflow-wrap: anywhere; }
+.security-code-map-references { display: flex; flex-wrap: wrap; gap: .5rem; margin-top: .5rem; font-size: .8rem; }
+.security-code-map-references a { padding: .3rem .5rem; border: 1px solid #233648; border-radius: 6px; }
+.security-code-map-warning { color: #f5c575; }
+.repository-regression { margin-top: 1.5rem; padding: 1.25rem; border: 1px solid var(--workspace-line, #293544); border-radius: 12px; }
+.repository-regression > header > span { color: var(--workspace-muted, #a6b2c1); font-size: .7rem; letter-spacing: .1em; }
+.repository-regression form, .repository-regression-list { display: grid; gap: 1rem; margin: 1rem 0; }
+.repository-regression form > label:first-child { display: grid; gap: .5rem; }
+.repository-regression select { width: 100%; max-width: 100%; }
+.repository-regression-list > article { padding: 1rem; background: var(--workspace-night, #0b1018); border: 1px solid var(--workspace-line, #293544); border-radius: 10px; }
+.repository-regression small { display: block; overflow-wrap: anywhere; }
+.repository-regression-preview { margin-top: .75rem; display: grid; gap: .5rem; }
+.repository-regression-preview summary { cursor: pointer; overflow-wrap: anywhere; padding: .65rem; }
+.repository-regression-preview pre { max-height: 360px; overflow: auto; padding: 1rem; background: #080d14; border-radius: 6px; font-size: .78rem; line-height: 1.65; }

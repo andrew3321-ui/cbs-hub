@@ -213,6 +213,8 @@ function runSecurityRetentionCleanup(env: Env) {
     env.DB.prepare("DELETE FROM security_agent_jobs WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_campaign_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_auth_reviews WHERE created_at < datetime('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM security_auth_code_maps WHERE julianday(created_at) < julianday('now', '-365 days')"),
+    env.DB.prepare("DELETE FROM security_auth_regression_drafts WHERE julianday(created_at) < julianday('now', '-365 days')"),
     env.DB.prepare("DELETE FROM security_runner_events WHERE created_at < datetime('now', '-365 days')"),
     env.DB.prepare("DELETE FROM github_oauth_states WHERE expires_at < datetime('now', '-1 day')"),
     env.DB.prepare("DELETE FROM github_webhook_deliveries WHERE received_at < datetime('now', '-30 days')"),

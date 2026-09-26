@@ -41,9 +41,13 @@ Um teste de integração passa pela assinatura HMAC, runner, banco e exportaçã
 
 ## Próximos incrementos ainda não implementados
 
-1. Mapear o contrato ao repositório, arquivo e SHA com relação domínio/projeto expressamente confirmada.
+O mapeamento lexical de rota/imports ao commit do scan foi implementado no [segundo incremento](authorization-code-mapping.md), dependente da migration 0072. Ele não comprova semântica de autorização nem versão implantada.
+
+A geração de receitas de teste revisáveis, com adaptador que precisa de integração humana, foi implementada no [terceiro incremento](authorization-regression-drafts.md), dependente da migration 0073. O pacote de evidências evoluiu para `cbshub-authorization-proof.3`; inclui mapas e metadados de receitas ainda não executadas no projeto.
+
+1. Ampliar o mapeamento com análise semântica validada, sem transformar referências lexicais em prova.
 2. Identificar a versão realmente implantada; não aceitar um SHA informado como prova de deploy.
-3. Gerar testes de regressão revisáveis e correções suportadas por PR, com validação no CI do cliente.
+3. Integrar adaptadores reais, publicar testes/correções suportados por PR e validar no CI do cliente.
 4. Expandir para aplicações de laboratório reais isoladas e browser autenticado antes de ampliar técnicas.
 5. Avaliar os agentes com chamadas reais, revisão humana e pilotos autorizados; depois oferecer execução contínua com mecanismo seguro de credenciais temporárias.
 

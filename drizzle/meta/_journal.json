@@ -505,6 +505,20 @@
       "when": 1790636400000,
       "tag": "0071_authorization_contracts",
       "breakpoints": true
+    },
+    {
+      "idx": 72,
+      "version": "6",
+      "when": 1790722800000,
+      "tag": "0072_authorization_code_maps",
+      "breakpoints": true
+    },
+    {
+      "idx": 73,
+      "version": "6",
+      "when": 1790722800001,
+      "tag": "0073_authorization_regression_drafts",
+      "breakpoints": true
     }
   ]
 }

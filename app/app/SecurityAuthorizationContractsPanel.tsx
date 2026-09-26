@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import SecurityAuthorizationCodeMapPanel from "./SecurityAuthorizationCodeMapPanel";
 
 export type AuthorizationContract = { id: string; scopeId: string; title: string; path: string; reviewMode: "vertical" | "horizontal";
   specVersion: string; specSha256: string; baselineReviewId: string; createdAt: string };
@@ -62,7 +63,8 @@ export default function SecurityAuthorizationContractsPanel({ contracts, reviews
         <button type="button" disabled={loadingProof !== null} onClick={() => void history(contract.id)}>{loadingProof === contract.id ? "Carregando…" : "Ver histórico"}</button>
         <a href={`/api/security/auth-contracts?contractId=${encodeURIComponent(contract.id)}&download=1`}>Exportar evidências</a></div>
       {proofs[contract.id] ? <ol className="security-contract-history">{proofs[contract.id].runs.length ? proofs[contract.id].runs.map((run) => <li key={run.reviewId}><time dateTime={run.createdAt}>{new Date(run.createdAt).toLocaleString("pt-BR")}</time><span>{outcomes[run.outcome] ?? outcomes.inconclusive}</span></li>) : <li>Ainda não há execuções vinculadas. A análise de referência não é contada como nova execução.</li>}</ol> : null}
+      <SecurityAuthorizationCodeMapPanel contractId={contract.id} canManage={canManage} busy={busy || saving} />
     </article>)}</div>
-    <small className="security-contract-limit">Execução sob demanda com autorização vigente e credenciais novas. Evidência limitada a uma rota e aos dados de teste; ainda não vinculada a um deploy ou commit. Não fecha achados automaticamente.</small>
+    <small className="security-contract-limit">Execução sob demanda com autorização vigente e credenciais novas. O mapa de código vincula uma implementação ao commit do scan, não à versão implantada. Não fecha achados automaticamente.</small>
   </section>;
 }
