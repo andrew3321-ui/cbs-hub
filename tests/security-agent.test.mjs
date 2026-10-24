@@ -72,7 +72,7 @@ test("daily execution is opt-in, passive and auditable", () => {
   assert.match(service, /monitoring_enabled = 1/);
   assert.match(service, /DAILY_SCAN_LIMIT/);
   assert.match(service, /JOB_ALREADY_RUNNING/);
-  assert.match(service, /normalizedTelemetry \? "blue_team" : "passive"/);
+  assert.match(service, /normalizedTelemetry \? "blue_team" : \(requestedScanMode \?\? "passive"\)/);
   assert.match(migration, /security_agent_jobs/);
   assert.match(migration, /security_agent_events/);
   assert.match(client, /Monitorar diariamente/);
