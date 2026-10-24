@@ -329,7 +329,8 @@ async function postAgent(request: Request) {
     try {
       if (action === "triage_telemetry" && body.telemetryAuthorized !== true) return Response.json({ error: "Confirme que os dados agregados pertencem ao ativo autorizado." }, { status: 400 });
       const telemetry = action === "triage_telemetry" ? parseTelemetry(body.telemetry) : undefined;
-      const job = await enqueueSecurityAgentJob(agentEnv, scope, current.user.id, "manual", telemetry);
+      const scanMode = !telemetry && body.scanMode === "enhanced_passive" ? "enhanced_passive" as const : undefined;
+      const job = await enqueueSecurityAgentJob(agentEnv, scope, current.user.id, "manual", telemetry, scanMode);
       return Response.json({ job }, { status: job.status === "queued" ? 202 : 200 });
     } catch (error) {
       if (error instanceof Error && error.message.startsWith("TELEMETRY_")) return Response.json({ error: "Dados inválidos: use contagens inteiras, uma janela de até 24 horas nos últimos 30 dias e totais consistentes.", code: error.message }, { status: 400 });

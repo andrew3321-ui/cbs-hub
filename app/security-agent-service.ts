@@ -1,4 +1,5 @@
 import { dnsTxtRecords, runPassiveSecurityScan } from "./cybersecurity-scan-service.ts";
+import { runEnhancedPassiveScan } from "./enhanced-passive-scanner.ts";
 import { normalizePublicDomain } from "../domain/cybersecurity-preview.ts";
 import { operationalPlaybooks, operationsInstructions, parseTelemetry, telemetryEvidence, SECURITY_OPERATIONS_VERSION, type SecurityEvidence, type Telemetry } from "../domain/security-operations.ts";
 import { validateSecurityAssessment } from "../domain/security-assessment-validation.ts";
@@ -46,7 +47,7 @@ type SecurityJobRow = {
   scope_id: string;
   requested_by_user_id: number | null;
   trigger_kind: "manual" | "scheduled";
-  scan_mode: "passive" | "blue_team";
+  scan_mode: "passive" | "enhanced_passive" | "blue_team";
   evidence_json: string;
   status: "queued" | "running" | "completed" | "failed";
   attempt_count: number;
@@ -401,16 +402,17 @@ async function assertJobAdmission(env: SecurityAgentEnv, scope: SecurityScopeRow
   }
 }
 
-export async function enqueueSecurityAgentJob(env: SecurityAgentEnv, scope: SecurityScopeRow, actorUserId: number | null, trigger: "manual" | "scheduled", telemetry?: Telemetry) {
+export async function enqueueSecurityAgentJob(env: SecurityAgentEnv, scope: SecurityScopeRow, actorUserId: number | null, trigger: "manual" | "scheduled", telemetry?: Telemetry, requestedScanMode?: "passive" | "enhanced_passive") {
   const normalizedTelemetry = telemetry ? parseTelemetry(telemetry) : null;
   await assertJobAdmission(env, scope, actorUserId, trigger);
   const jobId = id("saj");
   const queuedAt = new Date().toISOString();
+  const scanMode = normalizedTelemetry ? "blue_team" : (requestedScanMode ?? "passive");
   await env.DB.prepare(`INSERT INTO security_agent_jobs
      (id, workspace_id, scope_id, requested_by_user_id, trigger_kind, scan_mode, status, evidence_json, started_at, queued_at, created_at)
      VALUES (?, ?, ?, ?, ?, ?, 'queued', ?, ?, ?, ?)`)
-    .bind(jobId, scope.workspace_id, scope.id, actorUserId, trigger, normalizedTelemetry ? "blue_team" : "passive", normalizedTelemetry ? jsonText({ telemetry: normalizedTelemetry }) : "{}", queuedAt, queuedAt, queuedAt).run();
-  await audit(env, scope, "scan.queued", actorUserId, { jobId, trigger, scanMode: normalizedTelemetry ? "blue_team" : "passive", telemetryAttested: Boolean(normalizedTelemetry) });
+    .bind(jobId, scope.workspace_id, scope.id, actorUserId, trigger, scanMode, normalizedTelemetry ? jsonText({ telemetry: normalizedTelemetry }) : "{}", queuedAt, queuedAt, queuedAt).run();
+  await audit(env, scope, "scan.queued", actorUserId, { jobId, trigger, scanMode, telemetryAttested: Boolean(normalizedTelemetry) });
   const message: SecurityAgentQueueMessage = { version: 1, jobId, scopeId: scope.id, workspaceId: scope.workspace_id };
   if (!env.SECURITY_SCAN_QUEUE) return processSecurityAgentQueueMessage(env, message);
   try {
@@ -455,10 +457,12 @@ export async function processSecurityAgentQueueMessage(env: SecurityAgentEnv, me
       await env.DB.prepare("UPDATE security_agent_scopes SET status = 'pending', monitoring_enabled = 0, verified_at = NULL, updated_at = datetime('now') WHERE id = ?").bind(scope.id).run();
       throw new Error("SCOPE_VERIFICATION_LOST");
     }
-    if (!["passive", "blue_team"].includes(job.scan_mode)) throw new Error("SCAN_MODE_UNSUPPORTED");
+    if (!["passive", "enhanced_passive", "blue_team"].includes(job.scan_mode)) throw new Error("SCAN_MODE_UNSUPPORTED");
     const scan: SecurityEvidence = job.scan_mode === "blue_team"
       ? await telemetryEvidence(scope.domain, parseTelemetry((JSON.parse(job.evidence_json) as { telemetry: unknown }).telemetry))
-      : await runPassiveSecurityScan(scope.domain);
+      : job.scan_mode === "enhanced_passive"
+        ? await runEnhancedPassiveScan(scope.domain)
+        : await runPassiveSecurityScan(scope.domain);
     let analysis: Awaited<ReturnType<typeof analyzeWithOpenAI>>;
     try {
       analysis = await analyzeWithOpenAI(env, scope.workspace_id, scan);
@@ -474,7 +478,7 @@ export async function processSecurityAgentQueueMessage(env: SecurityAgentEnv, me
       env.DB.prepare(`UPDATE security_agent_jobs SET status = 'completed', evidence_json = ?, assessment_json = ?, provider = ?, model = ?, provider_response_id = ?, primary_model = ?, review_model = ?, review_reason = ?, provider_usage_json = ?, lease_expires_at = NULL, completed_at = ? WHERE id = ?`)
         .bind(jsonText(scan), jsonText(analysis.assessment), analysis.provider, analysis.model, analysis.responseId, analysis.primaryModel, analysis.reviewModel, analysis.reviewReason, jsonText(analysis.usage), completedAt, job.id),
     ];
-    if (job.scan_mode === "passive") updates.push(env.DB.prepare("UPDATE security_agent_scopes SET last_scan_at = ?, next_scan_at = ?, updated_at = ? WHERE id = ?").bind(completedAt, nextDay(new Date(completedAt)), completedAt, scope.id));
+    if (job.scan_mode === "passive" || job.scan_mode === "enhanced_passive") updates.push(env.DB.prepare("UPDATE security_agent_scopes SET last_scan_at = ?, next_scan_at = ?, updated_at = ? WHERE id = ?").bind(completedAt, nextDay(new Date(completedAt)), completedAt, scope.id));
     await env.DB.batch(updates);
     try {
       await syncSecurityFindings(env, scope, job.id, scan, completedAt);

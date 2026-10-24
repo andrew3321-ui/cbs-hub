@@ -4,7 +4,7 @@ export type CyberCheckStatus = "pass" | "warning" | "risk" | "unavailable";
 
 export type CyberCheck = {
   code: string;
-  category: "domain" | "website" | "email";
+  category: "domain" | "website" | "email" | "reconnaissance" | "exposure" | "infrastructure";
   title: string;
   status: CyberCheckStatus;
   detail: string;
